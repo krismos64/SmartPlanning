@@ -1,0 +1,50 @@
+# Node modules
+node_modules/
+*/node_modules/
+
+# Environnement
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
+
+# Build
+dist/
+build/
+out/
+.next/
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+.pnp.js
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+cursor.rules.md
+
+# Mac/Linux/Windows
+Thumbs.db
+.DS_Store
+.directory
+*.swp
+*.swo
+
+# Cache
+.eslintcache
+.cache/
+.parcel-cache/
+.vercel
+.turbo
+
+# Fichiers spécifiques au projet
+backend/uploads/*
+!backend/uploads/.gitkeep 
