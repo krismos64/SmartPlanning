@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Variables de thème par défaut (light) */
+
+    /* Couleurs de fond */
+    --background-primary: #f9fafb;
+    --background-secondary: #f3f4f6;
+    --background-tertiary: #e5e7eb;
+
+    /* Couleurs de texte */
+    --text-primary: #111827;
+    --text-secondary: #374151;
+    --text-tertiary: #6b7280;
+    --text-inverted: #f9fafb;
+
+    /* Couleurs d'accent */
+    --accent-primary: #2979f8;
+    --accent-secondary: #1c62e3;
+    --accent-tertiary: #4c91fa;
+
+    /* Couleurs d'interface */
+    --border: #d1d5db;
+    --divider: #e5e7eb;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --shadow-hover: rgba(0, 0, 0, 0.15);
+
+    /* Statuts */
+    --success: #3bb44e;
+    --warning: #ffb826;
+    --error: #ed5151;
+
+    /* Autres couleurs contextuelles */
+    --focus: #2979f8;
+  }
+
+  /* Thème sombre */
+  [data-theme="dark"] {
+    /* Couleurs de fond */
+    --background-primary: #111827;
+    --background-secondary: #1f2937;
+    --background-tertiary: #374151;
+
+    /* Couleurs de texte */
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-tertiary: #9ca3af;
+    --text-inverted: #111827;
+
+    /* Couleurs d'accent */
+    --accent-primary: #4c91fa;
+    --accent-secondary: #74a9fc;
+    --accent-tertiary: #2979f8;
+
+    /* Couleurs d'interface */
+    --border: #4b5563;
+    --divider: #374151;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --shadow-hover: rgba(0, 0, 0, 0.4);
+
+    /* Statuts */
+    --success: #5cc26e;
+    --warning: #ffc54c;
+    --error: #f07070;
+
+    /* Autres couleurs contextuelles */
+    --focus: #4c91fa;
+  }
+
+  /* Styles de base du document */
+  html,
+  body {
+    @apply bg-[var(--background-primary)] text-[var(--text-primary)];
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Styles des liens */
+  a {
+    @apply text-[var(--accent-primary)] hover:text-[var(--accent-secondary)];
+    transition: color 0.2s ease;
+  }
+
+  /* Style des titres */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold text-[var(--text-primary)];
+  }
+}
+
+/* Animations et transitions */
+@layer utilities {
+  /* Animation de fondu */
+  .fade-in {
+    animation: fade-in 0.3s ease-in-out forwards;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Animation d'agrandissement */
+  .scale-in {
+    animation: scale-in 0.3s ease-in-out forwards;
+  }
+
+  @keyframes scale-in {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Animation de glissement vers le haut */
+  .slide-up {
+    animation: slide-up 0.3s ease-in-out forwards;
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Animation de glissement vers le bas */
+  .slide-down {
+    animation: slide-down 0.3s ease-in-out forwards;
+  }
+
+  @keyframes slide-down {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Animation de glissement vers la gauche */
+  .slide-left {
+    animation: slide-left 0.3s ease-in-out forwards;
+  }
+
+  @keyframes slide-left {
+    from {
+      transform: translateX(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Animation de glissement vers la droite */
+  .slide-right {
+    animation: slide-right 0.3s ease-in-out forwards;
+  }
+
+  @keyframes slide-right {
+    from {
+      transform: translateX(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+}
+
+/* Classes d'utilitaires personnalisées */
+@layer components {
+  /* Carte de base */
+  .card {
+    @apply bg-[var(--background-secondary)] rounded-2xl p-6 shadow-md;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* Carte avec effet de survol */
+  .card-hover {
+    @apply card hover:shadow-lg hover:scale-[1.02];
+  }
+
+  /* Bouton de base */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 ease-in-out;
+  }
+
+  /* Variantes de boutons */
+  .btn-primary {
+    @apply btn bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-secondary)];
+  }
+
+  .btn-secondary {
+    @apply btn bg-[var(--background-tertiary)] text-[var(--text-primary)] hover:bg-[var(--background-tertiary)]/80;
+  }
+
+  .btn-outline {
+    @apply btn border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--background-tertiary)];
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-[var(--accent-primary)]/10 text-[var(--accent-primary)];
+  }
+
+  .badge-success {
+    @apply badge bg-[var(--success)]/10 text-[var(--success)];
+  }
+
+  .badge-warning {
+    @apply badge bg-[var(--warning)]/10 text-[var(--warning)];
+  }
+
+  .badge-error {
+    @apply badge bg-[var(--error)]/10 text-[var(--error)];
+  }
+
+  /* Input de base */
+  .input {
+    @apply w-full px-3 py-2 bg-[var(--background-primary)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus)] focus:border-transparent transition-all duration-200;
+  }
+}
