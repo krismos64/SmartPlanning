@@ -7,6 +7,86 @@ import { User } from "../models/User.model";
 const router = express.Router();
 
 /**
+ * @route POST /api/auth/register
+ * @desc Inscription d'un nouvel utilisateur
+ * @access Public
+ */
+router.post("/register", async (req: Request, res: Response) => {
+  try {
+    // Extraction des données du corps de la requête
+    const { firstName, lastName, email, password } = req.body;
+
+    // Validation des champs requis
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Tous les champs sont requis",
+      });
+    }
+
+    // Validation du format email avec RegEx
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Format d'email invalide",
+      });
+    }
+
+    // Validation de la longueur du mot de passe
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Le mot de passe doit contenir au moins 6 caractères",
+      });
+    }
+
+    // Vérification si l'email existe déjà
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "Cet email est déjà utilisé",
+      });
+    }
+
+    // Création d'un nouvel utilisateur avec les informations requises
+    const userData = {
+      firstName,
+      lastName,
+      email,
+      password, // Sera haché automatiquement par le middleware pre-save
+      role: "user" as const, // Rôle par défaut avec typage explicite
+      isEmailVerified: true, // Pas de vérification d'email pour l'instant
+    };
+
+    const newUser = await User.create(userData);
+
+    // Préparation de la réponse sans le mot de passe
+    const userResponse = {
+      id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      role: newUser.role,
+    };
+
+    // Réponse avec statut 201 (Created)
+    res.status(201).json({
+      success: true,
+      message: "Inscription réussie !",
+      user: userResponse,
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'inscription:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur serveur lors de l'inscription",
+    });
+  }
+});
+
+/**
  * @route POST /api/auth/login
  * @desc Authentification classique par email/mot de passe
  * @access Public
