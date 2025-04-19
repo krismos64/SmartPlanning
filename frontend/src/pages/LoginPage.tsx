@@ -5,6 +5,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 // Contexte d'authentification (à importer depuis votre AuthContext)
 import { AuthContext } from "../context/AuthContext";
+// Utilisation du composant LoadingSpinner global
+import LoadingSpinner from "../components/ui/LoadingSpinner";
 
 // Types pour les données du formulaire
 interface LoginFormData {
@@ -17,10 +19,6 @@ interface ToastProps {
   message: string;
   type: "success" | "error";
   onClose: () => void;
-}
-
-interface LoadingSpinnerProps {
-  size?: "sm" | "md" | "lg";
 }
 
 // Composant Toast pour les notifications
@@ -69,30 +67,6 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
         </svg>
       </button>
     </motion.div>
-  );
-};
-
-// Composant LoadingSpinner pour les états de chargement
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = "md" }) => {
-  const sizeMap = {
-    sm: "w-6 h-6 border-2",
-    md: "w-10 h-10 border-3",
-    lg: "w-16 h-16 border-4",
-  };
-
-  return (
-    <div className="flex justify-center items-center w-full py-2">
-      <motion.div
-        className={`${sizeMap[size]} rounded-full border-blue-500 border-t-transparent`}
-        animate={{ rotate: 360 }}
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-        aria-label="Chargement en cours"
-      />
-    </div>
   );
 };
 
