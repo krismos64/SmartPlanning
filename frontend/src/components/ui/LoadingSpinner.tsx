@@ -2,52 +2,50 @@ import { motion } from "framer-motion";
 import React from "react";
 
 /**
- * Props du composant LoadingSpinner
+ * Interface pour les propriétés du composant LoadingSpinner
  */
 interface LoadingSpinnerProps {
-  /**
-   * Taille du spinner
-   * - sm: petit (24px)
-   * - md: moyen (40px) - par défaut
-   * - lg: grand (64px)
-   */
-  size?: "sm" | "md" | "lg";
+  /** Taille du spinner (xs, sm, md, lg) */
+  size?: "xs" | "sm" | "md" | "lg";
+  /** Couleur du spinner (classes TailwindCSS) */
+  color?: string;
+  /** Classes CSS additionnelles */
+  className?: string;
 }
 
 /**
  * Composant LoadingSpinner
  *
- * Affiche un indicateur de chargement animé avec une rotation continue
- * Utilisable dans n'importe quelle partie de l'application nécessitant
- * un état de chargement visuel.
+ * Affiche un indicateur de chargement animé.
+ * Utilisé dans les composants et pages où des données sont en cours de chargement.
  */
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = "md" }) => {
-  // Mapping des tailles vers les classes Tailwind correspondantes
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+  size = "md",
+  color = "border-blue-600",
+  className = "",
+}) => {
+  // Mapping des tailles aux classes CSS
   const sizeClasses = {
-    sm: "w-6 h-6 border-2",
-    md: "w-10 h-10 border-4",
-    lg: "w-16 h-16 border-4",
+    xs: "w-4 h-4 border-1",
+    sm: "w-5 h-5 border-2",
+    md: "w-8 h-8 border-2",
+    lg: "w-12 h-12 border-3",
   };
 
-  // Classes CSS pour le spinner
-  const spinnerClasses = `
-    ${sizeClasses[size]}
-    rounded-full
-    border-blue-500
-    border-t-transparent
-  `;
+  // Animation de rotation avec Framer Motion
+  const spinTransition = {
+    repeat: Infinity,
+    ease: "linear",
+    duration: 1,
+  };
 
   return (
-    <div className="flex justify-center items-center">
+    <div className={`flex justify-center items-center ${className}`}>
       <motion.div
-        className={spinnerClasses}
+        className={`${sizeClasses[size]} rounded-full border-t-transparent ${color} border-solid`}
         animate={{ rotate: 360 }}
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-        aria-label="Chargement en cours"
+        transition={spinTransition}
+        style={{ borderTopColor: "transparent" }}
       />
     </div>
   );
