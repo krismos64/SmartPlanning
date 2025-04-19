@@ -2,17 +2,8 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// Utilisation du composant LoadingSpinner global
 import LoadingSpinner from "../components/ui/LoadingSpinner";
-
-// Types pour les données du formulaire
-interface RegisterFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
+import Toast from "../components/ui/Toast";
 
 // Types pour les composants d'UI réutilisables
 interface ToastProps {
@@ -21,54 +12,16 @@ interface ToastProps {
   onClose: () => void;
 }
 
-// Composant Toast pour les notifications
-const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
-  // Fermeture automatique après 3 secondes
-  React.useEffect(() => {
-    const timeout = setTimeout(() => {
-      onClose();
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [onClose]);
-
-  const baseClasses =
-    "fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center justify-between max-w-md";
-  const typeClasses =
-    type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white";
-
-  return (
-    <motion.div
-      className={`${baseClasses} ${typeClasses}`}
-      initial={{ opacity: 0, y: -50, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -50, scale: 0.9 }}
-      transition={{ duration: 0.3 }}
-    >
-      <span>{message}</span>
-      <button
-        onClick={onClose}
-        className="ml-4 text-white hover:text-gray-100 focus:outline-none"
-        aria-label="Fermer"
-      >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M6 18L18 6M6 6l12 12"
-          ></path>
-        </svg>
-      </button>
-    </motion.div>
-  );
-};
+// Interface pour le formulaire d'inscription
+interface RegisterFormData {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  role: "manager" | "employee";
+}
 
 /**
  * Composant Page d'inscription
@@ -83,6 +36,8 @@ const RegisterPage: React.FC = () => {
     email: "",
     password: "",
     confirmPassword: "",
+    companyName: "",
+    role: "manager",
   });
 
   // États pour l'UI
