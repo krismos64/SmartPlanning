@@ -1,6 +1,7 @@
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useCallback, useEffect, useState } from "react";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
 
 // Types pour les demandes de congés
 interface VacationRequest {
@@ -30,19 +31,14 @@ interface VacationFormData {
   reason: string;
 }
 
-// Composant Toast pour les notifications
+// Types pour les composants d'UI réutilisables
 interface ToastProps {
   message: string;
   type: "success" | "error";
   onClose: () => void;
 }
 
-// Composant LoadingSpinner pour les états de chargement
-interface LoadingSpinnerProps {
-  size?: "sm" | "md" | "lg";
-}
-
-// Implémentation du composant Toast
+// Composant Toast pour les notifications
 const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   // Fermeture automatique après 3 secondes
   useEffect(() => {
@@ -88,30 +84,6 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
         </svg>
       </button>
     </motion.div>
-  );
-};
-
-// Implémentation du composant LoadingSpinner
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = "md" }) => {
-  const sizeMap = {
-    sm: "w-6 h-6 border-2",
-    md: "w-10 h-10 border-3",
-    lg: "w-16 h-16 border-4",
-  };
-
-  return (
-    <div className="flex justify-center items-center w-full h-full">
-      <motion.div
-        className={`${sizeMap[size]} rounded-full border-blue-500 border-t-transparent`}
-        animate={{ rotate: 360 }}
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-        aria-label="Chargement en cours"
-      />
-    </div>
   );
 };
 
