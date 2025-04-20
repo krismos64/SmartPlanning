@@ -1,7 +1,29 @@
+/**
+ * IncidentTrackingPage - Page de suivi des incidents
+ *
+ * Permet aux managers de visualiser et gérer les incidents signalés pour leur équipe.
+ * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
+ */
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, AlertTriangle, Eye, Plus } from "lucide-react";
 import React, { FormEvent, useCallback, useEffect, useState } from "react";
+
+// Composants de layout
+import PageWrapper from "../components/layout/PageWrapper";
+import SectionCard from "../components/layout/SectionCard";
+import SectionTitle from "../components/layout/SectionTitle";
+
+// Composants UI
+import Avatar from "../components/ui/Avatar";
+import Badge from "../components/ui/Badge";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import DatePicker from "../components/ui/DatePicker";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
+import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
 // Types pour les incidents
@@ -39,13 +61,6 @@ interface IncidentFormData {
   date: string;
 }
 
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}
-
 // Fonction utilitaire pour formater les dates
 const formatDate = (dateString?: string): string => {
   if (!dateString) return "";
@@ -56,20 +71,6 @@ const formatDate = (dateString?: string): string => {
     month: "short",
     day: "numeric",
   }).format(date);
-};
-
-// Couleurs par statut pour les badges
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case "pending":
-      return "bg-yellow-100 text-yellow-800";
-    case "resolved":
-      return "bg-green-100 text-green-800";
-    case "dismissed":
-      return "bg-gray-100 text-gray-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
 };
 
 // Traduction des statuts en français
@@ -83,6 +84,20 @@ const translateStatus = (status: string): string => {
       return "Rejeté";
     default:
       return status;
+  }
+};
+
+// Obtenir la variante de badge pour un statut
+const getStatusVariant = (status: string): string => {
+  switch (status) {
+    case "pending":
+      return "warning";
+    case "resolved":
+      return "success";
+    case "dismissed":
+      return "neutral";
+    default:
+      return "neutral";
   }
 };
 
@@ -104,21 +119,21 @@ const translateIncidentType = (type: string): string => {
   }
 };
 
-// Couleurs par type d'incident pour les badges
-const getIncidentTypeColor = (type: string): string => {
+// Obtenir la variante de badge pour un type d'incident
+const getIncidentTypeVariant = (type: string): string => {
   switch (type) {
     case "retard":
-      return "bg-orange-100 text-orange-800";
+      return "warning";
     case "absence":
-      return "bg-red-100 text-red-800";
+      return "danger";
     case "oubli badge":
-      return "bg-blue-100 text-blue-800";
+      return "info";
     case "litige":
-      return "bg-purple-100 text-purple-800";
+      return "secondary";
     case "autre":
-      return "bg-gray-100 text-gray-800";
+      return "neutral";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "neutral";
   }
 };
 
@@ -134,7 +149,19 @@ const IncidentTrackingPage: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState<boolean>(true);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [showForm, setShowForm] = useState<boolean>(false);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
+    null
+  );
+  const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
+
+  // Items du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Incidents" },
+  ];
 
   // État pour le formulaire d'ajout d'incident
   const [formData, setFormData] = useState<IncidentFormData>({
@@ -163,6 +190,7 @@ const IncidentTrackingPage: React.FC = () => {
     } catch (error) {
       console.error("Erreur lors de la récupération des incidents:", error);
       setError("Impossible de récupérer les incidents. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
@@ -197,12 +225,7 @@ const IncidentTrackingPage: React.FC = () => {
   }, [fetchIncidents, fetchEmployees]);
 
   // Gestionnaire pour mettre à jour le formulaire
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
+  const handleInputChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -216,6 +239,7 @@ const IncidentTrackingPage: React.FC = () => {
     // Validation du formulaire
     if (!formData.employeeId || !formData.type || !formData.date) {
       setError("Veuillez remplir tous les champs obligatoires");
+      setShowErrorToast(true);
       return;
     }
 
@@ -231,6 +255,7 @@ const IncidentTrackingPage: React.FC = () => {
       });
 
       setSuccess("Incident signalé avec succès");
+      setShowSuccessToast(true);
 
       // Réinitialiser le formulaire tout en conservant la date du jour
       setFormData({
@@ -240,20 +265,31 @@ const IncidentTrackingPage: React.FC = () => {
         date: new Date().toISOString().split("T")[0],
       });
 
-      // Rafraîchir la liste des incidents
+      // Masquer le formulaire et rafraîchir la liste des incidents
+      setShowForm(false);
       fetchIncidents();
     } catch (error) {
       console.error("Erreur lors de l'ajout de l'incident:", error);
       setError("Impossible d'ajouter l'incident. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Fonction pour gérer la vue des détails d'un incident
+  const viewIncidentDetails = (incident: Incident) => {
+    setSelectedIncident(incident);
+    setShowDetailsModal(true);
+  };
+
   // Fonction pour fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
+  };
+
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
   };
 
   // Données employés fictives si l'API n'est pas disponible
@@ -267,279 +303,343 @@ const IncidentTrackingPage: React.FC = () => {
           { _id: "4", firstName: "Sophie", lastName: "Lefèvre" },
         ];
 
+  // Options pour le type d'incident
+  const incidentTypeOptions = [
+    { label: "Retard", value: "retard" },
+    { label: "Absence", value: "absence" },
+    { label: "Oubli de badge", value: "oubli badge" },
+    { label: "Litige", value: "litige" },
+    { label: "Autre", value: "autre" },
+  ];
+
+  // Options pour la liste des employés
+  const employeeOptions = fallbackEmployees.map((employee) => ({
+    label: `${employee.firstName} ${employee.lastName}`,
+    value: employee._id,
+  }));
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <PageWrapper>
       {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
 
-      {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Suivi des incidents
-        </h1>
-        <p className="text-gray-600">Gérez les incidents RH de votre équipe</p>
+      {/* Modal de détails d'incident */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title="Détails de l'incident"
+      >
+        {selectedIncident && (
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                  Employé concerné
+                </h3>
+                <div className="mt-2 flex items-center">
+                  <Avatar
+                    name={`${selectedIncident.employeeId.firstName} ${selectedIncident.employeeId.lastName}`}
+                    size="sm"
+                    className="mr-2"
+                  />
+                  <p className="text-[var(--text-primary)]">
+                    {selectedIncident.employeeId.firstName}{" "}
+                    {selectedIncident.employeeId.lastName}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                  Type d'incident
+                </h3>
+                <div className="mt-2">
+                  <Badge
+                    variant={getIncidentTypeVariant(selectedIncident.type)}
+                    label={translateIncidentType(selectedIncident.type)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                  Date de l'incident
+                </h3>
+                <p className="mt-2 text-[var(--text-primary)]">
+                  {formatDate(selectedIncident.date)}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                  Statut
+                </h3>
+                <div className="mt-2">
+                  <Badge
+                    variant={getStatusVariant(selectedIncident.status)}
+                    label={translateStatus(selectedIncident.status)}
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                  Description
+                </h3>
+                <p className="mt-2 text-[var(--text-primary)] whitespace-pre-wrap">
+                  {selectedIncident.description || "Aucune description"}
+                </p>
+              </div>
+
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                  Signalé par
+                </h3>
+                <div className="mt-2 flex items-center">
+                  <Avatar
+                    name={`${selectedIncident.reportedBy.firstName} ${selectedIncident.reportedBy.lastName}`}
+                    size="sm"
+                    className="mr-2"
+                  />
+                  <p className="text-[var(--text-primary)]">
+                    {selectedIncident.reportedBy.firstName}{" "}
+                    {selectedIncident.reportedBy.lastName}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* En-tête avec fil d'ariane */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <Breadcrumb items={breadcrumbItems} />
       </div>
 
-      {/* Toggle pour afficher/masquer le formulaire */}
-      <div className="mb-6">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          {showForm ? "Masquer le formulaire" : "Signaler un incident"}
-        </motion.button>
-      </div>
+      {/* Titre de la page */}
+      <SectionTitle
+        title="Suivi des incidents"
+        subtitle="Consultez et traitez les incidents déclarés"
+        icon={<AlertTriangle size={24} />}
+        className="mb-8"
+      />
 
-      {/* Formulaire d'ajout d'incident */}
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
+      {/* Bouton d'ajout d'incident et formulaire */}
+      <SectionCard
+        title="Nouveau signalement"
+        className="mb-8"
+        actions={
+          <Button
+            variant={showForm ? "ghost" : "primary"}
+            onClick={() => setShowForm(!showForm)}
+            icon={showForm ? undefined : <Plus size={16} />}
           >
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                Signaler un nouvel incident
-              </h2>
-
-              <form onSubmit={addIncident}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  {/* Employé concerné */}
-                  <div>
-                    <label
-                      htmlFor="employeeId"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Employé concerné*
-                    </label>
-                    <select
-                      id="employeeId"
-                      name="employeeId"
+            {showForm ? "Annuler" : "Signaler un incident"}
+          </Button>
+        }
+      >
+        <AnimatePresence>
+          {showForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="p-6 border-t border-[var(--border)]">
+                <form onSubmit={addIncident} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Employé concerné */}
+                    <Select
+                      label="Employé concerné"
+                      options={employeeOptions}
                       value={formData.employeeId}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(value) =>
+                        handleInputChange("employeeId", value)
+                      }
+                      placeholder="Sélectionner un employé"
                       required
-                    >
-                      {fallbackEmployees.map((employee) => (
-                        <option key={employee._id} value={employee._id}>
-                          {employee.firstName} {employee.lastName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    />
 
-                  {/* Type d'incident */}
-                  <div>
-                    <label
-                      htmlFor="type"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Type d'incident*
-                    </label>
-                    <select
-                      id="type"
-                      name="type"
+                    {/* Type d'incident */}
+                    <Select
+                      label="Type d'incident"
+                      options={incidentTypeOptions}
                       value={formData.type}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(value) => handleInputChange("type", value)}
+                      placeholder="Sélectionner un type"
                       required
-                    >
-                      <option value="retard">Retard</option>
-                      <option value="absence">Absence</option>
-                      <option value="oubli badge">Oubli de badge</option>
-                      <option value="litige">Litige</option>
-                      <option value="autre">Autre</option>
-                    </select>
-                  </div>
+                    />
 
-                  {/* Date de l'incident */}
-                  <div>
-                    <label
-                      htmlFor="date"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Date de l'incident*
-                    </label>
-                    <input
-                      type="date"
-                      id="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    {/* Date de l'incident */}
+                    <DatePicker
+                      label="Date de l'incident"
+                      selectedDate={
+                        formData.date ? new Date(formData.date) : null
+                      }
+                      onChange={(date) => {
+                        if (date) {
+                          handleInputChange(
+                            "date",
+                            date.toISOString().split("T")[0]
+                          );
+                        }
+                      }}
                       required
                     />
                   </div>
 
                   {/* Description (optionnelle) */}
-                  <div className="md:col-span-2">
-                    <label
-                      htmlFor="description"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-[var(--text-primary)]">
                       Description (optionnelle)
                     </label>
                     <textarea
-                      id="description"
-                      name="description"
-                      rows={3}
                       value={formData.description}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) =>
+                        handleInputChange("description", e.target.value)
+                      }
                       placeholder="Détails supplémentaires concernant l'incident..."
+                      rows={3}
+                      className="w-full px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
                     />
                   </div>
-                </div>
 
-                <div className="flex justify-end">
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      <LoadingSpinner size="sm" />
-                    ) : (
-                      "Enregistrer l'incident"
-                    )}
-                  </motion.button>
-                </div>
-              </form>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      isLoading={submitting}
+                      icon={<AlertCircle size={16} />}
+                    >
+                      Enregistrer l'incident
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </SectionCard>
 
       {/* Liste des incidents */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-700">
-            Incidents signalés ({incidents.length})
-          </h2>
-        </div>
-
+      <SectionCard
+        title={`Incidents signalés (${incidents.length})`}
+        className="mb-8"
+      >
         {loading ? (
-          <LoadingSpinner size="lg" />
+          <div className="flex justify-center items-center py-16">
+            <LoadingSpinner size="lg" />
+          </div>
         ) : incidents.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          <div className="p-4 overflow-x-auto">
+            <Table
+              columns={[
+                { key: "employee", label: "Employé", className: "w-40" },
+                { key: "type", label: "Type", className: "w-28" },
+                { key: "date", label: "Date", className: "w-32" },
+                { key: "status", label: "Statut", className: "w-28" },
+                { key: "description", label: "Description" },
+                { key: "actions", label: "Actions", className: "w-24" },
+              ]}
+              data={incidents.map((incident) => ({
+                employee: (
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      name={`${incident.employeeId.firstName} ${incident.employeeId.lastName}`}
+                      size="sm"
+                    />
+                    <span className="font-medium">
+                      {incident.employeeId.firstName}{" "}
+                      {incident.employeeId.lastName}
+                    </span>
+                  </div>
+                ),
+                type: (
+                  <Badge
+                    variant={getIncidentTypeVariant(incident.type)}
+                    label={translateIncidentType(incident.type)}
+                  />
+                ),
+                date: (
+                  <div className="text-[var(--text-secondary)]">
+                    {formatDate(incident.date)}
+                  </div>
+                ),
+                status: (
+                  <Badge
+                    variant={getStatusVariant(incident.status)}
+                    label={translateStatus(incident.status)}
+                  />
+                ),
+                description: (
+                  <div>
+                    <div className="text-sm max-w-xs truncate">
+                      {incident.description || "—"}
+                    </div>
+                    <div className="text-xs text-[var(--text-tertiary)] mt-1">
+                      Par: {incident.reportedBy.firstName}{" "}
+                      {incident.reportedBy.lastName}
+                    </div>
+                  </div>
+                ),
+                actions: (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => viewIncidentDetails(incident)}
+                    icon={<Eye size={16} />}
                   >
-                    Employé
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Type
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Date
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Statut
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Description
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {incidents.map((incident) => (
-                  <motion.tr
-                    key={incident._id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2 }}
-                    whileHover={{ backgroundColor: "#f9fafb" }}
-                  >
-                    {/* Employé */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {incident.employeeId.firstName}{" "}
-                        {incident.employeeId.lastName}
-                      </div>
-                    </td>
-
-                    {/* Type d'incident */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getIncidentTypeColor(
-                          incident.type
-                        )}`}
-                      >
-                        {translateIncidentType(incident.type)}
-                      </span>
-                    </td>
-
-                    {/* Date */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(incident.date)}
-                    </td>
-
-                    {/* Statut */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                          incident.status
-                        )}`}
-                      >
-                        {translateStatus(incident.status)}
-                      </span>
-                    </td>
-
-                    {/* Description */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs md:max-w-sm truncate">
-                        {incident.description || "—"}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Signalé par: {incident.reportedBy.firstName}{" "}
-                        {incident.reportedBy.lastName}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
+                    Détails
+                  </Button>
+                ),
+              }))}
+              emptyState={{
+                title: "Aucun incident",
+                description: "Aucun incident n'a été signalé",
+                icon: <AlertTriangle size={40} />,
+              }}
+            />
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p className="mb-2">Aucun incident signalé</p>
-            <p className="text-sm">
-              Utilisez le formulaire ci-dessus pour signaler un incident
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <AlertTriangle
+              size={48}
+              className="text-[var(--text-tertiary)] mb-4"
+            />
+            <p className="text-lg text-[var(--text-primary)] mb-2">
+              Aucun incident signalé
+            </p>
+            <p className="text-sm text-[var(--text-tertiary)]">
+              Utilisez le bouton "Signaler un incident" pour ajouter un nouveau
+              signalement
             </p>
           </div>
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </PageWrapper>
   );
 };
 
