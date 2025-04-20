@@ -1,8 +1,29 @@
+/**
+ * PlanningValidationPage - Page de validation des plannings
+ *
+ * Permet aux managers de visualiser et valider les plannings générés pour leur équipe.
+ * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
+ */
 import axios from "axios";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
+import { Calendar, CalendarCheck, Check, ClipboardList, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+
+// Composants de layout
+import PageWrapper from "../components/layout/PageWrapper";
+import SectionCard from "../components/layout/SectionCard";
+import SectionTitle from "../components/layout/SectionTitle";
+
+// Composants UI
+import Avatar from "../components/ui/Avatar";
+import Badge from "../components/ui/Badge";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import DatePicker from "../components/ui/DatePicker";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
-import Toast from "../components/ui/Toast"; // Import du composant Toast global
+import Modal from "../components/ui/Modal";
+import Table from "../components/ui/Table";
+import Toast from "../components/ui/Toast";
 
 // Types pour les plannings générés
 interface ScheduleData {
@@ -17,24 +38,10 @@ interface GeneratedSchedule {
   weekNumber: number;
   year: number;
   scheduleData: ScheduleData;
-  status: "draft" | "approved";
+  status: "draft" | "approved" | "pending" | "rejected";
+  notes?: string; // Notes sur le planning
   generatedBy: string; // ID de l'IA ou du système qui a généré
   timestamp: string; // Date de génération
-}
-
-// Types pour les employés (utilisé pour l'affichage)
-interface Employee {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  photoUrl?: string;
-}
-
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
 }
 
 // Jours de la semaine pour l'affichage
@@ -50,8 +57,6 @@ const DAYS_OF_WEEK = [
 
 /**
  * Utilitaire pour obtenir le numéro de semaine ISO pour une date donnée
- * @param date Date pour laquelle obtenir le numéro de semaine
- * @returns {number} Numéro de semaine ISO
  */
 const getISOWeek = (date: Date): number => {
   const d = new Date(date);
@@ -71,7 +76,6 @@ const getISOWeek = (date: Date): number => {
 
 /**
  * Obtient le numéro de semaine ISO actuel
- * @returns {number} Numéro de semaine ISO actuel
  */
 const getCurrentISOWeek = (): number => {
   return getISOWeek(new Date());
@@ -79,7 +83,6 @@ const getCurrentISOWeek = (): number => {
 
 /**
  * Obtient l'année actuelle
- * @returns {number} Année actuelle
  */
 const getCurrentYear = (): number => {
   return new Date().getFullYear();
@@ -87,8 +90,6 @@ const getCurrentYear = (): number => {
 
 /**
  * Formatage du nom du mois en français
- * @param month Numéro du mois (0-11)
- * @returns {string} Nom du mois en français
  */
 const getMonthName = (month: number): string => {
   const monthNames = [
@@ -110,9 +111,6 @@ const getMonthName = (month: number): string => {
 
 /**
  * Obtient la plage de dates pour une semaine donnée
- * @param year Année
- * @param weekNumber Numéro de semaine ISO
- * @returns {string} Plage de dates formatée (ex: "du 15 au 21 avril")
  */
 const getWeekDateRange = (year: number, weekNumber: number): string => {
   // Fonction pour trouver la date du premier jour de la semaine ISO
@@ -150,29 +148,33 @@ const getWeekDateRange = (year: number, weekNumber: number): string => {
 
 /**
  * Utilitaire pour obtenir la couleur du badge de statut
- * @param status Statut du planning
- * @returns {string} Classes CSS pour la couleur du badge
  */
-const getStatusColor = (status: string): string => {
+const getStatusVariant = (status: string): string => {
   switch (status) {
     case "approved":
-      return "bg-green-100 text-green-800";
+      return "success";
+    case "pending":
+      return "warning";
+    case "rejected":
+      return "danger";
     case "draft":
-      return "bg-yellow-100 text-yellow-800";
+      return "neutral";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "neutral";
   }
 };
 
 /**
  * Formatte le statut pour l'affichage
- * @param status Statut du planning
- * @returns {string} Statut formatté en français
  */
 const formatStatus = (status: string): string => {
   switch (status) {
     case "approved":
       return "Validé";
+    case "pending":
+      return "En attente";
+    case "rejected":
+      return "Refusé";
     case "draft":
       return "Brouillon";
     default:
@@ -193,18 +195,28 @@ const PlanningValidationPage: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
 
-  // Générer la liste des semaines pour la sélection
-  const weekOptions = Array.from({ length: 52 }, (_, i) => i + 1);
+  // État pour la modal de confirmation
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    scheduleId: string;
+    employeeName: string;
+    action: "approve" | "reject";
+  }>({
+    isOpen: false,
+    scheduleId: "",
+    employeeName: "",
+    action: "approve",
+  });
 
-  // Générer quelques années pour la sélection (année actuelle et +/- 2 ans)
-  const currentYear = getCurrentYear();
-  const yearOptions = [
-    currentYear - 2,
-    currentYear - 1,
-    currentYear,
-    currentYear + 1,
-    currentYear + 2,
+  // Items du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Plannings", href: "/plannings" },
+    { label: "À valider" },
   ];
 
   // Fonction pour récupérer les plannings générés pour la semaine/année sélectionnée
@@ -216,12 +228,13 @@ const PlanningValidationPage: React.FC = () => {
       const response = await axios.get<{
         success: boolean;
         data: GeneratedSchedule[];
-      }>(`/api/schedules/generated/team?weekNumber=${weekNumber}&year=${year}`);
+      }>(`/api/schedules/pending?weekNumber=${weekNumber}&year=${year}`);
 
       setSchedules(response.data.data);
     } catch (error) {
       console.error("Erreur lors de la récupération des plannings:", error);
       setError("Impossible de récupérer les plannings. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
@@ -232,70 +245,99 @@ const PlanningValidationPage: React.FC = () => {
     fetchGeneratedSchedules();
   }, [fetchGeneratedSchedules]);
 
-  // Gestionnaire pour le changement de semaine
-  const handleWeekChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setWeekNumber(parseInt(e.target.value, 10));
-  };
-
-  // Gestionnaire pour le changement d'année
-  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setYear(parseInt(e.target.value, 10));
-  };
+  // Mise à jour de la semaine et de l'année lorsque la date sélectionnée change
+  useEffect(() => {
+    if (selectedDate) {
+      setWeekNumber(getISOWeek(selectedDate));
+      setYear(selectedDate.getFullYear());
+    }
+  }, [selectedDate]);
 
   // Fonction pour valider un planning
-  const handleValidation = async (scheduleId: string) => {
+  const handleApprove = async (scheduleId: string) => {
     setSubmitting(true);
     setError(null);
 
     try {
-      await axios.patch(`/api/schedules/generated/${scheduleId}`, {
+      await axios.patch(`/api/schedules/${scheduleId}/validate`, {
         status: "approved",
       });
 
       setSuccess("Planning validé avec succès");
+      setShowSuccessToast(true);
 
-      // Mettre à jour l'état local
-      setSchedules((prevSchedules) =>
-        prevSchedules.map((schedule) =>
-          schedule._id === scheduleId
-            ? { ...schedule, status: "approved" }
-            : schedule
-        )
-      );
+      // Mettre à jour l'état local ou rafraîchir la liste
+      fetchGeneratedSchedules();
     } catch (error) {
       console.error("Erreur lors de la validation du planning:", error);
       setError("Impossible de valider le planning. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setSubmitting(false);
+      setConfirmModal({ ...confirmModal, isOpen: false });
     }
+  };
+
+  // Fonction pour refuser un planning
+  const handleReject = async (scheduleId: string) => {
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await axios.patch(`/api/schedules/${scheduleId}/reject`, {
+        status: "rejected",
+      });
+
+      setSuccess("Planning refusé avec succès");
+      setShowSuccessToast(true);
+
+      // Mettre à jour l'état local ou rafraîchir la liste
+      fetchGeneratedSchedules();
+    } catch (error) {
+      console.error("Erreur lors du refus du planning:", error);
+      setError("Impossible de refuser le planning. Veuillez réessayer.");
+      setShowErrorToast(true);
+    } finally {
+      setSubmitting(false);
+      setConfirmModal({ ...confirmModal, isOpen: false });
+    }
+  };
+
+  // Fonction pour ouvrir la modal de confirmation d'approbation
+  const openApproveConfirmModal = (
+    scheduleId: string,
+    employeeName: string
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      scheduleId,
+      employeeName,
+      action: "approve",
+    });
+  };
+
+  // Fonction pour ouvrir la modal de confirmation de refus
+  const openRejectConfirmModal = (scheduleId: string, employeeName: string) => {
+    setConfirmModal({
+      isOpen: true,
+      scheduleId,
+      employeeName,
+      action: "reject",
+    });
+  };
+
+  // Fonction pour fermer la modal de confirmation
+  const closeConfirmModal = () => {
+    setConfirmModal({ ...confirmModal, isOpen: false });
   };
 
   // Fonction pour fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
   };
 
-  // Fonction pour aller à la semaine précédente
-  const goToPreviousWeek = () => {
-    if (weekNumber > 1) {
-      setWeekNumber(weekNumber - 1);
-    } else {
-      // Si on est à la semaine 1, passer à la semaine 52 de l'année précédente
-      setWeekNumber(52);
-      setYear(year - 1);
-    }
-  };
-
-  // Fonction pour aller à la semaine suivante
-  const goToNextWeek = () => {
-    if (weekNumber < 52) {
-      setWeekNumber(weekNumber + 1);
-    } else {
-      // Si on est à la semaine 52, passer à la semaine 1 de l'année suivante
-      setWeekNumber(1);
-      setYear(year + 1);
-    }
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
   };
 
   // Données de secours si l'API n'est pas disponible (pour développement)
@@ -319,7 +361,8 @@ const PlanningValidationPage: React.FC = () => {
               samedi: [],
               dimanche: [],
             },
-            status: "draft",
+            status: "pending",
+            notes: "Besoin de cette semaine pour mission terrain",
             generatedBy: "IA-123",
             timestamp: "2025-04-10T10:30:00Z",
           },
@@ -339,270 +382,336 @@ const PlanningValidationPage: React.FC = () => {
               samedi: [],
               dimanche: [],
             },
-            status: "approved",
+            status: "pending",
+            notes: "Besoin d'un jour de repos supplémentaire si possible",
             generatedBy: "IA-123",
             timestamp: "2025-04-10T10:35:00Z",
           },
         ];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <PageWrapper>
       {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
 
-      {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Validation des plannings
-        </h1>
-        <p className="text-gray-600">
-          Visualisez et validez les plannings générés par l'IA pour votre équipe
-        </p>
-      </div>
-
-      {/* Sélecteur de semaine/année */}
-      <div className="mb-8 bg-white rounded-lg shadow-md p-6">
-        <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-          <div>
-            <h2 className="text-lg font-medium text-gray-800 mb-2">
-              Semaine {weekNumber} - {getMonthName(new Date().getMonth())}{" "}
-              {year} ({getWeekDateRange(year, weekNumber)})
-            </h2>
-          </div>
-
-          <div className="flex-grow"></div>
-
-          <div className="flex items-center space-x-2">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={goToPreviousWeek}
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none"
-              disabled={loading || submitting}
+      {/* Modal de confirmation */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        title={
+          confirmModal.action === "approve"
+            ? "Confirmer la validation"
+            : "Confirmer le refus"
+        }
+      >
+        <div className="p-6">
+          <p className="mb-4 text-[var(--text-primary)]">
+            {confirmModal.action === "approve"
+              ? `Êtes-vous sûr de vouloir valider le planning de ${confirmModal.employeeName} ?`
+              : `Êtes-vous sûr de vouloir refuser le planning de ${confirmModal.employeeName} ?`}
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={closeConfirmModal}
+              disabled={submitting}
             >
-              <svg
-                className="w-5 h-5 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M15 19l-7-7 7-7"
-                ></path>
-              </svg>
-            </motion.button>
-
-            <div className="flex items-center space-x-2">
-              <label
-                htmlFor="weekNumber"
-                className="text-sm font-medium text-gray-700"
-              >
-                Semaine
-              </label>
-              <select
-                id="weekNumber"
-                name="weekNumber"
-                value={weekNumber}
-                onChange={handleWeekChange}
-                className="rounded-md border border-gray-300 py-1 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading || submitting}
-              >
-                {weekOptions.map((week) => (
-                  <option key={week} value={week}>
-                    {week}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <label
-                htmlFor="year"
-                className="text-sm font-medium text-gray-700"
-              >
-                Année
-              </label>
-              <select
-                id="year"
-                name="year"
-                value={year}
-                onChange={handleYearChange}
-                className="rounded-md border border-gray-300 py-1 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading || submitting}
-              >
-                {yearOptions.map((yearOption) => (
-                  <option key={yearOption} value={yearOption}>
-                    {yearOption}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={goToNextWeek}
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none"
-              disabled={loading || submitting}
+              Annuler
+            </Button>
+            <Button
+              variant={confirmModal.action === "approve" ? "primary" : "danger"}
+              onClick={() =>
+                confirmModal.action === "approve"
+                  ? handleApprove(confirmModal.scheduleId)
+                  : handleReject(confirmModal.scheduleId)
+              }
+              isLoading={submitting}
+              icon={
+                confirmModal.action === "approve" ? (
+                  <Check size={16} />
+                ) : (
+                  <X size={16} />
+                )
+              }
             >
-              <svg
-                className="w-5 h-5 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 5l7 7-7 7"
-                ></path>
-              </svg>
-            </motion.button>
+              {confirmModal.action === "approve" ? "Valider" : "Refuser"}
+            </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* En-tête avec fil d'ariane */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <Breadcrumb items={breadcrumbItems} />
       </div>
 
-      {/* Contenu principal - Liste des plannings */}
-      {loading ? (
-        <LoadingSpinner size="lg" />
-      ) : fallbackSchedules.length > 0 ? (
-        <div className="space-y-8">
-          {fallbackSchedules.map((schedule) => (
-            <motion.div
-              key={schedule._id}
-              className="bg-white rounded-lg shadow-md overflow-hidden"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+      {/* Titre de la page */}
+      <SectionTitle
+        title="Plannings à valider"
+        subtitle="Consultez et validez les plannings soumis par vos équipes"
+        icon={<ClipboardList size={24} />}
+        className="mb-8"
+      />
+
+      {/* Sélecteur de date et filtres */}
+      <SectionCard
+        title={`Semaine ${weekNumber} - ${year}`}
+        description={getWeekDateRange(year, weekNumber)}
+        className="mb-8"
+      >
+        <div className="p-4">
+          <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
+            <div className="w-full md:w-72">
+              <DatePicker
+                label="Sélectionner une semaine"
+                selectedDate={selectedDate}
+                onChange={setSelectedDate}
+                placeholder="JJ/MM/AAAA"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              icon={<Calendar size={16} />}
+              onClick={() => {
+                setSelectedDate(new Date());
+                setWeekNumber(getCurrentISOWeek());
+                setYear(getCurrentYear());
+              }}
             >
-              {/* En-tête du planning */}
-              <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center">
-                  {schedule.photoUrl ? (
-                    <img
+              Semaine actuelle
+            </Button>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Contenu principal - Liste des plannings */}
+      <SectionCard title="Plannings en attente de validation" className="mb-8">
+        {loading ? (
+          <div className="flex justify-center items-center py-16">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : fallbackSchedules.length > 0 ? (
+          <div className="p-4 overflow-x-auto">
+            <Table
+              columns={[
+                { key: "employee", label: "Employé", className: "w-48" },
+                { key: "week", label: "Semaine" },
+                { key: "status", label: "Statut", className: "w-28" },
+                { key: "notes", label: "Notes" },
+                { key: "actions", label: "Actions", className: "w-48" },
+              ]}
+              data={fallbackSchedules.map((schedule) => ({
+                employee: (
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      name={schedule.employeeName}
                       src={schedule.photoUrl}
-                      alt={schedule.employeeName}
-                      className="w-12 h-12 rounded-full object-cover mr-4"
+                      size="sm"
                     />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 mr-4">
-                      {schedule.employeeName.charAt(0)}
-                    </div>
-                  )}
+                    <span className="font-medium">{schedule.employeeName}</span>
+                  </div>
+                ),
+                week: (
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      {schedule.employeeName}
-                    </h2>
-                    <div className="flex items-center mt-1">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                          schedule.status
-                        )}`}
-                      >
-                        {formatStatus(schedule.status)}
-                      </span>
-                      <span className="text-sm text-gray-500 ml-2">
-                        Généré le{" "}
-                        {new Date(schedule.timestamp).toLocaleDateString(
-                          "fr-FR"
-                        )}
-                      </span>
+                    <div className="font-medium">
+                      Semaine {schedule.weekNumber}, {schedule.year}
+                    </div>
+                    <div className="text-xs text-[var(--text-secondary)]">
+                      {getWeekDateRange(schedule.year, schedule.weekNumber)}
+                    </div>
+                  </div>
+                ),
+                status: (
+                  <Badge
+                    variant={getStatusVariant(schedule.status)}
+                    label={formatStatus(schedule.status)}
+                  />
+                ),
+                notes: (
+                  <div className="max-w-xs truncate" title={schedule.notes}>
+                    {schedule.notes || "Aucune note"}
+                  </div>
+                ),
+                actions: (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() =>
+                        openApproveConfirmModal(
+                          schedule._id,
+                          schedule.employeeName
+                        )
+                      }
+                      icon={<Check size={16} />}
+                      disabled={schedule.status !== "pending" || submitting}
+                    >
+                      Valider
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() =>
+                        openRejectConfirmModal(
+                          schedule._id,
+                          schedule.employeeName
+                        )
+                      }
+                      icon={<X size={16} />}
+                      disabled={schedule.status !== "pending" || submitting}
+                    >
+                      Refuser
+                    </Button>
+                  </div>
+                ),
+              }))}
+              emptyState={{
+                title: "Aucun planning à valider",
+                description:
+                  "Il n'y a actuellement aucun planning en attente de validation.",
+                icon: <CalendarCheck size={40} />,
+              }}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <CalendarCheck
+              size={48}
+              className="text-[var(--text-tertiary)] mb-4"
+            />
+            <p className="text-lg text-[var(--text-primary)] mb-2">
+              Aucun planning à valider pour cette semaine
+            </p>
+            <p className="text-sm text-[var(--text-tertiary)]">
+              Tous les plannings ont été traités ou aucun n'a été soumis
+            </p>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Section détaillant les plannings validés */}
+      <SectionCard title="Détails des plannings" className="mb-8">
+        {fallbackSchedules.length > 0 ? (
+          <div className="space-y-8 p-4">
+            {fallbackSchedules.map((schedule) => (
+              <motion.div
+                key={schedule._id}
+                className="bg-[var(--background-secondary)] rounded-lg overflow-hidden border border-[var(--border)]"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* En-tête du planning */}
+                <div className="p-6 border-b border-[var(--border)] flex flex-col md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center">
+                    <Avatar
+                      name={schedule.employeeName}
+                      src={schedule.photoUrl}
+                      size="md"
+                      className="mr-4"
+                    />
+                    <div>
+                      <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                        {schedule.employeeName}
+                      </h2>
+                      <div className="flex items-center mt-1">
+                        <Badge
+                          variant={getStatusVariant(schedule.status)}
+                          label={formatStatus(schedule.status)}
+                        />
+                        <span className="text-sm text-[var(--text-secondary)] ml-2">
+                          Généré le{" "}
+                          {new Date(schedule.timestamp).toLocaleDateString(
+                            "fr-FR"
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Bouton de validation */}
-                {schedule.status === "draft" && (
-                  <div className="mt-4 md:mt-0">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleValidation(schedule._id)}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                      disabled={submitting}
-                    >
-                      {submitting ? (
-                        <LoadingSpinner size="sm" />
-                      ) : (
-                        "Valider le planning"
-                      )}
-                    </motion.button>
+                {/* Grille du planning */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-[var(--border)]">
+                    <thead className="bg-[var(--background-tertiary)]">
+                      <tr>
+                        {DAYS_OF_WEEK.map((day) => (
+                          <th
+                            key={day}
+                            scope="col"
+                            className="px-6 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                          >
+                            {day.charAt(0).toUpperCase() + day.slice(1)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-[var(--background-secondary)] divide-y divide-[var(--border)]">
+                      <tr>
+                        {DAYS_OF_WEEK.map((day) => (
+                          <td key={day} className="px-6 py-4">
+                            <div className="space-y-1">
+                              {schedule.scheduleData[day] &&
+                              schedule.scheduleData[day].length > 0 ? (
+                                schedule.scheduleData[day].map(
+                                  (timeSlot, index) => (
+                                    <div
+                                      key={index}
+                                      className="bg-[var(--accent-secondary)] text-[var(--accent-primary)] text-sm rounded-md px-3 py-1.5 text-center"
+                                    >
+                                      {timeSlot}
+                                    </div>
+                                  )
+                                )
+                              ) : (
+                                <div className="text-[var(--text-tertiary)] text-center text-sm">
+                                  Repos
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Notes du planning */}
+                {schedule.notes && (
+                  <div className="p-4 border-t border-[var(--border)]">
+                    <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2">
+                      Notes:
+                    </h3>
+                    <p className="text-sm text-[var(--text-primary)]">
+                      {schedule.notes}
+                    </p>
                   </div>
                 )}
-              </div>
-
-              {/* Grille du planning */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {DAYS_OF_WEEK.map((day) => (
-                        <th
-                          key={day}
-                          scope="col"
-                          className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {day.charAt(0).toUpperCase() + day.slice(1)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      {DAYS_OF_WEEK.map((day) => (
-                        <td key={day} className="px-6 py-4">
-                          <div className="space-y-1">
-                            {schedule.scheduleData[day] &&
-                            schedule.scheduleData[day].length > 0 ? (
-                              schedule.scheduleData[day].map(
-                                (timeSlot, index) => (
-                                  <div
-                                    key={index}
-                                    className="bg-blue-50 text-blue-800 text-sm rounded-md px-3 py-1.5 text-center"
-                                  >
-                                    {timeSlot}
-                                  </div>
-                                )
-                              )
-                            ) : (
-                              <div className="text-gray-400 text-center text-sm">
-                                Repos
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <p className="text-lg text-gray-500 mb-2">
-            Aucun planning généré pour cette semaine
-          </p>
-          <p className="text-sm text-gray-400">
-            Sélectionnez une autre semaine ou contactez le support si nécessaire
-          </p>
-        </div>
-      )}
-    </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-[var(--text-secondary)]">
+            <p className="mb-2">Aucun planning disponible</p>
+            <p className="text-sm">
+              Sélectionnez une autre semaine ou contactez le support si
+              nécessaire
+            </p>
+          </div>
+        )}
+      </SectionCard>
+    </PageWrapper>
   );
 };
 
