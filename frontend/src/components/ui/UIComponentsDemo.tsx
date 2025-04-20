@@ -10,6 +10,7 @@ import Alert from "./Alert";
 import Badge from "./Badge";
 import Button from "./Button";
 import Card from "./Card";
+import ProgressBar from "./ProgressBar";
 import Tabs from "./Tabs";
 import Tooltip from "./Tooltip";
 
@@ -20,6 +21,7 @@ const UIComponentsDemo: React.FC = () => {
   >("top");
   const [tabAnimation, setTabAnimation] = useState<"fade" | "slide">("fade");
   const [accordionMultiple, setAccordionMultiple] = useState<boolean>(false);
+  const [progressValue, setProgressValue] = useState<number>(65);
 
   // Exemples pour l'accordéon
   const accordionItems = [
@@ -96,11 +98,119 @@ const UIComponentsDemo: React.FC = () => {
     },
   ];
 
+  // Fonction pour incrémenter la valeur de progression
+  const incrementProgress = () => {
+    setProgressValue((prev) => Math.min(prev + 10, 100));
+  };
+
+  // Fonction pour décrémenter la valeur de progression
+  const decrementProgress = () => {
+    setProgressValue((prev) => Math.max(prev - 10, 0));
+  };
+
   return (
     <div className="space-y-8 p-4">
       <h1 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">
         Démonstration des composants UI
       </h1>
+
+      {/* Démonstration de ProgressBar */}
+      <Card className="mb-8">
+        <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">
+          Composant ProgressBar
+        </h2>
+
+        <div className="space-y-6">
+          {/* Variantes de couleur */}
+          <div>
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Variantes de couleur
+            </h3>
+            <div className="space-y-4">
+              <ProgressBar
+                value={progressValue}
+                label="Progression primaire"
+                color="primary"
+              />
+              <ProgressBar
+                value={progressValue}
+                label="Progression réussie"
+                color="success"
+              />
+              <ProgressBar
+                value={progressValue}
+                label="Progression avertissement"
+                color="warning"
+              />
+              <ProgressBar
+                value={progressValue}
+                label="Progression erreur"
+                color="error"
+              />
+            </div>
+          </div>
+
+          {/* Contrôles interactifs */}
+          <div className="pt-3">
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Contrôle interactif
+            </h3>
+            <div className="flex gap-2 mb-4">
+              <Button onClick={decrementProgress} variant="secondary" size="sm">
+                -10%
+              </Button>
+              <Button onClick={incrementProgress} variant="secondary" size="sm">
+                +10%
+              </Button>
+              <Button
+                onClick={() => setProgressValue(0)}
+                variant="secondary"
+                size="sm"
+              >
+                Réinitialiser
+              </Button>
+            </div>
+            <ProgressBar
+              value={progressValue}
+              label="Progression interactive"
+            />
+          </div>
+
+          {/* ProgressBar sans libellé */}
+          <div className="pt-3">
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Variations d'affichage
+            </h3>
+            <div className="space-y-4">
+              <ProgressBar
+                value={progressValue}
+                showPercentage={false}
+                label="Sans pourcentage"
+              />
+              <ProgressBar
+                value={progressValue}
+                label=""
+                showPercentage={true}
+              />
+              <ProgressBar
+                value={progressValue}
+                label=""
+                showPercentage={false}
+              />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="pt-2">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Le composant ProgressBar est entièrement animé avec Framer Motion
+              et s'adapte au thème clair/sombre via les variables CSS. Il est
+              également accessible avec les attributs aria-* appropriés pour les
+              lecteurs d'écran.
+            </p>
+          </div>
+        </div>
+      </Card>
 
       {/* Démonstration des Tabs */}
       <Card className="mb-8">
