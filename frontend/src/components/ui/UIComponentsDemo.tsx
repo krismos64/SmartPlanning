@@ -11,7 +11,9 @@ import Badge from "./Badge";
 import Button from "./Button";
 import Card from "./Card";
 import ProgressBar from "./ProgressBar";
+import SearchInput from "./SearchInput";
 import Tabs from "./Tabs";
+import TagSelector from "./TagSelector";
 import Tooltip from "./Tooltip";
 
 const UIComponentsDemo: React.FC = () => {
@@ -22,6 +24,37 @@ const UIComponentsDemo: React.FC = () => {
   const [tabAnimation, setTabAnimation] = useState<"fade" | "slide">("fade");
   const [accordionMultiple, setAccordionMultiple] = useState<boolean>(false);
   const [progressValue, setProgressValue] = useState<number>(65);
+
+  // États pour la démo du TagSelector
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // État pour la démo de SearchInput
+  const [searchValue, setSearchValue] = useState<string>("");
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+
+  // Liste des tags disponibles pour la démo
+  const availableTags = [
+    "Urgent",
+    "Important",
+    "Terminé",
+    "En cours",
+    "À faire",
+    "Bug",
+    "Fonctionnalité",
+    "Design",
+    "API",
+    "Base de données",
+    "Backend",
+    "Frontend",
+    "Test",
+    "Documentation",
+    "Performance",
+    "Sécurité",
+    "Optimisation",
+    "Mobile",
+    "Desktop",
+    "Web",
+  ];
 
   // Exemples pour l'accordéon
   const accordionItems = [
@@ -108,11 +141,158 @@ const UIComponentsDemo: React.FC = () => {
     setProgressValue((prev) => Math.max(prev - 10, 0));
   };
 
+  // Fonction qui gère le changement de la recherche
+  const handleSearch = (value: string) => {
+    setSearchValue(value);
+
+    // Simuler un chargement pour le composant de recherche
+    if (value.length > 0) {
+      setIsSearching(true);
+      setTimeout(() => {
+        setIsSearching(false);
+      }, 1000);
+    } else {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <div className="space-y-8 p-4">
       <h1 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">
         Démonstration des composants UI
       </h1>
+
+      {/* Démonstration de SearchInput */}
+      <Card className="mb-8">
+        <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">
+          Composant SearchInput
+        </h2>
+
+        <div className="space-y-6">
+          {/* SearchInput standard */}
+          <div>
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Champ de recherche standard
+            </h3>
+            <SearchInput
+              value={searchValue}
+              onChange={handleSearch}
+              placeholder="Rechercher un élément..."
+              isLoading={isSearching}
+            />
+
+            {searchValue && !isSearching && (
+              <div className="mt-2 p-3 bg-[var(--background-tertiary)]/30 rounded-lg">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Résultats pour :{" "}
+                  <span className="font-medium">{searchValue}</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* SearchInput avec debounce */}
+          <div className="pt-3">
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Recherche avec debounce (300ms)
+            </h3>
+            <SearchInput
+              value={searchValue}
+              onChange={handleSearch}
+              placeholder="Avec debounce de 300ms..."
+              isLoading={isSearching}
+              debounceDelay={300}
+            />
+          </div>
+
+          {/* Options de contrôle */}
+          <div className="pt-3">
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Contrôles
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => handleSearch("")}
+                variant="secondary"
+                size="sm"
+              >
+                Réinitialiser
+              </Button>
+              <Button
+                onClick={() => setIsSearching(!isSearching)}
+                variant="secondary"
+                size="sm"
+              >
+                {isSearching ? "Arrêter chargement" : "Simuler chargement"}
+              </Button>
+              <Button
+                onClick={() => handleSearch("SmartPlanning")}
+                variant="secondary"
+                size="sm"
+              >
+                Recherche prédéfinie
+              </Button>
+            </div>
+          </div>
+
+          {/* Description du composant */}
+          <div className="pt-2">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Le composant SearchInput intègre une icône de recherche, un bouton
+              de réinitialisation, un indicateur de chargement animé et le
+              support du debounce. Il est entièrement accessible et s'adapte au
+              thème clair/sombre via les variables CSS.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Démonstration du TagSelector */}
+      <Card className="mb-8">
+        <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">
+          Composant TagSelector
+        </h2>
+
+        <div className="space-y-6">
+          {/* TagSelector standard */}
+          <div>
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Sélecteur de tags standard
+            </h3>
+            <TagSelector
+              availableTags={availableTags}
+              selectedTags={selectedTags}
+              onChange={setSelectedTags}
+              placeholder="Rechercher un tag..."
+            />
+          </div>
+
+          {/* TagSelector avec limite */}
+          <div className="pt-3">
+            <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+              Sélecteur avec limite de 3 tags
+            </h3>
+            <TagSelector
+              availableTags={availableTags}
+              selectedTags={selectedTags}
+              onChange={setSelectedTags}
+              placeholder="Maximum 3 tags..."
+              maxSelectable={3}
+            />
+          </div>
+
+          {/* Description du composant */}
+          <div className="pt-2">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Le composant TagSelector permet de filtrer et sélectionner des
+              tags de manière intuitive. Il propose une recherche, des
+              animations fluides et une adaptation au thème clair/sombre. La
+              sélection peut être limitée et le composant est entièrement
+              accessible avec support clavier.
+            </p>
+          </div>
+        </div>
+      </Card>
 
       {/* Démonstration de ProgressBar */}
       <Card className="mb-8">
