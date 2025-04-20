@@ -7,10 +7,14 @@ import { ThemeProvider } from "./context/ThemeContext";
 import "./styles/index.css";
 
 // Rendu de l'application dans le DOM
+import { HelmetProvider } from "react-helmet-async";
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AppRouter />
-    </ThemeProvider>
+    <HelmetProvider>
+      <ThemeProvider>
+        <AppRouter />
+      </ThemeProvider>
+    </HelmetProvider>
   </React.StrictMode>
 );

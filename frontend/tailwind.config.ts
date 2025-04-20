@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 import { tailwindTheme } from "./src/theme/theme";
 
 const config: Config = {
-  content: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html"],
+  content: ["./src/**/*.{js,jsx,ts,tsx}", "./index.html"],
   darkMode: "class", // Active le thème sombre via l'attribut class (utilisé avec data-theme)
   theme: {
     extend: {

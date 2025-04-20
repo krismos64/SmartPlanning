@@ -1,5 +1,6 @@
 import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
 import CompanyOverviewPage from "./pages/CompanyOverviewPage";
@@ -46,7 +47,7 @@ const AppRouter: React.FC = () => {
     <BrowserRouter>
       <Routes>
         {/* Route par défaut - Redirection vers la page de connexion */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<IndexPage />} />
 
         {/* Routes d'authentification */}
         <Route path="/login" element={<LoginPage />} />
