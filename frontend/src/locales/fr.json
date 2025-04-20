@@ -1,0 +1,99 @@
+{
+  "auth": {
+    "login": "Connexion",
+    "register": "S'inscrire"
+  },
+  "landingPage": {
+    "hero": {
+      "title": "Plannings intelligents pour votre entreprise",
+      "subtitle": "Optimisez vos plannings d'entreprise avec notre solution assistée par IA. Facile, intuitive et accessible à tous.",
+      "cta": {
+        "start": "Commencer gratuitement",
+        "demo": "Voir la démo"
+      }
+    },
+    "features": {
+      "title": "Fonctionnalités principales",
+      "subtitle": "Découvrez comment SmartPlanning simplifie la gestion de vos équipes",
+      "items": {
+        "ai": {
+          "title": "Planification intelligente par IA",
+          "description": "Notre algorithme génère automatiquement des plannings optimisés en tenant compte des contraintes et préférences."
+        },
+        "cost": {
+          "title": "Version bêta 100% gratuite",
+          "description": "Profitez de toutes les fonctionnalités gratuitement pendant notre phase bêta et aidez-nous à améliorer SmartPlanning."
+        },
+        "mobile": {
+          "title": "Compatible tous appareils",
+          "description": "Consultez et modifiez vos plannings depuis votre ordinateur, tablette ou smartphone, où que vous soyez."
+        },
+        "pdf": {
+          "title": "Export en PDF",
+          "description": "Exportez vos plannings en PDF pour les imprimer ou les partager facilement avec vos équipes."
+        },
+        "security": {
+          "title": "Sécurité maximale",
+          "description": "Vos données sont cryptées et protégées. Nous respectons strictement le RGPD et la confidentialité."
+        },
+        "analytics": {
+          "title": "Statistiques avancées",
+          "description": "Suivez et analysez les heures travaillées, les coûts et l'efficacité de vos plannings."
+        }
+      }
+    },
+    "demo": {
+      "title": "Votre nouvel outil de planification RH",
+      "subtitle": "Un aperçu de l'interface simple et intuitive de SmartPlanning"
+    },
+    "benefits": {
+      "title": "Pourquoi choisir SmartPlanning ?",
+      "subtitle": "Les avantages concrets pour votre entreprise",
+      "items": {
+        "time": {
+          "title": "Gain de temps considérable",
+          "description": "Réduisez jusqu'à 80% le temps consacré à la création et gestion de vos plannings d'équipe."
+        },
+        "cost": {
+          "title": "Réduction des coûts",
+          "description": "Optimisez vos ressources humaines et évitez le sureffectif ou les périodes creuses."
+        },
+        "flexibility": {
+          "title": "Flexibilité maximale",
+          "description": "Ajustez vos plannings en temps réel et adaptez-vous rapidement aux imprévus."
+        },
+        "data": {
+          "title": "Données exploitables",
+          "description": "Prenez des décisions basées sur des données précises et des analyses automatisées."
+        }
+      }
+    },
+    "faq": {
+      "title": "Questions fréquentes",
+      "subtitle": "Tout ce que vous devez savoir sur SmartPlanning",
+      "items": {
+        "security": {
+          "question": "Mes données sont-elles sécurisées avec SmartPlanning ?",
+          "answer": "Absolument ! La sécurité est notre priorité. Toutes vos données sont cryptées et nous respectons strictement le RGPD. Nous n'utilisons jamais vos données à des fins commerciales."
+        },
+        "pricing": {
+          "question": "SmartPlanning est-il vraiment gratuit ?",
+          "answer": "Oui, SmartPlanning est actuellement 100% gratuit pendant notre phase bêta. Après le lancement officiel, nous proposerons différentes formules, mais les utilisateurs de la bêta bénéficieront d'avantages exclusifs."
+        },
+        "updates": {
+          "question": "À quelle fréquence y a-t-il des mises à jour ?",
+          "answer": "Nous améliorons constamment SmartPlanning avec de nouvelles fonctionnalités et optimisations. En phase bêta, des mises à jour sont déployées chaque semaine."
+        },
+        "mobile": {
+          "question": "Puis-je utiliser SmartPlanning sur mobile ?",
+          "answer": "Oui, SmartPlanning est entièrement responsive et fonctionne parfaitement sur tous les appareils : ordinateurs, tablettes et smartphones."
+        }
+      }
+    },
+    "cta": {
+      "title": "Prêt à optimiser vos plannings ?",
+      "subtitle": "Rejoignez les entreprises qui gagnent du temps et améliorent leur efficacité avec SmartPlanning.",
+      "button": "Commencer gratuitement"
+    }
+  }
+}
