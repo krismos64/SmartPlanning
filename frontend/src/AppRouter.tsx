@@ -4,6 +4,7 @@ import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
 import CompanyOverviewPage from "./pages/CompanyOverviewPage";
+import DashboardPage from "./pages/DashboardPage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
 import LoginPage from "./pages/LoginPage";
@@ -52,6 +53,9 @@ const AppRouter: React.FC = () => {
         {/* Routes d'authentification */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+
+        {/* Route du tableau de bord pour utilisateurs connectés */}
+        <Route path="/dashboard" element={<DashboardPage />} />
 
         {/* Routes principales de l'application */}
         <Route path="/weekly-schedule" element={<WeeklySchedulePage />} />
