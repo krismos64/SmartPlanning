@@ -1,9 +1,30 @@
+/**
+ * WeeklySchedulePage - Page de gestion des plannings hebdomadaires
+ *
+ * Permet de visualiser et créer des plannings hebdomadaires pour les employés.
+ * Inclut la recherche par semaine/année et un formulaire de création interactif.
+ */
 import axios from "axios";
-import { AnimatePresence, motion } from "framer-motion";
+import { getISOWeek, getYear } from "date-fns";
+import { motion } from "framer-motion";
+import { Calendar, Clock, Search, Users } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-// Utilisation du composant LoadingSpinner global
+
+// Composants de layout
+import PageWrapper from "../components/layout/PageWrapper";
+import SectionCard from "../components/layout/SectionCard";
+import SectionTitle from "../components/layout/SectionTitle";
+
+// Composants UI
+import Avatar from "../components/ui/Avatar";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import DatePicker from "../components/ui/DatePicker";
+import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
-import Toast from "../components/ui/Toast"; // Import du composant Toast global
+import Select from "../components/ui/Select";
+import Table from "../components/ui/Table";
+import Toast from "../components/ui/Toast";
 
 // Types pour les différentes entités
 interface Schedule {
@@ -28,13 +49,6 @@ interface EmployeeOption {
   fullName: string;
 }
 
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}
-
 // Jours de la semaine pour l'affichage
 const DAYS_OF_WEEK = [
   "Lundi",
@@ -45,6 +59,7 @@ const DAYS_OF_WEEK = [
   "Samedi",
   "Dimanche",
 ];
+
 const DAY_KEYS = [
   "monday",
   "tuesday",
@@ -55,9 +70,11 @@ const DAY_KEYS = [
   "sunday",
 ];
 
-// Composant principal WeeklySchedulePage
+/**
+ * Composant principal WeeklySchedulePage
+ */
 const WeeklySchedulePage: React.FC = () => {
-  // État pour la sélection de semaine
+  // État pour la sélection de semaine et date
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [weekNumber, setWeekNumber] = useState<number>(
     // Calcul du numéro de semaine actuel
@@ -67,12 +84,16 @@ const WeeklySchedulePage: React.FC = () => {
         (7 * 24 * 60 * 60 * 1000)
     )
   );
+  // État pour stocker la date sélectionnée dans le DatePicker
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   // États pour les données et le chargement
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
 
   // États pour le formulaire de création
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
@@ -93,12 +114,32 @@ const WeeklySchedulePage: React.FC = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // Fonction pour récupérer les plannings
+  // Items du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Plannings", href: "/plannings" },
+    { label: `Semaine ${weekNumber}` },
+  ];
+
+  /**
+   * Gestionnaire de changement de date dans le DatePicker
+   * Extrait l'année et le numéro de semaine ISO à partir de la date sélectionnée
+   */
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
+    setYear(getYear(date));
+    setWeekNumber(getISOWeek(date));
+  };
+
+  /**
+   * Fonction pour récupérer les plannings
+   */
   const fetchSchedules = useCallback(async () => {
     if (year < 2020 || year > 2050 || weekNumber < 1 || weekNumber > 53) {
       setError(
         "Veuillez saisir une année valide (2020-2050) et une semaine valide (1-53)"
       );
+      setShowErrorToast(true);
       return;
     }
 
@@ -125,15 +166,17 @@ const WeeklySchedulePage: React.FC = () => {
       setError(
         "Erreur lors de la récupération des plannings. Veuillez réessayer."
       );
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
   }, [year, weekNumber]);
 
-  // Fonction pour récupérer la liste des employés
+  /**
+   * Fonction pour récupérer la liste des employés
+   */
   const fetchEmployees = useCallback(async () => {
     try {
-      // Cette requête devrait être implémentée sur votre backend
       const response = await axios.get<{
         success: boolean;
         data: { _id: string; firstName: string; lastName: string }[];
@@ -157,7 +200,9 @@ const WeeklySchedulePage: React.FC = () => {
     fetchEmployees();
   }, [fetchSchedules, fetchEmployees]);
 
-  // Gestionnaire de changement pour le formulaire de création
+  /**
+   * Gestionnaire de changement pour le formulaire de création
+   */
   const handleScheduleDataChange = (day: string, value: string) => {
     // Split par virgule et nettoyage des heures
     const hours = value
@@ -171,12 +216,15 @@ const WeeklySchedulePage: React.FC = () => {
     }));
   };
 
-  // Fonction pour créer un nouveau planning
+  /**
+   * Fonction pour créer un nouveau planning
+   */
   const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedEmployeeId) {
       setError("Veuillez sélectionner un employé");
+      setShowErrorToast(true);
       return;
     }
 
@@ -186,6 +234,7 @@ const WeeklySchedulePage: React.FC = () => {
     );
     if (!hasScheduleData) {
       setError("Veuillez spécifier au moins un horaire");
+      setShowErrorToast(true);
       return;
     }
 
@@ -202,6 +251,7 @@ const WeeklySchedulePage: React.FC = () => {
       });
 
       setSuccess("Planning créé avec succès");
+      setShowSuccessToast(true);
 
       // Réinitialiser le formulaire
       setSelectedEmployeeId("");
@@ -227,286 +277,244 @@ const WeeklySchedulePage: React.FC = () => {
       } else {
         setError("Erreur lors de la création du planning. Veuillez réessayer.");
       }
+      setShowErrorToast(true);
     } finally {
       setCreatingSchedule(false);
     }
   };
 
-  // Fonction pour fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  /**
+   * Fonction pour fermer les notifications
+   */
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
   };
 
-  // Formatage des horaires pour l'affichage
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
+  };
+
+  /**
+   * Formatage des horaires pour l'affichage
+   */
   const formatScheduleTimes = (times: string[] | undefined): string => {
     if (!times || times.length === 0) return "—";
     return times.join(", ");
   };
 
+  /**
+   * Colonnes pour le composant Table
+   */
+  const tableColumns = [
+    { key: "employee", label: "Employé", className: "w-40" },
+    ...DAY_KEYS.map((day, index) => ({
+      key: day,
+      label: DAYS_OF_WEEK[index],
+    })),
+    { key: "notes", label: "Notes", className: "w-48" },
+  ];
+
+  /**
+   * Formatage des données pour le composant Table
+   * Intégration d'Avatars pour l'affichage des employés
+   */
+  const tableData = schedules.map((schedule) => {
+    const rowData: Record<string, any> = {
+      id: schedule._id,
+      // Intégration d'un Avatar avec le nom de l'employé
+      employee: (
+        <div className="flex items-center gap-2">
+          <Avatar name={schedule.employeeName} size="sm" />
+          <span>{schedule.employeeName}</span>
+        </div>
+      ),
+      notes: schedule.notes || "—",
+    };
+
+    // Ajouter les données par jour
+    DAY_KEYS.forEach((day) => {
+      rowData[day] = formatScheduleTimes(schedule.scheduleData[day]);
+    });
+
+    return rowData;
+  });
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <PageWrapper>
       {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
 
-      {/* En-tête */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+      {/* En-tête avec fil d'ariane */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <Breadcrumb items={breadcrumbItems} />
+        <div className="flex-grow"></div>
+      </div>
+
+      {/* Titre de la page */}
+      <SectionTitle
+        title="Plannings Hebdomadaires"
+        subtitle="Consultez et créez les plannings de travail pour la semaine"
+        icon={<Calendar size={24} />}
+        className="mb-8"
+      />
+
+      {/* Section de recherche avec DatePicker */}
+      <SectionCard
+        title="Rechercher un planning"
+        accentColor="var(--accent-primary)"
+        className="mb-8"
       >
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">
-          Plannings Hebdomadaires
-        </h1>
-      </motion.div>
-
-      {/* Section de recherche */}
-      <motion.div
-        className="bg-white rounded-lg shadow-md p-6 mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">
-          Rechercher un planning
-        </h2>
-
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="w-full md:w-1/3">
-            <label
-              htmlFor="year"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Année
-            </label>
-            <input
-              type="number"
-              id="year"
-              min="2020"
-              max="2050"
-              value={year}
-              onChange={(e) =>
-                setYear(parseInt(e.target.value) || new Date().getFullYear())
-              }
-              className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="w-full md:w-1/3">
-            <label
-              htmlFor="weekNumber"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Semaine
-            </label>
-            <input
-              type="number"
-              id="weekNumber"
-              min="1"
-              max="53"
-              value={weekNumber}
-              onChange={(e) => setWeekNumber(parseInt(e.target.value) || 1)}
-              className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          {/* DatePicker pour la sélection de semaine */}
+          <div className="w-full md:w-2/3">
+            <DatePicker
+              label="Semaine à consulter"
+              selectedDate={selectedDate}
+              onChange={handleDateChange}
+              placeholder="JJ/MM/AAAA"
+              required
+              className="w-full"
             />
           </div>
 
           <div className="w-full md:w-1/3 flex items-end">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <Button
               onClick={fetchSchedules}
-              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              disabled={loading}
+              variant="primary"
+              isLoading={loading}
+              fullWidth
+              icon={<Search size={18} />}
             >
-              {loading ? <LoadingSpinner size="sm" /> : "Rechercher"}
-            </motion.button>
+              Rechercher
+            </Button>
           </div>
         </div>
-      </motion.div>
+      </SectionCard>
 
       {/* Tableau des plannings */}
       <motion.div
         ref={tableRef}
-        className="bg-white rounded-lg shadow-md p-6 mb-8 overflow-x-auto"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
+        className="mb-8"
       >
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">
-          Plannings validés - Semaine {weekNumber}, {year}
-        </h2>
-
-        {loading ? (
-          <div className="py-12">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : schedules.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Employé
-                  </th>
-                  {DAYS_OF_WEEK.map((day, index) => (
-                    <th
-                      key={day}
-                      scope="col"
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      {day}
-                    </th>
-                  ))}
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Notes
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {schedules.map((schedule) => (
-                  <motion.tr
-                    key={schedule._id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    whileHover={{ backgroundColor: "#f9fafb" }}
-                  >
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {schedule.employeeName}
-                    </td>
-                    {DAY_KEYS.map((day) => (
-                      <td
-                        key={`${schedule._id}-${day}`}
-                        className="px-4 py-4 whitespace-nowrap text-sm text-gray-500"
-                      >
-                        {formatScheduleTimes(schedule.scheduleData[day])}
-                      </td>
-                    ))}
-                    <td className="px-4 py-4 text-sm text-gray-500 max-w-xs truncate">
-                      {schedule.notes || "—"}
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            Aucun planning validé trouvé pour cette semaine.
-          </div>
-        )}
+        <SectionCard
+          title={`Plannings validés - Semaine ${weekNumber}, ${year}`}
+        >
+          {loading ? (
+            <div className="py-12 flex justify-center">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : schedules.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table
+                columns={tableColumns}
+                data={tableData}
+                emptyState={{
+                  title: "Aucun planning",
+                  description:
+                    "Aucun planning n'a été trouvé pour cette semaine",
+                  icon: <Calendar size={40} />,
+                }}
+              />
+            </div>
+          ) : (
+            <div className="text-center py-12 text-[var(--text-secondary)]">
+              Aucun planning validé trouvé pour cette semaine.
+            </div>
+          )}
+        </SectionCard>
       </motion.div>
 
       {/* Formulaire de création de planning */}
       <motion.div
         ref={formRef}
-        className="bg-white rounded-lg shadow-md p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">
-          Créer un nouveau planning
-        </h2>
+        <SectionCard
+          title="Créer un nouveau planning"
+          accentColor="var(--success)"
+        >
+          <form onSubmit={handleCreateSchedule}>
+            <div className="mb-4">
+              <Select
+                label="Employé"
+                options={employees.map((emp) => ({
+                  label: emp.fullName,
+                  value: emp._id,
+                }))}
+                value={selectedEmployeeId}
+                onChange={setSelectedEmployeeId}
+                placeholder="Sélectionner un employé"
+                icon={<Users size={18} />}
+              />
+            </div>
 
-        <form onSubmit={handleCreateSchedule}>
-          <div className="mb-4">
-            <label
-              htmlFor="employeeId"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Employé
-            </label>
-            <select
-              id="employeeId"
-              value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Sélectionner un employé</option>
-              {employees.map((employee) => (
-                <option key={employee._id} value={employee._id}>
-                  {employee.fullName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-4">
-            <h3 className="font-medium text-gray-700 mb-2">Horaires</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
-              {DAY_KEYS.map((day, index) => (
-                <div key={day} className="mb-2">
-                  <label
-                    htmlFor={`schedule-${day}`}
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    {DAYS_OF_WEEK[index]}
-                  </label>
-                  <input
-                    type="text"
-                    id={`schedule-${day}`}
+            <div className="mb-6">
+              <h3 className="font-medium text-[var(--text-primary)] mb-3">
+                Horaires
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+                {DAY_KEYS.map((day, index) => (
+                  <InputField
+                    key={day}
+                    label={DAYS_OF_WEEK[index]}
+                    name={`schedule-${day}`}
                     placeholder="9h-12h, 14h-17h"
                     value={newScheduleData[day].join(", ")}
                     onChange={(e) =>
                       handleScheduleDataChange(day, e.target.value)
                     }
-                    className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="mb-6">
-            <label
-              htmlFor="notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Notes (optionnel)
-            </label>
-            <textarea
-              id="notes"
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Informations complémentaires..."
-            />
-          </div>
+            <div className="mb-6">
+              <label
+                htmlFor="notes"
+                className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+              >
+                Notes (optionnel)
+              </label>
+              <textarea
+                id="notes"
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full px-4 py-2 rounded-md border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] text-[var(--text-primary)]"
+                placeholder="Informations complémentaires..."
+              />
+            </div>
 
-          <div className="flex justify-end">
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="py-2 px-6 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-              disabled={creatingSchedule}
-            >
-              {creatingSchedule ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                "Créer le planning"
-              )}
-            </motion.button>
-          </div>
-        </form>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={creatingSchedule}
+                icon={<Clock size={18} />}
+              >
+                Créer le planning
+              </Button>
+            </div>
+          </form>
+        </SectionCard>
       </motion.div>
-    </div>
+    </PageWrapper>
   );
 };
 
