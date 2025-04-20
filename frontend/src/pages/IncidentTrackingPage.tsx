@@ -6,8 +6,14 @@
  */
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, AlertTriangle, Eye, Plus } from "lucide-react";
-import React, { FormEvent, useCallback, useEffect, useState } from "react";
+import { AlertCircle, Calendar, Eye, Plus, Shield, User } from "lucide-react";
+import React, {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 // Composants de layout
 import PageWrapper from "../components/layout/PageWrapper";
@@ -19,6 +25,7 @@ import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import DatePicker from "../components/ui/DatePicker";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Modal from "../components/ui/Modal";
@@ -61,7 +68,11 @@ interface IncidentFormData {
   date: string;
 }
 
-// Fonction utilitaire pour formater les dates
+/**
+ * Formate une date pour l'affichage
+ * @param dateString Chaîne de date à formater
+ * @returns Date formatée (ex: "15 avril 2023")
+ */
 const formatDate = (dateString?: string): string => {
   if (!dateString) return "";
 
@@ -73,7 +84,11 @@ const formatDate = (dateString?: string): string => {
   }).format(date);
 };
 
-// Traduction des statuts en français
+/**
+ * Traduit le statut en français
+ * @param status Statut en anglais
+ * @returns Statut traduit en français
+ */
 const translateStatus = (status: string): string => {
   switch (status) {
     case "pending":
@@ -87,21 +102,31 @@ const translateStatus = (status: string): string => {
   }
 };
 
-// Obtenir la variante de badge pour un statut
-const getStatusVariant = (status: string): string => {
+/**
+ * Obtient le type de badge pour un statut
+ * @param status Statut de l'incident
+ * @returns Type de badge
+ */
+const getStatusBadgeType = (
+  status: string
+): "success" | "error" | "info" | "warning" => {
   switch (status) {
     case "pending":
       return "warning";
     case "resolved":
       return "success";
     case "dismissed":
-      return "neutral";
+      return "error";
     default:
-      return "neutral";
+      return "info";
   }
 };
 
-// Traduction des types d'incidents en français
+/**
+ * Traduit les types d'incidents en français
+ * @param type Type d'incident
+ * @returns Type traduit en français
+ */
 const translateIncidentType = (type: string): string => {
   switch (type) {
     case "retard":
@@ -119,21 +144,27 @@ const translateIncidentType = (type: string): string => {
   }
 };
 
-// Obtenir la variante de badge pour un type d'incident
-const getIncidentTypeVariant = (type: string): string => {
+/**
+ * Obtient le type de badge pour un type d'incident
+ * @param type Type d'incident
+ * @returns Type de badge
+ */
+const getIncidentTypeBadgeType = (
+  type: string
+): "success" | "error" | "info" | "warning" => {
   switch (type) {
     case "retard":
       return "warning";
     case "absence":
-      return "danger";
+      return "error";
     case "oubli badge":
       return "info";
     case "litige":
-      return "secondary";
+      return "error";
     case "autre":
-      return "neutral";
+      return "info";
     default:
-      return "neutral";
+      return "info";
   }
 };
 
@@ -142,6 +173,9 @@ const getIncidentTypeVariant = (type: string): string => {
  * Accessible uniquement aux managers
  */
 const IncidentTrackingPage: React.FC = () => {
+  // Référence pour le scroll
+  const incidentTableRef = useRef<HTMLDivElement>(null);
+
   // États pour gérer les incidents et l'UI
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -187,6 +221,13 @@ const IncidentTrackingPage: React.FC = () => {
       });
 
       setIncidents(sortedIncidents);
+
+      // Scroll vers la table des incidents si des incidents sont présents
+      if (sortedIncidents.length > 0) {
+        setTimeout(() => {
+          incidentTableRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 500);
+      }
     } catch (error) {
       console.error("Erreur lors de la récupération des incidents:", error);
       setError("Impossible de récupérer les incidents. Veuillez réessayer.");
@@ -342,83 +383,107 @@ const IncidentTrackingPage: React.FC = () => {
       >
         {selectedIncident && (
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                  Employé concerné
-                </h3>
-                <div className="mt-2 flex items-center">
-                  <Avatar
-                    name={`${selectedIncident.employeeId.firstName} ${selectedIncident.employeeId.lastName}`}
-                    size="sm"
-                    className="mr-2"
-                  />
-                  <p className="text-[var(--text-primary)]">
-                    {selectedIncident.employeeId.firstName}{" "}
-                    {selectedIncident.employeeId.lastName}
+            <Card className="mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                    Employé concerné
+                  </h3>
+                  <div className="mt-2 flex items-center">
+                    <Avatar
+                      name={`${selectedIncident.employeeId.firstName} ${selectedIncident.employeeId.lastName}`}
+                      size="sm"
+                      className="mr-2"
+                    />
+                    <p className="text-[var(--text-primary)]">
+                      {selectedIncident.employeeId.firstName}{" "}
+                      {selectedIncident.employeeId.lastName}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                    Type d'incident
+                  </h3>
+                  <div className="mt-2">
+                    <Badge
+                      type={getIncidentTypeBadgeType(selectedIncident.type)}
+                      label={translateIncidentType(selectedIncident.type)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                    Date de l'incident
+                  </h3>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Calendar
+                      size={16}
+                      className="text-[var(--text-secondary)]"
+                    />
+                    <p className="text-[var(--text-primary)]">
+                      {formatDate(selectedIncident.date)}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">
+                    Statut
+                  </h3>
+                  <div className="mt-2">
+                    <Badge
+                      type={getStatusBadgeType(selectedIncident.status)}
+                      label={translateStatus(selectedIncident.status)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="mb-6">
+              <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Description
+              </h3>
+              <p className="text-[var(--text-primary)] whitespace-pre-wrap">
+                {selectedIncident.description ||
+                  "Aucune description fournie pour cet incident."}
+              </p>
+            </Card>
+
+            <Card className="mb-6">
+              <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Informations complémentaires
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    Signalé par
+                  </p>
+                  <div className="mt-1 flex items-center">
+                    <Avatar
+                      name={`${selectedIncident.reportedBy.firstName} ${selectedIncident.reportedBy.lastName}`}
+                      size="sm"
+                      className="mr-2"
+                    />
+                    <p className="text-sm text-[var(--text-primary)]">
+                      {selectedIncident.reportedBy.firstName}{" "}
+                      {selectedIncident.reportedBy.lastName}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    Date de signalement
+                  </p>
+                  <p className="text-sm text-[var(--text-primary)] mt-1">
+                    {formatDate(selectedIncident.createdAt)}
                   </p>
                 </div>
               </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                  Type d'incident
-                </h3>
-                <div className="mt-2">
-                  <Badge
-                    variant={getIncidentTypeVariant(selectedIncident.type)}
-                    label={translateIncidentType(selectedIncident.type)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                  Date de l'incident
-                </h3>
-                <p className="mt-2 text-[var(--text-primary)]">
-                  {formatDate(selectedIncident.date)}
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                  Statut
-                </h3>
-                <div className="mt-2">
-                  <Badge
-                    variant={getStatusVariant(selectedIncident.status)}
-                    label={translateStatus(selectedIncident.status)}
-                  />
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                  Description
-                </h3>
-                <p className="mt-2 text-[var(--text-primary)] whitespace-pre-wrap">
-                  {selectedIncident.description || "Aucune description"}
-                </p>
-              </div>
-
-              <div className="md:col-span-2">
-                <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                  Signalé par
-                </h3>
-                <div className="mt-2 flex items-center">
-                  <Avatar
-                    name={`${selectedIncident.reportedBy.firstName} ${selectedIncident.reportedBy.lastName}`}
-                    size="sm"
-                    className="mr-2"
-                  />
-                  <p className="text-[var(--text-primary)]">
-                    {selectedIncident.reportedBy.firstName}{" "}
-                    {selectedIncident.reportedBy.lastName}
-                  </p>
-                </div>
-              </div>
-            </div>
+            </Card>
 
             <div className="flex justify-end">
               <Button
@@ -440,8 +505,8 @@ const IncidentTrackingPage: React.FC = () => {
       {/* Titre de la page */}
       <SectionTitle
         title="Suivi des incidents"
-        subtitle="Consultez et traitez les incidents déclarés"
-        icon={<AlertTriangle size={24} />}
+        subtitle="Consultez et gérez les incidents signalés dans votre organisation"
+        icon={<Shield size={24} />}
         className="mb-8"
       />
 
@@ -545,100 +610,103 @@ const IncidentTrackingPage: React.FC = () => {
       </SectionCard>
 
       {/* Liste des incidents */}
-      <SectionCard
-        title={`Incidents signalés (${incidents.length})`}
-        className="mb-8"
-      >
-        {loading ? (
-          <div className="flex justify-center items-center py-16">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : incidents.length > 0 ? (
-          <div className="p-4 overflow-x-auto">
-            <Table
-              columns={[
-                { key: "employee", label: "Employé", className: "w-40" },
-                { key: "type", label: "Type", className: "w-28" },
-                { key: "date", label: "Date", className: "w-32" },
-                { key: "status", label: "Statut", className: "w-28" },
-                { key: "description", label: "Description" },
-                { key: "actions", label: "Actions", className: "w-24" },
-              ]}
-              data={incidents.map((incident) => ({
-                employee: (
-                  <div className="flex items-center gap-2">
-                    <Avatar
-                      name={`${incident.employeeId.firstName} ${incident.employeeId.lastName}`}
-                      size="sm"
+      <div ref={incidentTableRef}>
+        <SectionCard
+          title={`Incidents signalés (${incidents.length})`}
+          className="mb-8"
+        >
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : incidents.length > 0 ? (
+            <div className="p-4 overflow-x-auto">
+              <Table
+                columns={[
+                  { key: "employee", label: "Employé", className: "w-40" },
+                  { key: "type", label: "Type", className: "w-28" },
+                  { key: "date", label: "Date", className: "w-32" },
+                  { key: "status", label: "Statut", className: "w-28" },
+                  { key: "description", label: "Description" },
+                  { key: "actions", label: "Actions", className: "w-24" },
+                ]}
+                data={incidents.map((incident) => ({
+                  employee: (
+                    <div className="flex items-center gap-2">
+                      <Avatar
+                        name={`${incident.employeeId.firstName} ${incident.employeeId.lastName}`}
+                        size="sm"
+                      />
+                      <span className="font-medium">
+                        {incident.employeeId.firstName}{" "}
+                        {incident.employeeId.lastName}
+                      </span>
+                    </div>
+                  ),
+                  type: (
+                    <Badge
+                      type={getIncidentTypeBadgeType(incident.type)}
+                      label={translateIncidentType(incident.type)}
                     />
-                    <span className="font-medium">
-                      {incident.employeeId.firstName}{" "}
-                      {incident.employeeId.lastName}
-                    </span>
-                  </div>
-                ),
-                type: (
-                  <Badge
-                    variant={getIncidentTypeVariant(incident.type)}
-                    label={translateIncidentType(incident.type)}
-                  />
-                ),
-                date: (
-                  <div className="text-[var(--text-secondary)]">
-                    {formatDate(incident.date)}
-                  </div>
-                ),
-                status: (
-                  <Badge
-                    variant={getStatusVariant(incident.status)}
-                    label={translateStatus(incident.status)}
-                  />
-                ),
-                description: (
-                  <div>
-                    <div className="text-sm max-w-xs truncate">
-                      {incident.description || "—"}
+                  ),
+                  date: (
+                    <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                      <Calendar size={14} />
+                      <span>{formatDate(incident.date)}</span>
                     </div>
-                    <div className="text-xs text-[var(--text-tertiary)] mt-1">
-                      Par: {incident.reportedBy.firstName}{" "}
-                      {incident.reportedBy.lastName}
+                  ),
+                  status: (
+                    <Badge
+                      type={getStatusBadgeType(incident.status)}
+                      label={translateStatus(incident.status)}
+                    />
+                  ),
+                  description: (
+                    <div>
+                      <div className="text-sm max-w-xs truncate">
+                        {incident.description || "—"}
+                      </div>
+                      <div className="text-xs text-[var(--text-tertiary)] mt-1 flex items-center gap-1">
+                        <User size={12} />
+                        <span>
+                          {incident.reportedBy.firstName}{" "}
+                          {incident.reportedBy.lastName}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ),
-                actions: (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => viewIncidentDetails(incident)}
-                    icon={<Eye size={16} />}
-                  >
-                    Détails
-                  </Button>
-                ),
-              }))}
-              emptyState={{
-                title: "Aucun incident",
-                description: "Aucun incident n'a été signalé",
-                icon: <AlertTriangle size={40} />,
-              }}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <AlertTriangle
-              size={48}
-              className="text-[var(--text-tertiary)] mb-4"
-            />
-            <p className="text-lg text-[var(--text-primary)] mb-2">
-              Aucun incident signalé
-            </p>
-            <p className="text-sm text-[var(--text-tertiary)]">
-              Utilisez le bouton "Signaler un incident" pour ajouter un nouveau
-              signalement
-            </p>
-          </div>
-        )}
-      </SectionCard>
+                  ),
+                  actions: (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => viewIncidentDetails(incident)}
+                      icon={<Eye size={16} />}
+                    >
+                      Détails
+                    </Button>
+                  ),
+                }))}
+                emptyState={{
+                  title: "Aucun incident",
+                  description: "Aucun incident n'a été signalé pour le moment",
+                  icon: <Shield size={40} />,
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Shield size={48} className="text-[var(--text-tertiary)] mb-4" />
+              <p className="text-lg text-[var(--text-primary)] mb-2">
+                Aucun incident signalé
+              </p>
+              <p className="text-sm text-[var(--text-tertiary)]">
+                Utilisez le bouton "Signaler un incident" pour ajouter un
+                nouveau signalement
+              </p>
+            </div>
+          )}
+        </SectionCard>
+      </div>
     </PageWrapper>
   );
 };
