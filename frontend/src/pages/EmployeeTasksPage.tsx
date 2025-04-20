@@ -1,7 +1,27 @@
+/**
+ * EmployeeTasksPage - Page de gestion des tâches employé
+ *
+ * Permet aux employés de visualiser et gérer leurs tâches assignées.
+ * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
+ */
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
+import { Calendar, Check, ClipboardList, Plus } from "lucide-react";
 import React, { FormEvent, useCallback, useEffect, useState } from "react";
+
+// Composants de layout
+import PageWrapper from "../components/layout/PageWrapper";
+import SectionCard from "../components/layout/SectionCard";
+import SectionTitle from "../components/layout/SectionTitle";
+
+// Composants UI
+import Badge from "../components/ui/Badge";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import DatePicker from "../components/ui/DatePicker";
+import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
 // Types pour les tâches
@@ -18,13 +38,6 @@ interface TaskFormData {
   dueDate: string;
 }
 
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}
-
 // Fonction utilitaire pour formater les dates
 const formatDate = (dateString?: string): string => {
   if (!dateString) return "Aucune date";
@@ -37,17 +50,17 @@ const formatDate = (dateString?: string): string => {
   }).format(date);
 };
 
-// Couleurs par statut pour les badges
-const getStatusColor = (status: string): string => {
+// Obtenir la variante de badge pour un statut
+const getStatusVariant = (status: string): string => {
   switch (status) {
     case "pending":
-      return "bg-yellow-100 text-yellow-800";
+      return "warning";
     case "inProgress":
-      return "bg-blue-100 text-blue-800";
+      return "info";
     case "completed":
-      return "bg-green-100 text-green-800";
+      return "success";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "neutral";
   }
 };
 
@@ -65,6 +78,12 @@ const translateStatus = (status: string): string => {
   }
 };
 
+// Vérifier si une date est dépassée
+const isOverdue = (dateString?: string): boolean => {
+  if (!dateString) return false;
+  return new Date(dateString) < new Date();
+};
+
 // Composant principal pour la page des tâches de l'employé
 const EmployeeTasksPage: React.FC = () => {
   // États pour gérer les tâches et l'UI
@@ -72,8 +91,16 @@ const EmployeeTasksPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+
+  // Items du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Tâches" },
+  ];
 
   // État pour le formulaire d'ajout de tâche
   const [formData, setFormData] = useState<TaskFormData>({
@@ -108,6 +135,7 @@ const EmployeeTasksPage: React.FC = () => {
     } catch (error) {
       console.error("Erreur lors de la récupération des tâches:", error);
       setError("Impossible de récupérer vos tâches. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
@@ -127,22 +155,21 @@ const EmployeeTasksPage: React.FC = () => {
       await axios.patch(`/api/tasks/${taskId}`, { status: "completed" });
 
       setSuccess("Tâche marquée comme terminée !");
+      setShowSuccessToast(true);
 
       // Mettre à jour la liste
       fetchTasks();
     } catch (error) {
       console.error("Erreur lors de la mise à jour de la tâche:", error);
       setError("Impossible de mettre à jour la tâche. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setUpdatingTaskId(null);
     }
   };
 
   // Gestionnaire pour mettre à jour le formulaire
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
+  const handleInputChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -156,6 +183,7 @@ const EmployeeTasksPage: React.FC = () => {
     // Validation basique
     if (!formData.title.trim()) {
       setError("Le titre de la tâche est requis");
+      setShowErrorToast(true);
       return;
     }
 
@@ -173,6 +201,7 @@ const EmployeeTasksPage: React.FC = () => {
       await axios.post("/api/tasks", taskData);
 
       setSuccess("Tâche ajoutée avec succès !");
+      setShowSuccessToast(true);
 
       // Réinitialiser le formulaire
       setFormData({
@@ -188,209 +217,219 @@ const EmployeeTasksPage: React.FC = () => {
     } catch (error) {
       console.error("Erreur lors de l'ajout de la tâche:", error);
       setError("Impossible d'ajouter la tâche. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
   };
 
   // Fonction pour fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
+  };
+
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <PageWrapper>
       {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
 
-      {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Mes Tâches</h1>
-        <p className="text-gray-600">
-          Gérez et suivez l'avancement de vos tâches
-        </p>
+      {/* En-tête avec fil d'ariane */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <Breadcrumb items={breadcrumbItems} />
       </div>
 
-      {/* Bouton d'ajout de tâche */}
-      <div className="mb-6 flex justify-between items-center">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          {showAddForm ? "Annuler" : "Ajouter une tâche"}
-        </motion.button>
-
-        <div className="text-sm text-gray-500">
-          {tasks.filter((task) => task.status !== "completed").length} tâche(s)
-          en cours
-        </div>
-      </div>
+      {/* Titre de la page */}
+      <SectionTitle
+        title="Mes Tâches"
+        subtitle="Gérez et suivez l'avancement de vos tâches"
+        icon={<ClipboardList size={24} />}
+        className="mb-8"
+      />
 
       {/* Formulaire d'ajout de tâche */}
-      <AnimatePresence>
-        {showAddForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
+      <SectionCard
+        title="Nouvelle tâche"
+        className="mb-8"
+        actions={
+          <Button
+            variant={showAddForm ? "ghost" : "primary"}
+            onClick={() => setShowAddForm(!showAddForm)}
+            icon={showAddForm ? undefined : <Plus size={16} />}
           >
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                Nouvelle tâche
-              </h2>
-
-              <form onSubmit={addNewTask}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label
-                      htmlFor="title"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Titre*
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
-                      name="title"
+            {showAddForm ? "Annuler" : "Ajouter une tâche"}
+          </Button>
+        }
+      >
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="p-6 border-t border-[var(--border)]">
+                <form onSubmit={addNewTask} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Titre de la tâche */}
+                    <InputField
+                      label="Titre"
                       value={formData.title}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
+                      onChange={(e) =>
+                        handleInputChange("title", e.target.value)
+                      }
                       placeholder="Titre de la tâche"
+                      required
+                    />
+
+                    {/* Date d'échéance */}
+                    <DatePicker
+                      label="Date d'échéance (optionnelle)"
+                      selectedDate={
+                        formData.dueDate ? new Date(formData.dueDate) : null
+                      }
+                      onChange={(date) => {
+                        if (date) {
+                          handleInputChange(
+                            "dueDate",
+                            date.toISOString().split("T")[0]
+                          );
+                        }
+                      }}
+                      minDate={new Date()}
                     />
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="dueDate"
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      isLoading={loading}
+                      icon={<Check size={16} />}
                     >
-                      Date d'échéance (optionnelle)
-                    </label>
-                    <input
-                      type="date"
-                      id="dueDate"
-                      name="dueDate"
-                      value={formData.dueDate}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min={new Date().toISOString().split("T")[0]}
-                    />
+                      Ajouter
+                    </Button>
                   </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    disabled={loading}
-                  >
-                    {loading ? <LoadingSpinner size="sm" /> : "Ajouter"}
-                  </motion.button>
-                </div>
-              </form>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </form>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </SectionCard>
 
       {/* Liste des tâches */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-700">
-            Liste de tâches
-          </h2>
-        </div>
-
+      <SectionCard
+        title="Liste de tâches"
+        className="mb-8"
+        description={`${
+          tasks.filter((task) => task.status !== "completed").length
+        } tâche(s) en cours`}
+      >
         {loading && !updatingTaskId ? (
-          <LoadingSpinner size="lg" />
+          <div className="flex justify-center items-center py-16">
+            <LoadingSpinner size="lg" />
+          </div>
         ) : tasks.length > 0 ? (
-          <ul className="divide-y divide-gray-200">
-            {tasks.map((task) => (
-              <motion.li
-                key={task._id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                className={`p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                  task.status === "completed" ? "bg-gray-50" : "bg-white"
-                }`}
-              >
-                <div className="flex-1">
-                  <h3
-                    className={`text-lg font-medium ${
+          <div className="p-4 overflow-x-auto">
+            <Table
+              columns={[
+                { key: "title", label: "Titre" },
+                { key: "dueDate", label: "Échéance", className: "w-40" },
+                { key: "status", label: "Statut", className: "w-32" },
+                { key: "actions", label: "Actions", className: "w-40" },
+              ]}
+              data={tasks.map((task) => ({
+                title: (
+                  <div
+                    className={
                       task.status === "completed"
-                        ? "line-through text-gray-500"
-                        : "text-gray-800"
-                    }`}
+                        ? "line-through text-[var(--text-tertiary)]"
+                        : "text-[var(--text-primary)]"
+                    }
                   >
                     {task.title}
-                  </h3>
-
-                  <div className="mt-2 flex flex-wrap gap-2 items-center text-sm text-gray-500">
-                    <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                        task.status
-                      )}`}
-                    >
-                      {translateStatus(task.status)}
-                    </span>
-
-                    {task.dueDate && (
-                      <span
-                        className={`${
-                          new Date(task.dueDate) < new Date() &&
-                          task.status !== "completed"
-                            ? "text-red-600 font-semibold"
-                            : ""
-                        }`}
-                      >
-                        Échéance : {formatDate(task.dueDate)}
-                      </span>
+                  </div>
+                ),
+                dueDate: (
+                  <div
+                    className={
+                      isOverdue(task.dueDate) && task.status !== "completed"
+                        ? "text-[var(--error)]"
+                        : "text-[var(--text-secondary)]"
+                    }
+                  >
+                    {task.dueDate ? (
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} />
+                        {formatDate(task.dueDate)}
+                      </div>
+                    ) : (
+                      "Aucune échéance"
                     )}
                   </div>
-                </div>
-
-                {task.status !== "completed" && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2 bg-green-100 text-green-800 hover:bg-green-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    onClick={() => markAsCompleted(task._id)}
-                    disabled={updatingTaskId === task._id}
-                  >
-                    {updatingTaskId === task._id ? (
-                      <LoadingSpinner size="sm" />
-                    ) : (
-                      "Marquer comme terminée"
-                    )}
-                  </motion.button>
-                )}
-              </motion.li>
-            ))}
-          </ul>
+                ),
+                status: (
+                  <Badge
+                    variant={getStatusVariant(task.status)}
+                    label={translateStatus(task.status)}
+                  />
+                ),
+                actions:
+                  task.status !== "completed" ? (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => markAsCompleted(task._id)}
+                      isLoading={updatingTaskId === task._id}
+                      icon={<Check size={16} />}
+                    >
+                      Marquer terminée
+                    </Button>
+                  ) : (
+                    <span className="text-[var(--text-tertiary)] text-sm italic">
+                      Tâche complétée
+                    </span>
+                  ),
+              }))}
+              emptyState={{
+                title: "Aucune tâche",
+                description: "Commencez par ajouter une nouvelle tâche",
+                icon: <ClipboardList size={40} />,
+              }}
+            />
+          </div>
         ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p className="mb-2">Aucune tâche à afficher</p>
-            <p className="text-sm">Commencez par ajouter une nouvelle tâche</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <ClipboardList
+              size={48}
+              className="text-[var(--text-tertiary)] mb-4"
+            />
+            <p className="text-lg text-[var(--text-primary)] mb-2">
+              Aucune tâche à afficher
+            </p>
+            <p className="text-sm text-[var(--text-tertiary)]">
+              Commencez par ajouter une nouvelle tâche
+            </p>
           </div>
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </PageWrapper>
   );
 };
 
