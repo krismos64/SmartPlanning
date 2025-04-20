@@ -1,7 +1,35 @@
+/**
+ * VacationsPage - Page de gestion des congés
+ *
+ * Permet aux employés de demander des congés et aux managers de les gérer.
+ * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
+ */
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  Calendar,
+  CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Plus,
+  XCircle,
+} from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+
+// Composants de layout
+import PageWrapper from "../components/layout/PageWrapper";
+import SectionCard from "../components/layout/SectionCard";
+import SectionTitle from "../components/layout/SectionTitle";
+
+// Composants UI
+import Avatar from "../components/ui/Avatar";
+import Badge from "../components/ui/Badge";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import DatePicker from "../components/ui/DatePicker";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
 // Types pour les demandes de congés
@@ -32,15 +60,74 @@ interface VacationFormData {
   reason: string;
 }
 
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}
-
 // Statut de simulation du rôle utilisateur (à remplacer par un contexte ou autre mécanisme d'auth)
 type UserRole = "employee" | "manager";
+
+/**
+ * Calcule la durée en jours entre deux dates
+ * @param startDate Date de début
+ * @param endDate Date de fin
+ * @returns Nombre de jours
+ */
+const calculateDuration = (startDate: string, endDate: string): number => {
+  return (
+    Math.ceil(
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) /
+        (1000 * 60 * 60 * 24) +
+        1
+    ) || 0
+  );
+};
+
+/**
+ * Formate la date pour l'affichage
+ * @param dateString Chaîne de date à formater
+ * @returns Date formatée (ex: "15 avril 2023")
+ */
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
+/**
+ * Traduit le statut en français
+ * @param status Statut en anglais
+ * @returns Statut traduit en français
+ */
+const translateStatus = (status: string): string => {
+  switch (status) {
+    case "pending":
+      return "En attente";
+    case "approved":
+      return "Approuvé";
+    case "rejected":
+      return "Refusé";
+    default:
+      return status;
+  }
+};
+
+/**
+ * Obtient le type de badge pour un statut
+ */
+const getStatusBadgeType = (
+  status: string
+): "success" | "error" | "info" | "warning" => {
+  switch (status) {
+    case "pending":
+      return "warning";
+    case "approved":
+      return "success";
+    case "rejected":
+      return "error";
+    default:
+      return "info";
+  }
+};
 
 // Composant principal VacationsPage
 const VacationsPage: React.FC = () => {
@@ -57,6 +144,8 @@ const VacationsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
 
   // État pour le filtre de statut
   const [statusFilter, setStatusFilter] = useState<
@@ -72,6 +161,12 @@ const VacationsPage: React.FC = () => {
 
   // État pour l'affichage du formulaire
   const [showForm, setShowForm] = useState<boolean>(false);
+
+  // Items du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Congés" },
+  ];
 
   // Fonction pour récupérer les demandes de congés
   const fetchVacationRequests = useCallback(async () => {
@@ -91,6 +186,7 @@ const VacationsPage: React.FC = () => {
         error
       );
       setError("Erreur lors de la récupération des demandes de congés");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
@@ -119,6 +215,7 @@ const VacationsPage: React.FC = () => {
     // Validation du formulaire
     if (!formData.startDate || !formData.endDate || !formData.reason.trim()) {
       setError("Veuillez remplir tous les champs");
+      setShowErrorToast(true);
       return;
     }
 
@@ -128,6 +225,7 @@ const VacationsPage: React.FC = () => {
 
     if (end < start) {
       setError("La date de fin doit être après la date de début");
+      setShowErrorToast(true);
       return;
     }
 
@@ -138,6 +236,7 @@ const VacationsPage: React.FC = () => {
       await axios.post("/api/vacations", formData);
 
       setSuccess("Demande de congés envoyée avec succès");
+      setShowSuccessToast(true);
 
       // Réinitialiser le formulaire
       setFormData({
@@ -154,6 +253,7 @@ const VacationsPage: React.FC = () => {
     } catch (error) {
       console.error("Erreur lors de l'envoi de la demande de congés:", error);
       setError("Erreur lors de l'envoi de la demande de congés");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
@@ -175,21 +275,26 @@ const VacationsPage: React.FC = () => {
           status === "approved" ? "approuvée" : "refusée"
         } avec succès`
       );
+      setShowSuccessToast(true);
 
       // Rafraîchir les données
       fetchVacationRequests();
     } catch (error) {
       console.error("Erreur lors de la mise à jour du statut:", error);
       setError("Erreur lors de la mise à jour du statut");
+      setShowErrorToast(true);
     } finally {
       setActionLoading(null);
     }
   };
 
   // Fonction pour fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
+  };
+
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
   };
 
   // Fonction pour filtrer les demandes par statut
@@ -198,44 +303,6 @@ const VacationsPage: React.FC = () => {
       return requests;
     }
     return requests.filter((request) => request.status === statusFilter);
-  };
-
-  // Formater la date pour l'affichage
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(date);
-  };
-
-  // Obtenir la couleur en fonction du statut
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  // Traduire le statut en français
-  const translateStatus = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "En attente";
-      case "approved":
-        return "Approuvé";
-      case "rejected":
-        return "Refusé";
-      default:
-        return status;
-    }
   };
 
   // Filtrer et trier les demandes
@@ -251,95 +318,86 @@ const VacationsPage: React.FC = () => {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <PageWrapper>
       {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
 
-      {/* En-tête */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Gestion des Congés
-        </h1>
-        <p className="text-gray-600">
-          {userRole === "manager"
+      {/* En-tête avec fil d'ariane */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <Breadcrumb items={breadcrumbItems} />
+      </div>
+
+      {/* Titre de la page */}
+      <SectionTitle
+        title="Gestion des Congés"
+        subtitle={
+          userRole === "manager"
             ? "Gérez les demandes de congés de votre équipe"
-            : "Visualisez et demandez vos congés"}
-        </p>
-      </motion.div>
+            : "Visualisez et demandez vos congés"
+        }
+        icon={<CalendarCheck size={24} />}
+        className="mb-8"
+      />
 
-      {/* Actions principales */}
-      <motion.div
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
+      {/* Filtres et actions */}
+      <SectionCard
+        title="Filtres"
+        className="mb-8"
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => setShowForm(!showForm)}
+            icon={showForm ? undefined : <Plus size={16} />}
+          >
+            {showForm ? "Annuler" : "Demander un congé"}
+          </Button>
+        }
       >
-        {/* Filtres */}
-        <div className="flex flex-wrap gap-2">
-          <button
+        <div className="flex flex-wrap gap-3 p-4">
+          <Button
+            variant={statusFilter === "all" ? "primary" : "secondary"}
+            size="sm"
             onClick={() => setStatusFilter("all")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              statusFilter === "all"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
           >
             Tous
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={statusFilter === "pending" ? "primary" : "secondary"}
+            size="sm"
             onClick={() => setStatusFilter("pending")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              statusFilter === "pending"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            icon={<Clock size={14} />}
           >
             En attente
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={statusFilter === "approved" ? "primary" : "secondary"}
+            size="sm"
             onClick={() => setStatusFilter("approved")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              statusFilter === "approved"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            icon={<CheckCircle2 size={14} />}
           >
             Approuvés
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={statusFilter === "rejected" ? "primary" : "secondary"}
+            size="sm"
             onClick={() => setStatusFilter("rejected")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              statusFilter === "rejected"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            icon={<XCircle size={14} />}
           >
             Refusés
-          </button>
+          </Button>
         </div>
-
-        {/* Bouton de création (pour tous les utilisateurs) */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-        >
-          {showForm ? "Annuler" : "Demander un congé"}
-        </motion.button>
-      </motion.div>
+      </SectionCard>
 
       {/* Formulaire de demande de congés */}
       <AnimatePresence>
@@ -349,62 +407,56 @@ const VacationsPage: React.FC = () => {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="overflow-hidden"
+            className="overflow-hidden mb-8"
           >
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                Nouvelle demande de congé
-              </h2>
-
-              <form onSubmit={handleSubmitVacationRequest}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <SectionCard title="Nouvelle demande de congé">
+              <form onSubmit={handleSubmitVacationRequest} className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <label
-                      htmlFor="startDate"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Date de début
-                    </label>
-                    <input
-                      type="date"
-                      id="startDate"
-                      name="startDate"
-                      value={formData.startDate}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <DatePicker
+                      label="Date de début"
+                      selectedDate={formData.startDate || null}
+                      onChange={(date) => {
+                        if (date) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            startDate: date.toISOString().split("T")[0],
+                          }));
+                        }
+                      }}
+                      minDate={new Date()}
                       required
-                      min={new Date().toISOString().split("T")[0]}
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="endDate"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Date de fin
-                    </label>
-                    <input
-                      type="date"
-                      id="endDate"
-                      name="endDate"
-                      value={formData.endDate}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                      min={
-                        formData.startDate ||
-                        new Date().toISOString().split("T")[0]
+                    <DatePicker
+                      label="Date de fin"
+                      selectedDate={formData.endDate || null}
+                      onChange={(date) => {
+                        if (date) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            endDate: date.toISOString().split("T")[0],
+                          }));
+                        }
+                      }}
+                      minDate={
+                        formData.startDate
+                          ? new Date(formData.startDate)
+                          : new Date()
                       }
+                      required
                     />
                   </div>
                 </div>
 
-                <div className="mb-4">
+                <div className="mb-6">
                   <label
                     htmlFor="reason"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-[var(--text-primary)] mb-1"
                   >
                     Motif
+                    <span className="text-[var(--error)] ml-1">*</span>
                   </label>
                   <textarea
                     id="reason"
@@ -412,201 +464,153 @@ const VacationsPage: React.FC = () => {
                     rows={3}
                     value={formData.reason}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 rounded-md border border-[var(--border)] transition bg-[var(--background-secondary)]
+                      focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] placeholder-[var(--text-secondary)]"
                     placeholder="Précisez la raison de votre demande de congé..."
                     required
                   />
                 </div>
 
                 <div className="flex justify-end">
-                  <motion.button
+                  <Button
                     type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    disabled={loading}
+                    variant="primary"
+                    isLoading={loading}
+                    icon={<Calendar size={16} />}
                   >
-                    {loading ? (
-                      <LoadingSpinner size="sm" />
-                    ) : (
-                      "Envoyer la demande"
-                    )}
-                  </motion.button>
+                    Envoyer la demande
+                  </Button>
                 </div>
               </form>
-            </div>
+            </SectionCard>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Liste des demandes de congés */}
-      <motion.div
-        className="bg-white rounded-lg shadow-md overflow-hidden"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+      <SectionCard
+        title={`Demandes de congés${
+          statusFilter !== "all" ? ` - ${translateStatus(statusFilter)}` : ""
+        }`}
+        className="mb-8"
       >
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-700">
-            Demandes de congés
-            {statusFilter !== "all" && ` - ${translateStatus(statusFilter)}`}
-          </h2>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center p-12">
+        {loading && !actionLoading ? (
+          <div className="flex justify-center items-center py-16">
             <LoadingSpinner size="lg" />
           </div>
-        ) : filteredRequests.length > 0 ? (
+        ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Employé
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Période
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Statut
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Motif
-                  </th>
-                  {userRole === "manager" && (
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredRequests.map((request) => (
-                  <motion.tr
-                    key={request._id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2 }}
-                    whileHover={{ backgroundColor: "#f9fafb" }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {request.employeeId.firstName}{" "}
-                        {request.employeeId.lastName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        Du {formatDate(request.startDate)} au{" "}
+            <Table
+              columns={[
+                { key: "employee", label: "Employé", className: "w-48" },
+                { key: "period", label: "Période", className: "w-56" },
+                { key: "status", label: "Statut", className: "w-32" },
+                { key: "reason", label: "Motif" },
+                ...(userRole === "manager"
+                  ? [{ key: "actions", label: "Actions", className: "w-48" }]
+                  : []),
+              ]}
+              data={filteredRequests.map((request) => ({
+                employee: (
+                  <div className="flex items-center gap-3">
+                    <Avatar
+                      name={`${request.employeeId.firstName} ${request.employeeId.lastName}`}
+                      size="sm"
+                    />
+                    <span className="text-[var(--text-primary)] font-medium">
+                      {request.employeeId.firstName}{" "}
+                      {request.employeeId.lastName}
+                    </span>
+                  </div>
+                ),
+                period: (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                      <CalendarDays size={14} />
+                      <span>
+                        {formatDate(request.startDate)} -{" "}
                         {formatDate(request.endDate)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {Math.ceil(
-                          (new Date(request.endDate).getTime() -
-                            new Date(request.startDate).getTime()) /
-                            (1000 * 60 * 60 * 24) +
-                            1
-                        )}{" "}
-                        jour(s)
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                          request.status
-                        )}`}
-                      >
-                        {translateStatus(request.status)}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate md:max-w-sm">
-                        {request.reason}
-                      </div>
-                    </td>
-                    {userRole === "manager" && (
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {request.status === "pending" ? (
-                          <div className="flex justify-end space-x-2">
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
+                    </div>
+                    <div className="text-xs text-[var(--text-secondary)] mt-1">
+                      {calculateDuration(request.startDate, request.endDate)}{" "}
+                      jour(s)
+                    </div>
+                  </div>
+                ),
+                status: (
+                  <Badge
+                    label={translateStatus(request.status)}
+                    type={getStatusBadgeType(request.status)}
+                  />
+                ),
+                reason: (
+                  <div className="max-w-xs text-[var(--text-primary)]">
+                    {request.reason}
+                  </div>
+                ),
+                ...(userRole === "manager"
+                  ? {
+                      actions:
+                        request.status === "pending" ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="success"
+                              size="sm"
                               onClick={() =>
                                 handleUpdateVacationStatus(
                                   request._id,
                                   "approved"
                                 )
                               }
-                              className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md transition-colors"
-                              disabled={actionLoading === request._id}
+                              isLoading={actionLoading === request._id}
+                              icon={<CheckCircle2 size={14} />}
                             >
-                              {actionLoading === request._id ? (
-                                <LoadingSpinner size="sm" />
-                              ) : (
-                                "Approuver"
-                              )}
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
+                              Approuver
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
                               onClick={() =>
                                 handleUpdateVacationStatus(
                                   request._id,
                                   "rejected"
                                 )
                               }
-                              className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors"
-                              disabled={actionLoading === request._id}
+                              isLoading={actionLoading === request._id}
+                              icon={<XCircle size={14} />}
                             >
-                              {actionLoading === request._id ? (
-                                <LoadingSpinner size="sm" />
-                              ) : (
-                                "Refuser"
-                              )}
-                            </motion.button>
+                              Refuser
+                            </Button>
                           </div>
                         ) : (
-                          <span className="text-gray-500 text-xs">
+                          <div className="text-[var(--text-tertiary)] text-xs text-right">
                             {request.status === "approved"
                               ? "Approuvé"
                               : "Refusé"}{" "}
                             par{" "}
-                            {request.updatedBy
-                              ? `${request.updatedBy.firstName} ${request.updatedBy.lastName}`
-                              : "le système"}
-                          </span>
-                        )}
-                      </td>
-                    )}
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center p-12 text-gray-500">
-            Aucune demande de congé {statusFilter !== "all" && statusFilter}{" "}
-            trouvée.
+                            <span className="font-medium">
+                              {request.updatedBy
+                                ? `${request.updatedBy.firstName} ${request.updatedBy.lastName}`
+                                : "le système"}
+                            </span>
+                          </div>
+                        ),
+                    }
+                  : {}),
+              }))}
+              emptyState={{
+                title: "Aucune demande de congé",
+                description: `Aucune demande ${
+                  statusFilter !== "all" ? translateStatus(statusFilter) : ""
+                } trouvée.`,
+                icon: <CalendarCheck size={40} />,
+              }}
+            />
           </div>
         )}
-      </motion.div>
-    </div>
+      </SectionCard>
+    </PageWrapper>
   );
 };
 
