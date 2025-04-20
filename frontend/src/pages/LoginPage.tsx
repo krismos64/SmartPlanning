@@ -1,36 +1,42 @@
+/**
+ * LoginPage - Page de connexion utilisateur
+ *
+ * Permet aux utilisateurs de se connecter à l'application SmartPlanning
+ * via email/mot de passe ou OAuth Google. Utilise les composants
+ * du design system pour une expérience cohérente.
+ */
 import axios from "axios";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
+import { Key, LogIn, Mail } from "lucide-react";
 import React, { useContext, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import Toast from "../components/ui/Toast"; // Import du composant Toast global
-
-// Contexte d'authentification (à importer depuis votre AuthContext)
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import FormContainer from "../components/layout/FormContainer";
+import PageWrapper from "../components/layout/PageWrapper";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import InputField from "../components/ui/InputField";
+import ThemeToggle from "../components/ui/ThemeToggle";
+import Toast from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
-// Utilisation du composant LoadingSpinner global
-import LoadingSpinner from "../components/ui/LoadingSpinner";
 
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}
-
-// Interface pour le formulaire de connexion
+/**
+ * Interface pour le formulaire de connexion
+ */
 interface LoginFormData {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 /**
- * Composant Page de Connexion
- * Gère la connexion par email/mot de passe et l'authentification Google OAuth
+ * Page de connexion
  */
 const LoginPage: React.FC = () => {
   // État local pour le formulaire de connexion
   const [formData, setFormData] = useState<LoginFormData>({
     email: "",
     password: "",
+    rememberMe: false,
   });
 
   // États pour l'UI
@@ -38,23 +44,50 @@ const LoginPage: React.FC = () => {
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
 
   // Hooks de navigation et contexte d'authentification
   const navigate = useNavigate();
   const location = useLocation();
   const auth = useContext(AuthContext);
 
-  // Récupération du token JWT dans l'URL (pour OAuth)
+  // Éléments du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Accueil", href: "/" },
+    { label: "Connexion" },
+  ];
+
+  // Animation de transition pour les éléments du formulaire
+  const formAnimation = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.1,
+        duration: 0.4,
+        ease: "easeOut",
+      },
+    }),
+  };
+
+  /**
+   * Gestion de l'authentification OAuth via token dans l'URL
+   */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
 
     if (token) {
-      // Stocker le token dans localStorage
-      localStorage.setItem("token", token);
+      // Afficher un indicateur de chargement
+      setLoading(true);
 
-      // Décoder le token pour obtenir les informations utilisateur
       try {
+        // Stocker le token dans localStorage
+        localStorage.setItem("token", token);
+
+        // Décoder le token pour obtenir les informations utilisateur
         const base64Url = token.split(".")[1];
         const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
         const jsonPayload = decodeURIComponent(
@@ -71,37 +104,50 @@ const LoginPage: React.FC = () => {
         // Mettre à jour le contexte d'authentification
         auth.login(user, token);
 
-        // Rediriger selon le rôle
-        if (user.role === "admin") {
-          navigate("/dashboard/admin");
-        } else if (user.role === "manager") {
-          navigate("/dashboard/manager");
-        } else {
-          navigate("/dashboard");
-        }
+        // Afficher un message de succès
+        setSuccess("Connexion réussie!");
+        setShowSuccessToast(true);
+
+        // Rediriger selon le rôle après un court délai
+        setTimeout(() => {
+          if (user.role === "admin") {
+            navigate("/dashboard/admin");
+          } else if (user.role === "manager") {
+            navigate("/dashboard/manager");
+          } else {
+            navigate("/dashboard");
+          }
+        }, 1500);
       } catch (error) {
         console.error("Erreur lors du décodage du token:", error);
         setError("Erreur d'authentification. Veuillez réessayer.");
+        setShowErrorToast(true);
+        setLoading(false);
       }
     }
   }, [location, navigate, auth]);
 
-  // Gestionnaire de changement de champ
+  /**
+   * Gestionnaire de changement de champ
+   */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     });
   };
 
-  // Gestionnaire de soumission du formulaire
+  /**
+   * Gestionnaire de soumission du formulaire
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation basique
     if (!formData.email || !formData.password) {
       setError("Veuillez remplir tous les champs");
+      setShowErrorToast(true);
       return;
     }
 
@@ -120,9 +166,11 @@ const LoginPage: React.FC = () => {
       // Mettre à jour le contexte d'authentification
       auth.login(user, token);
 
+      // Afficher le message de succès
       setSuccess("Connexion réussie!");
+      setShowSuccessToast(true);
 
-      // Rediriger selon le rôle
+      // Rediriger selon le rôle après un court délai
       setTimeout(() => {
         if (user.role === "admin") {
           navigate("/dashboard/admin");
@@ -131,7 +179,7 @@ const LoginPage: React.FC = () => {
         } else {
           navigate("/dashboard");
         }
-      }, 1000);
+      }, 1500);
     } catch (error) {
       console.error("Erreur de connexion:", error);
 
@@ -141,12 +189,15 @@ const LoginPage: React.FC = () => {
       } else {
         setError("Erreur de connexion. Veuillez réessayer.");
       }
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
   };
 
-  // Gestionnaire de connexion Google
+  /**
+   * Gestionnaire de connexion Google
+   */
   const handleGoogleLogin = () => {
     setGoogleLoading(true);
     // Redirection vers l'API OAuth de Google
@@ -155,170 +206,191 @@ const LoginPage: React.FC = () => {
     }/api/auth/google`;
   };
 
-  // Fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  /**
+   * Fermeture des notifications Toast
+   */
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
+  };
+
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+    <PageWrapper>
+      {/* En-tête avec Breadcrumb et ThemeToggle */}
+      <div className="flex justify-between items-center w-full mb-8">
+        <Breadcrumb items={breadcrumbItems} />
+        <ThemeToggle />
+      </div>
 
+      {/* Notifications Toast */}
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
+
+      {/* Contenu principal */}
       <motion.div
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md mx-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Connexion à SmartPlanning
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Connectez-vous pour accéder à votre espace
-          </p>
-        </div>
+        <FormContainer>
+          {/* En-tête du formulaire */}
+          <motion.div
+            className="text-center mb-8"
+            variants={formAnimation}
+            initial="hidden"
+            animate="visible"
+            custom={0}
+          >
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+              Connexion à SmartPlanning
+            </h1>
+            <p className="text-[var(--text-secondary)] text-sm">
+              Connectez-vous pour accéder à votre espace
+            </p>
+          </motion.div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Adresse email
-              </label>
-              <input
-                id="email"
+          {/* Formulaire de connexion */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={1}
+            >
+              <InputField
                 name="email"
                 type="email"
-                autoComplete="email"
-                required
+                label="Adresse email"
+                placeholder="votre@email.com"
                 value={formData.email}
                 onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Adresse email"
+                required
                 disabled={loading}
+                icon={<Mail size={18} />}
               />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Mot de passe
-              </label>
-              <input
-                id="password"
+            </motion.div>
+
+            {/* Mot de passe */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={2}
+            >
+              <InputField
                 name="password"
                 type="password"
-                autoComplete="current-password"
-                required
+                label="Mot de passe"
+                placeholder="Votre mot de passe"
                 value={formData.password}
                 onChange={handleChange}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Mot de passe"
+                required
                 disabled={loading}
+                icon={<Key size={18} />}
               />
-            </div>
-          </div>
+            </motion.div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember_me"
-                name="remember_me"
-                type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="remember_me"
-                className="ml-2 block text-sm text-gray-900"
-              >
-                Se souvenir de moi
-              </label>
-            </div>
+            {/* Options supplémentaires */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={3}
+              className="flex items-center justify-between text-sm pt-1"
+            >
+              <div className="flex items-center">
+                <input
+                  id="rememberMe"
+                  name="rememberMe"
+                  type="checkbox"
+                  className="h-4 w-4 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/30 border-[var(--border)] rounded"
+                  checked={formData.rememberMe}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+                <label
+                  htmlFor="rememberMe"
+                  className="ml-2 text-[var(--text-secondary)]"
+                >
+                  Se souvenir de moi
+                </label>
+              </div>
 
-            <div className="text-sm">
-              <a
-                href="#"
-                className="font-medium text-blue-600 hover:text-blue-500"
+              <Link
+                to="/forgot-password"
+                className="text-[var(--accent-primary)] hover:underline"
               >
                 Mot de passe oublié?
-              </a>
-            </div>
-          </div>
+              </Link>
+            </motion.div>
 
-          <div>
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              disabled={loading}
+            {/* Bouton de connexion */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={4}
+              className="pt-4"
             >
-              {loading ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <>
-                  <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                    <svg
-                      className="h-5 w-5 text-blue-500 group-hover:text-blue-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </span>
-                  Se connecter
-                </>
-              )}
-            </motion.button>
-          </div>
-        </form>
+              <Button
+                type="submit"
+                disabled={loading}
+                isLoading={loading}
+                fullWidth
+              >
+                Se connecter
+              </Button>
+            </motion.div>
 
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
-                Ou continuer avec
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <motion.button
-              type="button"
-              onClick={handleGoogleLogin}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-              disabled={googleLoading}
+            {/* Séparateur */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={5}
+              className="relative my-6"
             >
-              {googleLoading ? (
-                <span className="flex items-center">
-                  <LoadingSpinner size="sm" />
-                  <span className="ml-2">Connexion via Google...</span>
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[var(--border)]"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-[var(--background-primary)] text-[var(--text-tertiary)]">
+                  Ou continuer avec
                 </span>
-              ) : (
-                <span className="flex items-center">
+              </div>
+            </motion.div>
+
+            {/* Bouton Google */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={6}
+            >
+              <Button
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                isLoading={googleLoading}
+                variant="secondary"
+                fullWidth
+              >
+                {!googleLoading && (
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-                      fill="white"
-                    />
                     <path
                       d="M22 12.0001C22 10.8701 21.8599 9.74009 21.5899 8.67009H12.0099V12.4201H17.5699C17.3299 13.5601 16.6599 14.4901 15.6899 15.1001V17.5701H19.0099C21.0099 15.9901 22 14.2301 22 12.0001Z"
                       fill="#4285F4"
@@ -336,26 +408,36 @@ const LoginPage: React.FC = () => {
                       fill="#EA4335"
                     />
                   </svg>
-                  Continuer avec Google
-                </span>
-              )}
-            </motion.button>
-          </div>
-        </div>
+                )}
+                Continuer avec Google
+              </Button>
+            </motion.div>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Vous n'avez pas de compte?{" "}
-            <a
-              href="/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
+            {/* Lien d'inscription */}
+            <motion.div
+              variants={formAnimation}
+              initial="hidden"
+              animate="visible"
+              custom={7}
+              className="text-center mt-6"
             >
-              S'inscrire
-            </a>
-          </p>
-        </div>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Vous n'avez pas de compte ?{" "}
+                <Link
+                  to="/register"
+                  className="text-[var(--accent-primary)] hover:underline font-medium"
+                >
+                  <span className="inline-flex items-center">
+                    <LogIn size={14} className="mr-1" />
+                    S'inscrire
+                  </span>
+                </Link>
+              </p>
+            </motion.div>
+          </form>
+        </FormContainer>
       </motion.div>
-    </div>
+    </PageWrapper>
   );
 };
 
