@@ -1,8 +1,45 @@
+/**
+ * TeamManagementPage - Page de gestion des équipes
+ *
+ * Permet aux managers de visualiser et gérer les membres de leurs équipes.
+ * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
+ */
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import React, { FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  CalendarClock,
+  CalendarDays,
+  Plus,
+  Shield,
+  Trash,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import type { FormEvent } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+
+// Composants de layout
+import PageWrapper from "../components/layout/PageWrapper";
+import SectionCard from "../components/layout/SectionCard";
+import SectionTitle from "../components/layout/SectionTitle";
+
+// Composants UI
+import Avatar from "../components/ui/Avatar";
+import Badge from "../components/ui/Badge";
+import Breadcrumb from "../components/ui/Breadcrumb";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
-import Toast from "../components/ui/Toast"; // Import du composant Toast global
+import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
+import Table from "../components/ui/Table";
+import Toast from "../components/ui/Toast";
+
+// Importation du composant de planification d'événements
+import TeamEventPlanner, {
+  TeamEvent,
+} from "../components/team/TeamEventPlanner";
+import TeamEventsCalendar from "../components/team/TeamEventsCalendar";
 
 // Types pour les équipes
 interface Team {
@@ -13,6 +50,7 @@ interface Team {
   managerIds: string[];
   companyId: string;
   createdAt: string;
+  events?: TeamEvent[]; // Ajout des événements d'équipe
 }
 
 // Types pour les employés dans une équipe
@@ -21,7 +59,7 @@ interface TeamEmployee {
   firstName: string;
   lastName: string;
   status: "actif" | "inactif";
-  tasksCount: number; // Nombre de tâches en cours (pour la simulation)
+  tasksCount: number; // Nombre de tâches en cours
 }
 
 // Types pour les employés disponibles (sans équipe)
@@ -38,14 +76,9 @@ interface AddEmployeeFormData {
   teamId: string;
 }
 
-// Types pour les composants d'UI réutilisables
-interface ToastProps {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}
-
-// Fonction utilitaire pour formater les dates
+/**
+ * Fonction utilitaire pour formater les dates
+ */
 const formatDate = (dateString?: string): string => {
   if (!dateString) return "";
 
@@ -55,18 +88,6 @@ const formatDate = (dateString?: string): string => {
     month: "short",
     day: "numeric",
   }).format(date);
-};
-
-// Couleurs pour les badges de statut
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case "actif":
-      return "bg-green-100 text-green-800";
-    case "inactif":
-      return "bg-gray-100 text-gray-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
 };
 
 /**
@@ -83,6 +104,11 @@ const TeamManagementPage: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+
+  // État pour gérer quel équipe affiche son planificateur d'événements
+  const [showEventPlanner, setShowEventPlanner] = useState<string | null>(null);
 
   // États pour gérer les formulaires d'ajout d'employé
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -92,7 +118,31 @@ const TeamManagementPage: React.FC = () => {
       teamId: "",
     });
 
-  // Fonction pour récupérer les équipes du manager
+  // État pour la modal de confirmation de suppression
+  const [removeConfirmation, setRemoveConfirmation] = useState<{
+    isOpen: boolean;
+    teamId: string;
+    employeeId: string;
+    employeeName: string;
+  }>({
+    isOpen: false,
+    teamId: "",
+    employeeId: "",
+    employeeName: "",
+  });
+
+  // État pour afficher les événements
+  const [showEvents, setShowEvents] = useState<{ [key: string]: boolean }>({});
+
+  // Items du fil d'ariane
+  const breadcrumbItems = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Équipes" },
+  ];
+
+  /**
+   * Fonction pour récupérer les équipes du manager
+   */
   const fetchTeams = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -102,16 +152,76 @@ const TeamManagementPage: React.FC = () => {
         "/api/teams/my-teams"
       );
 
-      setTeams(response.data.data);
+      // Ajouter des événements fictifs pour la démonstration
+      const teamsWithEvents = response.data.data.map((team) => {
+        // Si nous sommes en développement ou si les données API n'ont pas d'événements
+        if (
+          process.env.NODE_ENV === "development" ||
+          !team.events ||
+          team.events.length === 0
+        ) {
+          // Dates pour les événements fictifs
+          const today = new Date();
+          const tomorrow = new Date();
+          tomorrow.setDate(today.getDate() + 1);
+          const nextWeek = new Date();
+          nextWeek.setDate(today.getDate() + 7);
+
+          // Événements fictifs
+          return {
+            ...team,
+            events: [
+              {
+                id: `event-${team._id}-1`,
+                teamId: team._id,
+                title: "Réunion d'équipe hebdomadaire",
+                description:
+                  "Passage en revue des projets en cours et planification",
+                startDate: today,
+                endDate: new Date(today.getTime() + 60 * 60 * 1000), // +1h
+                location: "Salle de conférence A",
+                eventType: "meeting",
+              },
+              {
+                id: `event-${team._id}-2`,
+                teamId: team._id,
+                title: "Formation sur les nouvelles fonctionnalités",
+                description:
+                  "Présentation des nouvelles fonctionnalités du système",
+                startDate: tomorrow,
+                endDate: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000), // +2h
+                location: "Salle de formation B",
+                eventType: "training",
+              },
+              {
+                id: `event-${team._id}-3`,
+                teamId: team._id,
+                title: "Team Building - Escape Game",
+                description: "Activité d'équipe pour renforcer la cohésion",
+                startDate: nextWeek,
+                endDate: new Date(nextWeek.getTime() + 3 * 60 * 60 * 1000), // +3h
+                location: "Escape Game Center",
+                eventType: "teambuilding",
+              },
+            ],
+          };
+        }
+        return team;
+      });
+
+      setTeams(teamsWithEvents);
     } catch (error) {
       console.error("Erreur lors de la récupération des équipes:", error);
       setError("Impossible de récupérer les équipes. Veuillez réessayer.");
+      setShowErrorToast(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Fonction pour récupérer les employés disponibles (sans équipe)
+  /**
+   * Fonction pour récupérer les employés disponibles (sans équipe)
+   */
   const fetchAvailableEmployees = useCallback(async (teamId: string) => {
     setSubmitting(true);
     try {
@@ -135,6 +245,7 @@ const TeamManagementPage: React.FC = () => {
         error
       );
       setError("Impossible de récupérer les employés disponibles.");
+      setShowErrorToast(true);
     } finally {
       setSubmitting(false);
     }
@@ -145,16 +256,19 @@ const TeamManagementPage: React.FC = () => {
     fetchTeams();
   }, [fetchTeams]);
 
-  // Gestionnaire pour la mise à jour du formulaire d'ajout d'employé
-  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  /**
+   * Gestionnaire pour la mise à jour du formulaire d'ajout d'employé
+   */
+  const handleEmployeeChange = (value: string) => {
     setAddEmployeeFormData((prev) => ({
       ...prev,
-      [name]: value,
+      employeeId: value,
     }));
   };
 
-  // Fonction pour ouvrir le formulaire d'ajout d'employé
+  /**
+   * Fonction pour ouvrir le formulaire d'ajout d'employé
+   */
   const openAddEmployeeForm = (teamId: string) => {
     setSelectedTeamId(teamId);
     setAddEmployeeFormData((prev) => ({
@@ -164,18 +278,23 @@ const TeamManagementPage: React.FC = () => {
     fetchAvailableEmployees(teamId);
   };
 
-  // Fonction pour fermer le formulaire d'ajout d'employé
+  /**
+   * Fonction pour fermer le formulaire d'ajout d'employé
+   */
   const closeAddEmployeeForm = () => {
     setSelectedTeamId(null);
   };
 
-  // Fonction pour ajouter un employé à une équipe
+  /**
+   * Fonction pour ajouter un employé à une équipe
+   */
   const addEmployeeToTeam = async (e: FormEvent) => {
     e.preventDefault();
 
     // Validation du formulaire
     if (!addEmployeeFormData.employeeId || !addEmployeeFormData.teamId) {
       setError("Veuillez sélectionner un employé.");
+      setShowErrorToast(true);
       return;
     }
 
@@ -189,6 +308,7 @@ const TeamManagementPage: React.FC = () => {
       );
 
       setSuccess("Employé ajouté à l'équipe avec succès");
+      setShowSuccessToast(true);
 
       // Fermer le formulaire et rafraîchir les équipes
       closeAddEmployeeForm();
@@ -198,37 +318,81 @@ const TeamManagementPage: React.FC = () => {
       setError(
         "Impossible d'ajouter l'employé à l'équipe. Veuillez réessayer."
       );
+      setShowErrorToast(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Fonction pour supprimer un employé d'une équipe
-  const removeEmployeeFromTeam = async (teamId: string, employeeId: string) => {
+  /**
+   * Fonction pour ouvrir la confirmation de suppression
+   */
+  const confirmRemoveEmployee = (
+    teamId: string,
+    employeeId: string,
+    firstName: string,
+    lastName: string
+  ) => {
+    setRemoveConfirmation({
+      isOpen: true,
+      teamId,
+      employeeId,
+      employeeName: `${firstName} ${lastName}`,
+    });
+  };
+
+  /**
+   * Fonction pour fermer la confirmation de suppression
+   */
+  const cancelRemoveEmployee = () => {
+    setRemoveConfirmation({
+      isOpen: false,
+      teamId: "",
+      employeeId: "",
+      employeeName: "",
+    });
+  };
+
+  /**
+   * Fonction pour supprimer un employé d'une équipe
+   */
+  const removeEmployeeFromTeam = async () => {
     setSubmitting(true);
     setError(null);
 
     try {
-      await axios.delete(`/api/teams/${teamId}/remove-employee/${employeeId}`);
+      await axios.delete(
+        `/api/teams/${removeConfirmation.teamId}/remove-employee/${removeConfirmation.employeeId}`
+      );
 
       setSuccess("Employé retiré de l'équipe avec succès");
+      setShowSuccessToast(true);
 
-      // Rafraîchir les équipes
+      // Fermer la modal et rafraîchir les équipes
+      cancelRemoveEmployee();
       fetchTeams();
     } catch (error) {
       console.error("Erreur lors de la suppression de l'employé:", error);
       setError(
         "Impossible de retirer l'employé de l'équipe. Veuillez réessayer."
       );
+      setShowErrorToast(true);
+      // Fermer la modal malgré l'erreur
+      cancelRemoveEmployee();
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Fonction pour fermer les notifications
-  const closeNotification = () => {
-    setError(null);
-    setSuccess(null);
+  /**
+   * Fonction pour fermer les notifications
+   */
+  const closeErrorToast = () => {
+    setShowErrorToast(false);
+  };
+
+  const closeSuccessToast = () => {
+    setShowSuccessToast(false);
   };
 
   // Données de secours si l'API n'est pas disponible
@@ -247,268 +411,339 @@ const TeamManagementPage: React.FC = () => {
           },
         ];
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Notifications */}
-      <AnimatePresence>
-        {error && (
-          <Toast message={error} type="error" onClose={closeNotification} />
-        )}
-        {success && (
-          <Toast message={success} type="success" onClose={closeNotification} />
-        )}
-      </AnimatePresence>
+  /**
+   * Préparation des options pour le Select d'employés
+   */
+  const employeeOptions = fallbackAvailableEmployees.map((employee) => ({
+    label: `${employee.firstName} ${employee.lastName} (${employee.status})`,
+    value: employee._id,
+  }));
 
-      {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Gestion des équipes
-        </h1>
-        <p className="text-gray-600">Gérez les membres de vos équipes</p>
+  /**
+   * Fonction pour gérer la création d'un événement d'équipe
+   */
+  const handleEventCreated = (teamId: string, event: TeamEvent) => {
+    setTeams((prevTeams) =>
+      prevTeams.map((team) => {
+        if (team._id === teamId) {
+          const updatedEvents = team.events ? [...team.events, event] : [event];
+          return { ...team, events: updatedEvents };
+        }
+        return team;
+      })
+    );
+
+    setSuccess("Événement d'équipe créé avec succès");
+    setShowSuccessToast(true);
+    setShowEventPlanner(null); // Fermer le planificateur après création
+  };
+
+  /**
+   * Fonction pour basculer l'affichage du planificateur d'événements
+   */
+  const toggleEventPlanner = (teamId: string) => {
+    setShowEventPlanner((current) => (current === teamId ? null : teamId));
+  };
+
+  /**
+   * Fonction pour basculer l'affichage des événements
+   */
+  const toggleEventsCalendar = (teamId: string) => {
+    setShowEvents((prev) => ({
+      ...prev,
+      [teamId]: !prev[teamId],
+    }));
+  };
+
+  return (
+    <PageWrapper>
+      {/* Notifications */}
+      <Toast
+        message={error || ""}
+        type="error"
+        isVisible={showErrorToast}
+        onClose={closeErrorToast}
+      />
+      <Toast
+        message={success || ""}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={closeSuccessToast}
+      />
+
+      {/* Modal de confirmation de suppression */}
+      <Modal
+        isOpen={removeConfirmation.isOpen}
+        onClose={cancelRemoveEmployee}
+        title="Confirmer la suppression"
+      >
+        <div className="p-6">
+          <p className="mb-4 text-[var(--text-primary)]">
+            Êtes-vous sûr de vouloir retirer{" "}
+            <span className="font-semibold">
+              {removeConfirmation.employeeName}
+            </span>{" "}
+            de cette équipe ?
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={cancelRemoveEmployee}
+              disabled={submitting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="danger"
+              onClick={removeEmployeeFromTeam}
+              isLoading={submitting}
+              icon={<Trash size={16} />}
+            >
+              Retirer
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* En-tête avec fil d'ariane */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <Breadcrumb items={breadcrumbItems} />
       </div>
+
+      {/* Titre de la page */}
+      <SectionTitle
+        title="Gestion des équipes"
+        subtitle="Gérez les membres de vos équipes"
+        icon={<Users size={24} />}
+        className="mb-8"
+      />
 
       {/* Contenu principal */}
       {loading ? (
-        <LoadingSpinner size="lg" />
+        <div className="flex justify-center items-center py-16">
+          <LoadingSpinner size="lg" />
+        </div>
       ) : teams.length > 0 ? (
         <div className="space-y-8">
           {teams.map((team) => (
-            <div
+            <SectionCard
               key={team._id}
-              className="bg-white rounded-lg shadow-md overflow-hidden"
-            >
-              {/* En-tête de l'équipe */}
-              <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    {team.name}
-                  </h2>
-                  {team.description && (
-                    <p className="text-gray-600 mt-1">{team.description}</p>
-                  )}
-                  <p className="text-sm text-gray-500 mt-2">
-                    {team.employeeIds.length} membre
-                    {team.employeeIds.length > 1 ? "s" : ""}
-                  </p>
-                </div>
-
-                {/* Bouton pour ajouter un membre */}
-                <div className="mt-4 md:mt-0">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+              title={team.name}
+              description={team.description}
+              actions={
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => toggleEventPlanner(team._id)}
+                    icon={<CalendarClock size={16} />}
+                  >
+                    {showEventPlanner === team._id
+                      ? "Annuler l'événement"
+                      : "Planifier un événement"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => toggleEventsCalendar(team._id)}
+                    icon={<CalendarDays size={16} />}
+                  >
+                    {showEvents[team._id]
+                      ? "Masquer les événements"
+                      : "Voir les événements"}
+                  </Button>
+                  <Button
+                    variant="primary"
                     onClick={() => openAddEmployeeForm(team._id)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    icon={<UserPlus size={16} />}
+                    disabled={submitting}
                   >
                     Ajouter un membre
-                  </motion.button>
+                  </Button>
                 </div>
-              </div>
+              }
+            >
+              {/* Planificateur d'événements d'équipe */}
+              <AnimatePresence>
+                {showEventPlanner === team._id && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="mb-6"
+                  >
+                    <TeamEventPlanner
+                      teamId={team._id}
+                      teamName={team.name}
+                      onEventCreated={(event) =>
+                        handleEventCreated(team._id, event)
+                      }
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Formulaire d'ajout d'employé */}
               <AnimatePresence>
                 {selectedTeamId === team._id && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="mb-6"
                   >
-                    <div className="bg-gray-50 p-6 border-b border-gray-200">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-medium text-gray-700">
-                          Ajouter un nouveau membre
-                        </h3>
-                        <button
-                          onClick={closeAddEmployeeForm}
-                          className="text-gray-400 hover:text-gray-500 focus:outline-none"
-                          aria-label="Fermer"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M6 18L18 6M6 6l12 12"
-                            ></path>
-                          </svg>
-                        </button>
-                      </div>
-
+                    <Card
+                      title="Ajouter un nouveau membre"
+                      className="bg-[var(--background-tertiary)] border-[var(--border)]"
+                    >
                       <form
                         onSubmit={addEmployeeToTeam}
                         className="flex flex-col md:flex-row md:items-end gap-4"
                       >
                         <div className="flex-grow">
-                          <label
-                            htmlFor="employeeId"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                          >
-                            Sélectionner un employé*
-                          </label>
-                          <select
-                            id="employeeId"
-                            name="employeeId"
+                          <Select
+                            label="Sélectionner un employé"
+                            options={employeeOptions}
                             value={addEmployeeFormData.employeeId}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
+                            onChange={handleEmployeeChange}
                             disabled={
                               submitting ||
                               fallbackAvailableEmployees.length === 0
                             }
-                          >
-                            {fallbackAvailableEmployees.length > 0 ? (
-                              fallbackAvailableEmployees.map((employee) => (
-                                <option key={employee._id} value={employee._id}>
-                                  {employee.firstName} {employee.lastName} (
-                                  {employee.status})
-                                </option>
-                              ))
-                            ) : (
-                              <option value="">Aucun employé disponible</option>
-                            )}
-                          </select>
+                            placeholder="Choisir un employé..."
+                            icon={<Users size={16} />}
+                          />
                         </div>
 
-                        <div>
-                          <motion.button
-                            type="submit"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="w-full md:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            disabled={
-                              submitting ||
-                              fallbackAvailableEmployees.length === 0
-                            }
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            onClick={closeAddEmployeeForm}
+                            disabled={submitting}
                           >
-                            {submitting ? (
-                              <LoadingSpinner size="sm" />
-                            ) : (
-                              "Ajouter"
-                            )}
-                          </motion.button>
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            variant="primary"
+                            isLoading={submitting}
+                            disabled={fallbackAvailableEmployees.length === 0}
+                            icon={<Plus size={16} />}
+                          >
+                            Ajouter
+                          </Button>
                         </div>
                       </form>
-                    </div>
+                    </Card>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Liste des membres de l'équipe */}
-              <div className="overflow-x-auto">
-                {team.employeeIds.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              {team.employeeIds.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table
+                    columns={[
+                      { key: "employee", label: "Employé", className: "w-40" },
+                      { key: "status", label: "Statut" },
+                      { key: "tasks", label: "Tâches en cours" },
+                      { key: "actions", label: "Actions", className: "w-24" },
+                    ]}
+                    data={team.employeeIds.map((employee) => ({
+                      employee: (
+                        <div className="flex items-center gap-2">
+                          <Avatar
+                            name={`${employee.firstName} ${employee.lastName}`}
+                            size="sm"
+                          />
+                          <span>
+                            {employee.firstName} {employee.lastName}
+                          </span>
+                        </div>
+                      ),
+                      status: (
+                        <Badge
+                          variant={
+                            employee.status === "actif" ? "success" : "neutral"
+                          }
+                          label={
+                            employee.status === "actif" ? "Actif" : "Inactif"
+                          }
+                        />
+                      ),
+                      tasks: employee.tasksCount,
+                      actions: (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            confirmRemoveEmployee(
+                              team._id,
+                              employee._id,
+                              employee.firstName,
+                              employee.lastName
+                            )
+                          }
+                          icon={
+                            <Trash size={16} className="text-[var(--error)]" />
+                          }
+                          className="text-[var(--error)] hover:bg-[var(--error-light)]"
+                          disabled={submitting}
                         >
-                          Employé
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Statut
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Tâches en cours
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {team.employeeIds.map((employee) => (
-                        <motion.tr
-                          key={employee._id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2 }}
-                          whileHover={{ backgroundColor: "#f9fafb" }}
-                        >
-                          {/* Employé */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {employee.firstName} {employee.lastName}
-                            </div>
-                          </td>
+                          Retirer
+                        </Button>
+                      ),
+                    }))}
+                    emptyState={{
+                      title: "Aucun membre",
+                      description: "Aucun membre dans cette équipe",
+                      icon: <Users size={40} />,
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="text-center py-12 text-[var(--text-secondary)]">
+                  <p className="mb-2">Aucun membre dans cette équipe</p>
+                  <p className="text-sm">
+                    Cliquez sur "Ajouter un membre" pour commencer
+                  </p>
+                </div>
+              )}
 
-                          {/* Statut */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                                employee.status
-                              )}`}
-                            >
-                              {employee.status === "actif"
-                                ? "Actif"
-                                : "Inactif"}
-                            </span>
-                          </td>
-
-                          {/* Tâches en cours */}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {employee.tasksCount}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() =>
-                                removeEmployeeFromTeam(team._id, employee._id)
-                              }
-                              className="text-red-600 hover:text-red-800 font-medium focus:outline-none"
-                              disabled={submitting}
-                            >
-                              Retirer
-                            </motion.button>
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <p className="mb-2">Aucun membre dans cette équipe</p>
-                    <p className="text-sm">
-                      Cliquez sur "Ajouter un membre" pour commencer
-                    </p>
-                  </div>
+              {/* Affichage des événements */}
+              <AnimatePresence>
+                {showEvents[team._id] && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="mb-6"
+                  >
+                    <TeamEventsCalendar
+                      events={team.events || []}
+                      teamName={team.name}
+                    />
+                  </motion.div>
                 )}
-              </div>
-            </div>
+              </AnimatePresence>
+            </SectionCard>
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <p className="text-lg text-gray-500 mb-2">
-            Vous ne gérez actuellement aucune équipe
-          </p>
-          <p className="text-sm text-gray-400">
-            Contactez un administrateur pour créer une équipe
-          </p>
-        </div>
+        <Card className="text-center py-12">
+          <div className="flex flex-col items-center justify-center">
+            <Shield size={48} className="text-[var(--text-tertiary)] mb-4" />
+            <p className="text-lg text-[var(--text-primary)] mb-2">
+              Vous ne gérez actuellement aucune équipe
+            </p>
+            <p className="text-sm text-[var(--text-tertiary)]">
+              Contactez un administrateur pour créer une équipe
+            </p>
+          </div>
+        </Card>
       )}
-    </div>
+    </PageWrapper>
   );
 };
 

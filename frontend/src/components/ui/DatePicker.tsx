@@ -1,10 +1,18 @@
 import {
   addMonths,
+  eachDayOfInterval,
+  endOfMonth,
   format,
+  getDay,
+  isAfter,
+  isBefore,
+  isDate,
   isSameDay,
   isToday,
   isValid,
   parse,
+  parseISO,
+  startOfMonth,
   subMonths,
 } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -13,63 +21,45 @@ import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 export interface DatePickerProps {
-  /**
-   * Date sélectionnée
-   */
-  selectedDate?: Date;
-  /**
-   * Fonction appelée lors du changement de date
-   */
-  onChange: (date: Date) => void;
-  /**
-   * Date minimale sélectionnable
-   */
+  /** Date sélectionnée (peut être un objet Date, une chaîne de date ISO, ou null) */
+  selectedDate?: Date | string | null;
+  /** Fonction appelée lorsqu'une date est sélectionnée */
+  onChange: (date: Date | null) => void;
+  /** Date minimum sélectionnable */
   minDate?: Date;
-  /**
-   * Date maximale sélectionnable
-   */
+  /** Date maximum sélectionnable */
   maxDate?: Date;
-  /**
-   * Format d'affichage de la date dans l'input
-   */
+  /** Format d'affichage de la date (format date-fns) */
   dateFormat?: string;
-  /**
-   * Placeholder de l'input
-   */
+  /** Texte d'espace réservé quand aucune date n'est sélectionnée */
   placeholder?: string;
-  /**
-   * Label du DatePicker
-   */
+  /** Libellé du champ */
   label?: string;
-  /**
-   * Désactive le DatePicker
-   */
+  /** Désactive le sélecteur de date */
   disabled?: boolean;
-  /**
-   * Classes CSS additionnelles
-   */
+  /** Classes CSS additionnelles */
   className?: string;
-  /**
-   * Indique si le DatePicker est en lecture seule
-   */
+  /** Mode lecture seule */
   readOnly?: boolean;
-  /**
-   * Indique si le DatePicker est obligatoire
-   */
+  /** Indique si le champ est requis */
   required?: boolean;
-  /**
-   * Message d'erreur à afficher
-   */
+  /** Message d'erreur à afficher */
   error?: string;
 }
 
+/**
+ * Composant DatePicker
+ *
+ * Un sélecteur de date accessible et animé qui permet aux utilisateurs de choisir
+ * une date à partir d'un calendrier interactif ou en saisissant une date manuellement.
+ */
 const DatePicker: React.FC<DatePickerProps> = ({
-  selectedDate,
+  selectedDate = null,
   onChange,
   minDate,
   maxDate,
   dateFormat = "dd/MM/yyyy",
-  placeholder = "JJ/MM/AAAA",
+  placeholder = "Sélectionner une date",
   label,
   disabled = false,
   className = "",
@@ -77,25 +67,59 @@ const DatePicker: React.FC<DatePickerProps> = ({
   required = false,
   error,
 }) => {
-  const [inputValue, setInputValue] = useState<string>("");
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [currentMonth, setCurrentMonth] = useState<Date>(
-    selectedDate || new Date()
-  );
+  // Référence pour le conteneur du calendrier (utilisé pour la détection des clics extérieurs)
   const calendarRef = useRef<HTMLDivElement>(null);
+  // Référence pour l'élément d'entrée
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Met à jour l'input quand la date sélectionnée change
+  // État pour suivre si le calendrier est visible
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // État pour le mois affiché dans le calendrier
+  const [currentMonth, setCurrentMonth] = useState(
+    selectedDate
+      ? isDate(selectedDate)
+        ? (selectedDate as Date)
+        : parseISO(selectedDate as string)
+      : new Date()
+  );
+
+  // État pour la valeur saisie dans l'entrée
+  const [inputValue, setInputValue] = useState(() => {
+    if (!selectedDate) return "";
+    try {
+      const dateObj = isDate(selectedDate)
+        ? (selectedDate as Date)
+        : parseISO(selectedDate as string);
+      return isValid(dateObj)
+        ? format(dateObj, dateFormat, { locale: fr })
+        : "";
+    } catch (e) {
+      return "";
+    }
+  });
+
+  // Effet pour mettre à jour la valeur d'entrée lorsque selectedDate change
   useEffect(() => {
-    if (selectedDate && isValid(selectedDate)) {
-      setInputValue(format(selectedDate, dateFormat, { locale: fr }));
-      setCurrentMonth(selectedDate);
-    } else {
+    if (!selectedDate) {
+      setInputValue("");
+      return;
+    }
+
+    try {
+      const dateObj = isDate(selectedDate)
+        ? (selectedDate as Date)
+        : parseISO(selectedDate as string);
+      if (isValid(dateObj)) {
+        setInputValue(format(dateObj, dateFormat, { locale: fr }));
+        setCurrentMonth(dateObj);
+      }
+    } catch (e) {
       setInputValue("");
     }
   }, [selectedDate, dateFormat]);
 
-  // Gère le clic en dehors du calendrier pour le fermer
+  // Ferme le calendrier quand on clique en dehors
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -104,271 +128,255 @@ const DatePicker: React.FC<DatePickerProps> = ({
         inputRef.current &&
         !inputRef.current.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        setIsCalendarOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Navigation entre les mois
-  const goToPreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  // Fonction pour vérifier si une date est désactivée
+  const isDateDisabled = (date: Date): boolean => {
+    if (minDate && isBefore(date, minDate)) return true;
+    if (maxDate && isAfter(date, maxDate)) return true;
+    return false;
+  };
 
+  // Gestionnaire pour aller au mois précédent
+  const handlePrevMonth = () => {
+    setCurrentMonth((prevMonth) => subMonths(prevMonth, 1));
+  };
+
+  // Gestionnaire pour aller au mois suivant
+  const handleNextMonth = () => {
+    setCurrentMonth((prevMonth) => addMonths(prevMonth, 1));
+  };
+
+  // Gestionnaire pour sélectionner une date
+  const handleDateSelect = (date: Date) => {
+    if (isDateDisabled(date)) return;
+    onChange(date);
+    setIsCalendarOpen(false);
+  };
+
+  // Gestionnaire pour le changement de l'entrée
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
 
-    // Essaie de convertir l'input en Date
-    const parsedDate = parse(value, dateFormat, new Date(), { locale: fr });
+    if (!value) {
+      onChange(null);
+      return;
+    }
 
-    if (isValid(parsedDate)) {
-      // Vérifie si la date est dans les limites min/max
-      const isAfterMinDate = minDate ? parsedDate >= minDate : true;
-      const isBeforeMaxDate = maxDate ? parsedDate <= maxDate : true;
-
-      if (isAfterMinDate && isBeforeMaxDate) {
+    try {
+      const parsedDate = parse(value, dateFormat, new Date(), { locale: fr });
+      if (isValid(parsedDate)) {
         onChange(parsedDate);
-        setCurrentMonth(parsedDate);
       }
+    } catch (e) {
+      // Ignore les erreurs d'analyse
     }
   };
 
-  const handleDateSelect = (date: Date) => {
-    onChange(date);
-    setIsOpen(false);
-  };
-
-  const toggleCalendar = () => {
-    if (!disabled && !readOnly) {
-      setIsOpen(!isOpen);
+  // Gestionnaire pour le focus de l'entrée
+  const handleInputFocus = () => {
+    if (!readOnly && !disabled) {
+      setIsCalendarOpen(true);
     }
   };
 
-  // Génère les jours du mois
-  const getDaysInMonth = () => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
+  // Fonction pour générer les jours du mois actuel
+  const generateDaysOfMonth = () => {
+    const firstDayOfMonth = startOfMonth(currentMonth);
+    const lastDayOfMonth = endOfMonth(currentMonth);
+    const days = eachDayOfInterval({
+      start: firstDayOfMonth,
+      end: lastDayOfMonth,
+    });
 
-    // Trouve le premier jour à afficher (peut être du mois précédent)
-    const startingDayOfWeek = firstDayOfMonth.getDay();
-    const startOffset = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1; // Lundi = 0
+    // Obtenir le jour de la semaine du premier jour (0 = dimanche, 1 = lundi, etc.)
+    let firstDayOfWeek = getDay(firstDayOfMonth);
+    // Ajuster pour que la semaine commence le lundi (0 = lundi, 6 = dimanche)
+    firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
-    const daysToShow = [];
+    // Ajouter des jours vides au début pour aligner correctement les jours
+    const daysWithPadding = [...Array(firstDayOfWeek).fill(null), ...days];
 
-    // Jours du mois précédent
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = startOffset; i > 0; i--) {
-      const date = new Date(year, month - 1, prevMonthLastDay - i + 1);
-      daysToShow.push({
-        date,
-        isCurrentMonth: false,
-        isDisabled: isDateDisabled(date),
-      });
-    }
-
-    // Jours du mois courant
-    for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
-      const date = new Date(year, month, day);
-      daysToShow.push({
-        date,
-        isCurrentMonth: true,
-        isDisabled: isDateDisabled(date),
-      });
-    }
-
-    // Jours du mois suivant pour compléter la grille
-    const remainingDays = 42 - daysToShow.length; // 6 semaines x 7 jours
-    for (let day = 1; day <= remainingDays; day++) {
-      const date = new Date(year, month + 1, day);
-      daysToShow.push({
-        date,
-        isCurrentMonth: false,
-        isDisabled: isDateDisabled(date),
-      });
-    }
-
-    return daysToShow;
+    return daysWithPadding;
   };
 
-  // Vérifie si une date est désactivée (en dehors des limites min/max)
-  const isDateDisabled = (date: Date): boolean => {
-    if (minDate && date < minDate) return true;
-    if (maxDate && date > maxDate) return true;
-    return false;
-  };
-
-  // Noms des jours de la semaine
-  const weekDays = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  // Récupérer le nom du mois et l'année pour l'en-tête du calendrier
+  const monthYearDisplay = format(currentMonth, "MMMM yyyy", { locale: fr });
 
   return (
     <div className={`relative w-full ${className}`}>
       {label && (
         <label
-          htmlFor="date-picker-input"
-          className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+          htmlFor="date-input"
+          className={`block text-sm font-medium mb-1 ${
+            error ? "text-red-500" : "text-[var(--text-primary)]"
+          }`}
         >
           {label}
-          {required && <span className="ml-1 text-red-500">*</span>}
+          {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
 
       <div className="relative">
         <input
           ref={inputRef}
-          id="date-picker-input"
+          id="date-input"
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onClick={toggleCalendar}
+          onFocus={handleInputFocus}
           placeholder={placeholder}
           disabled={disabled}
           readOnly={readOnly}
-          required={required}
-          aria-invalid={!!error}
-          aria-describedby={error ? "date-picker-error" : undefined}
-          className={`w-full px-4 py-2 pr-10 border rounded-md focus:ring-2 focus:outline-none 
-            ${
-              disabled
-                ? "bg-gray-100 cursor-not-allowed"
-                : "bg-white cursor-pointer"
-            } 
+          className={`w-full px-4 py-2 rounded-md border transition duration-200 
+            focus:outline-none focus:ring-2 bg-[var(--background-secondary)] 
+            placeholder-[var(--text-secondary)]
             ${
               error
                 ? "border-red-500 focus:ring-red-300"
-                : "border-gray-300 focus:ring-blue-300"
+                : "border-[var(--border)] focus:ring-[var(--accent-primary)]"
             }
-            dark:bg-gray-800 dark:border-gray-600 dark:text-white`}
+            ${disabled ? "opacity-60 cursor-not-allowed" : ""}
+          `}
+          aria-invalid={!!error}
+          aria-describedby={error ? "date-error" : undefined}
         />
-
         <button
           type="button"
-          onClick={toggleCalendar}
+          onClick={() => {
+            if (!disabled && !readOnly) {
+              setIsCalendarOpen(!isCalendarOpen);
+            }
+          }}
           disabled={disabled || readOnly}
-          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400"
-          aria-label="Ouvrir le calendrier"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]"
+          aria-label={
+            isCalendarOpen ? "Fermer le calendrier" : "Ouvrir le calendrier"
+          }
         >
           <Calendar size={18} />
         </button>
       </div>
 
       {error && (
-        <p id="date-picker-error" className="mt-1 text-sm text-red-500">
+        <p id="date-error" className="mt-1 text-sm text-red-500">
           {error}
         </p>
       )}
 
       <AnimatePresence>
-        {isOpen && (
+        {isCalendarOpen && (
           <motion.div
             ref={calendarRef}
-            className="absolute z-50 mt-1 bg-white border border-gray-300 rounded-md shadow-lg dark:bg-gray-800 dark:border-gray-700"
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute z-50 mt-1 bg-[var(--background-primary)] border border-[var(--border)] rounded-md shadow-lg p-3 w-72"
           >
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <button
-                  type="button"
-                  onClick={goToPreviousMonth}
-                  aria-label="Mois précédent"
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h2 className="text-base font-semibold text-gray-700 dark:text-gray-200">
-                  {format(currentMonth, "MMMM yyyy", { locale: fr })}
-                </h2>
-                <button
-                  type="button"
-                  onClick={goToNextMonth}
-                  aria-label="Mois suivant"
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
+            <div className="mb-3 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1 rounded-full hover:bg-[var(--background-tertiary)] text-[var(--text-primary)]"
+                aria-label="Mois précédent"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <h3 className="text-sm font-medium text-[var(--text-primary)] capitalize">
+                {monthYearDisplay}
+              </h3>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1 rounded-full hover:bg-[var(--background-tertiary)] text-[var(--text-primary)]"
+                aria-label="Mois suivant"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
 
-              <div className="grid grid-cols-7 gap-1">
-                {/* En-têtes des jours de la semaine */}
-                {weekDays.map((day) => (
-                  <div
-                    key={day}
-                    className="flex items-center justify-center h-8 text-xs font-medium text-gray-500 dark:text-gray-400"
-                  >
-                    {day}
-                  </div>
-                ))}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"].map((day) => (
+                <div
+                  key={day}
+                  className="text-center text-xs text-[var(--text-secondary)] font-medium"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
 
-                {/* Jours du calendrier */}
-                {getDaysInMonth().map((dayObj, index) => (
+            <div className="grid grid-cols-7 gap-1">
+              {generateDaysOfMonth().map((day, index) => {
+                if (!day) {
+                  return <div key={`empty-${index}`} className="h-8" />;
+                }
+
+                const isSelected = selectedDate
+                  ? isSameDay(
+                      day,
+                      isDate(selectedDate)
+                        ? (selectedDate as Date)
+                        : parseISO(selectedDate as string)
+                    )
+                  : false;
+
+                const isDisabled = isDateDisabled(day);
+                const isTodayDate = isToday(day);
+
+                return (
                   <button
-                    key={index}
+                    key={format(day, "yyyy-MM-dd")}
                     type="button"
-                    disabled={dayObj.isDisabled}
-                    onClick={() =>
-                      !dayObj.isDisabled && handleDateSelect(dayObj.date)
-                    }
-                    className={`flex items-center justify-center w-8 h-8 text-sm rounded-full 
-                      hover:bg-gray-100 dark:hover:bg-gray-700
+                    onClick={() => handleDateSelect(day)}
+                    disabled={isDisabled}
+                    className={`h-8 w-8 flex items-center justify-center text-sm rounded-full transition-colors
                       ${
-                        !dayObj.isCurrentMonth
-                          ? "text-gray-400 dark:text-gray-600"
-                          : "text-gray-700 dark:text-gray-300"
+                        isSelected
+                          ? "bg-[var(--accent-primary)] text-white"
+                          : isTodayDate
+                          ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
+                          : "text-[var(--text-primary)] hover:bg-[var(--background-tertiary)]"
                       }
-                      ${isToday(dayObj.date) ? "font-bold" : ""}
-                      ${
-                        selectedDate && isSameDay(dayObj.date, selectedDate)
-                          ? "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                          : ""
-                      }
-                      ${
-                        dayObj.isDisabled ? "opacity-50 cursor-not-allowed" : ""
-                      }
+                      ${isDisabled ? "opacity-30 cursor-not-allowed" : ""}
                     `}
-                    aria-label={format(dayObj.date, "EEEE d MMMM yyyy", {
-                      locale: fr,
-                    })}
-                    aria-selected={
-                      selectedDate
-                        ? isSameDay(dayObj.date, selectedDate)
-                        : false
-                    }
+                    aria-selected={isSelected}
+                    aria-disabled={isDisabled}
                   >
-                    {dayObj.date.getDate()}
+                    {format(day, "d")}
                   </button>
-                ))}
-              </div>
+                );
+              })}
+            </div>
 
-              {/* Bouton "Aujourd'hui" */}
-              <div className="mt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const today = new Date();
-                    if (!isDateDisabled(today)) {
-                      handleDateSelect(today);
-                    }
-                  }}
-                  disabled={isDateDisabled(new Date())}
-                  className={`px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300
-                    ${
-                      isDateDisabled(new Date())
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }
-                  `}
-                >
-                  Aujourd'hui
-                </button>
-              </div>
+            <div className="mt-3 border-t border-[var(--border)] pt-2 flex justify-between">
+              <button
+                type="button"
+                onClick={() => handleDateSelect(new Date())}
+                className="text-xs text-[var(--accent-primary)] hover:underline"
+                disabled={isDateDisabled(new Date())}
+              >
+                Aujourd'hui
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(null);
+                  setInputValue("");
+                  setIsCalendarOpen(false);
+                }}
+                className="text-xs text-[var(--text-secondary)] hover:underline"
+              >
+                Effacer
+              </button>
             </div>
           </motion.div>
         )}
