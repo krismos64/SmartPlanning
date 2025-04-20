@@ -5,30 +5,16 @@ import React, { useEffect, useRef } from "react";
  * Interface pour les propriétés du composant Modal
  */
 export interface ModalProps {
-  /** Titre de la fenêtre modale */
-  title: string;
-  /** Contenu de la fenêtre modale */
-  children: React.ReactNode;
   /** État d'ouverture de la fenêtre modale */
   isOpen: boolean;
   /** Fonction pour fermer la fenêtre modale */
   onClose: () => void;
-  /** Taille de la fenêtre modale */
-  size?: "sm" | "md" | "lg" | "xl" | "full";
-  /** Fonction exécutée lors de la validation (bouton principal) */
-  onConfirm?: () => void;
-  /** Texte du bouton de confirmation */
-  confirmText?: string;
-  /** Texte du bouton d'annulation */
-  cancelText?: string;
-  /** Afficher ou non le bouton de fermeture dans l'entête */
-  showCloseButton?: boolean;
-  /** Fermer la modale en cliquant sur l'arrière-plan */
-  closeOnBackdropClick?: boolean;
+  /** Titre de la fenêtre modale */
+  title?: string;
+  /** Contenu de la fenêtre modale */
+  children: React.ReactNode;
   /** Classes CSS additionnelles */
   className?: string;
-  /** Empêcher la fermeture de la modale via Escape */
-  preventEscapeClose?: boolean;
 }
 
 /**
@@ -38,73 +24,125 @@ export interface ModalProps {
  * Gère la fermeture par clic sur l'arrière-plan, touche Escape ou boutons dédiés.
  */
 const Modal: React.FC<ModalProps> = ({
-  title,
-  children,
   isOpen,
   onClose,
-  size = "md",
-  onConfirm,
-  confirmText = "Confirmer",
-  cancelText = "Annuler",
-  showCloseButton = true,
-  closeOnBackdropClick = true,
+  title,
+  children,
   className = "",
-  preventEscapeClose = false,
 }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
+  // Référence pour le contenu de la modale
+  const contentRef = useRef<HTMLDivElement>(null);
+  // Référence pour le bouton de fermeture (pour le focus initial)
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Détermine les classes CSS en fonction de la taille
-  const getSizeClasses = () => {
-    switch (size) {
-      case "sm":
-        return "max-w-sm";
-      case "md":
-        return "max-w-md";
-      case "lg":
-        return "max-w-lg";
-      case "xl":
-        return "max-w-xl";
-      case "full":
-        return "max-w-full mx-4";
-      default:
-        return "max-w-md";
-    }
+  // ID unique pour l'accessibilité ARIA
+  const modalId = useRef<string>(
+    `modal-${Math.random().toString(36).substr(2, 9)}`
+  );
+  const titleId = title ? `${modalId.current}-title` : undefined;
+
+  // Variantes d'animation pour le fond et le contenu
+  const backdropVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
   };
 
-  // Gère la fermeture par la touche Escape
+  const contentVariants = {
+    hidden: {
+      opacity: 0,
+      scale: 0.95,
+      y: -10,
+    },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 30,
+      },
+    },
+  };
+
+  // Écouteur d'événement pour la touche Échap
   useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen && !preventEscapeClose) {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
 
-    document.addEventListener("keydown", handleEscapeKey);
-    return () => {
-      document.removeEventListener("keydown", handleEscapeKey);
-    };
-  }, [isOpen, onClose, preventEscapeClose]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
-  // Empêche le défilement du body quand la modale est ouverte
+  // Gestion du piège de focus (focus trap)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Focus le bouton de fermeture quand la modale s'ouvre
+    if (closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+
+    // Sauvegarde l'élément actif avant l'ouverture
+    const activeElement = document.activeElement as HTMLElement;
+
+    // Intercepte les événements de touche tab pour maintenir le focus dans la modale
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (!contentRef.current || e.key !== "Tab") return;
+
+      // Récupérer tous les éléments focusables dans la modale
+      const focusableElements = contentRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      const firstElement = focusableElements[0] as HTMLElement;
+      const lastElement = focusableElements[
+        focusableElements.length - 1
+      ] as HTMLElement;
+
+      // Si on maintient Shift (tabulation arrière) et que le premier élément est actif,
+      // aller au dernier élément
+      if (e.shiftKey && document.activeElement === firstElement) {
+        lastElement.focus();
+        e.preventDefault();
+      }
+      // Si on tabule en avant à partir du dernier élément, retourner au premier
+      else if (!e.shiftKey && document.activeElement === lastElement) {
+        firstElement.focus();
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener("keydown", handleTabKey);
+
+    // Restaurer le focus à l'élément d'origine lorsque la modale se ferme
+    return () => {
+      document.removeEventListener("keydown", handleTabKey);
+      if (activeElement) {
+        setTimeout(() => activeElement.focus(), 0);
+      }
+    };
+  }, [isOpen]);
+
+  // Bloquer le scroll du body quand la modale est ouverte
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = "";
     }
 
     return () => {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = "";
     };
   }, [isOpen]);
 
-  // Gère la fermeture en cliquant sur l'arrière-plan
+  // Gestionnaire de clic sur le fond pour fermer
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (
-      closeOnBackdropClick &&
-      modalRef.current &&
-      !modalRef.current.contains(e.target as Node)
-    ) {
+    if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
       onClose();
     }
   };
@@ -112,76 +150,95 @@ const Modal: React.FC<ModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          onClick={handleBackdropClick}
-        >
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Fond semi-transparent */}
           <motion.div
-            ref={modalRef}
-            className={`relative ${getSizeClasses()} w-full bg-white rounded-lg shadow-xl ${className}`}
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 400 }}
-          >
-            {/* En-tête */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-              {showCloseButton && (
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
-                  onClick={onClose}
-                  aria-label="Fermer"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={backdropVariants}
+            transition={{ duration: 0.2 }}
+            onClick={handleBackdropClick}
+            aria-hidden="true"
+          />
+
+          {/* Conteneur pour centrer le contenu */}
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            {/* Contenu de la modale */}
+            <motion.div
+              ref={contentRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+              className={`
+                w-full max-w-md
+                bg-[var(--background-primary)]
+                text-[var(--text-primary)]
+                rounded-2xl
+                p-6
+                shadow-xl
+                relative
+                overflow-hidden
+                ${className}
+              `}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={contentVariants}
+              tabIndex={-1}
+            >
+              {/* Bouton de fermeture (X) */}
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={onClose}
+                className="
+                  absolute top-4 right-4
+                  text-[var(--text-tertiary)]
+                  hover:text-[var(--text-secondary)]
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-[var(--focus)]
+                  focus:ring-offset-2
+                  rounded-full
+                  p-1
+                  transition-colors
+                  duration-200
+                "
+                aria-label="Fermer"
+              >
+                <svg
+                  className="h-5 w-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+
+              {/* Titre de la modale (si fourni) */}
+              {title && (
+                <h2
+                  id={titleId}
+                  className="text-xl font-semibold mb-4 pr-8" // pr-8 pour éviter chevauchement avec bouton fermeture
+                >
+                  {title}
+                </h2>
               )}
-            </div>
 
-            {/* Corps */}
-            <div className="p-6">{children}</div>
-
-            {/* Pied de page avec boutons */}
-            {(onConfirm || cancelText) && (
-              <div className="flex justify-end p-4 space-x-2 border-t border-gray-200">
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  onClick={onClose}
-                >
-                  {cancelText}
-                </button>
-                {onConfirm && (
-                  <button
-                    type="button"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    onClick={onConfirm}
-                  >
-                    {confirmText}
-                  </button>
-                )}
-              </div>
-            )}
-          </motion.div>
-        </motion.div>
+              {/* Contenu de la modale */}
+              <div className={title ? "" : "pt-3"}>{children}</div>
+            </motion.div>
+          </div>
+        </div>
       )}
     </AnimatePresence>
   );

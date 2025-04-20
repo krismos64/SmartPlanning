@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { Navigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
-import LoadingSpinner from "./ui/LoadingSpinner";
+import { AuthContext } from "../../context/AuthContext";
+import LoadingSpinner from "./LoadingSpinner";
 
 /**
  * Props pour le composant PrivateRoute
