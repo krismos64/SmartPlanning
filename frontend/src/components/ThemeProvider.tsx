@@ -115,15 +115,15 @@ const lightTheme: Theme = {
 
 const darkTheme: Theme = {
   colors: {
-    primary: "#4F97FF",
-    secondary: "#8C7AFF",
+    primary: "#00A3FF",
+    secondary: "#00E0B8",
     accent: "#FF6E40",
-    background: "#1A202C",
-    surface: "#2D3748",
-    border: "#4A5568",
+    background: "#0A0F1A",
+    surface: "#121829",
+    border: "#2D3748",
     text: {
-      primary: "#F7FAFC",
-      secondary: "#A0AEC0",
+      primary: "#F1F5F9",
+      secondary: "#94A3B8",
     },
   },
   shadows: {

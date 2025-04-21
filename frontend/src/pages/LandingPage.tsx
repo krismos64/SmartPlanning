@@ -81,11 +81,13 @@ const Header = styled.header`
   justify-content: space-between;
   align-items: center;
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
-  box-shadow: ${({ theme }) => theme.shadows.small};
+  box-shadow: ${({ theme }) => theme.shadows.medium};
   background-color: ${({ theme }) => theme.colors.surface};
   position: sticky;
   top: 0;
   z-index: 100;
+  backdrop-filter: blur(8px);
+  font-family: "Inter", "Poppins", sans-serif;
 
   @media (max-width: 768px) {
     padding: ${({ theme }) => theme.spacing.md};
@@ -113,6 +115,8 @@ const Nav = styled.nav`
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
 
   @media (max-width: 768px) {
     width: 100%;
@@ -353,6 +357,124 @@ const DemoVideoContainer = styled.div`
   }
 `;
 
+// Nouveaux composants pour la section vidéo
+const AnimatedVideoWrapper = styled(motion.div)`
+  position: relative;
+  margin: 2rem auto;
+  overflow: hidden;
+  border-radius: 1rem;
+  box-shadow: ${({ theme }) => theme.shadows.large};
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 3px solid ${({ theme }) => theme.colors.primary};
+    border-radius: 1rem;
+    opacity: 0.7;
+    z-index: 1;
+    pointer-events: none;
+  }
+`;
+
+const VideoTitle = styled(motion.h3)`
+  font-size: 1.8rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+const PlayOverlay = styled(motion.div)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.3);
+  font-size: 4rem;
+  color: white;
+  z-index: 2;
+  cursor: pointer;
+`;
+
+const ImageCarouselCard = styled.div`
+  width: 100%;
+  max-width: 900px;
+  margin: 3rem auto;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: ${({ theme }) => theme.shadows.large};
+  transition: transform 0.4s ease;
+  overflow: hidden;
+  position: relative;
+
+  &:hover {
+    transform: translateY(-10px);
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      ${({ theme }) => theme.colors.primary},
+      ${({ theme }) => theme.colors.secondary || theme.colors.primary}
+    );
+  }
+`;
+
+const CarouselTitle = styled.h3`
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: ${({ theme }) => theme.colors.primary};
+  text-align: center;
+`;
+
+const ImagesContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+`;
+
+const ImageWrapper = styled(motion.div)`
+  width: calc(33% - 1rem);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  transition: all 0.3s ease;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+
+  &:hover {
+    transform: scale(1.03);
+    box-shadow: ${({ theme }) => theme.shadows.large};
+  }
+`;
+
+const CarouselImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`;
+
 const CTASection = styled.section`
   padding: 5rem 2rem;
   background-color: ${({ theme }) => theme.colors.primary};
@@ -408,67 +530,6 @@ const CTADescription = styled.p`
   z-index: 2;
 `;
 
-// Composants pour la section Bénéfices
-const BenefitsSection = styled.section`
-  padding: 5rem 2rem;
-  background-color: ${({ theme }) => theme.colors.surface};
-  position: relative;
-`;
-
-const BenefitItem = styled.div`
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  background-color: ${({ theme }) => theme.colors.background};
-  box-shadow: ${({ theme }) => theme.shadows.small};
-  transition: all 0.5s ease;
-  opacity: 0;
-  transform: translateY(20px);
-
-  &.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-const BenefitIcon = styled.div`
-  font-size: 2rem;
-  width: 4rem;
-  height: 4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: ${({ theme }) => theme.colors.primary}15;
-  border-radius: 50%;
-  flex-shrink: 0;
-`;
-
-const BenefitContent = styled.div`
-  flex: 1;
-`;
-
-const BenefitTitle = styled.h3`
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: ${({ theme }) => theme.colors.primary};
-`;
-
-const BenefitDescription = styled.p`
-  font-size: 1rem;
-  color: ${({ theme }) => theme.colors.text.secondary};
-  line-height: 1.6;
-`;
-
-const TestimonialImage = styled.img`
-  max-width: 100%;
-  height: auto;
-  border-radius: 1rem;
-  margin-bottom: 2rem;
-`;
-
 // Composant Footer
 const Footer = styled.footer`
   background-color: ${({ theme }) => theme.colors.background};
@@ -480,24 +541,26 @@ const FooterContent = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
+  text-align: center;
 
-  @media (max-width: 768px) {
-    flex-direction: column;
-    text-align: center;
+  @media (min-width: 768px) {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
   }
 `;
 
-const FooterLogo = styled.div`
+const FooterLogo = styled(Link)`
   font-size: ${({ theme }) => theme.typography.sizes.xl};
   font-weight: ${({ theme }) => theme.typography.fontWeights.bold};
   color: ${({ theme }) => theme.colors.primary};
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
+  text-decoration: none;
 `;
 
 const FooterLinks = styled.div`
@@ -524,19 +587,319 @@ const FooterLink = styled(Link)`
 const FooterCopyright = styled.div`
   color: ${({ theme }) => theme.colors.text.secondary};
   font-size: 0.875rem;
+  text-align: center;
+  width: 100%;
+  margin-top: 1rem;
+`;
+
+const HeroBrandImage = styled.img`
+  height: 300px;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    height: auto;
+    width: 100%;
+    max-width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+`;
+
+const BenefitsSection = styled.section`
+  padding: 5rem 2rem;
+  background-color: ${({ theme }) => theme.colors.background};
+`;
+
+const TestimonialImage = styled.img`
+  max-width: 100%;
+  border-radius: 1rem;
+  margin-bottom: 3rem;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+`;
+
+const BenefitItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background-color: ${({ theme }) => theme.colors.surface};
+  box-shadow: ${({ theme }) => theme.shadows.small};
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: translateY(20px);
+
+  &.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  &:hover {
+    box-shadow: ${({ theme }) => theme.shadows.medium};
+    transform: translateY(-5px);
+  }
+`;
+
+const BenefitIcon = styled.div`
+  font-size: 2rem;
+  margin-right: 1.5rem;
+  flex-shrink: 0;
+`;
+
+const BenefitContent = styled.div`
+  flex: 1;
+`;
+
+const BenefitTitle = styled.h3`
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+const BenefitDescription = styled.p`
+  font-size: 1rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  line-height: 1.6;
+`;
+
+const BetaSection = styled.section`
+  padding: 5rem 2rem;
+  background-color: ${({ theme }) => theme.colors.surface};
+  text-align: center;
+`;
+
+const BetaContent = styled.div`
+  max-width: 900px;
+  margin: 0 auto;
+`;
+
+const BetaTitle = styled.h2`
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+const BetaDescription = styled.p`
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+`;
+
+const BetaFeatures = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+`;
+
+// Améliorations des features bêta
+const BetaFeature = styled(motion.div)`
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  background-color: ${({ theme }) => theme.colors.background};
+  padding: 1.5rem;
+  border-radius: 0.8rem;
+  box-shadow: ${({ theme }) => theme.shadows.small};
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: ${({ theme }) => theme.shadows.medium};
+  }
+`;
+
+const BetaFeatureIcon = styled.div`
+  font-size: 1.8rem;
+  margin-right: 1rem;
+`;
+
+const BetaFeatureText = styled.p`
+  font-size: 1rem;
+`;
+
+const BetaButtonContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+`;
+
+const FAQSection = styled.section`
+  padding: 5rem 2rem;
+  background-color: ${({ theme }) => theme.colors.background};
+`;
+
+const FAQContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FAQCard = styled(motion.div)`
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+`;
+
+const FAQQuestion = styled.h3`
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: ${({ theme }) => theme.colors.primary};
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+
+  span {
+    font-size: 1.5rem;
+  }
+`;
+
+const FAQAnswer = styled.p`
+  font-size: 1rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  line-height: 1.6;
+`;
+
+// Amélioration du CTA
+const CTAButtonContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+`;
+
+const CTAButton = styled(motion.button)`
+  background: linear-gradient(
+    90deg,
+    ${({ theme }) => theme.colors.primary},
+    ${({ theme }) => theme.colors.secondary || theme.colors.primary + "aa"}
+  );
+  color: white;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 0.8rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 320px;
+  margin: 0 auto;
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: ${({ theme }) => theme.shadows.large};
+  }
+
+  @media (max-width: 576px) {
+    width: 100%;
+    padding: 1rem 1.5rem;
+  }
+`;
+
+// Styled components pour les boutons améliorés
+const LoginButton = styled(Button)`
+  color: ${({ theme }) => theme.colors.secondary || "#00E0B8"};
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 0.5rem 1.2rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &:hover {
+    text-decoration: none;
+    background-color: rgba(0, 224, 184, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 2px rgba(0, 224, 184, 0.3);
+  }
+`;
+
+const SignupButton = styled(Button)`
+  box-shadow: ${({ theme }) => theme.shadows.large};
+  border-radius: 12px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  background: linear-gradient(
+    135deg,
+    ${({ theme }) => theme.colors.primary},
+    ${({ theme }) => theme.colors.secondary || theme.colors.primary + "bb"}
+  );
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: ${({ theme }) => theme.shadows.large};
+  }
 `;
 
 interface LandingPageProps {}
+
+// Données FAQ pour corriger les placeholders
+const faqData = [
+  {
+    icon: "🔒",
+    question: "Comment mes données sont-elles protégées ?",
+    answer:
+      "Toutes vos données sont cryptées et sécurisées. Nous respectons strictement le RGPD et vous restez propriétaire de vos informations.",
+  },
+  {
+    icon: "💰",
+    question: "SmartPlanning est-il vraiment gratuit ?",
+    answer:
+      "Oui, pendant toute la phase bêta, l'accès est 100% gratuit. Ensuite, les utilisateurs bêta bénéficieront d'un mois gratuit supplémentaire.",
+  },
+  {
+    icon: "🔄",
+    question: "À quelle fréquence y a-t-il des mises à jour ?",
+    answer:
+      "Nous déployons de nouvelles fonctionnalités et améliorations toutes les deux semaines, en nous basant sur les retours des utilisateurs.",
+  },
+  {
+    icon: "📱",
+    question: "Est-ce que SmartPlanning fonctionne sur mobile ?",
+    answer:
+      "Absolument ! SmartPlanning est entièrement responsive et fonctionne parfaitement sur tous les appareils : ordinateurs, tablettes et smartphones.",
+  },
+];
 
 const LandingPage: React.FC<LandingPageProps> = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const demoRef = useRef<HTMLElement | null>(null);
   const [visibleBenefits, setVisibleBenefits] = useState<number[]>([]);
   const benefitsRef = useRef<HTMLDivElement | null>(null);
+  const [videoPlayed, setVideoPlayed] = useState(false);
 
   const scrollToDemo = () => {
     demoRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const handleVideoPlay = () => {
+    setVideoPlayed(true);
+  };
+
+  const sectionRef = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -567,6 +930,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       }
     };
   }, []);
+
+  // Référence pour le haut de la page
+  const topRef = useRef<HTMLDivElement>(null);
+
+  const scrollToTop = () => {
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   // Données structurées JSON-LD
   const jsonLd = {
@@ -664,7 +1034,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   };
 
   return (
-    <Container>
+    <Container ref={topRef} id="top">
       <Helmet>
         <title>
           SmartPlanning - Logiciel de planification intelligent et gratuit pour
@@ -700,10 +1070,10 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             <ThemeSwitch onChange={toggleTheme} checked={isDarkMode} />
           </ThemeSwitchWrapper>
           <Link to="/login">
-            <Button variant="ghost">Connexion</Button>
+            <LoginButton variant="ghost">🔐 Connexion</LoginButton>
           </Link>
           <Link to="/register">
-            <Button variant="primary">S'inscrire</Button>
+            <SignupButton variant="primary">✨ S'inscrire</SignupButton>
           </Link>
         </Nav>
       </Header>
@@ -713,18 +1083,26 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         <BackgroundDecoration className="bottom-left" />
 
         <HeroContent>
+          <HeroBrandImage
+            src="/src/assets/images/logo-smartplanning.png"
+            alt="SmartPlanningAI - Logiciel de planification intelligente pour entreprises"
+          />
           <HeroTitle>Plannings intelligents pour votre entreprise</HeroTitle>
           <HeroSubtitle>
             Optimisez vos plannings d'entreprise avec notre solution assistée
             par IA. Facile, intuitive et accessible à tous.
           </HeroSubtitle>
           <CTAButtons>
-            <Link to="/register">
-              <Button size="lg">Commencer gratuitement</Button>
-            </Link>
-            <Button variant="secondary" size="lg" onClick={scrollToDemo}>
-              Voir la démo
-            </Button>
+            <CTAButtonContainer>
+              <Link to="/register">
+                <CTAButton
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  🚀 Commencer gratuitement
+                </CTAButton>
+              </Link>
+            </CTAButtonContainer>
           </CTAButtons>
         </HeroContent>
         <AnimationContainer>
@@ -804,14 +1182,78 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           <SectionSubtitle>
             Un aperçu de l'interface simple et intuitive de SmartPlanning
           </SectionSubtitle>
-          <DemoVideoContainer>
-            <iframe
-              src="https://www.youtube.com/embed/wXrZH0l1a9U"
-              title="SmartPlanning - Démonstration vidéo"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
-          </DemoVideoContainer>
+
+          <ImageCarouselCard>
+            <CarouselTitle>Découvrez SmartPlanning en action</CarouselTitle>
+            <ImagesContainer>
+              <ImageWrapper
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <CarouselImage
+                  src="/src/assets/images/business-smartplanning.png"
+                  alt="SmartPlanning en action - Interface de planification pour entreprises"
+                />
+              </ImageWrapper>
+
+              <ImageWrapper
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <CarouselImage
+                  src="/src/assets/images/bd.png"
+                  alt="SmartPlanning - Tableau de bord analytique"
+                />
+              </ImageWrapper>
+
+              <ImageWrapper
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                <CarouselImage
+                  src="/src/assets/images/bd1.png"
+                  alt="SmartPlanning - Gestion avancée des plannings"
+                />
+              </ImageWrapper>
+            </ImagesContainer>
+          </ImageCarouselCard>
+
+          <VideoTitle
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            🎥 Regardez la démo SmartPlanning !
+          </VideoTitle>
+
+          <AnimatedVideoWrapper
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.3 }}
+          >
+            {!videoPlayed && (
+              <PlayOverlay
+                whileHover={{ scale: 1.1 }}
+                onClick={handleVideoPlay}
+              >
+                ▶️
+              </PlayOverlay>
+            )}
+            <DemoVideoContainer>
+              <iframe
+                src="https://www.youtube.com/embed/W4UWkI4S2Qg"
+                title="SmartPlanning - Démonstration vidéo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                onPlay={handleVideoPlay}
+              ></iframe>
+            </DemoVideoContainer>
+          </AnimatedVideoWrapper>
         </DemoContainer>
       </DemoSection>
 
@@ -877,6 +1319,102 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         </div>
       </BenefitsSection>
 
+      <BetaSection ref={sectionRef}>
+        <BetaContent>
+          <BetaTitle>🎉 SmartPlanning est en bêta gratuite ! 🎁</BetaTitle>
+          <BetaDescription>
+            Profitez de notre version bêta gratuite et contribuez à
+            l'amélioration de SmartPlanning !
+          </BetaDescription>
+          <BetaFeatures>
+            <BetaFeature
+              whileHover={{ scale: 1.05 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3 }}
+            >
+              <BetaFeatureIcon>🎁</BetaFeatureIcon>
+              <BetaFeatureText>
+                Accès complet gratuit pendant la phase bêta
+              </BetaFeatureText>
+            </BetaFeature>
+            <BetaFeature
+              whileHover={{ scale: 1.05 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <BetaFeatureIcon>💡</BetaFeatureIcon>
+              <BetaFeatureText>
+                1 mois gratuit à partir du lancement du plan tarifaire
+              </BetaFeatureText>
+            </BetaFeature>
+            <BetaFeature
+              whileHover={{ scale: 1.05 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <BetaFeatureIcon>🤝</BetaFeatureIcon>
+              <BetaFeatureText>
+                Contribuez à l'amélioration du produit
+              </BetaFeatureText>
+            </BetaFeature>
+            <BetaFeature
+              whileHover={{ scale: 1.05 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+            >
+              <BetaFeatureIcon>✉️</BetaFeatureIcon>
+              <BetaFeatureText>
+                Donnez votre avis et signalez les bugs
+              </BetaFeatureText>
+            </BetaFeature>
+          </BetaFeatures>
+          <BetaButtonContainer>
+            <Link to="/contact">
+              <Button
+                variant="primary"
+                size="lg"
+                className="beta-feedback-button"
+              >
+                🗣️ Donner votre avis
+              </Button>
+            </Link>
+          </BetaButtonContainer>
+        </BetaContent>
+      </BetaSection>
+
+      <FAQSection>
+        <SectionTitle>Foire aux questions</SectionTitle>
+        <SectionSubtitle>
+          Tout ce que vous devez savoir sur SmartPlanning
+        </SectionSubtitle>
+        <FAQContainer>
+          {faqData.map((faq, index) => (
+            <FAQCard
+              key={index}
+              whileHover={{ scale: 1.02 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <FAQQuestion>
+                <span>{faq.icon}</span>
+                {faq.question}
+              </FAQQuestion>
+              <FAQAnswer>{faq.answer}</FAQAnswer>
+            </FAQCard>
+          ))}
+        </FAQContainer>
+      </FAQSection>
+
       <CTASection>
         <CircleDecoration className="small" />
         <CircleDecoration className="medium" />
@@ -887,20 +1425,21 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           Rejoignez les entreprises qui gagnent du temps et améliorent leur
           efficacité avec SmartPlanning.
         </CTADescription>
-        <Link to="/register">
-          <Button
-            variant="primary"
-            size="lg"
-            className="z-10 relative bg-white text-primary hover:transform-translateY-5 py-4 px-8 text-lg font-semibold"
-          >
-            Commencer gratuitement
-          </Button>
-        </Link>
+        <CTAButtonContainer>
+          <Link to="/register">
+            <CTAButton
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.3 }}
+            >
+              🚀 Commencer gratuitement
+            </CTAButton>
+          </Link>
+        </CTAButtonContainer>
       </CTASection>
 
       <Footer>
         <FooterContent>
-          <FooterLogo>
+          <FooterLogo to="/" onClick={scrollToTop}>
             <LogoAnimation>
               <EnhancedLottie
                 animationData={planningAnimation}
@@ -912,15 +1451,18 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </FooterLogo>
 
           <FooterLinks>
-            <FooterLink to="/mentions-legales">Mentions légales</FooterLink>
+            <FooterLink to="/conditions-utilisation">
+              Conditions d'utilisation
+            </FooterLink>
+            <FooterLink to="/confidentialite">
+              Politique de confidentialité
+            </FooterLink>
             <FooterLink to="/contact">Contact</FooterLink>
-            <FooterLink to="/support">Support</FooterLink>
           </FooterLinks>
-
-          <FooterCopyright>
-            &copy; {new Date().getFullYear()} SmartPlanning
-          </FooterCopyright>
         </FooterContent>
+        <FooterCopyright>
+          &copy; 2025 SmartPlanning. Tous droits réservés.
+        </FooterCopyright>
       </Footer>
     </Container>
   );
