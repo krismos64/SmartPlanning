@@ -1,13 +1,14 @@
 import { motion } from "framer-motion";
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import planningAnimation from "../assets/animations/planning-animation.json";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
-import EnhancedLottie from "../components/ui/EnhancedLottie";
 import { ThemeSwitch } from "../components/ui/ThemeSwitch";
+// Import différé d'EnhancedLottie pour optimiser le chargement
+const EnhancedLottie = lazy(() => import("../components/ui/EnhancedLottie"));
 
 // Animations
 const fadeIn = keyframes`
@@ -385,20 +386,55 @@ const VideoTitle = styled(motion.h3)`
   color: ${({ theme }) => theme.colors.primary};
 `;
 
-const PlayOverlay = styled(motion.div)`
+const VideoPreviewContainer = styled(motion.div)`
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  border-radius: 1rem;
+  cursor: pointer;
+`;
+
+const VideoPreviewImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 1rem;
+`;
+
+const PlayButton = styled(motion.div)`
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.3);
-  font-size: 4rem;
   color: white;
-  z-index: 2;
-  cursor: pointer;
+  font-size: 3rem;
+  z-index: 10;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
 `;
 
 const ImageCarouselCard = styled.div`
@@ -663,6 +699,80 @@ const BenefitDescription = styled.p`
   line-height: 1.6;
 `;
 
+const UserReviewsSection = styled.section`
+  padding: 5rem 2rem;
+  background-color: ${({ theme }) => theme.colors.surface};
+  position: relative;
+  overflow: hidden;
+`;
+
+const UserReviewsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+`;
+
+const UserReviewCard = styled(motion.div)`
+  background-color: ${({ theme }) => theme.colors.background};
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: translateY(-8px);
+  }
+`;
+
+const UserAvatar = styled.img`
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+  border: 3px solid ${({ theme }) => theme.colors.primary};
+`;
+
+const UserName = styled.h3`
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 0.3rem;
+  color: ${({ theme }) => theme.colors.primary};
+`;
+
+const UserRole = styled.p`
+  font-size: 0.9rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  margin-bottom: 1rem;
+`;
+
+const UserComment = styled.p`
+  font-size: 1rem;
+  line-height: 1.5;
+  color: ${({ theme }) => theme.colors.text.primary};
+  margin-bottom: 1rem;
+`;
+
+const UserRating = styled.div`
+  color: #ffd700;
+  font-size: 1.2rem;
+  font-weight: 600;
+`;
+
 const BetaSection = styled.section`
   padding: 5rem 2rem;
   background-color: ${({ theme }) => theme.colors.surface};
@@ -884,6 +994,37 @@ const faqData = [
   },
 ];
 
+// Données pour les avis utilisateurs
+const userReviews = [
+  {
+    id: 1,
+    name: "Camille D.",
+    role: "Responsable RH",
+    avatar: "/src/assets/images/user-camille.webp",
+    comment:
+      "L'IA de SmartPlanning m'a fait gagner 5h par semaine ! La génération automatique de plannings est bluffante et prend en compte toutes nos contraintes.",
+    rating: "4.9 ⭐",
+  },
+  {
+    id: 2,
+    name: "Sofiane K.",
+    role: "Manager équipe terrain",
+    avatar: "/src/assets/images/user-sofiane.webp",
+    comment:
+      "Super intuitif, je recommande ! Même mes collaborateurs les moins à l'aise avec la technologie ont adopté l'outil en quelques minutes.",
+    rating: "4.7 ⭐",
+  },
+  {
+    id: 3,
+    name: "Lisa M.",
+    role: "Fondatrice startup",
+    avatar: "/src/assets/images/user-lisa.webp",
+    comment:
+      "SmartPlanning a complètement changé ma gestion RH ! Facile à utiliser, adaptable et l'équipe support est réactive. Un must pour les petites structures.",
+    rating: "5.0 ⭐",
+  },
+];
+
 const LandingPage: React.FC<LandingPageProps> = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const demoRef = useRef<HTMLElement | null>(null);
@@ -1061,7 +1202,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       <Header>
         <Logo>
           <LogoAnimation>
-            <EnhancedLottie animationData={planningAnimation} loop={true} />
+            <Suspense fallback={<div style={{ width: 40, height: 40 }} />}>
+              <EnhancedLottie animationData={planningAnimation} loop={true} />
+            </Suspense>
           </LogoAnimation>
           SmartPlanning
         </Logo>
@@ -1107,11 +1250,27 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </CTAButtons>
         </HeroContent>
         <AnimationContainer>
-          <EnhancedLottie
-            animationData={planningAnimation}
-            loop={true}
-            alt="Animation de planification intelligente avec SmartPlanning"
-          />
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  width: 550,
+                  height: 400,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                Chargement...
+              </div>
+            }
+          >
+            <EnhancedLottie
+              animationData={planningAnimation}
+              loop={true}
+              alt="Animation de planification intelligente avec SmartPlanning"
+            />
+          </Suspense>
         </AnimationContainer>
       </HeroSection>
 
@@ -1240,23 +1399,41 @@ const LandingPage: React.FC<LandingPageProps> = () => {
             whileHover={{ scale: 1.02 }}
             transition={{ duration: 0.3 }}
           >
-            {!videoPlayed && (
-              <PlayOverlay
-                whileHover={{ scale: 1.1 }}
+            {!videoPlayed ? (
+              <VideoPreviewContainer
                 onClick={handleVideoPlay}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                ▶️
-              </PlayOverlay>
+                <VideoPreviewImage
+                  src="/src/assets/images/preview-video.webp"
+                  alt="Aperçu de la vidéo SmartPlanning"
+                  loading="lazy"
+                />
+                <PlayButton
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  ▶️
+                </PlayButton>
+              </VideoPreviewContainer>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <DemoVideoContainer>
+                  <iframe
+                    src="https://www.youtube.com/embed/W4UWkI4S2Qg?autoplay=1"
+                    title="SmartPlanning - Démonstration vidéo"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </DemoVideoContainer>
+              </motion.div>
             )}
-            <DemoVideoContainer>
-              <iframe
-                src="https://www.youtube.com/embed/W4UWkI4S2Qg"
-                title="SmartPlanning - Démonstration vidéo"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                onPlay={handleVideoPlay}
-              ></iframe>
-            </DemoVideoContainer>
           </AnimatedVideoWrapper>
         </DemoContainer>
       </DemoSection>
@@ -1323,6 +1500,35 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </BenefitItem>
         </div>
       </BenefitsSection>
+
+      <UserReviewsSection>
+        <SectionTitle>Ils parlent de SmartPlanning</SectionTitle>
+        <SectionSubtitle>
+          Découvrez ce que pensent nos premiers utilisateurs
+        </SectionSubtitle>
+
+        <UserReviewsGrid>
+          {userReviews.map((review, index) => (
+            <UserReviewCard
+              key={review.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <UserAvatar
+                src={review.avatar}
+                alt={`Photo de ${review.name}`}
+                loading="lazy"
+              />
+              <UserName>{review.name}</UserName>
+              <UserRole>{review.role}</UserRole>
+              <UserComment>{review.comment}</UserComment>
+              <UserRating>{review.rating}</UserRating>
+            </UserReviewCard>
+          ))}
+        </UserReviewsGrid>
+      </UserReviewsSection>
 
       <BetaSection ref={sectionRef}>
         <BetaContent>
@@ -1446,11 +1652,13 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         <FooterContent>
           <FooterLogo to="/" onClick={scrollToTop}>
             <LogoAnimation>
-              <EnhancedLottie
-                animationData={planningAnimation}
-                loop={true}
-                style={{ width: "30px", height: "30px" }}
-              />
+              <Suspense fallback={<div style={{ width: 30, height: 30 }} />}>
+                <EnhancedLottie
+                  animationData={planningAnimation}
+                  loop={true}
+                  style={{ width: "30px", height: "30px" }}
+                />
+              </Suspense>
             </LogoAnimation>
             SmartPlanning
           </FooterLogo>
