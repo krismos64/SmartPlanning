@@ -1084,8 +1084,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
         <HeroContent>
           <HeroBrandImage
-            src="/src/assets/images/logo-smartplanning.png"
+            src="/src/assets/images/logo-smartplanning.webp"
             alt="SmartPlanningAI - Logiciel de planification intelligente pour entreprises"
+            loading="lazy"
           />
           <HeroTitle>Plannings intelligents pour votre entreprise</HeroTitle>
           <HeroSubtitle>
@@ -1193,8 +1194,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 transition={{ duration: 0.5 }}
               >
                 <CarouselImage
-                  src="/src/assets/images/business-smartplanning.png"
+                  src="/src/assets/images/business-smartplanning.webp"
                   alt="SmartPlanning en action - Interface de planification pour entreprises"
+                  loading="lazy"
                 />
               </ImageWrapper>
 
@@ -1205,8 +1207,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
                 <CarouselImage
-                  src="/src/assets/images/bd.png"
+                  src="/src/assets/images/bd.webp"
                   alt="SmartPlanning - Tableau de bord analytique"
+                  loading="lazy"
                 />
               </ImageWrapper>
 
@@ -1217,8 +1220,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <CarouselImage
-                  src="/src/assets/images/bd1.png"
+                  src="/src/assets/images/bd1.webp"
                   alt="SmartPlanning - Gestion avancée des plannings"
+                  loading="lazy"
                 />
               </ImageWrapper>
             </ImagesContainer>
@@ -1267,8 +1271,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           style={{ maxWidth: "900px", margin: "0 auto", textAlign: "center" }}
         >
           <TestimonialImage
-            src="/src/assets/images/comic-smartplanning.png"
+            src="/src/assets/images/comic-smartplanning.webp"
             alt="Témoignages clients SmartPlanning - Bénéfices de la planification intelligente"
+            loading="lazy"
           />
         </div>
 
