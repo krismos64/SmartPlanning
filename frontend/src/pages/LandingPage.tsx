@@ -975,16 +975,24 @@ const faqData = [
       "Toutes vos données sont cryptées et sécurisées. Nous respectons strictement le RGPD et vous restez propriétaire de vos informations.",
   },
   {
-    icon: "💰",
-    question: "SmartPlanning est-il vraiment gratuit ?",
+    icon: "🧠",
+    question:
+      "L’intelligence artificielle de SmartPlanning est-elle réellement utile ?",
     answer:
-      "Oui, pendant toute la phase bêta, l'accès est 100% gratuit. Ensuite, les utilisateurs bêta bénéficieront d'un mois gratuit supplémentaire.",
+      "Oui ! L’IA de SmartPlanning permet de générer automatiquement des plannings hebdomadaires optimisés en quelques secondes. Les managers gardent toujours le contrôle final via une validation manuelle simple.",
   },
   {
-    icon: "🔄",
-    question: "À quelle fréquence y a-t-il des mises à jour ?",
+    icon: "📅",
+    question: "Puis-je modifier un planning généré par l’IA ?",
     answer:
-      "Nous déployons de nouvelles fonctionnalités et améliorations toutes les deux semaines, en nous basant sur les retours des utilisateurs.",
+      "Absolument. Chaque planning généré peut être ajusté manuellement avant validation. Vous gardez une flexibilité totale tout en gagnant un temps précieux.",
+  },
+  {
+    icon: "🔁",
+    question:
+      "Combien de temps faut-il pour mettre en place SmartPlanning dans mon entreprise ?",
+    answer:
+      "La mise en place est quasi-instantanée. Vous créez votre compte, invitez vos équipes, et commencez à générer vos premiers plannings en moins d’une heure.",
   },
   {
     icon: "📱",
