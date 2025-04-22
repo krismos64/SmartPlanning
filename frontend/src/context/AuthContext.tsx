@@ -18,6 +18,20 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+// URL de base de l'API
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5050/api";
+
+// Configuration axios avec token
+const setAuthToken = (token: string | null) => {
+  if (token) {
+    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    localStorage.setItem("token", token);
+  } else {
+    delete axios.defaults.headers.common["Authorization"];
+    localStorage.removeItem("token");
+  }
+};
+
 // Création du contexte avec une valeur par défaut undefined
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
@@ -36,39 +50,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Charger le token au démarrage
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setAuthToken(token);
+    }
+  }, []);
+
   // Vérifier l'authentification au chargement du composant
   useEffect(() => {
     // Fonction pour vérifier si l'utilisateur est connecté
     const checkAuth = async () => {
       setLoading(true);
       try {
-        // Récupérer l'utilisateur depuis le localStorage (ou un token)
-        const storedUser = localStorage.getItem("user");
+        const token = localStorage.getItem("token");
 
-        if (storedUser) {
-          // Si l'utilisateur est stocké, vérifier la validité du token
-          try {
-            // Appel à l'API pour vérifier le token (endpoint fictif)
-            // const response = await axios.get('/api/auth/verify-token');
-            // Simuler une vérification réussie
-            const userData = JSON.parse(storedUser);
-            setUser(userData);
-            setIsAuthenticated(true);
-          } catch (error) {
-            // Token invalide ou expiré
-            localStorage.removeItem("user");
-            setUser(null);
-            setIsAuthenticated(false);
-          }
+        if (!token) {
+          setUser(null);
+          setIsAuthenticated(false);
+          setLoading(false);
+          return;
+        }
+
+        // Configuration du token pour la requête
+        setAuthToken(token);
+
+        // Appel à l'API pour vérifier le token
+        const response = await axios.get(`${API_URL}/auth/me`);
+
+        if (response.data.success) {
+          setUser(response.data.data);
+          setIsAuthenticated(true);
         } else {
-          // Aucun utilisateur stocké
+          // Token invalide
+          setAuthToken(null);
           setUser(null);
           setIsAuthenticated(false);
         }
       } catch (error) {
-        setError("Erreur lors de la vérification de l'authentification");
+        console.error("Erreur de vérification d'authentification:", error);
+        setAuthToken(null);
         setUser(null);
         setIsAuthenticated(false);
+        setError("Session expirée, veuillez vous reconnecter");
       } finally {
         setLoading(false);
       }
@@ -82,26 +107,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      // Appel à l'API d'authentification (à remplacer par votre API réelle)
-      // const response = await axios.post('/api/auth/login', { email, password });
+      // Appel à l'API d'authentification
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email,
+        password,
+      });
 
-      // Simulation d'une réponse API pour démonstration
-      const mockUser: User = {
-        _id: "123",
-        firstName: "John",
-        lastName: "Doe",
-        email: email,
-        role: email.includes("admin") ? "admin" : "employé",
-        status: "active",
-        createdAt: new Date().toISOString(),
-      };
+      // Si la connexion est réussie
+      if (response.data.success) {
+        // Stocker le token JWT
+        const { token, user } = response.data;
+        setAuthToken(token);
 
-      // Stocker l'utilisateur dans le localStorage
-      localStorage.setItem("user", JSON.stringify(mockUser));
-
-      // Mettre à jour l'état
-      setUser(mockUser);
-      setIsAuthenticated(true);
+        // Mettre à jour l'état
+        setUser(user);
+        setIsAuthenticated(true);
+      } else {
+        throw new Error(response.data.message || "Échec de la connexion");
+      }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         setError(error.response.data.message || "Identifiants invalides");
@@ -118,18 +141,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     setLoading(true);
     try {
-      // Appel à l'API de déconnexion (si nécessaire)
-      // await axios.post('/api/auth/logout');
+      // Appel à l'API de déconnexion
+      await axios.post(`${API_URL}/auth/logout`);
 
-      // Supprimer l'utilisateur du localStorage
-      localStorage.removeItem("user");
+      // Supprimer le token
+      setAuthToken(null);
 
       // Mettre à jour l'état
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      // Même si l'API échoue, on déconnecte l'utilisateur localement
+      setAuthToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
       setError("Erreur lors de la déconnexion");
-      throw error;
     } finally {
       setLoading(false);
     }

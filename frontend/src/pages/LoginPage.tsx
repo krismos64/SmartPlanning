@@ -151,21 +151,29 @@ const LoginPage: React.FC = () => {
     setError(null);
 
     try {
-      // Utilisation du contexte d'authentification directement
-      const success = await auth.login({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (success) {
-        // Rediriger vers le tableau de bord
-        navigate("/tableau-de-bord");
-      } else {
-        setError("Identifiants incorrects");
+      // Vérifier que auth n'est pas undefined
+      if (!auth) {
+        setError("Erreur de contexte d'authentification");
+        return;
       }
-    } catch (error) {
+
+      // Passer les paramètres individuellement au lieu d'un objet
+      await auth.login(formData.email, formData.password);
+      // Rediriger vers le tableau de bord
+      navigate("/tableau-de-bord");
+    } catch (error: any) {
       console.error("Login error:", error);
-      setError("Erreur de connexion. Veuillez réessayer.");
+      // Afficher le message d'erreur de l'API si disponible
+      if (error.response && error.response.data) {
+        setError(
+          error.response.data.message ||
+            "Erreur de connexion. Veuillez réessayer."
+        );
+      } else if (error.message) {
+        setError(error.message);
+      } else {
+        setError("Erreur de connexion. Veuillez réessayer.");
+      }
     } finally {
       setIsLoading(false);
     }
