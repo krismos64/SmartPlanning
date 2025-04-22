@@ -32,6 +32,10 @@ const HeaderContainer = styled.header<DarkModeProps>`
   }
 `;
 
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 const ThemeSwitchWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -105,14 +109,16 @@ const Header: React.FC = () => {
 
   return (
     <HeaderContainer isDarkMode={isDarkMode}>
-      <Logo>
-        <LogoAnimation>
-          <Suspense fallback={<div style={{ width: 40, height: 40 }} />}>
-            <EnhancedLottie animationData={planningAnimation} loop={true} />
-          </Suspense>
-        </LogoAnimation>
-        SmartPlanning
-      </Logo>
+      <Link to="/" onClick={scrollToTop} style={{ textDecoration: "none" }}>
+        <Logo>
+          <LogoAnimation>
+            <Suspense fallback={<div style={{ width: 40, height: 40 }} />}>
+              <EnhancedLottie animationData={planningAnimation} loop={true} />
+            </Suspense>
+          </LogoAnimation>
+          SmartPlanning
+        </Logo>
+      </Link>
       <Nav>
         <ThemeSwitchWrapper>
           <ThemeSwitch onChange={toggleTheme} checked={isDarkMode} />
