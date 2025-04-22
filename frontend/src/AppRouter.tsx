@@ -9,6 +9,7 @@ import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
 import LoginPage from "./pages/LoginPage";
 import PlanningValidationPage from "./pages/PlanningValidationPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
 import TeamManagementPage from "./pages/TeamManagementPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
@@ -69,6 +70,7 @@ const AppRouter: React.FC = () => {
         <Route path="/employee-tasks" element={<EmployeeTasksPage />} />
         <Route path="/vacations" element={<VacationsPage />} />
         <Route path="/terms" element={<TermsOfUsePage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
         {/* Route 404 pour toutes les autres URL */}
         <Route path="*" element={<NotFoundPage />} />
