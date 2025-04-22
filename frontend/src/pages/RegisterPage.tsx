@@ -214,7 +214,7 @@ const RegisterPage: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       console.log("Registration submitted:", formData);
       // Naviguer vers le dashboard après inscription
-      navigate("/dashboard");
+      navigate("/tableau-de-bord");
     } catch (error) {
       console.error("Registration error:", error);
     } finally {
@@ -359,8 +359,11 @@ const RegisterPage: React.FC = () => {
                 />
                 <TermsLabel htmlFor="acceptTerms" isDarkMode={isDarkMode}>
                   J'accepte les{" "}
-                  <Link to="/terms">conditions d'utilisation</Link> et la{" "}
-                  <Link to="/privacy">politique de confidentialité</Link>
+                  <Link to="/mentions-legales">conditions d'utilisation</Link>{" "}
+                  et la{" "}
+                  <Link to="/politique-de-confidentialite">
+                    politique de confidentialité
+                  </Link>
                 </TermsLabel>
               </TermsContainer>
               {errors.acceptTerms && (
@@ -428,7 +431,7 @@ const RegisterPage: React.FC = () => {
           </motion.div>
 
           <LoginLink isDarkMode={isDarkMode}>
-            Déjà un compte ?<Link to="/login">Se connecter</Link>
+            Déjà un compte ?<Link to="/connexion">Se connecter</Link>
           </LoginLink>
         </FormContainer>
       </PageWrapper>

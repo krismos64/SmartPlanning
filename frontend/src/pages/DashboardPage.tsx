@@ -24,48 +24,48 @@ const DashboardPage: React.FC = () => {
       description:
         "Consultez et gérez les horaires de travail de votre équipe pour la semaine en cours",
       icon: <CalendarCheck size={24} />,
-      path: "/weekly-schedule",
+      path: "/plannings-hebdomadaires",
     },
     {
       title: "Validation des plannings",
       description:
         "Approuvez ou refusez les plannings soumis par les employés ou autres responsables",
       icon: <CheckCircle size={24} />,
-      path: "/planning-validation",
+      path: "/validation-des-plannings",
     },
     {
       title: "Gestion d'équipe",
       description:
         "Visualisez, ajoutez ou modifiez les membres de votre équipe et leurs informations",
       icon: <Users size={24} />,
-      path: "/team-management",
+      path: "/gestion-des-equipes",
     },
     {
       title: "Gestion des congés",
       description:
         "Gérez les demandes de congés et visualisez le calendrier des absences",
       icon: <Plane size={24} />,
-      path: "/vacations",
+      path: "/gestion-des-conges",
     },
     {
       title: "Suivi des incidents",
       description:
         "Enregistrez et suivez les incidents survenus pendant les heures de travail",
       icon: <AlertTriangle size={24} />,
-      path: "/incident-tracking",
+      path: "/suivi-des-incidents",
     },
     {
       title: "Tâches des employés",
       description:
         "Assignez et suivez l'avancement des tâches attribuées à vos collaborateurs",
       icon: <ClipboardList size={24} />,
-      path: "/employee-tasks",
+      path: "/taches-employes",
     },
   ];
 
   return (
     <LayoutWithSidebar
-      activeItem="dashboard"
+      activeItem="tableau-de-bord"
       pageTitle="Dashboard SmartPlanning – Vue d'ensemble RH"
     >
       <div

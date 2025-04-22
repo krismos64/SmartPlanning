@@ -214,8 +214,8 @@ const PlanningValidationPage: React.FC = () => {
 
   // Items du fil d'ariane
   const breadcrumbItems = [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Plannings", href: "/plannings" },
+    { label: "Dashboard", href: "/tableau-de-bord" },
+    { label: "Plannings", href: "/plannings-hebdomadaires" },
     { label: "À valider" },
   ];
 

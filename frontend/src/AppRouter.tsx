@@ -6,6 +6,7 @@ import IndexPage from "./pages/LandingPage";
 import CompanyOverviewPage from "./pages/CompanyOverviewPage";
 import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
+import DatePickerDemoPage from "./pages/DatePickerDemoPage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
 import LoginPage from "./pages/LoginPage";
@@ -16,6 +17,7 @@ import TeamManagementPage from "./pages/TeamManagementPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
 import VacationsPage from "./pages/VacationsPage";
 import WeeklySchedulePage from "./pages/WeeklySchedulePage";
+
 /**
  * Composant Page 404 simplifié pour les routes non trouvées
  */
@@ -43,36 +45,46 @@ const NotFoundPage: React.FC = () => {
 
 /**
  * Routeur principal de l'application SmartPlanning
- * Définit toutes les routes accessibles dans l'application
+ * Définit toutes les routes accessibles dans l'application avec des URLs en français
  */
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Route par défaut - Redirection vers la page de connexion */}
+        {/* Route par défaut - Page d'accueil */}
         <Route path="/" element={<IndexPage />} />
 
         {/* Routes d'authentification */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/connexion" element={<LoginPage />} />
+        <Route path="/inscription" element={<RegisterPage />} />
 
         {/* Route du tableau de bord pour utilisateurs connectés */}
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/tableau-de-bord" element={<DashboardPage />} />
 
         {/* Routes principales de l'application */}
-        <Route path="/weekly-schedule" element={<WeeklySchedulePage />} />
         <Route
-          path="/planning-validation"
+          path="/plannings-hebdomadaires"
+          element={<WeeklySchedulePage />}
+        />
+        <Route
+          path="/validation-des-plannings"
           element={<PlanningValidationPage />}
         />
-        <Route path="/company-overview" element={<CompanyOverviewPage />} />
-        <Route path="/incident-tracking" element={<IncidentTrackingPage />} />
-        <Route path="/team-management" element={<TeamManagementPage />} />
-        <Route path="/employee-tasks" element={<EmployeeTasksPage />} />
-        <Route path="/vacations" element={<VacationsPage />} />
-        <Route path="/terms" element={<TermsOfUsePage />} />
-        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/gestion-des-equipes" element={<TeamManagementPage />} />
+        <Route path="/gestion-des-conges" element={<VacationsPage />} />
+        <Route path="/taches-employes" element={<EmployeeTasksPage />} />
+        <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
+        <Route path="/entreprises" element={<CompanyOverviewPage />} />
+        <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
+
+        {/* Pages légales et utilitaires */}
+        <Route path="/mentions-legales" element={<TermsOfUsePage />} />
+        <Route
+          path="/politique-de-confidentialite"
+          element={<PrivacyPolicyPage />}
+        />
         <Route path="/contact" element={<ContactPage />} />
+
         {/* Route 404 pour toutes les autres URL */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

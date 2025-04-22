@@ -124,10 +124,13 @@ const Footer: React.FC<{ scrollToTop?: () => void }> = ({ scrollToTop }) => {
         </FooterLogo>
 
         <FooterLinks>
-          <FooterLink to="/terms" isDarkMode={isDarkMode}>
+          <FooterLink to="/mentions-legales" isDarkMode={isDarkMode}>
             Conditions d'utilisation
           </FooterLink>
-          <FooterLink to="/privacy" isDarkMode={isDarkMode}>
+          <FooterLink
+            to="/politique-de-confidentialite"
+            isDarkMode={isDarkMode}
+          >
             Politique de confidentialité
           </FooterLink>
           <FooterLink to="/contact" isDarkMode={isDarkMode}>

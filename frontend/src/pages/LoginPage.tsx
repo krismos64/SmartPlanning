@@ -151,7 +151,7 @@ const LoginPage: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       console.log("Login submitted:", formData);
       // Naviguer vers le dashboard après connexion
-      navigate("/dashboard");
+      navigate("/tableau-de-bord");
     } catch (error) {
       console.error("Login error:", error);
     } finally {
@@ -303,7 +303,7 @@ const LoginPage: React.FC = () => {
           </motion.div>
 
           <RegisterLink isDarkMode={isDarkMode}>
-            Pas encore inscrit ?<Link to="/register">Créer un compte</Link>
+            Pas encore inscrit ?<Link to="/inscription">Créer un compte</Link>
           </RegisterLink>
         </FormContainer>
       </PageWrapper>

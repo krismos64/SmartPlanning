@@ -123,10 +123,10 @@ const Header: React.FC = () => {
         <ThemeSwitchWrapper>
           <ThemeSwitch onChange={toggleTheme} checked={isDarkMode} />
         </ThemeSwitchWrapper>
-        <Link to="/login">
+        <Link to="/connexion">
           <LoginButton variant="ghost">🔐 Connexion</LoginButton>
         </Link>
-        <Link to="/register">
+        <Link to="/inscription">
           <SignupButton variant="primary">✨ S'inscrire</SignupButton>
         </Link>
       </Nav>

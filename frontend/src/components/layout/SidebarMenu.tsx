@@ -32,31 +32,31 @@ const menuItems = [
     id: "dashboard",
     label: "Tableau de bord",
     icon: Home,
-    route: "/dashboard",
+    route: "/tableau-de-bord",
   },
   {
     id: "plannings",
     label: "Plannings",
     icon: Calendar,
-    route: "/plannings",
+    route: "/plannings-hebdomadaires",
   },
   {
     id: "conges",
     label: "Demandes de congés",
     icon: Plane,
-    route: "/conges",
+    route: "/gestion-des-conges",
   },
   {
     id: "taches",
     label: "Tâches",
     icon: ClipboardList,
-    route: "/taches",
+    route: "/taches-employes",
   },
   {
     id: "collaborateurs",
     label: "Collaborateurs",
     icon: Users,
-    route: "/collaborateurs",
+    route: "/gestion-des-equipes",
   },
   {
     id: "statistiques",
@@ -96,7 +96,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   };
 
   const handleLogout = () => {
-    onNavigate("/logout");
+    onNavigate("/connexion");
   };
 
   const renderMenuItem = (

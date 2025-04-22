@@ -25,7 +25,7 @@ const DatePickerDemoPage: React.FC = () => {
 
   // Items du fil d'ariane
   const breadcrumbItems = [
-    { label: "Dashboard", href: "/dashboard" },
+    { label: "Dashboard", href: "/tableau-de-bord" },
     { label: "Composants", href: "/components" },
     { label: "DatePicker" },
   ];

@@ -473,11 +473,11 @@ const LoginPage: React.FC = () => {
 
         // Rediriger selon le rôle
         if (user.role === "admin") {
-          navigate("/dashboard/admin");
+          navigate("/tableau-de-bord/admin");
         } else if (user.role === "manager") {
-          navigate("/dashboard/manager");
+          navigate("/tableau-de-bord/manager");
         } else {
-          navigate("/dashboard");
+          navigate("/tableau-de-bord");
         }
       } catch (error) {
         console.error("Erreur lors du décodage du token:", error);
@@ -503,11 +503,11 @@ const LoginPage: React.FC = () => {
 
       // Rediriger selon le rôle
       if (user.role === "admin") {
-        navigate("/dashboard/admin");
+        navigate("/tableau-de-bord/admin");
       } else if (user.role === "manager") {
-        navigate("/dashboard/manager");
+        navigate("/tableau-de-bord/manager");
       } else {
-        navigate("/dashboard");
+        navigate("/tableau-de-bord");
       }
     } catch (error) {
       console.error("Erreur de connexion:", error);

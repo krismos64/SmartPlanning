@@ -166,10 +166,10 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                   <motion.div whileHover={{ scale: 1.05 }} className="relative">
                     <Button
                       variant="ghost"
-                      onClick={() => navigate("/profile")}
+                      onClick={() => navigate("/profil")}
                       className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 rounded-full px-4 py-2"
                     >
-                      <span className="inline-block w-8 h-8 rounded-full bg-gradient-to-br from-indigo-200 to-blue-100 dark:from-indigo-700 dark:to-blue-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">
+                      <span className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-200 to-blue-100 dark:from-indigo-700 dark:to-blue-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">
                         JD
                       </span>
                       <span className="hidden md:inline">John Doe</span>

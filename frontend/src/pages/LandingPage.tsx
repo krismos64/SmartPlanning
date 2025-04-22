@@ -1132,7 +1132,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </HeroSubtitle>
           <CTAButtons>
             <CTAButtonContainer>
-              <Link to="/register">
+              <Link to="/inscription">
                 <CTAButton
                   whileHover={{ scale: 1.1 }}
                   transition={{ duration: 0.3 }}
@@ -1531,7 +1531,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           efficacité avec SmartPlanning.
         </CTADescription>
         <CTAButtonContainer>
-          <Link to="/register">
+          <Link to="/inscription">
             <CTAButton
               whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.3 }}
