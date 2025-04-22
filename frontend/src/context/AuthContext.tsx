@@ -1,129 +1,146 @@
 import axios from "axios";
 import React, { createContext, useEffect, useState } from "react";
+import { User } from "../types/User";
 
-// Type pour l'utilisateur
-export interface User {
-  id: string;
-  email: string;
-  role: "admin" | "manager" | "user";
-  firstName: string;
-  lastName: string;
-}
-
-// Type pour le contexte d'authentification
-export interface AuthContextType {
-  isAuthenticated: boolean;
+// Interface définissant la structure du contexte d'authentification
+interface AuthContextType {
+  // Utilisateur connecté ou null si non connecté
   user: User | null;
-  token: string | null;
+  // Indique si l'utilisateur est authentifié
+  isAuthenticated: boolean;
+  // Indique si les données d'authentification sont en cours de chargement
   loading: boolean;
-  login: (user: User, token: string) => void;
-  logout: () => void;
+  // Erreurs d'authentification
+  error: string | null;
+  // Fonction pour connecter l'utilisateur
+  login: (email: string, password: string) => Promise<void>;
+  // Fonction pour déconnecter l'utilisateur
+  logout: () => Promise<void>;
 }
 
-// Création du contexte avec des valeurs par défaut
-export const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  user: null,
-  token: null,
-  loading: true,
-  login: () => {},
-  logout: () => {},
-});
+// Création du contexte avec une valeur par défaut undefined
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
-// Props pour le composant AuthProvider
+// Props pour le AuthProvider
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-/**
- * Fournisseur de contexte d'authentification
- * Gère l'état d'authentification global de l'application
- */
+// Provider qui enveloppe l'application et fournit le contexte d'authentification
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // États pour gérer l'authentification
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Effet pour vérifier l'authentification au chargement et quand le token change
+  // Vérifier l'authentification au chargement du composant
   useEffect(() => {
-    const verifyToken = async () => {
-      // Si pas de token, on arrête le chargement et on n'est pas authentifié
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
+    // Fonction pour vérifier si l'utilisateur est connecté
+    const checkAuth = async () => {
+      setLoading(true);
       try {
-        // Configuration de l'en-tête Authorization pour axios
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        // Récupérer l'utilisateur depuis le localStorage (ou un token)
+        const storedUser = localStorage.getItem("user");
 
-        // Appel à l'API pour vérifier le token et récupérer les données utilisateur
-        const response = await axios.get("/api/auth/me");
-
-        if (response.data.success) {
-          // Utilisateur authentifié
-          setUser(response.data.data);
-          setIsAuthenticated(true);
+        if (storedUser) {
+          // Si l'utilisateur est stocké, vérifier la validité du token
+          try {
+            // Appel à l'API pour vérifier le token (endpoint fictif)
+            // const response = await axios.get('/api/auth/verify-token');
+            // Simuler une vérification réussie
+            const userData = JSON.parse(storedUser);
+            setUser(userData);
+            setIsAuthenticated(true);
+          } catch (error) {
+            // Token invalide ou expiré
+            localStorage.removeItem("user");
+            setUser(null);
+            setIsAuthenticated(false);
+          }
         } else {
-          // Token invalide, suppression du token et déconnexion
-          logout();
+          // Aucun utilisateur stocké
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error("Erreur lors de la vérification du token:", error);
-        // En cas d'erreur, on déconnecte l'utilisateur
-        logout();
+        setError("Erreur lors de la vérification de l'authentification");
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
-    verifyToken();
-  }, [token]);
+    checkAuth();
+  }, []);
 
-  /**
-   * Connecter un utilisateur
-   * @param userData Données de l'utilisateur
-   * @param userToken Token JWT
-   */
-  const login = (userData: User, userToken: string) => {
-    // Enregistrer le token dans le localStorage
-    localStorage.setItem("token", userToken);
+  // Fonction pour connecter l'utilisateur
+  const login = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Appel à l'API d'authentification (à remplacer par votre API réelle)
+      // const response = await axios.post('/api/auth/login', { email, password });
 
-    // Configurer l'en-tête pour tous les futurs appels axios
-    axios.defaults.headers.common["Authorization"] = `Bearer ${userToken}`;
+      // Simulation d'une réponse API pour démonstration
+      const mockUser: User = {
+        _id: "123",
+        firstName: "John",
+        lastName: "Doe",
+        email: email,
+        role: email.includes("admin") ? "admin" : "employé",
+        status: "active",
+        createdAt: new Date().toISOString(),
+      };
 
-    // Mettre à jour l'état
-    setToken(userToken);
-    setUser(userData);
-    setIsAuthenticated(true);
+      // Stocker l'utilisateur dans le localStorage
+      localStorage.setItem("user", JSON.stringify(mockUser));
+
+      // Mettre à jour l'état
+      setUser(mockUser);
+      setIsAuthenticated(true);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        setError(error.response.data.message || "Identifiants invalides");
+      } else {
+        setError("Erreur lors de la connexion");
+      }
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /**
-   * Déconnecter l'utilisateur
-   */
-  const logout = () => {
-    // Supprimer le token du localStorage
-    localStorage.removeItem("token");
+  // Fonction pour déconnecter l'utilisateur
+  const logout = async () => {
+    setLoading(true);
+    try {
+      // Appel à l'API de déconnexion (si nécessaire)
+      // await axios.post('/api/auth/logout');
 
-    // Supprimer l'en-tête d'autorisation
-    delete axios.defaults.headers.common["Authorization"];
+      // Supprimer l'utilisateur du localStorage
+      localStorage.removeItem("user");
 
-    // Réinitialiser l'état
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
+      // Mettre à jour l'état
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      setError("Erreur lors de la déconnexion");
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Valeur du contexte à fournir aux composants enfants
+  // Valeur du contexte
   const contextValue: AuthContextType = {
-    isAuthenticated,
     user,
-    token,
+    isAuthenticated,
     loading,
+    error,
     login,
     logout,
   };

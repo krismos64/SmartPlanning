@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import passport, { generateToken } from "../config/passport";

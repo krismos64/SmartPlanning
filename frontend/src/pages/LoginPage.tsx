@@ -6,17 +6,18 @@
  * du design system pour une expérience cohérente.
  */
 import { motion } from "framer-motion";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
+import { AuthContext } from "../context/AuthContext";
 
 const Form = styled.form`
   display: flex;
@@ -127,7 +128,9 @@ const RegisterLink = styled.div<{ isDarkMode?: boolean }>`
 const LoginPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const auth = useContext(AuthContext);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -145,15 +148,24 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
     try {
-      // Simuler un appel API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Login submitted:", formData);
-      // Naviguer vers le dashboard après connexion
-      navigate("/tableau-de-bord");
+      // Utilisation du contexte d'authentification directement
+      const success = await auth.login({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (success) {
+        // Rediriger vers le tableau de bord
+        navigate("/tableau-de-bord");
+      } else {
+        setError("Identifiants incorrects");
+      }
     } catch (error) {
       console.error("Login error:", error);
+      setError("Erreur de connexion. Veuillez réessayer.");
     } finally {
       setIsLoading(false);
     }
@@ -182,6 +194,17 @@ const LoginPage: React.FC = () => {
           description="Accédez à votre espace de gestion de planning"
         >
           <Form onSubmit={handleSubmit}>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="error-message"
+                style={{ color: "red", marginBottom: "1rem" }}
+              >
+                {error}
+              </motion.div>
+            )}
+
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}

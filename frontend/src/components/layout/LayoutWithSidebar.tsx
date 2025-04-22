@@ -4,6 +4,7 @@ import React, { lazy, Suspense, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import planningAnimation from "../../assets/animations/planning-animation.json";
+import { User } from "../../types/User";
 import { useTheme } from "../ThemeProvider";
 import Button from "../ui/Button";
 import { ThemeSwitch } from "../ui/ThemeSwitch";
@@ -28,6 +29,17 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
   const navigate = useNavigate();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
+  // Simuler un utilisateur (à remplacer par un contexte d'authentification réel)
+  const mockUser: User = {
+    _id: "1",
+    firstName: "John",
+    lastName: "Doe",
+    email: "john.doe@example.com",
+    role: "admin", // Pour tester l'affichage du menu admin
+    status: "active",
+    createdAt: new Date().toISOString(),
+  };
+
   const handleNavigate = (route: string) => {
     setSidebarOpen(false);
     navigate(route);
@@ -48,10 +60,11 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
         <SidebarMenu
           activeItem={activeItem}
           onNavigate={handleNavigate}
-          firstName="John"
-          lastName="Doe"
+          firstName={mockUser.firstName}
+          lastName={mockUser.lastName}
           companyName="SmartTech Industries"
           companyLogoUrl="/src/assets/images/company-logo.png"
+          user={mockUser} // Passer l'utilisateur simulé
         />
       </div>
 

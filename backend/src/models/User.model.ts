@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import mongoose, { Document, Model, Schema } from "mongoose";
 
 // Définition du type pour l'historique de connexion
@@ -10,7 +10,7 @@ export type LoginHistoryItem = {
 };
 
 // Type pour les rôles utilisateur
-export type UserRole = "admin" | "manager" | "user";
+export type UserRole = "admin" | "directeur" | "manager" | "employé";
 
 // Interface pour les données Google OAuth
 export interface GoogleProfile {
@@ -33,6 +33,7 @@ export interface IUser {
   email: string;
   password: string;
   role: UserRole;
+  status: "active" | "inactive";
   isEmailVerified: boolean;
   verificationToken?: string;
   resetPasswordToken?: string;
@@ -109,8 +110,13 @@ const userSchema = new Schema<UserDocument>(
     },
     role: {
       type: String,
-      enum: ["admin", "manager", "user"],
-      default: "user",
+      enum: ["admin", "directeur", "manager", "employé"],
+      default: "employé",
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
     },
     isEmailVerified: {
       type: Boolean,
@@ -161,6 +167,7 @@ const userSchema = new Schema<UserDocument>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
     },
+
     lastLogin: {
       type: Date,
     },

@@ -1,11 +1,9 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { Express, NextFunction, Request, Response } from "express";
-import session from "express-session";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import morgan from "morgan";
-import passport from "./config/passport";
 
 // Routes
 import authRoutes from "./routes/auth.routes";
@@ -38,22 +36,6 @@ app.use(
 app.use(helmet()); // Sécurité
 app.use(express.json()); // Body parser pour JSON
 app.use(express.urlencoded({ extended: true })); // Body parser pour URL-encoded
-
-// Configuration de la session (nécessaire pour Passport)
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "smartplanning-secret-key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 1 jour
-    },
-  })
-);
-
-// Initialisation de Passport
-app.use(passport.initialize());
 
 // Routes
 app.use("/api/auth", authRoutes);
