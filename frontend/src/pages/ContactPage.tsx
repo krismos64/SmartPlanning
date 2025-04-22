@@ -96,7 +96,7 @@ const ContactItemTitle = styled.h3`
   font-size: 1.125rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#fff" : "#fff")};
+  color: ${({ isDarkMode }) => (isDarkMode ? "#334155" : "#334155")};
 `;
 
 const ContactItemText = styled.p<{ isDarkMode?: boolean }>`

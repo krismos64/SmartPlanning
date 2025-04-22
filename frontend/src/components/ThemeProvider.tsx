@@ -159,16 +159,26 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
+
     if (savedTheme === "dark") {
       setIsDarkMode(true);
-    } else if (!savedTheme) {
-      // Check system preference
+    } else if (savedTheme === "light") {
+      setIsDarkMode(false);
+    } else {
       const prefersDark = window.matchMedia(
         "(prefers-color-scheme: dark)"
       ).matches;
       setIsDarkMode(prefersDark);
     }
   }, []);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode]);
 
   const toggleTheme = () => {
     setIsDarkMode((prev) => {
