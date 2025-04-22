@@ -7,7 +7,7 @@
 import { motion } from "framer-motion";
 import React, { useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { MdLocationOn, MdOutlineMail, MdOutlinePhone } from "react-icons/md";
+import { MdOutlineMail } from "react-icons/md";
 import styled from "styled-components";
 import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
@@ -47,7 +47,7 @@ const StyledButton = styled(Button)`
 const ContactInfoSection = styled.div`
   margin-top: 2rem;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(1, 1fr);
   gap: 1rem;
 
   @media (max-width: 768px) {
@@ -96,11 +96,20 @@ const ContactItemTitle = styled.h3`
   font-size: 1.125rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#fff" : "#fff")};
 `;
 
 const ContactItemText = styled.p<{ isDarkMode?: boolean }>`
   font-size: 0.875rem;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  color: ${({ isDarkMode }) =>
+    isDarkMode ? "#CBD5E1" : "#334155"}; // gris clair / gris foncé
+  a {
+    color: inherit;
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 `;
 
 const SuccessMessage = styled(motion.div)<{ isDarkMode?: boolean }>`
@@ -384,7 +393,12 @@ const ContactPage: React.FC = () => {
                 </IconWrapper>
                 <ContactItemTitle>Email</ContactItemTitle>
                 <ContactItemText isDarkMode={isDarkMode}>
-                  contact@smartplanning.fr
+                  <a
+                    href="mailto:contact@smartplanning.fr"
+                    className="hover:underline"
+                  >
+                    contact@smartplanning.fr
+                  </a>
                 </ContactItemText>
               </ContactItem>
             </motion.div>
@@ -393,35 +407,7 @@ const ContactPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <ContactItem isDarkMode={isDarkMode}>
-                <IconWrapper>
-                  <MdOutlinePhone />
-                </IconWrapper>
-                <ContactItemTitle>Téléphone</ContactItemTitle>
-                <ContactItemText isDarkMode={isDarkMode}>
-                  +33 1 23 45 67 89
-                </ContactItemText>
-              </ContactItem>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              <ContactItem isDarkMode={isDarkMode}>
-                <IconWrapper>
-                  <MdLocationOn />
-                </IconWrapper>
-                <ContactItemTitle>Adresse</ContactItemTitle>
-                <ContactItemText isDarkMode={isDarkMode}>
-                  123 Avenue des Applications
-                  <br />
-                  75011 Paris, France
-                </ContactItemText>
-              </ContactItem>
-            </motion.div>
+            ></motion.div>
           </ContactInfoSection>
         </FormContainer>
       </PageWrapper>
