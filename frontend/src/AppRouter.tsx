@@ -15,6 +15,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
 import TeamManagementPage from "./pages/TeamManagementPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
+import UserManagementPage from "./pages/UserManagementPage";
 import VacationsPage from "./pages/VacationsPage";
 import WeeklySchedulePage from "./pages/WeeklySchedulePage";
 
@@ -75,6 +76,10 @@ const AppRouter: React.FC = () => {
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
         <Route path="/entreprises" element={<CompanyOverviewPage />} />
+        <Route
+          path="/gestion-des-utilisateurs"
+          element={<UserManagementPage />}
+        />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
 
         {/* Pages légales et utilitaires */}
