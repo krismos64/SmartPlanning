@@ -4,6 +4,7 @@ import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
 import CompanyOverviewPage from "./pages/CompanyOverviewPage";
+import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
@@ -71,7 +72,7 @@ const AppRouter: React.FC = () => {
         <Route path="/vacations" element={<VacationsPage />} />
         <Route path="/terms" element={<TermsOfUsePage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
-
+        <Route path="/contact" element={<ContactPage />} />
         {/* Route 404 pour toutes les autres URL */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
