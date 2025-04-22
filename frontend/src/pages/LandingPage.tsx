@@ -4,9 +4,10 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 import planningAnimation from "../assets/animations/planning-animation.json";
+import FooterComponent from "../components/layout/Footer";
+import Header from "../components/layout/Header";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
-import { ThemeSwitch } from "../components/ui/ThemeSwitch";
 // Import différé d'EnhancedLottie pour optimiser le chargement
 const EnhancedLottie = lazy(() => import("../components/ui/EnhancedLottie"));
 
@@ -75,61 +76,6 @@ const Container = styled.div`
   animation: ${fadeIn} 0.5s ease-in-out;
   transition: background-color 0.3s ease, color 0.3s ease;
   overflow-x: hidden;
-`;
-
-const Header = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
-  box-shadow: ${({ theme }) => theme.shadows.medium};
-  background-color: ${({ theme }) => theme.colors.surface};
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  backdrop-filter: blur(8px);
-  font-family: "Inter", "Poppins", sans-serif;
-
-  @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.md};
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.md};
-  }
-`;
-
-const Logo = styled.div`
-  font-size: ${({ theme }) => theme.typography.sizes["2xl"]};
-  font-weight: ${({ theme }) => theme.typography.fontWeights.bold};
-  color: ${({ theme }) => theme.colors.primary};
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const LogoAnimation = styled.div`
-  width: 40px;
-  height: 40px;
-  animation: ${float} 3s ease-in-out infinite;
-`;
-
-const Nav = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-
-  @media (max-width: 768px) {
-    width: 100%;
-    justify-content: center;
-    gap: 1rem;
-  }
-`;
-
-const ThemeSwitchWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
 `;
 
 const HeroSection = styled.section`
@@ -924,46 +870,6 @@ const CTAButton = styled(motion.button)`
   }
 `;
 
-// Styled components pour les boutons améliorés
-const LoginButton = styled(Button)`
-  color: ${({ theme }) => theme.colors.secondary || "#00E0B8"};
-  font-weight: 600;
-  border-radius: 12px;
-  padding: 0.5rem 1.2rem;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  &:hover {
-    text-decoration: none;
-    background-color: rgba(0, 224, 184, 0.1);
-    transform: translateY(-2px);
-  }
-
-  &:focus {
-    box-shadow: 0 0 0 2px rgba(0, 224, 184, 0.3);
-  }
-`;
-
-const SignupButton = styled(Button)`
-  box-shadow: ${({ theme }) => theme.shadows.large};
-  border-radius: 12px;
-  padding: 0.5rem 1.5rem;
-  font-weight: 600;
-  background: linear-gradient(
-    135deg,
-    ${({ theme }) => theme.colors.primary},
-    ${({ theme }) => theme.colors.secondary || theme.colors.primary + "bb"}
-  );
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: scale(1.05);
-    box-shadow: ${({ theme }) => theme.shadows.large};
-  }
-`;
-
 interface LandingPageProps {}
 
 // Données FAQ pour corriger les placeholders
@@ -977,13 +883,13 @@ const faqData = [
   {
     icon: "🧠",
     question:
-      "L’intelligence artificielle de SmartPlanning est-elle réellement utile ?",
+      "L'intelligence artificielle de SmartPlanning est-elle réellement utile ?",
     answer:
-      "Oui ! L’IA de SmartPlanning permet de générer automatiquement des plannings hebdomadaires optimisés en quelques secondes. Les managers gardent toujours le contrôle final via une validation manuelle simple.",
+      "Oui ! L'IA de SmartPlanning permet de générer automatiquement des plannings hebdomadaires optimisés en quelques secondes. Les managers gardent toujours le contrôle final via une validation manuelle simple.",
   },
   {
     icon: "📅",
-    question: "Puis-je modifier un planning généré par l’IA ?",
+    question: "Puis-je modifier un planning généré par l'IA ?",
     answer:
       "Absolument. Chaque planning généré peut être ajusté manuellement avant validation. Vous gardez une flexibilité totale tout en gagnant un temps précieux.",
   },
@@ -992,7 +898,7 @@ const faqData = [
     question:
       "Combien de temps faut-il pour mettre en place SmartPlanning dans mon entreprise ?",
     answer:
-      "La mise en place est quasi-instantanée. Vous créez votre compte, invitez vos équipes, et commencez à générer vos premiers plannings en moins d’une heure.",
+      "La mise en place est quasi-instantanée. Vous créez votre compte, invitez vos équipes, et commencez à générer vos premiers plannings en moins d'une heure.",
   },
   {
     icon: "📱",
@@ -1034,7 +940,7 @@ const userReviews = [
 ];
 
 const LandingPage: React.FC<LandingPageProps> = () => {
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode } = useTheme();
   const demoRef = useRef<HTMLElement | null>(null);
   const [visibleBenefits, setVisibleBenefits] = useState<number[]>([]);
   const benefitsRef = useRef<HTMLDivElement | null>(null);
@@ -1207,27 +1113,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
       </Helmet>
 
-      <Header>
-        <Logo>
-          <LogoAnimation>
-            <Suspense fallback={<div style={{ width: 40, height: 40 }} />}>
-              <EnhancedLottie animationData={planningAnimation} loop={true} />
-            </Suspense>
-          </LogoAnimation>
-          SmartPlanning
-        </Logo>
-        <Nav>
-          <ThemeSwitchWrapper>
-            <ThemeSwitch onChange={toggleTheme} checked={isDarkMode} />
-          </ThemeSwitchWrapper>
-          <Link to="/login">
-            <LoginButton variant="ghost">🔐 Connexion</LoginButton>
-          </Link>
-          <Link to="/register">
-            <SignupButton variant="primary">✨ S'inscrire</SignupButton>
-          </Link>
-        </Nav>
-      </Header>
+      <Header />
 
       <HeroSection>
         <BackgroundDecoration className="top-right" />
@@ -1656,35 +1542,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         </CTAButtonContainer>
       </CTASection>
 
-      <Footer>
-        <FooterContent>
-          <FooterLogo to="/" onClick={scrollToTop}>
-            <LogoAnimation>
-              <Suspense fallback={<div style={{ width: 30, height: 30 }} />}>
-                <EnhancedLottie
-                  animationData={planningAnimation}
-                  loop={true}
-                  style={{ width: "30px", height: "30px" }}
-                />
-              </Suspense>
-            </LogoAnimation>
-            SmartPlanning
-          </FooterLogo>
-
-          <FooterLinks>
-            <FooterLink to="/conditions-utilisation">
-              Conditions d'utilisation
-            </FooterLink>
-            <FooterLink to="/confidentialite">
-              Politique de confidentialité
-            </FooterLink>
-            <FooterLink to="/contact">Contact</FooterLink>
-          </FooterLinks>
-        </FooterContent>
-        <FooterCopyright>
-          &copy; 2025 SmartPlanning. Tous droits réservés.
-        </FooterCopyright>
-      </Footer>
+      <FooterComponent scrollToTop={scrollToTop} />
     </Container>
   );
 };

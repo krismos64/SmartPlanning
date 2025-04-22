@@ -11,9 +11,9 @@ import LoginPage from "./pages/LoginPage";
 import PlanningValidationPage from "./pages/PlanningValidationPage";
 import RegisterPage from "./pages/RegisterPage";
 import TeamManagementPage from "./pages/TeamManagementPage";
+import TermsOfUsePage from "./pages/TermsOfUsePage";
 import VacationsPage from "./pages/VacationsPage";
 import WeeklySchedulePage from "./pages/WeeklySchedulePage";
-
 /**
  * Composant Page 404 simplifié pour les routes non trouvées
  */
@@ -68,6 +68,7 @@ const AppRouter: React.FC = () => {
         <Route path="/team-management" element={<TeamManagementPage />} />
         <Route path="/employee-tasks" element={<EmployeeTasksPage />} />
         <Route path="/vacations" element={<VacationsPage />} />
+        <Route path="/terms" element={<TermsOfUsePage />} />
 
         {/* Route 404 pour toutes les autres URL */}
         <Route path="*" element={<NotFoundPage />} />
