@@ -5,432 +5,436 @@
  * et support pour l'authentification Google OAuth. Utilise les composants
  * du design system SmartPlanning pour une expérience cohérente.
  */
-import axios from "axios";
 import { motion } from "framer-motion";
-import { LogIn, Mail, User } from "lucide-react";
 import React, { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
-import FormContainer from "../components/layout/FormContainer";
+import styled from "styled-components";
+import { useTheme } from "../components/ThemeProvider";
+import Footer from "../components/layout/Footer";
+import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
-import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
+import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
-import ThemeToggle from "../components/ui/ThemeToggle";
-import Toast from "../components/ui/Toast";
 
-/**
- * Interface pour le formulaire d'inscription
- */
-interface RegisterFormData {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  companyName: string;
-  role: "manager" | "employee";
-}
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+`;
 
-/**
- * Page d'inscription
- */
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const FormRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const TermsContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+const TermsLabel = styled.label<{ isDarkMode?: boolean }>`
+  font-size: 0.875rem;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  cursor: pointer;
+
+  a {
+    color: #4f46e5;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+`;
+
+const StyledButton = styled(Button)`
+  margin-top: 1rem;
+  width: 100%;
+`;
+
+const Divider = styled.div<{ isDarkMode?: boolean }>`
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid
+      ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
+  }
+
+  span {
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  }
+`;
+
+const GoogleButton = styled.button<{ isDarkMode?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background-color: ${({ isDarkMode }) => (isDarkMode ? "#1A2234" : "#FFFFFF")};
+  border: 1px solid ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
+  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: ${({ isDarkMode }) =>
+      isDarkMode ? "#242f48" : "#F8F9FA"};
+  }
+`;
+
+const LoginLink = styled.div<{ isDarkMode?: boolean }>`
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+
+  a {
+    color: #4f46e5;
+    text-decoration: none;
+    margin-left: 0.25rem;
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+`;
+
+const ErrorMessage = styled.p`
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+`;
+
 const RegisterPage: React.FC = () => {
-  // État local pour le formulaire d'inscription
-  const [registerData, setRegisterData] = useState<RegisterFormData>({
+  const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    companyName: "",
-    role: "manager",
+    acceptTerms: false,
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // États pour l'UI
-  const [loading, setLoading] = useState<boolean>(false);
-  const [googleLoading, setGoogleLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
-  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
-
-  // Hook de navigation
-  const navigate = useNavigate();
-
-  // Gestionnaire de changement de champ
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setRegisterData({
-      ...registerData,
-      [name]: value,
-    });
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+
+    // Clear error for this field when the user starts typing
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
-  // Gestionnaire de soumission du formulaire
-  const handleRegister = async (e: React.FormEvent) => {
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "Le prénom est requis";
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Le nom est requis";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "L'email est requis";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Format d'email invalide";
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Le mot de passe est requis";
+    } else if (formData.password.length < 8) {
+      newErrors.password =
+        "Le mot de passe doit contenir au moins 8 caractères";
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
+    }
+
+    if (!formData.acceptTerms) {
+      newErrors.acceptTerms =
+        "Vous devez accepter les conditions d'utilisation";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation basique
-    if (
-      !registerData.firstName ||
-      !registerData.lastName ||
-      !registerData.email ||
-      !registerData.password ||
-      !registerData.confirmPassword
-    ) {
-      setError("Veuillez remplir tous les champs obligatoires");
-      setShowErrorToast(true);
+    if (!validateForm()) {
       return;
     }
 
-    // Validation de la correspondance des mots de passe
-    if (registerData.password !== registerData.confirmPassword) {
-      setError("Les mots de passe ne correspondent pas");
-      setShowErrorToast(true);
-      return;
-    }
-
-    // Validation du format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(registerData.email)) {
-      setError("Veuillez saisir une adresse email valide");
-      setShowErrorToast(true);
-      return;
-    }
-
-    // Validation de la longueur du mot de passe
-    if (registerData.password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères");
-      setShowErrorToast(true);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
+    setIsLoading(true);
 
     try {
-      // Préparation des données à envoyer (sans confirmPassword)
-      const { confirmPassword, ...dataToSend } = registerData;
-
-      // Appel API pour l'inscription
-      const response = await axios.post("/api/auth/register", dataToSend);
-
-      // Succès de l'inscription
-      setSuccess(
-        response.data.message ||
-          "Inscription réussie! Redirection vers le tableau de bord..."
-      );
-      setShowSuccessToast(true);
-
-      // Redirection vers le dashboard après 2 secondes
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+      // Simuler un appel API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Registration submitted:", formData);
+      // Naviguer vers le dashboard après inscription
+      navigate("/dashboard");
     } catch (error) {
-      console.error("Erreur d'inscription:", error);
-
-      // Gérer les différents types d'erreurs
-      if (axios.isAxiosError(error) && error.response) {
-        setError(error.response.data.message || "Erreur lors de l'inscription");
-      } else {
-        setError(
-          "Une erreur s'est produite lors de l'inscription. Veuillez réessayer."
-        );
-      }
-      setShowErrorToast(true);
+      console.error("Registration error:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Gestionnaire pour l'inscription avec Google
   const handleGoogleRegister = () => {
-    setGoogleLoading(true);
-    // Redirection vers l'API OAuth de Google
-    window.location.href = `${
-      process.env.REACT_APP_API_URL || "http://localhost:5000"
-    }/api/auth/google`;
-  };
-
-  // Fermer les notifications
-  const closeErrorToast = () => {
-    setShowErrorToast(false);
-  };
-
-  const closeSuccessToast = () => {
-    setShowSuccessToast(false);
-  };
-
-  // Éléments du fil d'ariane
-  const breadcrumbItems = [
-    { label: "Accueil", href: "/" },
-    { label: "Inscription" },
-  ];
-
-  // Animation de transition pour les éléments du formulaire
-  const formAnimation = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        delay: i * 0.1,
-        duration: 0.4,
-        ease: "easeOut",
-      },
-    }),
+    console.log("Google registration clicked");
+    // Logique d'authentification Google
   };
 
   return (
-    <PageWrapper>
-      {/* Zone Header avec Breadcrumb et ThemeToggle */}
-      <div className="flex justify-between items-center w-full mb-8">
-        <Breadcrumb items={breadcrumbItems} />
-        <ThemeToggle />
-      </div>
+    <>
+      <Helmet>
+        <title>Inscription - SmartPlanning</title>
+        <meta
+          name="description"
+          content="Créez votre compte SmartPlanning pour accéder à notre solution de gestion de planning innovante."
+        />
+      </Helmet>
 
-      {/* Notifications Toast */}
-      <Toast
-        message={error || ""}
-        type="error"
-        isVisible={showErrorToast}
-        onClose={closeErrorToast}
-      />
-      <Toast
-        message={success || ""}
-        type="success"
-        isVisible={showSuccessToast}
-        onClose={closeSuccessToast}
-      />
+      <Header />
 
-      {/* Contenu principal */}
-      <motion.div
-        className="w-full max-w-md mx-auto"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <FormContainer>
-          {/* En-tête du formulaire */}
+      <PageWrapper>
+        <FormContainer
+          title="Créer un compte SmartPlanning"
+          description="Rejoignez-nous et découvrez une nouvelle façon de gérer vos plannings"
+        >
+          <Form onSubmit={handleSubmit}>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <FormRow>
+                <FormGroup>
+                  <InputField
+                    type="text"
+                    label="Prénom"
+                    name="firstName"
+                    placeholder="Votre prénom"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                  />
+                  {errors.firstName && (
+                    <ErrorMessage>{errors.firstName}</ErrorMessage>
+                  )}
+                </FormGroup>
+
+                <FormGroup>
+                  <InputField
+                    type="text"
+                    label="Nom"
+                    name="lastName"
+                    placeholder="Votre nom"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                  />
+                  {errors.lastName && (
+                    <ErrorMessage>{errors.lastName}</ErrorMessage>
+                  )}
+                </FormGroup>
+              </FormRow>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <FormGroup>
+                <InputField
+                  type="email"
+                  label="Adresse email"
+                  name="email"
+                  placeholder="votre.email@exemple.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+                {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
+              </FormGroup>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+            >
+              <FormGroup>
+                <InputField
+                  type="password"
+                  label="Mot de passe"
+                  name="password"
+                  placeholder="********"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+                {errors.password && (
+                  <ErrorMessage>{errors.password}</ErrorMessage>
+                )}
+              </FormGroup>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+            >
+              <FormGroup>
+                <InputField
+                  type="password"
+                  label="Confirmer le mot de passe"
+                  name="confirmPassword"
+                  placeholder="********"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+                {errors.confirmPassword && (
+                  <ErrorMessage>{errors.confirmPassword}</ErrorMessage>
+                )}
+              </FormGroup>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.5 }}
+            >
+              <TermsContainer>
+                <input
+                  type="checkbox"
+                  id="acceptTerms"
+                  name="acceptTerms"
+                  checked={formData.acceptTerms}
+                  onChange={handleChange}
+                />
+                <TermsLabel htmlFor="acceptTerms" isDarkMode={isDarkMode}>
+                  J'accepte les{" "}
+                  <Link to="/terms">conditions d'utilisation</Link> et la{" "}
+                  <Link to="/privacy">politique de confidentialité</Link>
+                </TermsLabel>
+              </TermsContainer>
+              {errors.acceptTerms && (
+                <ErrorMessage>{errors.acceptTerms}</ErrorMessage>
+              )}
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.6 }}
+            >
+              <StyledButton
+                type="submit"
+                variant="primary"
+                size="lg"
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? "Inscription en cours..." : "S'inscrire"}
+              </StyledButton>
+            </motion.div>
+          </Form>
+
+          <Divider isDarkMode={isDarkMode}>
+            <span>ou</span>
+          </Divider>
+
           <motion.div
-            className="text-center mb-8"
-            variants={formAnimation}
-            initial="hidden"
-            animate="visible"
-            custom={0}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.7 }}
           >
-            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
-              Créer un compte SmartPlanning
-            </h1>
-            <p className="text-[var(--text-secondary)] text-sm">
-              Inscrivez-vous pour accéder à toutes les fonctionnalités
-            </p>
+            <GoogleButton
+              type="button"
+              onClick={handleGoogleRegister}
+              isDarkMode={isDarkMode}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z"
+                  fill="#EA4335"
+                />
+              </svg>
+              Continuer avec Google
+            </GoogleButton>
           </motion.div>
 
-          {/* Formulaire d'inscription */}
-          <form onSubmit={handleRegister} className="space-y-5">
-            {/* Prénom */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={1}
-            >
-              <InputField
-                id="firstName"
-                name="firstName"
-                type="text"
-                label="Prénom"
-                placeholder="Votre prénom"
-                value={registerData.firstName}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                icon={<User size={18} />}
-              />
-            </motion.div>
-
-            {/* Nom */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={2}
-            >
-              <InputField
-                id="lastName"
-                name="lastName"
-                type="text"
-                label="Nom"
-                placeholder="Votre nom"
-                value={registerData.lastName}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                icon={<User size={18} />}
-              />
-            </motion.div>
-
-            {/* Email */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={3}
-            >
-              <InputField
-                id="email"
-                name="email"
-                type="email"
-                label="Adresse email"
-                placeholder="votre@email.com"
-                value={registerData.email}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                icon={<Mail size={18} />}
-              />
-            </motion.div>
-
-            {/* Mot de passe */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={4}
-            >
-              <InputField
-                id="password"
-                name="password"
-                type="password"
-                label="Mot de passe"
-                placeholder="Minimum 6 caractères"
-                value={registerData.password}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
-            </motion.div>
-
-            {/* Confirmation mot de passe */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={5}
-            >
-              <InputField
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                label="Confirmer le mot de passe"
-                placeholder="Confirmez votre mot de passe"
-                value={registerData.confirmPassword}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
-            </motion.div>
-
-            {/* Bouton de soumission */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={6}
-              className="pt-2"
-            >
-              <Button
-                type="submit"
-                disabled={loading}
-                isLoading={loading}
-                fullWidth
-              >
-                S'inscrire
-              </Button>
-            </motion.div>
-
-            {/* Séparateur */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={7}
-              className="relative my-6"
-            >
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[var(--border)]"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[var(--background-primary)] text-[var(--text-tertiary)]">
-                  Ou continuer avec
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Bouton Google */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={8}
-            >
-              <Button
-                onClick={handleGoogleRegister}
-                disabled={googleLoading}
-                isLoading={googleLoading}
-                variant="secondary"
-                fullWidth
-              >
-                {!googleLoading && (
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M22 12.0001C22 10.8701 21.8599 9.74009 21.5899 8.67009H12.0099V12.4201H17.5699C17.3299 13.5601 16.6599 14.4901 15.6899 15.1001V17.5701H19.0099C21.0099 15.9901 22 14.2301 22 12.0001Z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12.01 22C14.97 22 17.47 21.06 19.01 19.57L15.69 17.1C14.74 17.77 13.49 18.18 12.01 18.18C9.09 18.18 6.64 16.31 5.75 13.78H2.31V16.32C3.84 19.69 7.63 22 12.01 22Z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.75 13.7801C5.54 13.1901 5.43 12.5701 5.43 11.9901C5.43 11.4001 5.55 10.7901 5.75 10.2001V7.66016H2.31C1.62 9.06016 1.25 10.6002 1.25 12.0002C1.25 13.4002 1.62 14.9402 2.31 16.3402L5.75 13.7801Z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12.01 5.81C13.54 5.81 14.92 6.34 16.02 7.39L18.95 4.46C17.47 3.09 14.97 2.25 12.01 2.25C7.63 2.25 3.84 4.56 2.31 7.92L5.75 10.46C6.64 7.93 9.09 5.81 12.01 5.81Z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                )}
-                Continuer avec Google
-              </Button>
-            </motion.div>
-
-            {/* Lien vers connexion */}
-            <motion.div
-              variants={formAnimation}
-              initial="hidden"
-              animate="visible"
-              custom={9}
-              className="text-center mt-6"
-            >
-              <p className="text-sm text-[var(--text-secondary)]">
-                Déjà inscrit ?{" "}
-                <Link
-                  to="/login"
-                  className="text-[var(--accent-primary)] hover:underline font-medium"
-                >
-                  <span className="inline-flex items-center">
-                    <LogIn size={14} className="mr-1" />
-                    Se connecter
-                  </span>
-                </Link>
-              </p>
-            </motion.div>
-          </form>
+          <LoginLink isDarkMode={isDarkMode}>
+            Déjà un compte ?<Link to="/login">Se connecter</Link>
+          </LoginLink>
         </FormContainer>
-      </motion.div>
-    </PageWrapper>
+      </PageWrapper>
+
+      <Footer />
+    </>
   );
 };
 

@@ -1,234 +1,139 @@
+/**
+ * ContactPage - Page de contact
+ *
+ * Permet aux utilisateurs d'envoyer des messages à l'équipe support.
+ * Comprend un formulaire avec validation et un système de feedback visuel.
+ */
 import { motion } from "framer-motion";
 import React, { useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { MdLocationOn, MdOutlineMail, MdOutlinePhone } from "react-icons/md";
 import styled from "styled-components";
 import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
-import Card from "../components/ui/Card";
+import PageWrapper from "../components/layout/PageWrapper";
+import Button from "../components/ui/Button";
+import FormContainer from "../components/ui/FormContainer";
+import InputField from "../components/ui/InputField";
+import TextareaField from "../components/ui/TextareaField";
 
-const Container = styled.div<{ isDarkMode?: boolean }>`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: ${({ isDarkMode }) => (isDarkMode ? "#0A0F1A" : "#F8F9FA")};
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
-  transition: background-color 0.3s ease, color 0.3s ease;
-  overflow-x: hidden;
+  gap: 1.25rem;
 `;
 
-const GlobalStyles = styled.div<{ isDarkMode?: boolean }>`
-  ${({ isDarkMode }) =>
-    isDarkMode
-      ? `
-    --background-secondary: #121829;
-    --text-primary: #F1F5F9;
-    --text-secondary: #94A3B8;
-    --border: #2D3748;
-    --input-bg: #1A2234;
-    --input-focus: #2D3748;
-  `
-      : `
-    --background-secondary: #FFFFFF;
-    --text-primary: #1A202C;
-    --text-secondary: #6b7280;
-    --border: #E2E8F0;
-    --input-bg: #F1F5F9;
-    --input-focus: #E2E8F0;
-  `}
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
 `;
 
-const PageContent = styled.main`
-  max-width: 56rem;
-  width: 100%;
-  margin: 0 auto;
-  padding: 2.5rem 1rem;
-  flex: 1;
-`;
-
-const PageTitle = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 700;
-  text-align: center;
-  color: #4f46e5;
-  margin-bottom: 1rem;
-
-  @media (max-width: 768px) {
-    font-size: 2rem;
-  }
-`;
-
-const Subtitle = styled.p<{ isDarkMode?: boolean }>`
-  font-size: 1.125rem;
-  text-align: center;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
-  margin-bottom: 3rem;
-  max-width: 36rem;
-  margin-left: auto;
-  margin-right: auto;
-`;
-
-const StyledCard = styled(Card)<{ isDarkMode?: boolean }>`
-  background-color: ${({ isDarkMode }) => (isDarkMode ? "#121829" : "#FFFFFF")};
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
-  border-color: ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
-  margin-bottom: 2rem;
-  box-shadow: ${({ isDarkMode }) =>
-    isDarkMode
-      ? "0 10px 25px rgba(0, 0, 0, 0.3)"
-      : "0 10px 25px rgba(0, 0, 0, 0.1)"};
-  border-radius: 1rem;
-  overflow: hidden;
-  padding: 2rem;
-
-  @media (max-width: 768px) {
-    padding: 1.5rem;
-  }
-`;
-
-const FormGrid = styled.div`
+const FormRow = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const StyledButton = styled(Button)`
+  margin-top: 1rem;
+  width: 100%;
+`;
+
+const ContactInfoSection = styled.div`
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const FormGroup = styled.div`
-  margin-bottom: 1.5rem;
-`;
-
-const Label = styled.label<{ isDarkMode?: boolean }>`
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
-`;
-
-const Input = styled.input<{ isDarkMode?: boolean }>`
-  width: 100%;
-  padding: 0.75rem 1rem;
+const ContactItem = styled.div<{ isDarkMode?: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem;
   border-radius: 0.5rem;
   background-color: ${({ isDarkMode }) =>
-    isDarkMode ? "var(--input-bg)" : "var(--input-bg)"};
-  border: 1px solid
-    ${({ isDarkMode }) => (isDarkMode ? "var(--border)" : "var(--border)")};
-  color: ${({ isDarkMode }) =>
-    isDarkMode ? "var(--text-primary)" : "var(--text-primary)"};
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    isDarkMode ? "rgba(26, 34, 52, 0.7)" : "rgba(248, 250, 252, 0.7)"};
+  box-shadow: ${({ isDarkMode }) =>
+    isDarkMode
+      ? "0 4px 12px rgba(0, 0, 0, 0.2)"
+      : "0 4px 12px rgba(0, 0, 0, 0.05)"};
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 
-  &:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  }
-
-  &::placeholder {
-    color: ${({ isDarkMode }) =>
-      isDarkMode ? "var(--text-secondary)" : "var(--text-secondary)"};
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: ${({ isDarkMode }) =>
+      isDarkMode
+        ? "0 8px 16px rgba(0, 0, 0, 0.3)"
+        : "0 8px 16px rgba(0, 0, 0, 0.1)"};
   }
 `;
 
-const TextArea = styled.textarea<{ isDarkMode?: boolean }>`
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  background-color: ${({ isDarkMode }) =>
-    isDarkMode ? "var(--input-bg)" : "var(--input-bg)"};
-  border: 1px solid
-    ${({ isDarkMode }) => (isDarkMode ? "var(--border)" : "var(--border)")};
-  color: ${({ isDarkMode }) =>
-    isDarkMode ? "var(--text-primary)" : "var(--text-primary)"};
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  min-height: 10rem;
-  resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  }
-
-  &::placeholder {
-    color: ${({ isDarkMode }) =>
-      isDarkMode ? "var(--text-secondary)" : "var(--text-secondary)"};
-  }
-`;
-
-const SubmitButton = styled(motion.button)`
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: white;
-  border: none;
-  padding: 0.875rem 2rem;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
+const IconWrapper = styled.div`
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-`;
-
-const ContactInfo = styled.div<{ isDarkMode?: boolean }>`
-  margin-top: 3rem;
-  text-align: center;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  background-color: ${({ isDarkMode }) =>
-    isDarkMode ? "rgba(79, 70, 229, 0.1)" : "rgba(79, 70, 229, 0.05)"};
-`;
-
-const ContactTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #4f46e5;
+  border-radius: 50%;
+  background-color: #4f46e5;
+  color: white;
   margin-bottom: 1rem;
+  font-size: 1.5rem;
 `;
 
-const ContactText = styled.p<{ isDarkMode?: boolean }>`
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+const ContactItemTitle = styled.h3`
+  font-size: 1.125rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
 `;
 
-const EmailLink = styled.a`
-  color: #4f46e5;
-  text-decoration: none;
-  font-weight: 500;
+const ContactItemText = styled.p<{ isDarkMode?: boolean }>`
+  font-size: 0.875rem;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+`;
 
-  &:hover {
-    text-decoration: underline;
-  }
+const SuccessMessage = styled(motion.div)<{ isDarkMode?: boolean }>`
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background-color: ${({ isDarkMode }) => (isDarkMode ? "#065f46" : "#ecfdf5")};
+  color: ${({ isDarkMode }) => (isDarkMode ? "#d1fae5" : "#065f46")};
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+`;
+
+const ErrorMessage = styled.p`
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
 `;
 
 const ContactPage: React.FC = () => {
   const { isDarkMode } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
     subject: "",
     message: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -238,185 +143,291 @@ const ContactPage: React.FC = () => {
       ...prev,
       [name]: value,
     }));
+
+    // Clear error for this field when the user starts typing
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "Le prénom est requis";
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Le nom est requis";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "L'email est requis";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Format d'email invalide";
+    }
+
+    if (!formData.subject.trim()) {
+      newErrors.subject = "Le sujet est requis";
+    }
+
+    if (!formData.message.trim()) {
+      newErrors.message = "Le message est requis";
+    } else if (formData.message.trim().length < 10) {
+      newErrors.message = "Le message doit contenir au moins 10 caractères";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Cette fonction serait connectée à un backend dans une implémentation réelle
-    console.log("Form submitted:", formData);
-    // Reset form après soumission (pour démonstration)
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      subject: "",
-      message: "",
-    });
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Simuler un appel API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Contact form submitted:", formData);
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+      });
+      setIsSuccess(true);
+      setTimeout(() => setIsSuccess(false), 5000);
+    } catch (error) {
+      console.error("Contact form error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <Container isDarkMode={isDarkMode}>
-      <GlobalStyles isDarkMode={isDarkMode} />
+    <>
       <Helmet>
         <title>Contact - SmartPlanning</title>
         <meta
           name="description"
-          content="Contactez l'équipe SmartPlanning pour toute question, demande d'assistance ou information concernant notre solution de gestion de planning."
+          content="Contactez l'équipe SmartPlanning pour toute question ou assistance concernant votre planning."
         />
       </Helmet>
 
       <Header />
 
-      <PageContent>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+      <PageWrapper>
+        <FormContainer
+          title="Contactez-nous"
+          description="Nous sommes là pour répondre à vos questions et vous accompagner"
         >
-          <PageTitle>Contactez SmartPlanning</PageTitle>
-          <Subtitle isDarkMode={isDarkMode}>
-            Une question, un retour ou besoin d'assistance ? Notre équipe vous
-            répond sous 24h.
-          </Subtitle>
+          {isSuccess && (
+            <SuccessMessage
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              isDarkMode={isDarkMode}
+            >
+              Votre message a été envoyé avec succès. Nous vous répondrons dans
+              les plus brefs délais.
+            </SuccessMessage>
+          )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <StyledCard isDarkMode={isDarkMode}>
-              <form onSubmit={handleSubmit}>
-                <FormGrid>
-                  <FormGroup>
-                    <Label isDarkMode={isDarkMode} htmlFor="lastName">
-                      Nom*
-                    </Label>
-                    <Input
-                      isDarkMode={isDarkMode}
-                      type="text"
-                      id="lastName"
-                      name="lastName"
-                      placeholder="Votre nom"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </FormGroup>
-
-                  <FormGroup>
-                    <Label isDarkMode={isDarkMode} htmlFor="firstName">
-                      Prénom*
-                    </Label>
-                    <Input
-                      isDarkMode={isDarkMode}
-                      type="text"
-                      id="firstName"
-                      name="firstName"
-                      placeholder="Votre prénom"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </FormGroup>
-                </FormGrid>
+          <Form onSubmit={handleSubmit}>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <FormRow>
+                <FormGroup>
+                  <InputField
+                    type="text"
+                    label="Prénom"
+                    name="firstName"
+                    placeholder="Votre prénom"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                  />
+                  {errors.firstName && (
+                    <ErrorMessage>{errors.firstName}</ErrorMessage>
+                  )}
+                </FormGroup>
 
                 <FormGroup>
-                  <Label isDarkMode={isDarkMode} htmlFor="email">
-                    Adresse email*
-                  </Label>
-                  <Input
-                    isDarkMode={isDarkMode}
+                  <InputField
+                    type="text"
+                    label="Nom"
+                    name="lastName"
+                    placeholder="Votre nom"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                  />
+                  {errors.lastName && (
+                    <ErrorMessage>{errors.lastName}</ErrorMessage>
+                  )}
+                </FormGroup>
+              </FormRow>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <FormRow>
+                <FormGroup>
+                  <InputField
                     type="email"
-                    id="email"
+                    label="Adresse email"
                     name="email"
                     placeholder="votre.email@exemple.com"
                     value={formData.email}
                     onChange={handleChange}
                     required
                   />
+                  {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
                 </FormGroup>
 
                 <FormGroup>
-                  <Label isDarkMode={isDarkMode} htmlFor="subject">
-                    Sujet*
-                  </Label>
-                  <Input
-                    isDarkMode={isDarkMode}
-                    type="text"
-                    id="subject"
-                    name="subject"
-                    placeholder="Sujet de votre message"
-                    value={formData.subject}
+                  <InputField
+                    type="tel"
+                    label="Numéro de téléphone (optionnel)"
+                    name="phone"
+                    placeholder="Votre numéro de téléphone"
+                    value={formData.phone}
                     onChange={handleChange}
-                    required
                   />
                 </FormGroup>
+              </FormRow>
+            </motion.div>
 
-                <FormGroup>
-                  <Label isDarkMode={isDarkMode} htmlFor="message">
-                    Message*
-                  </Label>
-                  <TextArea
-                    isDarkMode={isDarkMode}
-                    id="message"
-                    name="message"
-                    placeholder="Détaillez votre demande ici..."
-                    value={formData.message}
-                    onChange={handleChange}
-                    required
-                  />
-                </FormGroup>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+            >
+              <FormGroup>
+                <InputField
+                  type="text"
+                  label="Sujet"
+                  name="subject"
+                  placeholder="Sujet de votre message"
+                  value={formData.subject}
+                  onChange={handleChange}
+                  required
+                />
+                {errors.subject && (
+                  <ErrorMessage>{errors.subject}</ErrorMessage>
+                )}
+              </FormGroup>
+            </motion.div>
 
-                <SubmitButton
-                  type="submit"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <span>Envoyer</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                </SubmitButton>
-              </form>
-            </StyledCard>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+            >
+              <FormGroup>
+                <TextareaField
+                  label="Message"
+                  name="message"
+                  placeholder="Votre message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  rows={5}
+                  required
+                />
+                {errors.message && (
+                  <ErrorMessage>{errors.message}</ErrorMessage>
+                )}
+              </FormGroup>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <ContactInfo isDarkMode={isDarkMode}>
-              <ContactTitle>Autres moyens de nous contacter</ContactTitle>
-              <ContactText isDarkMode={isDarkMode}>
-                Pour toute question ou assistance, vous pouvez également nous
-                contacter par email à :
-                <EmailLink href="mailto:contact@smartplanning.fr">
-                  {" "}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.5 }}
+            >
+              <StyledButton
+                type="submit"
+                variant="primary"
+                size="lg"
+                disabled={isLoading}
+              >
+                {isLoading ? "Envoi en cours..." : "Envoyer le message"}
+              </StyledButton>
+            </motion.div>
+          </Form>
+
+          <ContactInfoSection>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <ContactItem isDarkMode={isDarkMode}>
+                <IconWrapper>
+                  <MdOutlineMail />
+                </IconWrapper>
+                <ContactItemTitle>Email</ContactItemTitle>
+                <ContactItemText isDarkMode={isDarkMode}>
                   contact@smartplanning.fr
-                </EmailLink>
-              </ContactText>
-              <ContactText isDarkMode={isDarkMode}>
-                Nous vous répondrons dans les plus brefs délais.
-              </ContactText>
-            </ContactInfo>
-          </motion.div>
-        </motion.div>
-      </PageContent>
+                </ContactItemText>
+              </ContactItem>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <ContactItem isDarkMode={isDarkMode}>
+                <IconWrapper>
+                  <MdOutlinePhone />
+                </IconWrapper>
+                <ContactItemTitle>Téléphone</ContactItemTitle>
+                <ContactItemText isDarkMode={isDarkMode}>
+                  +33 1 23 45 67 89
+                </ContactItemText>
+              </ContactItem>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <ContactItem isDarkMode={isDarkMode}>
+                <IconWrapper>
+                  <MdLocationOn />
+                </IconWrapper>
+                <ContactItemTitle>Adresse</ContactItemTitle>
+                <ContactItemText isDarkMode={isDarkMode}>
+                  123 Avenue des Applications
+                  <br />
+                  75011 Paris, France
+                </ContactItemText>
+              </ContactItem>
+            </motion.div>
+          </ContactInfoSection>
+        </FormContainer>
+      </PageWrapper>
 
       <Footer />
-    </Container>
+    </>
   );
 };
 
