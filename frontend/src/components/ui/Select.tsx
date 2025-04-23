@@ -251,13 +251,13 @@ const Select: React.FC<SelectProps> = ({
               exit="hidden"
               variants={dropdownVariants}
               className="
-                absolute z-10 w-full mt-1 
-                bg-[var(--background-secondary)]
-                border border-[var(--border)]
-                rounded-lg shadow-lg
-                max-h-60 overflow-auto
-                focus:outline-none
-              "
+            absolute z-[9999] w-full mt-1
+            bg-[var(--background-secondary)]
+            border border-[var(--border)]
+            rounded-lg shadow-lg
+            max-h-96 overflow-y-auto
+            focus:outline-none
+          "
               role="listbox"
               aria-labelledby={labelId}
             >

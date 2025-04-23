@@ -3,7 +3,7 @@
  *
  * Interface complète permettant à un administrateur de gérer les utilisateurs:
  * - Affichage de la liste des utilisateurs
- * - Filtrage par rôle et statut
+ * - Filtrage par rôle, statut et entreprise
  * - Ajout de nouveaux utilisateurs
  * - Mise à jour du rôle et statut des utilisateurs existants
  */
@@ -14,7 +14,16 @@ import api, {
 } from "../services/api";
 
 import axios from "axios";
-import { Edit, Plus, Trash2, User, UserCheck, Users, X } from "lucide-react";
+import {
+  Building,
+  Edit,
+  Plus,
+  Trash2,
+  User,
+  UserCheck,
+  Users,
+  X,
+} from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 // Composants de layout
@@ -104,7 +113,6 @@ const breadcrumbItems = [
 const UserManagementPage: React.FC = () => {
   // États pour les utilisateurs et la pagination
   const [users, setUsers] = useState<UserType[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
 
@@ -112,6 +120,7 @@ const UserManagementPage: React.FC = () => {
   const [filters, setFilters] = useState({
     role: "",
     status: "",
+    companyId: "",
   });
 
   // États pour les notifications
@@ -196,15 +205,15 @@ const UserManagementPage: React.FC = () => {
   }, [fetchUsers]);
 
   /**
-   * Effet pour filtrer les utilisateurs en fonction des critères
+   * Optimisation des utilisateurs filtrés en utilisant useMemo
+   * pour éviter des recalculs inutiles lors des re-rendus
    */
-  useEffect(() => {
+  const filteredUsers = React.useMemo(() => {
     if (!users.length) {
-      setFilteredUsers([]);
-      return;
+      return [];
     }
 
-    // Filtrage des utilisateurs
+    // Filtrage des utilisateurs selon les critères
     let result = [...users];
 
     if (filters.role) {
@@ -215,8 +224,15 @@ const UserManagementPage: React.FC = () => {
       result = result.filter((user) => user.status === filters.status);
     }
 
+    // Filtrage par entreprise
+    if (filters.companyId) {
+      result = result.filter(
+        (user) => (user as any).companyId === filters.companyId
+      );
+    }
+
     // Format des données pour le tableau
-    const formattedUsers = result.map((user) => {
+    return result.map((user) => {
       // Trouver l'entreprise associée à l'utilisateur
       const company = companies.find((c) => c._id === (user as any).companyId);
 
@@ -312,8 +328,6 @@ const UserManagementPage: React.FC = () => {
         ),
       };
     });
-
-    setFilteredUsers(formattedUsers);
   }, [users, filters, companies]);
 
   /**
@@ -751,9 +765,13 @@ const UserManagementPage: React.FC = () => {
         />
 
         {/* Section de filtres et bouton d'ajout */}
-        <SectionCard className="mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm">
+        {/* Section de filtres et bouton d'ajout */}
+        <SectionCard
+          className="relative z-50 mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm"
+          overflowVisible={true}
+        >
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="w-full md:w-1/3">
+            <div className="w-full md:w-1/4">
               <Select
                 label="Filtrer par rôle"
                 options={roleOptions}
@@ -766,7 +784,7 @@ const UserManagementPage: React.FC = () => {
               />
             </div>
 
-            <div className="w-full md:w-1/3">
+            <div className="w-full md:w-1/4">
               <Select
                 label="Filtrer par statut"
                 options={statusOptions}
@@ -782,7 +800,29 @@ const UserManagementPage: React.FC = () => {
               />
             </div>
 
-            <div className="w-full md:w-1/3 flex items-end">
+            <div className="w-full md:w-1/4">
+              <Select
+                label="Filtrer par entreprise"
+                options={[
+                  { value: "", label: "-- Toutes les entreprises --" },
+                  ...companies.map((company) => ({
+                    value: company._id,
+                    label: company.name,
+                  })),
+                ]}
+                value={filters.companyId}
+                onChange={(value) => handleFilterChange("companyId", value)}
+                icon={
+                  <Building
+                    size={18}
+                    className="text-indigo-600 dark:text-white"
+                  />
+                }
+                className="text-gray-700 dark:text-white border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 [&_label]:text-gray-700 [&_label]:dark:text-white"
+              />
+            </div>
+
+            <div className="w-full md:w-1/4 flex items-end">
               <Button
                 onClick={() => setModalOpen(true)}
                 variant="primary"
@@ -797,34 +837,36 @@ const UserManagementPage: React.FC = () => {
         </SectionCard>
 
         {/* Tableau des utilisateurs */}
-        <SectionCard className="mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <LoadingSpinner
-                size="lg"
-                className="text-indigo-600 dark:text-indigo-300"
+        <SectionCard className="relative z-10 mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex flex-col md:flex-row gap-4">
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner
+                  size="lg"
+                  className="text-indigo-600 dark:text-indigo-300"
+                />
+              </div>
+            ) : (
+              <Table
+                columns={userColumns}
+                data={filteredUsers}
+                pagination={true}
+                rowsPerPage={10}
+                emptyState={{
+                  title: "Aucun utilisateur trouvé",
+                  description:
+                    "Il n'y a aucun utilisateur correspondant aux critères sélectionnés.",
+                  icon: (
+                    <Users
+                      size={48}
+                      className="text-gray-300 dark:text-gray-600"
+                    />
+                  ),
+                }}
+                className="text-gray-900 dark:text-gray-100 [&_thead]:bg-gray-100 [&_thead]:dark:bg-gray-800 [&_thead_th]:text-gray-700 [&_thead_th]:dark:text-sky-300 [&_td]:text-gray-900 [&_td]:dark:text-gray-100"
               />
-            </div>
-          ) : (
-            <Table
-              columns={userColumns}
-              data={filteredUsers}
-              pagination={true}
-              rowsPerPage={10}
-              emptyState={{
-                title: "Aucun utilisateur trouvé",
-                description:
-                  "Il n'y a aucun utilisateur correspondant aux critères sélectionnés.",
-                icon: (
-                  <Users
-                    size={48}
-                    className="text-gray-300 dark:text-gray-600"
-                  />
-                ),
-              }}
-              className="text-gray-900 dark:text-gray-100 [&_thead]:bg-gray-100 [&_thead]:dark:bg-gray-800 [&_thead_th]:text-gray-700 [&_thead_th]:dark:text-sky-300 [&_td]:text-gray-900 [&_td]:dark:text-gray-100"
-            />
-          )}
+            )}
+          </div>
         </SectionCard>
 
         {/* Modal d'ajout d'utilisateur */}

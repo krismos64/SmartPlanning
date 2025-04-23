@@ -17,6 +17,8 @@ export interface SectionCardProps {
   compact?: boolean;
   /** Classes CSS additionnelles */
   className?: string;
+
+  overflowVisible?: boolean;
 }
 
 /**
@@ -32,6 +34,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
   accentColor,
   compact = false,
   className = "",
+  overflowVisible = false, // 👈 on ajoute la prop ici
 }) => {
   // Styling conditionnel en fonction des props
   const headerPadding = compact ? "px-4 py-3" : "px-6 py-4";
@@ -44,7 +47,9 @@ const SectionCard: React.FC<SectionCardProps> = ({
 
   return (
     <motion.div
-      className={`bg-white rounded-xl shadow-sm overflow-hidden ${className}`}
+      className={`bg-white rounded-xl shadow-sm ${
+        overflowVisible ? "overflow-visible" : "overflow-hidden"
+      } ${className}`}
       style={accentStyle}
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
