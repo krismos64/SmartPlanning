@@ -9,6 +9,7 @@ import adminUsersRoutes from "./routes/admin/users.route";
 
 // Routes
 import authRoutes from "./routes/auth.routes";
+import collaboratorRoutes from "./routes/collaborator.routes";
 
 // Load env variables
 dotenv.config();
@@ -43,6 +44,7 @@ app.use(express.urlencoded({ extended: true })); // Body parser pour URL-encoded
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
+app.use("/api/collaborators", collaboratorRoutes);
 
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {
