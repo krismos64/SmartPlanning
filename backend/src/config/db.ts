@@ -1,25 +1,25 @@
+import dotenv from "dotenv";
 import mongoose from "mongoose";
-import { ENV } from "./env";
 
-// Options de connexion MongoDB
-const options = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-} as mongoose.ConnectOptions;
+// Charger les variables d'environnement
+dotenv.config();
 
 /**
- * Établit la connexion à la base de données MongoDB
+ * Fonction de connexion à MongoDB
+ * Utilise la variable d'environnement MONGODB_URI qui doit pointer vers la base smartplanning
  */
 export const connectDB = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(ENV.MONGODB_URI, options);
+    // Utiliser l'URI de connexion depuis les variables d'environnement
+    const conn = await mongoose.connect(process.env.MONGODB_URI as string);
+
     console.log(`✅ MongoDB connectée: ${conn.connection.host}`);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`❌ Erreur de connexion MongoDB: ${error.message}`);
-    } else {
-      console.error("❌ Erreur inconnue lors de la connexion à MongoDB");
-    }
+  } catch (error: unknown) {
+    console.error(
+      `❌ Échec de connexion à MongoDB: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
     process.exit(1);
   }
 };
