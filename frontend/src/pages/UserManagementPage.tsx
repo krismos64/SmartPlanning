@@ -18,15 +18,20 @@ import SectionCard from "../components/layout/SectionCard";
 import SectionTitle from "../components/layout/SectionTitle";
 
 // Composants UI
+import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
+import FileUpload from "../components/ui/FileUpload";
 import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
+
+// Services API
+import { adminUserService, uploadFile } from "../services/api";
 
 // Types pour les utilisateurs
 interface User {
@@ -37,6 +42,7 @@ interface User {
   role: "admin" | "directeur" | "manager" | "employé";
   status: "active" | "inactive";
   createdAt: string;
+  photoUrl?: string;
 }
 
 // Types pour les formulaires
@@ -45,6 +51,8 @@ interface UserFormData {
   lastName: string;
   email: string;
   role: string;
+  password?: string;
+  photoUrl?: string;
 }
 
 // Définir les options de rôle et statut
@@ -86,6 +94,7 @@ const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [uploadLoading, setUploadLoading] = useState<boolean>(false);
 
   // États pour les filtres
   const [filters, setFilters] = useState({
@@ -106,8 +115,14 @@ const UserManagementPage: React.FC = () => {
     lastName: "",
     email: "",
     role: "employé",
+    password: "",
+    photoUrl: undefined,
   });
-  const [formErrors, setFormErrors] = useState<Partial<UserFormData>>({});
+  const [formErrors, setFormErrors] = useState<
+    Partial<UserFormData & { photo: string }>
+  >({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // États pour le modal de mise à jour du rôle
   const [roleModalOpen, setRoleModalOpen] = useState<boolean>(false);
@@ -280,10 +295,52 @@ const UserManagementPage: React.FC = () => {
   };
 
   /**
+   * Gestion de la sélection d'un fichier photo
+   */
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
+
+    // Effacer l'erreur liée à la photo
+    if (formErrors.photo) {
+      setFormErrors({
+        ...formErrors,
+        photo: undefined,
+      });
+    }
+  };
+
+  /**
+   * Gestion du changement de l'aperçu de la photo
+   */
+  const handlePreviewChange = (url: string | null) => {
+    setPreviewUrl(url);
+  };
+
+  /**
+   * Upload de la photo vers Cloudinary
+   */
+  const uploadPhoto = async (): Promise<string | undefined> => {
+    if (!selectedFile) return undefined;
+
+    try {
+      setUploadLoading(true);
+      const photoUrl = await uploadFile(selectedFile);
+      setUploadLoading(false);
+      return photoUrl;
+    } catch (err) {
+      console.error("Erreur lors de l'upload de la photo:", err);
+      setError("Impossible d'uploader la photo");
+      setShowErrorToast(true);
+      setUploadLoading(false);
+      throw err;
+    }
+  };
+
+  /**
    * Validation du formulaire d'ajout d'utilisateur
    */
   const validateForm = (): boolean => {
-    const errors: Partial<UserFormData> = {};
+    const errors: Partial<UserFormData & { photo: string }> = {};
     let isValid = true;
 
     if (!formData.firstName.trim()) {
@@ -309,6 +366,33 @@ const UserManagementPage: React.FC = () => {
       isValid = false;
     }
 
+    // Valider le mot de passe s'il est fourni
+    if (formData.password && formData.password.length < 8) {
+      errors.password = "Le mot de passe doit contenir au moins 8 caractères";
+      isValid = false;
+    }
+
+    // Valider le fichier photo si sélectionné
+    if (selectedFile) {
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (selectedFile.size > maxSize) {
+        errors.photo = "La taille de l'image ne doit pas dépasser 2MB";
+        isValid = false;
+      }
+
+      const acceptedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!acceptedTypes.includes(selectedFile.type)) {
+        errors.photo =
+          "Format d'image non pris en charge (JPEG, PNG, GIF, WebP uniquement)";
+        isValid = false;
+      }
+    }
+
     setFormErrors(errors);
     return isValid;
   };
@@ -324,10 +408,29 @@ const UserManagementPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post("/api/users", formData);
+      // Si une photo est sélectionnée, l'uploader d'abord
+      let photoUrl: string | undefined;
+      if (selectedFile) {
+        try {
+          photoUrl = await uploadPhoto();
+        } catch (error) {
+          // L'erreur d'upload est déjà gérée dans uploadPhoto()
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Créer l'utilisateur avec la photo URL si disponible
+      const userData = {
+        ...formData,
+        photoUrl,
+      };
+
+      // Envoyer les données à l'API
+      const response = await adminUserService.createUser(userData);
 
       // Mettre à jour la liste des utilisateurs
-      setUsers([...users, response.data]);
+      setUsers([...users, response.user]);
 
       // Réinitialiser le formulaire et fermer le modal
       setFormData({
@@ -335,7 +438,11 @@ const UserManagementPage: React.FC = () => {
         lastName: "",
         email: "",
         role: "employé",
+        password: "",
+        photoUrl: undefined,
       });
+      setSelectedFile(null);
+      setPreviewUrl(null);
       setModalOpen(false);
 
       // Afficher un message de succès
@@ -436,7 +543,11 @@ const UserManagementPage: React.FC = () => {
       lastName: "",
       email: "",
       role: "employé",
+      password: "",
+      photoUrl: undefined,
     });
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setFormErrors({});
   };
 
@@ -561,26 +672,49 @@ const UserManagementPage: React.FC = () => {
           className="bg-white dark:bg-gray-900 text-gray-900 dark:text-indigo-300"
         >
           <div className="space-y-4">
-            <InputField
-              label="Prénom"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleInputChange}
-              required
-              error={formErrors.firstName}
-              className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-            />
+            {/* Photo de profil */}
+            <div className="flex flex-col items-center mb-6">
+              <Avatar
+                src={previewUrl}
+                size="xl"
+                className="mb-4 border-2 border-indigo-600 dark:border-indigo-400"
+              />
 
-            <InputField
-              label="Nom"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleInputChange}
-              required
-              error={formErrors.lastName}
-              className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-            />
+              <FileUpload
+                label="Photo de profil (optionnelle)"
+                onFileSelect={handleFileSelect}
+                onPreviewChange={handlePreviewChange}
+                acceptedTypes="image/jpeg,image/png,image/gif,image/webp"
+                maxSizeMB={2}
+                error={formErrors.photo}
+                className="text-gray-700 dark:text-sky-300"
+              />
+            </div>
 
+            {/* Prénom et nom */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField
+                label="Prénom"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                required
+                error={formErrors.firstName}
+                className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+              />
+
+              <InputField
+                label="Nom"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                required
+                error={formErrors.lastName}
+                className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+              />
+            </div>
+
+            {/* Email */}
             <InputField
               label="Email"
               name="email"
@@ -592,6 +726,19 @@ const UserManagementPage: React.FC = () => {
               className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
 
+            {/* Mot de passe */}
+            <InputField
+              label="Mot de passe (optionnel)"
+              name="password"
+              type="password"
+              value={formData.password || ""}
+              onChange={handleInputChange}
+              error={formErrors.password}
+              helperText="Laissez vide pour générer un mot de passe temporaire"
+              className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+            />
+
+            {/* Rôle */}
             <Select
               label="Rôle"
               options={roleOptions.slice(1)} // Exclure l'option "Tous les rôles"
@@ -603,6 +750,7 @@ const UserManagementPage: React.FC = () => {
               className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
 
+            {/* Actions */}
             <div className="flex justify-end space-x-3 pt-2">
               <Button
                 variant="ghost"
@@ -618,7 +766,7 @@ const UserManagementPage: React.FC = () => {
                 variant="primary"
                 onClick={handleAddUser}
                 icon={<Plus size={18} />}
-                isLoading={loading}
+                isLoading={loading || uploadLoading}
                 className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
               >
                 Ajouter
