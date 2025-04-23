@@ -1,16 +1,22 @@
+import axios from "axios";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { User } from "../../types/User";
 import { useTheme } from "../ThemeProvider";
+import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import { ThemeSwitch } from "../ui/ThemeSwitch";
 import SidebarMenu from "./SidebarMenu";
 
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
+
+// URL de base de l'API (fix pour TypeScript)
+const API_URL =
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:5050/api";
 
 interface LayoutWithSidebarProps {
   children: React.ReactNode;
@@ -28,17 +34,48 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Simuler un utilisateur (à remplacer par un contexte d'authentification réel)
-  const mockUser: User = {
-    _id: "1",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    role: "admin", // Pour tester l'affichage du menu admin
-    status: "active",
-    createdAt: new Date().toISOString(),
-  };
+  // Effet pour récupérer les informations de l'utilisateur connecté
+  useEffect(() => {
+    const fetchUserData = async () => {
+      setIsLoading(true);
+      try {
+        // Récupération du token depuis le localStorage
+        const token = localStorage.getItem("token");
+
+        // Configuration de l'en-tête d'autorisation
+        if (token) {
+          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        } else {
+          // Rediriger vers la page de connexion si pas de token
+          navigate("/login");
+          return;
+        }
+
+        // Appel à l'API pour récupérer les informations utilisateur
+        const response = await axios.get(`${API_URL}/auth/me`);
+
+        if (response.data.success) {
+          setCurrentUser(response.data.data);
+        } else {
+          throw new Error("Échec de la récupération des données utilisateur");
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération des données utilisateur:",
+          error
+        );
+        // En cas d'erreur, rediriger vers la page de connexion
+        navigate("/login");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [navigate]);
 
   const handleNavigate = (route: string) => {
     setSidebarOpen(false);
@@ -57,15 +94,18 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
           isSidebarOpen ? "transform-none" : "-translate-x-full"
         }`}
       >
-        <SidebarMenu
-          activeItem={activeItem}
-          onNavigate={handleNavigate}
-          firstName={mockUser.firstName}
-          lastName={mockUser.lastName}
-          companyName="SmartTech Industries"
-          companyLogoUrl="/src/assets/images/company-logo.png"
-          user={mockUser} // Passer l'utilisateur simulé
-        />
+        {!isLoading && currentUser && (
+          <SidebarMenu
+            activeItem={activeItem}
+            onNavigate={handleNavigate}
+            firstName={currentUser.firstName}
+            lastName={currentUser.lastName}
+            photoUrl={currentUser.photoUrl}
+            companyName="SmartTech Industries"
+            companyLogoUrl="/src/assets/images/company-logo.png"
+            user={currentUser}
+          />
+        )}
       </div>
 
       {/* Overlay mobile (si sidebar ouverte) */}
@@ -175,19 +215,27 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                     <ThemeSwitch onChange={toggleTheme} checked={isDarkMode} />
                   </motion.div>
 
-                  {/* Bouton de profil */}
-                  <motion.div whileHover={{ scale: 1.05 }} className="relative">
-                    <Button
-                      variant="ghost"
-                      onClick={() => navigate("/profil")}
-                      className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 rounded-full px-4 py-2"
+                  {/* Bouton de profil avec Avatar */}
+                  {currentUser && (
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="relative"
                     >
-                      <span className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-200 to-blue-100 dark:from-indigo-700 dark:to-blue-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">
-                        JD
-                      </span>
-                      <span className="hidden md:inline">John Doe</span>
-                    </Button>
-                  </motion.div>
+                      <Button
+                        variant="ghost"
+                        onClick={() => navigate("/profil")}
+                        className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 rounded-full px-4 py-2"
+                      >
+                        <Avatar
+                          name={`${currentUser.firstName} ${currentUser.lastName}`}
+                          src={currentUser.photoUrl}
+                        />
+                        <span className="hidden md:inline">
+                          {currentUser.firstName} {currentUser.lastName}
+                        </span>
+                      </Button>
+                    </motion.div>
+                  )}
                 </div>
               </div>
             </div>

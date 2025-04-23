@@ -8,4 +8,5 @@ export interface User {
   role: UserRole;
   status: "active" | "inactive";
   createdAt: string;
+  photoUrl?: string; // URL de la photo de profil (optionnelle)
 }

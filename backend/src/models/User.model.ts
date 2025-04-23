@@ -45,6 +45,7 @@ export interface IUser {
   updatedAt?: Date;
   lastLogin?: Date;
   google?: GoogleProfile;
+  photoUrl?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -167,7 +168,10 @@ const userSchema = new Schema<UserDocument>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
     },
-
+    photoUrl: {
+      type: String,
+      trim: true,
+    },
     lastLogin: {
       type: Date,
     },
