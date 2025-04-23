@@ -6,6 +6,8 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=flat-square)
+![État](https://img.shields.io/badge/État-En%20développement-orange?style=flat-square)
 
 SmartPlanning est une application SaaS de gestion intelligente des plannings avec IA intégrée, construite avec la stack MERN + TypeScript.
 
@@ -13,6 +15,7 @@ SmartPlanning est une application SaaS de gestion intelligente des plannings ave
 
 - [Introduction](#introduction)
 - [Fonctionnalités clés](#fonctionnalités-clés)
+- [État d'avancement](#état-davancement)
 - [Stack technique](#stack-technique)
 - [Installation locale](#installation-locale)
 - [Variables d'environnement](#variables-denvironnement)
@@ -57,6 +60,73 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - Contrôle d'accès basé sur les rôles (RBAC)
 - Documentation API complète
 
+## État d'avancement
+
+### Version actuelle : 1.0.0
+
+**Fonctionnalités implémentées :**
+
+✅ **Architecture de base**
+
+- Structure complète du projet (frontend/backend)
+- Configuration TypeScript
+- Configuration de MongoDB avec Mongoose
+- Système de routes API Express
+
+✅ **Modèles de données**
+
+- Utilisateurs et authentification
+- Entreprises et équipes
+- Employés et leurs compétences
+- Plannings et horaires
+- Incidents et tâches
+- Demandes de congés
+
+✅ **Interface utilisateur**
+
+- Page d'accueil et authentification
+- Tableau de bord principal
+- Gestion des utilisateurs et des équipes
+- Visualisation des plannings hebdomadaires
+- Interface de suivi des incidents
+- Gestion des tâches des employés
+- Système de demande de congés
+
+✅ **Authentification et sécurité**
+
+- Système JWT pour l'authentification
+- Support pour Google OAuth
+- Contrôle d'accès basé sur les rôles
+- Protection des routes API
+
+**Fonctionnalités en cours de développement :**
+
+🔄 **Intelligence artificielle**
+
+- Algorithmes d'optimisation des plannings
+- Assistant virtuel pour la gestion d'équipe
+- Prédiction des besoins en personnel
+
+🔄 **Intégrations**
+
+- Calendriers externes (Google Calendar, Outlook)
+- Outils de communication (Slack, Microsoft Teams)
+- Systèmes de comptabilité et ERP
+
+🔄 **Fonctionnalités avancées**
+
+- Rapports et analyses de performance
+- Export et import de données
+- Applications mobiles (iOS/Android)
+
+### Dernières mises à jour
+
+- Mise en place de l'authentification avec JWT et Google OAuth
+- Développement des interfaces de gestion des plannings
+- Implémentation des modèles de données pour le suivi des incidents
+- Configuration initiale de la base de données MongoDB
+- Développement du système de validation des plannings générés
+
 ## Stack technique
 
 | Catégorie                     | Technologies                                                      |
@@ -65,7 +135,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Backend**                   | Node.js, Express.js, TypeScript, JWT                              |
 | **Base de données**           | MongoDB Atlas, Mongoose                                           |
 | **Intelligence artificielle** | OpenAI API                                                        |
-| **Authentification**          | JWT, Google OAuth                                                 |
+| **Authentification**          | JWT, Google OAuth, Passport.js                                    |
 | **Déploiement**               | Docker, Vercel/Netlify (Frontend), Heroku/Digital Ocean (Backend) |
 | **Outils de développement**   | ESLint, Prettier, Jest, React Testing Library                     |
 
@@ -106,6 +176,11 @@ REFRESH_TOKEN_EXPIRATION=7d
 # API OpenAI
 OPENAI_API_KEY=votre_clé_api_openai
 
+# Authentification Google OAuth
+GOOGLE_CLIENT_ID=votre_id_client_google
+GOOGLE_CLIENT_SECRET=votre_secret_client_google
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
+
 # Configuration serveur
 PORT=5000
 NODE_ENV=development
@@ -145,11 +220,19 @@ cd backend
 npx ts-node src/scripts/init-db.ts
 ```
 
-Ce script créera :
+Pour migrer les données de test vers la base de données de production :
+
+```bash
+cd backend
+npm run migrate
+```
+
+Ces scripts créeront :
 
 - Des comptes utilisateurs de test (admin, manager, employé)
 - Des données de planning exemple
 - Des congés et demandes exemple
+- Des structures d'entreprise et d'équipe
 
 ## Tests
 
@@ -183,12 +266,6 @@ L'application peut être déployée sur différentes plateformes :
 
 Une démo de l'application est disponible sur [https://smartplanning.fr](https://smartplanning.fr).
 
-## Auteurs & Crédits
-
-Projet SmartPlanning - [GitHub](https://github.com/votre-organisation/smartplanning)
-
 Développé dans le cadre d'un projet de gestion innovante des ressources humaines.
 
 ---
-
-© 2023 SmartPlanning. Tous droits réservés.
