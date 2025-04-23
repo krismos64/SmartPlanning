@@ -8,6 +8,7 @@ import { adminCompaniesRouter } from "./routes/admin/companies.route";
 import adminUsersRoutes from "./routes/admin/users.route";
 
 // Routes
+import adminTeamRoutes from "./routes/admin/adminTeam.routes";
 import authRoutes from "./routes/auth.routes";
 import collaboratorRoutes from "./routes/collaborator.routes";
 
@@ -44,6 +45,7 @@ app.use(express.urlencoded({ extended: true })); // Body parser pour URL-encoded
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
+app.use("/api/admin/teams", adminTeamRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
 
 // Route par défaut

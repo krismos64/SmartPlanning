@@ -147,11 +147,49 @@ router.put(
 );
 
 /**
- * @route   DELETE /api/admin/users/:id
- * @desc    Suppression d'un utilisateur par un administrateur
+ * @route   GET /api/admin/users?role=manager&companyId=xxx
+ * @desc    Récupère tous les utilisateurs avec un rôle donné et une entreprise donnée
  * @access  Admin uniquement
  */
+router.get(
+  "/",
+  auth,
+  checkRole("admin"),
+  async (req: Request, res: Response, next: express.NextFunction) => {
+    const { role, companyId } = req.query;
 
+    if (role && companyId) {
+      try {
+        const users = await User.find({
+          role,
+          companyId: companyId.toString(),
+        });
+        return res.status(200).json({
+          success: true,
+          users,
+        });
+      } catch (err) {
+        console.error(
+          "Erreur lors de la récupération des utilisateurs filtrés :",
+          err
+        );
+        return res.status(500).json({
+          success: false,
+          message: "Erreur serveur",
+        });
+      }
+    }
+
+    // Passer au routeur suivant si pas de filtre
+    next();
+  }
+);
+
+/**
+ * @route   GET /api/admin/users
+ * @desc    Récupère tous les utilisateurs
+ * @access  Admin uniquement
+ */
 router.get(
   "/",
   auth,
@@ -159,15 +197,24 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const users = await User.find().sort({ createdAt: -1 });
-      res.json({ users });
+      res.json({
+        success: true,
+        users,
+      });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Erreur lors de la récupération des utilisateurs" });
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la récupération des utilisateurs",
+      });
     }
   }
 );
 
+/**
+ * @route   DELETE /api/admin/users/:id
+ * @desc    Suppression d'un utilisateur par un administrateur
+ * @access  Admin uniquement
+ */
 router.delete(
   "/:id",
   auth,

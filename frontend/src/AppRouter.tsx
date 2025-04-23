@@ -18,6 +18,8 @@ import TermsOfUsePage from "./pages/TermsOfUsePage";
 import UserManagementPage from "./pages/UserManagementPage";
 import VacationsPage from "./pages/VacationsPage";
 import WeeklySchedulePage from "./pages/WeeklySchedulePage";
+// Import des composants d'administration
+import AdminTeamViewer from "./pages/admin/AdminTeamViewer";
 
 /**
  * Composant Page 404 simplifié pour les routes non trouvées
@@ -87,6 +89,12 @@ const AppRouter: React.FC = () => {
           element={<CollaboratorManagementPage />}
         />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
+
+        {/* Routes d'administration */}
+        <Route
+          path="/admin/entreprises/:id/equipes"
+          element={<AdminTeamViewer />}
+        />
 
         {/* Pages légales et utilitaires */}
         <Route path="/mentions-legales" element={<TermsOfUsePage />} />

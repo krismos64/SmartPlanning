@@ -167,6 +167,17 @@ const CompanyManagementPage: React.FC = () => {
             >
               Supprimer
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Building size={16} />}
+              onClick={() =>
+                (window.location.href = `/admin/entreprises/${company._id}/equipes`)
+              }
+              className="text-indigo-600 hover:text-indigo-800 dark:text-sky-400 dark:hover:text-sky-300"
+            >
+              Équipes
+            </Button>
           </div>
         ),
       };
