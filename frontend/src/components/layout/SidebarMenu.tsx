@@ -2,6 +2,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import {
   BarChart,
+  Building,
   Calendar,
   ClipboardList,
   Home,
@@ -92,6 +93,13 @@ const adminMenuItem = {
   route: "/gestion-des-utilisateurs",
 };
 
+const companyManagementMenuItem = {
+  id: "gestion-des-entreprises",
+  label: "Gestion des entreprises",
+  icon: Building,
+  route: "/gestion-des-entreprises",
+};
+
 const SidebarMenu: React.FC<SidebarMenuProps> = ({
   activeItem,
   onNavigate,
@@ -119,7 +127,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         }
 
         const response = await axios.get(
-          `http://localhost:5050/api/companies/${user.companyId}`
+          `http://localhost:5050/api/admin/companies/${user.companyId}`
         );
 
         if (response.data.success) {
@@ -147,6 +155,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       );
       if (collaborateursIndex !== -1) {
         items.splice(collaborateursIndex + 1, 0, adminMenuItem);
+        items.splice(collaborateursIndex + 2, 0, companyManagementMenuItem);
       }
     }
     return items;

@@ -4,6 +4,7 @@ import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import morgan from "morgan";
+import { adminCompaniesRouter } from "./routes/admin/companies.route";
 import adminUsersRoutes from "./routes/admin/users.route";
 
 // Routes
@@ -41,6 +42,7 @@ app.use(express.urlencoded({ extended: true })); // Body parser pour URL-encoded
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/users", adminUsersRoutes);
+app.use("/api/admin/companies", adminCompaniesRouter);
 
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {

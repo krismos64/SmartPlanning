@@ -1,89 +1,15 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
-// Définition des plans de souscription
-enum SubscriptionPlan {
-  FREE = "free",
-  STANDARD = "standard",
-  PREMIUM = "premium",
-}
-
-// Définition des thèmes
-enum ThemeType {
-  LIGHT = "light",
-  DARK = "dark",
-}
-
-// Interface pour les paramètres de l'entreprise
-interface CompanySettings {
-  theme?: ThemeType;
-  password?: string;
-}
-
-// Interface pour la souscription
-interface Subscription {
-  plan: SubscriptionPlan;
-  employeeLimit: number;
-  managerLimit: number;
-  renewalDate?: Date;
-}
-
-// Interface pour le document Company
-export interface ICompany {
+// Interface définissant la structure d'une entreprise
+export interface ICompany extends Document {
   name: string;
   logoUrl?: string;
-  subscription: Subscription;
-  contactEmail?: string;
-  contactPhone?: string;
-  settings?: CompanySettings;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Interface pour le document Company avec les méthodes de Mongoose
-export interface CompanyDocument extends ICompany, Document {}
-
-// Définition du schéma des paramètres
-const settingsSchema = new Schema<CompanySettings>(
-  {
-    theme: {
-      type: String,
-      enum: Object.values(ThemeType),
-    },
-    password: {
-      type: String,
-    },
-  },
-  { _id: false }
-);
-
-// Définition du schéma de souscription
-const subscriptionSchema = new Schema<Subscription>(
-  {
-    plan: {
-      type: String,
-      enum: Object.values(SubscriptionPlan),
-      required: [true, "Le plan d'abonnement est requis"],
-    },
-    employeeLimit: {
-      type: Number,
-      required: [true, "La limite d'employés est requise"],
-    },
-    managerLimit: {
-      type: Number,
-      required: [true, "La limite de managers est requise"],
-    },
-    renewalDate: {
-      type: Date,
-      required: function (this: any) {
-        return this.plan !== SubscriptionPlan.FREE;
-      },
-    },
-  },
-  { _id: false }
-);
-
-// Définition du schéma principal Company
-const companySchema = new Schema<CompanyDocument>(
+// Schéma Mongoose pour les entreprises
+const companySchema = new Schema<ICompany>(
   {
     name: {
       type: String,
@@ -92,28 +18,13 @@ const companySchema = new Schema<CompanyDocument>(
     },
     logoUrl: {
       type: String,
-    },
-    subscription: {
-      type: subscriptionSchema,
-      required: [true, "Les informations d'abonnement sont requises"],
-    },
-    contactEmail: {
-      type: String,
-    },
-    contactPhone: {
-      type: String,
-    },
-    settings: {
-      type: settingsSchema,
+      default: null,
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // Ajoute automatiquement createdAt et updatedAt
   }
 );
 
-// Création du modèle
-export const CompanyModel: Model<CompanyDocument> =
-  mongoose.model<CompanyDocument>("Company", companySchema);
-
-export default CompanyModel;
+// Modèle Mongoose créé à partir du schéma
+export const Company = mongoose.model<ICompany>("Company", companySchema);

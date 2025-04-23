@@ -82,4 +82,124 @@ router.post(
   }
 );
 
+/**
+ * @route   PUT /api/admin/users/:id
+ * @desc    Modification d'un utilisateur existant par un administrateur
+ * @access  Admin uniquement
+ */
+router.put(
+  "/:id",
+  auth,
+  checkRole("admin"),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { firstName, lastName, email, role, photoUrl } = req.body;
+
+      // Vérifier si l'utilisateur existe
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
+
+      // Vérifier si l'email est déjà utilisé par un autre utilisateur
+      if (email && email !== user.email) {
+        const existingUser = await User.findOne({ email, _id: { $ne: id } });
+        if (existingUser) {
+          return res.status(400).json({
+            success: false,
+            message: "Cet email est déjà utilisé par un autre utilisateur",
+          });
+        }
+      }
+
+      // Mise à jour des champs modifiés
+      if (firstName) user.firstName = firstName;
+      if (lastName) user.lastName = lastName;
+      if (email) user.email = email;
+      if (role) user.role = role;
+      if (photoUrl !== undefined) user.photoUrl = photoUrl || undefined;
+
+      // Sauvegarder les modifications
+      await user.save();
+
+      // Retourner l'utilisateur modifié (sans le mot de passe)
+      const userResponse = user.toObject() as any;
+      if ("password" in userResponse) {
+        delete userResponse.password;
+      }
+
+      return res.status(200).json({
+        success: true,
+        user: userResponse,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la modification de l'utilisateur:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la modification de l'utilisateur",
+      });
+    }
+  }
+);
+
+/**
+ * @route   DELETE /api/admin/users/:id
+ * @desc    Suppression d'un utilisateur par un administrateur
+ * @access  Admin uniquement
+ */
+
+router.get(
+  "/",
+  auth,
+  checkRole("admin"),
+  async (req: Request, res: Response) => {
+    try {
+      const users = await User.find().sort({ createdAt: -1 });
+      res.json({ users });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ message: "Erreur lors de la récupération des utilisateurs" });
+    }
+  }
+);
+
+router.delete(
+  "/:id",
+  auth,
+  checkRole("admin"),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si l'utilisateur existe
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
+
+      // Supprimer l'utilisateur
+      await User.findByIdAndDelete(id);
+
+      return res.status(200).json({
+        success: true,
+        message: "Utilisateur supprimé avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la suppression de l'utilisateur",
+      });
+    }
+  }
+);
+
 export default router;

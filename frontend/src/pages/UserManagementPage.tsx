@@ -7,8 +7,14 @@
  * - Ajout de nouveaux utilisateurs
  * - Mise à jour du rôle et statut des utilisateurs existants
  */
+import api, {
+  adminUserService,
+  uploadFile,
+  User as UserType,
+} from "../services/api";
+
 import axios from "axios";
-import { Plus, User, UserCheck, Users, X } from "lucide-react";
+import { Edit, Plus, Trash2, User, UserCheck, Users, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 // Composants de layout
@@ -30,29 +36,34 @@ import Select from "../components/ui/Select";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
-// Services API
-import { adminUserService, uploadFile } from "../services/api";
-
-// Types pour les utilisateurs
-interface User {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: "admin" | "directeur" | "manager" | "employé";
-  status: "active" | "inactive";
-  createdAt: string;
-  photoUrl?: string;
-}
+// Composants admin
+import EditUserModal from "../components/admin/EditUserModal";
 
 // Types pour les formulaires
 interface UserFormData {
   firstName: string;
   lastName: string;
   email: string;
-  role: string;
+  role: "admin" | "directeur" | "manager" | "employé";
   password?: string;
   photoUrl?: string;
+  companyId: string;
+}
+
+// Interface pour les entreprises
+interface Company {
+  _id: string;
+  name: string;
+}
+
+interface UserFormErrors {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+  password?: string;
+  photo?: string;
+  companyId?: string;
 }
 
 // Définir les options de rôle et statut
@@ -74,6 +85,7 @@ const statusOptions = [
 const userColumns = [
   { key: "name", label: "Nom", sortable: true },
   { key: "email", label: "Email", sortable: true },
+  { key: "company", label: "Entreprise", sortable: true },
   { key: "role", label: "Rôle", sortable: true },
   { key: "status", label: "Statut", sortable: true },
   { key: "createdAt", label: "Date de création", sortable: true },
@@ -91,7 +103,7 @@ const breadcrumbItems = [
  */
 const UserManagementPage: React.FC = () => {
   // États pour les utilisateurs et la pagination
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
@@ -117,17 +129,46 @@ const UserManagementPage: React.FC = () => {
     role: "employé",
     password: "",
     photoUrl: undefined,
+    companyId: "",
   });
-  const [formErrors, setFormErrors] = useState<
-    Partial<UserFormData & { photo: string }>
-  >({});
+
+  const [formErrors, setFormErrors] = useState<UserFormErrors>({});
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyLoading, setCompanyLoading] = useState<boolean>(false);
 
   // États pour le modal de mise à jour du rôle
   const [roleModalOpen, setRoleModalOpen] = useState<boolean>(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [selectedUserRole, setSelectedUserRole] = useState<string>("");
+  const [selectedUserRole, setSelectedUserRole] = useState<
+    "admin" | "directeur" | "manager" | "employé"
+  >("employé");
+
+  // Nouveaux états pour édition et suppression
+  const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
+  const [deleteUserId, setDeleteUserId] = useState<string>("");
+  const [deletingUser, setDeletingUser] = useState<boolean>(false);
+
+  // Chargement des entreprises
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setCompanyLoading(true);
+      try {
+        const response = await axios.get("/api/admin/companies");
+        setCompanies(response.data || []);
+      } catch (err) {
+        console.error("Erreur lors du chargement des entreprises:", err);
+      } finally {
+        setCompanyLoading(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
 
   /**
    * Récupération des utilisateurs depuis l'API
@@ -135,13 +176,14 @@ const UserManagementPage: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/users");
-      setUsers(response.data);
-      setLoading(false);
+      const data = await adminUserService.getAllUsers();
+      console.log("UTILISATEURS RÉCUPÉRÉS :", data);
+      setUsers(data);
     } catch (err) {
       console.error("Erreur lors de la récupération des utilisateurs:", err);
       setError("Impossible de récupérer la liste des utilisateurs.");
       setShowErrorToast(true);
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -174,73 +216,105 @@ const UserManagementPage: React.FC = () => {
     }
 
     // Format des données pour le tableau
-    const formattedUsers = result.map((user) => ({
-      _id: user._id,
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      role: (
-        <Badge
-          type={
-            user.role === "admin"
-              ? "info"
-              : user.role === "directeur"
-              ? "info"
-              : user.role === "manager"
-              ? "success"
-              : "warning"
-          }
-          label={
-            user.role === "admin"
-              ? "Administrateur"
-              : user.role === "directeur"
-              ? "Directeur"
-              : user.role === "manager"
-              ? "Manager"
-              : "Employé"
-          }
-        />
-      ),
-      status: (
-        <Badge
-          type={user.status === "active" ? "success" : "error"}
-          label={user.status === "active" ? "Actif" : "Inactif"}
-        />
-      ),
-      createdAt: new Date(user.createdAt).toLocaleDateString("fr-FR"),
-      actions: (
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => handleOpenRoleModal(user._id, user.role)}
-            icon={
-              <UserCheck
-                size={14}
-                className="text-indigo-600 dark:text-indigo-300"
-              />
+    const formattedUsers = result.map((user) => {
+      // Trouver l'entreprise associée à l'utilisateur
+      const company = companies.find((c) => c._id === (user as any).companyId);
+
+      return {
+        _id: user._id,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        company: company ? company.name : "Non assignée",
+        role: (
+          <Badge
+            type={
+              user.role === "admin"
+                ? "info"
+                : user.role === "directeur"
+                ? "info"
+                : user.role === "manager"
+                ? "success"
+                : "warning"
             }
-            className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-indigo-300"
-          >
-            Rôle
-          </Button>
-          <Button
-            size="sm"
-            variant={user.status === "active" ? "danger" : "primary"}
-            onClick={() => handleToggleStatus(user._id, user.status)}
-            className={
-              user.status === "active"
-                ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
-                : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
+            label={
+              user.role === "admin"
+                ? "Administrateur"
+                : user.role === "directeur"
+                ? "Directeur"
+                : user.role === "manager"
+                ? "Manager"
+                : "Employé"
             }
-          >
-            {user.status === "active" ? "Désactiver" : "Activer"}
-          </Button>
-        </div>
-      ),
-    }));
+          />
+        ),
+        status: (
+          <Badge
+            type={user.status === "active" ? "success" : "error"}
+            label={user.status === "active" ? "Actif" : "Inactif"}
+          />
+        ),
+        createdAt: new Date(user.createdAt).toLocaleDateString("fr-FR"),
+        actions: (
+          <div className="flex space-x-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleOpenRoleModal(user._id, user.role)}
+              icon={
+                <UserCheck
+                  size={14}
+                  className="text-indigo-600 dark:text-indigo-300"
+                />
+              }
+              className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-indigo-300"
+            >
+              Rôle
+            </Button>
+
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleEditUser(user)}
+              icon={
+                <Edit
+                  size={14}
+                  className="text-indigo-600 dark:text-indigo-300"
+                />
+              }
+              className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-indigo-300"
+            >
+              Éditer
+            </Button>
+
+            <Button
+              size="sm"
+              variant={user.status === "active" ? "danger" : "primary"}
+              onClick={() => handleToggleStatus(user._id, user.status)}
+              className={
+                user.status === "active"
+                  ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
+                  : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
+              }
+            >
+              {user.status === "active" ? "Désactiver" : "Activer"}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => handleOpenDeleteModal(user._id)}
+              icon={<Trash2 size={14} className="text-white" />}
+              className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
+            >
+              Supprimer
+            </Button>
+          </div>
+        ),
+      };
+    });
 
     setFilteredUsers(formattedUsers);
-  }, [users, filters]);
+  }, [users, filters, companies]);
 
   /**
    * Gestion du changement des filtres
@@ -276,10 +350,10 @@ const UserManagementPage: React.FC = () => {
     });
 
     // Effacer l'erreur si l'utilisateur modifie le champ
-    if (formErrors[name as keyof typeof formErrors]) {
+    if (formErrors[name as keyof UserFormErrors]) {
       setFormErrors({
         ...formErrors,
-        [name]: undefined,
+        [name]: "",
       });
     }
   };
@@ -290,8 +364,32 @@ const UserManagementPage: React.FC = () => {
   const handleRoleChange = (value: string) => {
     setFormData({
       ...formData,
-      role: value,
+      role: value as "admin" | "directeur" | "manager" | "employé",
     });
+
+    if (formErrors.role) {
+      setFormErrors({
+        ...formErrors,
+        role: "",
+      });
+    }
+  };
+
+  /**
+   * Gestion du changement de l'entreprise
+   */
+  const handleCompanyChange = (value: string) => {
+    setFormData({
+      ...formData,
+      companyId: value,
+    });
+
+    if (formErrors.companyId) {
+      setFormErrors({
+        ...formErrors,
+        companyId: "",
+      });
+    }
   };
 
   /**
@@ -304,7 +402,7 @@ const UserManagementPage: React.FC = () => {
     if (formErrors.photo) {
       setFormErrors({
         ...formErrors,
-        photo: undefined,
+        photo: "",
       });
     }
   };
@@ -340,7 +438,7 @@ const UserManagementPage: React.FC = () => {
    * Validation du formulaire d'ajout d'utilisateur
    */
   const validateForm = (): boolean => {
-    const errors: Partial<UserFormData & { photo: string }> = {};
+    const errors: UserFormErrors = {};
     let isValid = true;
 
     if (!formData.firstName.trim()) {
@@ -363,6 +461,11 @@ const UserManagementPage: React.FC = () => {
 
     if (!formData.role) {
       errors.role = "Le rôle est requis";
+      isValid = false;
+    }
+
+    if (!formData.companyId) {
+      errors.companyId = "L'entreprise est requise";
       isValid = false;
     }
 
@@ -440,6 +543,7 @@ const UserManagementPage: React.FC = () => {
         role: "employé",
         password: "",
         photoUrl: undefined,
+        companyId: "",
       });
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -460,7 +564,10 @@ const UserManagementPage: React.FC = () => {
   /**
    * Ouverture du modal de modification de rôle
    */
-  const handleOpenRoleModal = (userId: string, role: string) => {
+  const handleOpenRoleModal = (
+    userId: string,
+    role: "admin" | "directeur" | "manager" | "employé"
+  ) => {
     setSelectedUserId(userId);
     setSelectedUserRole(role);
     setRoleModalOpen(true);
@@ -472,7 +579,7 @@ const UserManagementPage: React.FC = () => {
   const handleUpdateRole = async () => {
     setLoading(true);
     try {
-      await axios.put(`/api/users/${selectedUserId}`, {
+      await api.put(`/admin/users/${selectedUserId}`, {
         role: selectedUserRole,
       });
 
@@ -506,7 +613,7 @@ const UserManagementPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await axios.put(`/api/users/${userId}`, {
+      await api.put(`/admin/users/${userId}`, {
         status: newStatus,
       });
 
@@ -545,10 +652,66 @@ const UserManagementPage: React.FC = () => {
       role: "employé",
       password: "",
       photoUrl: undefined,
+      companyId: "",
     });
     setSelectedFile(null);
     setPreviewUrl(null);
     setFormErrors({});
+  };
+
+  /**
+   * Ouverture du modal d'édition d'utilisateur
+   */
+  const handleEditUser = (user: UserType) => {
+    setSelectedUser(user);
+    setEditModalOpen(true);
+  };
+
+  /**
+   * Callback de succès après la mise à jour d'un utilisateur
+   */
+  const handleEditSuccess = () => {
+    // Rafraîchir la liste des utilisateurs
+    fetchUsers();
+
+    // Afficher un message de succès
+    setSuccess("Utilisateur mis à jour avec succès");
+    setShowSuccessToast(true);
+  };
+
+  /**
+   * Ouverture du modal de confirmation de suppression
+   */
+  const handleOpenDeleteModal = (userId: string) => {
+    setDeleteUserId(userId);
+    setDeleteModalOpen(true);
+  };
+
+  /**
+   * Suppression d'un utilisateur
+   */
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+
+    setDeletingUser(true);
+    try {
+      await adminUserService.deleteUser(deleteUserId);
+
+      // Mettre à jour la liste des utilisateurs localement
+      setUsers(users.filter((user) => user._id !== deleteUserId));
+
+      // Fermer le modal et afficher un message de succès
+      setDeleteModalOpen(false);
+      setSuccess("Utilisateur supprimé avec succès");
+      setShowSuccessToast(true);
+    } catch (err) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", err);
+      setError("Impossible de supprimer l'utilisateur");
+      setShowErrorToast(true);
+    } finally {
+      setDeletingUser(false);
+      setDeleteUserId("");
+    }
   };
 
   return (
@@ -750,6 +913,21 @@ const UserManagementPage: React.FC = () => {
               className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
 
+            {/* Entreprise */}
+            <Select
+              label="Entreprise"
+              options={companies.map((company) => ({
+                value: company._id,
+                label: company.name,
+              }))}
+              value={formData.companyId}
+              onChange={handleCompanyChange}
+              icon={
+                <User size={18} className="text-indigo-600 dark:text-sky-300" />
+              }
+              className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+            />
+
             {/* Actions */}
             <div className="flex justify-end space-x-3 pt-2">
               <Button
@@ -787,7 +965,7 @@ const UserManagementPage: React.FC = () => {
               label="Nouveau rôle"
               options={roleOptions.slice(1)} // Exclure l'option "Tous les rôles"
               value={selectedUserRole}
-              onChange={setSelectedUserRole}
+              onChange={setSelectedUserRole as (value: string) => void}
               icon={
                 <User size={18} className="text-indigo-600 dark:text-sky-300" />
               }
@@ -813,6 +991,55 @@ const UserManagementPage: React.FC = () => {
                 className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
               >
                 Mettre à jour
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Modal d'édition d'utilisateur */}
+        <EditUserModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          user={selectedUser}
+          onSuccess={handleEditSuccess}
+        />
+
+        {/* Modal de confirmation de suppression */}
+        <Modal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          title="Confirmer la suppression"
+          className="bg-white dark:bg-gray-900 text-gray-900 dark:text-indigo-300 rounded-2xl shadow-xl max-w-lg"
+        >
+          <div className="space-y-6">
+            <div className="text-center p-6">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-red-100 dark:bg-red-900 mb-6">
+                <Trash2 size={40} className="text-red-600 dark:text-red-300" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Confirmer la suppression
+              </h3>
+              <p className="text-gray-500 dark:text-gray-300">
+                Êtes-vous sûr de vouloir supprimer définitivement cet
+                utilisateur ? Cette action est irréversible.
+              </p>
+            </div>
+
+            <div className="flex justify-center space-x-4 pt-4">
+              <Button
+                variant="ghost"
+                onClick={() => setDeleteModalOpen(false)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDeleteUser}
+                isLoading={deletingUser}
+                className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
+              >
+                Supprimer définitivement
               </Button>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
-import CompanyOverviewPage from "./pages/CompanyOverviewPage";
+import CompanyManagementPage from "./pages/CompanyManagementPage";
 import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
 import DatePickerDemoPage from "./pages/DatePickerDemoPage";
@@ -75,10 +75,13 @@ const AppRouter: React.FC = () => {
         <Route path="/gestion-des-conges" element={<VacationsPage />} />
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
-        <Route path="/entreprises" element={<CompanyOverviewPage />} />
         <Route
           path="/gestion-des-utilisateurs"
           element={<UserManagementPage />}
+        />
+        <Route
+          path="/gestion-des-entreprises"
+          element={<CompanyManagementPage />}
         />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
 

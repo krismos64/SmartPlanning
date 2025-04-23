@@ -49,6 +49,20 @@ export const uploadFile = async (file: File): Promise<string> => {
 };
 
 /**
+ * Types pour les utilisateurs
+ */
+export interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: "admin" | "directeur" | "manager" | "employé";
+  status: "active" | "inactive";
+  createdAt: string;
+  photoUrl?: string;
+}
+
+/**
  * Service pour les opérations administratives liées aux utilisateurs
  */
 export const adminUserService = {
@@ -63,7 +77,37 @@ export const adminUserService = {
     }
   },
 
-  // Autres méthodes pour la gestion des utilisateurs...
+  // Récupérer tous les utilisateurs depuis l'API
+  getAllUsers: async (): Promise<User[]> => {
+    try {
+      const response = await api.get("/admin/users");
+      return response.data.users; // ✅ maintenant on retourne directement le tableau
+    } catch (error) {
+      console.error("Erreur lors de la récupération des utilisateurs:", error);
+      throw error;
+    }
+  },
+
+  // Mettre à jour un utilisateur existant
+  updateUser: async (id: string, userData: Partial<User>) => {
+    try {
+      const response = await api.put(`/admin/users/${id}`, userData);
+      return response.data.user;
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'utilisateur:", error);
+      throw error;
+    }
+  },
+
+  // Supprimer un utilisateur
+  deleteUser: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/admin/users/${id}`);
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      throw error;
+    }
+  },
 };
 
 export default api;

@@ -227,7 +227,15 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        companyId: user.companyId,
+      },
     });
   } catch (error) {
     console.error(
