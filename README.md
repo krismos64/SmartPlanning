@@ -24,6 +24,7 @@ SmartPlanning est une application SaaS de gestion intelligente des plannings ave
 - [Tests](#tests)
 - [Déploiement](#déploiement)
 - [Auteurs & Crédits](#auteurs--crédits)
+- [Changelog](#changelog)
 
 ## Introduction
 
@@ -138,6 +139,38 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Authentification**          | JWT, Google OAuth, Passport.js                                    |
 | **Déploiement**               | Docker, Vercel/Netlify (Frontend), Heroku/Digital Ocean (Backend) |
 | **Outils de développement**   | ESLint, Prettier, Jest, React Testing Library                     |
+
+## Changelog
+
+- **Filtre par entreprise sur la gestion des utilisateurs**
+
+  - Ajout d'un menu déroulant pour filtrer les utilisateurs par entreprise dans la page de gestion des utilisateurs (`UserManagementPage`).
+  - Les administrateurs peuvent sélectionner une entreprise pour n'afficher que les utilisateurs associés (`user.companyId`).
+  - Le filtre est responsive, avec une option "-- Toutes les entreprises --" pour afficher tout le monde.
+  - Les filtres par rôle et statut restent disponibles et combinables.
+
+- **Optimisation du rendu des utilisateurs**
+
+  - Utilisation de `useMemo` pour optimiser le recalcul des utilisateurs filtrés.
+  - Les filtres sont désormais plus performants même avec beaucoup de données.
+
+- **Amélioration UX des menus déroulants (`<Select />`)**
+
+  - Augmentation de la hauteur maximale des dropdowns à `max-h-96` (384px) avec `overflow-y-auto`.
+  - Permet d'afficher plus d'options sans scroll immédiat, surtout pour les entreprises.
+  - Comportement responsive : la hauteur reste raisonnable sur mobile.
+  - Aucun impact sur les autres composants utilisant `<Select />`.
+
+- **Refactoring et typage**
+
+  - Ajout de la propriété `companyId` dans le type `User` côté frontend et backend.
+  - Nettoyage des effets et des noms de variables pour plus de clarté (`selectedCompanyId`, `filteredUsers`, etc).
+
+- **Divers**
+  - Ajout de commentaires explicites sur tous les effets et blocs importants.
+  - Correction de petits bugs d'affichage et d'UX sur la gestion des utilisateurs et entreprises.
+
+---
 
 ## Installation locale
 

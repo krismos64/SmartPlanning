@@ -14,10 +14,9 @@ import {
 } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-// Import pour le logo animé (optionnel)
 import planningAnimation from "../../assets/animations/planning-animation.json";
-// Import du type UserRole
 import { User } from "../../types/User";
+
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
 export interface SidebarMenuProps {
@@ -78,12 +77,7 @@ const userMenuItems = [
     icon: Settings,
     route: "/parametres",
   },
-  {
-    id: "profil",
-    label: "Mon profil",
-    icon: UserIcon,
-    route: "/profil",
-  },
+  { id: "profil", label: "Mon profil", icon: UserIcon, route: "/profil" },
 ];
 
 const adminMenuItem = {
@@ -127,7 +121,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         }
 
         const response = await axios.get(
-          `http://localhost:5050/api/admin/companies/${user.companyId}`
+          `${import.meta.env.VITE_API_URL}/admin/companies/${user.companyId}`
         );
 
         if (response.data.success) {
