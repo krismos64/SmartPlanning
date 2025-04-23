@@ -56,7 +56,7 @@ const useUpdateCollaborator = (props?: UseUpdateCollaboratorProps) => {
 
       // Appel à l'API pour mettre à jour le collaborateur
       const response = await axios.patch<CollaboratorApiResponse>(
-        `${import.meta.env.VITE_API_URL || ""}/api/collaborators/${id}`,
+        `${import.meta.env.VITE_API_URL || ""}/collaborators/${id}`,
         data,
         config
       );

@@ -9,6 +9,12 @@ import { Edit, Plus, Trash2, User, Users } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 // Hooks personnalisés
+import {
+  useCreateCollaborator,
+  useDeleteCollaborator,
+  useFetchCollaborators,
+  useUpdateCollaborator,
+} from "../hooks/collaborator";
 import { useAuth } from "../hooks/useAuth";
 
 // Composants de layout
@@ -30,18 +36,11 @@ import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
 // Types pour les collaborateurs
-interface Collaborator {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: "manager" | "employé";
-  companyId: string;
-  teamId?: string;
-  status?: "active" | "inactive";
-  photoUrl?: string;
-  createdAt: string;
-}
+import {
+  Collaborator,
+  CreateCollaboratorInput,
+  UpdateCollaboratorInput,
+} from "../types/Collaborator";
 
 // Interface pour les équipes
 interface Team {
@@ -52,13 +51,7 @@ interface Team {
 }
 
 // Types pour les formulaires
-interface CollaboratorFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: "manager" | "employé";
-  password?: string;
-  teamId?: string;
+interface CollaboratorFormData extends CreateCollaboratorInput {
   companyId: string;
 }
 
@@ -69,6 +62,7 @@ interface CollaboratorFormErrors {
   role?: string;
   password?: string;
   teamId?: string;
+  contractHoursPerWeek?: string;
 }
 
 // Définir les options de rôle selon le rôle de l'utilisateur connecté
@@ -106,17 +100,15 @@ const breadcrumbItems = [
 const CollaboratorManagementPage: React.FC = () => {
   const { user } = useAuth();
 
-  // États pour les collaborateurs
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  // États pour les équipes
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState<boolean>(false);
 
   // États pour les notifications
-  const [success, setSuccess] = useState<string>("");
-  const [error, setError] = useState<string>("");
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   // États pour le modal d'ajout/édition
   const [modalOpen, setModalOpen] = useState<boolean>(false);
@@ -128,6 +120,7 @@ const CollaboratorManagementPage: React.FC = () => {
     role: "employé",
     password: "",
     teamId: undefined,
+    contractHoursPerWeek: undefined,
     companyId: user?.companyId || "",
   });
   const [formErrors, setFormErrors] = useState<CollaboratorFormErrors>({});
@@ -135,98 +128,70 @@ const CollaboratorManagementPage: React.FC = () => {
   // États pour le modal de suppression
   const [deleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
   const [collaboratorToDelete, setCollaboratorToDelete] = useState<string>("");
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // États pour l'édition
   const [selectedCollaborator, setSelectedCollaborator] =
     useState<Collaborator | null>(null);
 
+  // Hooks API pour les collaborateurs
+  const {
+    collaborators,
+    loading: fetchLoading,
+    error: fetchError,
+    refetch,
+  } = useFetchCollaborators();
+
+  const {
+    createCollaborator,
+    loading: createLoading,
+    error: createError,
+  } = useCreateCollaborator({
+    onSuccess: () => {
+      setModalOpen(false);
+      refetch();
+      showToast("Collaborateur ajouté avec succès", "success");
+    },
+    showToast: (message, type) => showToast(message, type),
+  });
+
+  const {
+    updateCollaborator,
+    loading: updateLoading,
+    error: updateError,
+  } = useUpdateCollaborator({
+    onSuccess: () => {
+      setModalOpen(false);
+      refetch();
+      showToast("Collaborateur mis à jour avec succès", "success");
+    },
+    showToast: (message, type) => showToast(message, type),
+  });
+
+  const {
+    deleteCollaborator,
+    loading: deleteLoading,
+    error: deleteError,
+  } = useDeleteCollaborator({
+    onSuccess: () => {
+      setDeleteModalOpen(false);
+      refetch();
+      showToast("Collaborateur supprimé avec succès", "success");
+    },
+    showToast: (message, type) => showToast(message, type),
+  });
+
   /**
-   * Récupération simulée des collaborateurs
+   * Affiche un message toast
    */
-  const fetchCollaborators = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Simulation d'appel API - À remplacer par un vrai appel API
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Générer des données fictives basées sur le rôle de l'utilisateur
-      const mockCollaborators: Collaborator[] = [];
-
-      if (user?.role === "directeur") {
-        // Directeur voit les managers et employés de son entreprise
-        mockCollaborators.push(
-          {
-            _id: "1",
-            firstName: "Jean",
-            lastName: "Dupont",
-            email: "jean.dupont@example.com",
-            role: "manager",
-            companyId: user.companyId || "",
-            teamId: "team1",
-            status: "active",
-            createdAt: new Date(2023, 5, 15).toISOString(),
-          },
-          {
-            _id: "2",
-            firstName: "Marie",
-            lastName: "Martin",
-            email: "marie.martin@example.com",
-            role: "manager",
-            companyId: user.companyId || "",
-            teamId: "team2",
-            status: "active",
-            createdAt: new Date(2023, 6, 20).toISOString(),
-          },
-          {
-            _id: "3",
-            firstName: "Pierre",
-            lastName: "Durand",
-            email: "pierre.durand@example.com",
-            role: "employé",
-            companyId: user.companyId || "",
-            teamId: "team1",
-            status: "active",
-            createdAt: new Date(2023, 7, 5).toISOString(),
-          }
-        );
-      } else if (user?.role === "manager") {
-        // Manager voit uniquement les employés de son équipe
-        mockCollaborators.push(
-          {
-            _id: "3",
-            firstName: "Pierre",
-            lastName: "Durand",
-            email: "pierre.durand@example.com",
-            role: "employé",
-            companyId: user.companyId || "",
-            teamId: user._id, // L'équipe du manager
-            status: "active",
-            createdAt: new Date(2023, 7, 5).toISOString(),
-          },
-          {
-            _id: "4",
-            firstName: "Sophie",
-            lastName: "Petit",
-            email: "sophie.petit@example.com",
-            role: "employé",
-            companyId: user.companyId || "",
-            teamId: user._id,
-            status: "active",
-            createdAt: new Date(2023, 8, 10).toISOString(),
-          }
-        );
-      }
-
-      setCollaborators(mockCollaborators);
-    } catch (err) {
-      console.error("Erreur lors de la récupération des collaborateurs:", err);
-      setError("Impossible de récupérer la liste des collaborateurs.");
+  const showToast = (message: string, type: "success" | "error") => {
+    if (type === "success") {
+      setSuccessMessage(message);
+      setShowSuccessToast(true);
+    } else {
+      setErrorMessage(message);
       setShowErrorToast(true);
-    } finally {
-      setLoading(false);
     }
-  }, [user]);
+  };
 
   /**
    * Récupération simulée des équipes
@@ -256,26 +221,53 @@ const CollaboratorManagementPage: React.FC = () => {
       setTeams(mockTeams);
     } catch (err) {
       console.error("Erreur lors de la récupération des équipes:", err);
+      showToast("Impossible de récupérer la liste des équipes", "error");
     } finally {
       setTeamsLoading(false);
     }
   }, [user]);
 
   /**
-   * Chargement initial des collaborateurs et équipes
+   * Chargement initial des équipes
    */
   useEffect(() => {
     if (user) {
-      fetchCollaborators();
       fetchTeams();
     }
-  }, [fetchCollaborators, fetchTeams, user]);
+  }, [fetchTeams, user]);
 
   /**
-   * Filtrer les collaborateurs selon le rôle de l'utilisateur connecté
+   * Affiche les erreurs des hooks API dans le toast
+   */
+  useEffect(() => {
+    if (fetchError) {
+      showToast(fetchError, "error");
+    }
+  }, [fetchError]);
+
+  useEffect(() => {
+    if (createError) {
+      showToast(createError, "error");
+    }
+  }, [createError]);
+
+  useEffect(() => {
+    if (updateError) {
+      showToast(updateError, "error");
+    }
+  }, [updateError]);
+
+  useEffect(() => {
+    if (deleteError) {
+      showToast(deleteError, "error");
+    }
+  }, [deleteError]);
+
+  /**
+   * Filtrer les collaborateurs pour l'affichage dans le tableau
    */
   const filteredCollaborators = useMemo(() => {
-    if (!collaborators.length) {
+    if (!collaborators || !collaborators.length) {
       return [];
     }
 
@@ -360,6 +352,20 @@ const CollaboratorManagementPage: React.FC = () => {
   };
 
   /**
+   * Gestion du changement d'heures contractuelles
+   */
+  const handleContractHoursChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value ? parseInt(e.target.value) : undefined;
+    setFormData((prev) => ({ ...prev, contractHoursPerWeek: value }));
+
+    if (formErrors.contractHoursPerWeek) {
+      setFormErrors((prev) => ({ ...prev, contractHoursPerWeek: undefined }));
+    }
+  };
+
+  /**
    * Validation du formulaire
    */
   const validateForm = (): boolean => {
@@ -408,6 +414,17 @@ const CollaboratorManagementPage: React.FC = () => {
       errors.teamId = "L'équipe est requise";
     }
 
+    // Validation des heures contractuelles
+    if (formData.contractHoursPerWeek !== undefined) {
+      if (
+        formData.contractHoursPerWeek < 0 ||
+        formData.contractHoursPerWeek > 168
+      ) {
+        errors.contractHoursPerWeek =
+          "Les heures doivent être comprises entre 0 et 168";
+      }
+    }
+
     // Mise à jour des erreurs et vérification si le formulaire est valide
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -426,6 +443,7 @@ const CollaboratorManagementPage: React.FC = () => {
       role: user?.role === "directeur" ? "manager" : "employé",
       password: "",
       teamId: user?.role === "manager" ? user._id : undefined,
+      contractHoursPerWeek: 35,
       companyId: user?.companyId || "",
     });
     setFormErrors({});
@@ -438,93 +456,21 @@ const CollaboratorManagementPage: React.FC = () => {
   const handleEditCollaborator = (collaborator: Collaborator) => {
     setIsEditMode(true);
     setSelectedCollaborator(collaborator);
+
+    // Préparer les données du formulaire pour l'édition
     setFormData({
       firstName: collaborator.firstName,
       lastName: collaborator.lastName,
       email: collaborator.email,
       role: collaborator.role,
+      password: "", // Vide car facultatif lors de la mise à jour
       teamId: collaborator.teamId,
+      contractHoursPerWeek: collaborator.employee?.contractHoursPerWeek,
       companyId: collaborator.companyId,
     });
+
     setFormErrors({});
     setModalOpen(true);
-  };
-
-  /**
-   * Création d'un collaborateur
-   */
-  const createCollaborator = async (data: CollaboratorFormData) => {
-    try {
-      // Simulation d'appel API - À remplacer par un vrai appel API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Création d'un nouveau collaborateur avec un ID généré
-      const newCollaborator: Collaborator = {
-        _id: `new-${Date.now()}`,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        role: data.role,
-        companyId: data.companyId,
-        teamId: data.teamId,
-        status: "active",
-        createdAt: new Date().toISOString(),
-      };
-
-      // Mise à jour de l'état
-      setCollaborators((prev) => [...prev, newCollaborator]);
-
-      // Notification de succès
-      setSuccess("Collaborateur ajouté avec succès");
-      setShowSuccessToast(true);
-
-      // Fermer le modal
-      setModalOpen(false);
-    } catch (err) {
-      console.error("Erreur lors de la création du collaborateur:", err);
-      setError("Impossible de créer le collaborateur");
-      setShowErrorToast(true);
-    }
-  };
-
-  /**
-   * Mise à jour d'un collaborateur
-   */
-  const updateCollaborator = async (data: CollaboratorFormData) => {
-    if (!selectedCollaborator) return;
-
-    try {
-      // Simulation d'appel API - À remplacer par un vrai appel API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mise à jour du collaborateur
-      const updatedCollaborator: Collaborator = {
-        ...selectedCollaborator,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        role: data.role,
-        teamId: data.teamId,
-      };
-
-      // Mise à jour de l'état
-      setCollaborators((prev) =>
-        prev.map((c) =>
-          c._id === selectedCollaborator._id ? updatedCollaborator : c
-        )
-      );
-
-      // Notification de succès
-      setSuccess("Collaborateur mis à jour avec succès");
-      setShowSuccessToast(true);
-
-      // Fermer le modal
-      setModalOpen(false);
-    } catch (err) {
-      console.error("Erreur lors de la mise à jour du collaborateur:", err);
-      setError("Impossible de mettre à jour le collaborateur");
-      setShowErrorToast(true);
-    }
   };
 
   /**
@@ -537,10 +483,30 @@ const CollaboratorManagementPage: React.FC = () => {
       return;
     }
 
-    if (isEditMode) {
-      await updateCollaborator(formData);
+    // Préparer les données à envoyer
+    const payload: CreateCollaboratorInput | UpdateCollaboratorInput = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      role: formData.role,
+      teamId: formData.teamId,
+      contractHoursPerWeek: formData.contractHoursPerWeek,
+    };
+
+    // Ajouter le mot de passe uniquement lors de la création ou s'il est fourni lors de la mise à jour
+    if (!isEditMode || (isEditMode && formData.password)) {
+      (payload as CreateCollaboratorInput).password = formData.password!;
+    }
+
+    if (isEditMode && selectedCollaborator) {
+      // Mise à jour d'un collaborateur existant
+      await updateCollaborator(
+        selectedCollaborator._id,
+        payload as UpdateCollaboratorInput
+      );
     } else {
-      await createCollaborator(formData);
+      // Création d'un nouveau collaborateur
+      await createCollaborator(payload as CreateCollaboratorInput);
     }
   };
 
@@ -555,32 +521,9 @@ const CollaboratorManagementPage: React.FC = () => {
   /**
    * Suppression d'un collaborateur
    */
-  const deleteCollaborator = async () => {
+  const handleDeleteCollaborator = async () => {
     if (!collaboratorToDelete) return;
-
-    setIsDeleting(true);
-    try {
-      // Simulation d'appel API - À remplacer par un vrai appel API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mise à jour de l'état
-      setCollaborators((prev) =>
-        prev.filter((c) => c._id !== collaboratorToDelete)
-      );
-
-      // Notification de succès
-      setSuccess("Collaborateur supprimé avec succès");
-      setShowSuccessToast(true);
-
-      // Fermer le modal
-      setDeleteModalOpen(false);
-    } catch (err) {
-      console.error("Erreur lors de la suppression du collaborateur:", err);
-      setError("Impossible de supprimer le collaborateur");
-      setShowErrorToast(true);
-    } finally {
-      setIsDeleting(false);
-    }
+    await deleteCollaborator(collaboratorToDelete);
   };
 
   /**
@@ -643,7 +586,7 @@ const CollaboratorManagementPage: React.FC = () => {
 
         {/* Contenu principal */}
         <SectionCard>
-          {loading ? (
+          {fetchLoading ? (
             <div className="flex justify-center items-center p-8">
               <LoadingSpinner size="lg" />
             </div>
@@ -673,7 +616,7 @@ const CollaboratorManagementPage: React.FC = () => {
         {/* Toast de succès */}
         <Toast
           type="success"
-          message={success}
+          message={successMessage}
           isVisible={showSuccessToast}
           onClose={closeSuccessToast}
         />
@@ -681,7 +624,7 @@ const CollaboratorManagementPage: React.FC = () => {
         {/* Toast d'erreur */}
         <Toast
           type="error"
-          message={error}
+          message={errorMessage}
           isVisible={showErrorToast}
           onClose={closeErrorToast}
         />
@@ -722,7 +665,7 @@ const CollaboratorManagementPage: React.FC = () => {
               required
             />
 
-            {!isEditMode && (
+            {!isEditMode ? (
               <InputField
                 label="Mot de passe"
                 name="password"
@@ -731,6 +674,15 @@ const CollaboratorManagementPage: React.FC = () => {
                 onChange={handleInputChange}
                 error={formErrors.password}
                 required
+              />
+            ) : (
+              <InputField
+                label="Nouveau mot de passe (laisser vide pour ne pas modifier)"
+                name="password"
+                type="password"
+                value={formData.password || ""}
+                onChange={handleInputChange}
+                error={formErrors.password}
               />
             )}
 
@@ -755,6 +707,15 @@ const CollaboratorManagementPage: React.FC = () => {
               />
             )}
 
+            <InputField
+              label="Heures contractuelles par semaine"
+              name="contractHoursPerWeek"
+              type="number"
+              value={formData.contractHoursPerWeek?.toString() || ""}
+              onChange={handleContractHoursChange}
+              error={formErrors.contractHoursPerWeek}
+            />
+
             <div className="flex justify-end gap-2 mt-4">
               <Button
                 variant="ghost"
@@ -763,7 +724,11 @@ const CollaboratorManagementPage: React.FC = () => {
               >
                 Annuler
               </Button>
-              <Button variant="primary" type="submit">
+              <Button
+                variant="primary"
+                type="submit"
+                isLoading={createLoading || updateLoading}
+              >
                 {isEditMode ? "Mettre à jour" : "Ajouter"}
               </Button>
             </div>
@@ -786,14 +751,14 @@ const CollaboratorManagementPage: React.FC = () => {
             <Button
               variant="ghost"
               onClick={() => setDeleteModalOpen(false)}
-              disabled={isDeleting}
+              disabled={deleteLoading}
             >
               Annuler
             </Button>
             <Button
               variant="danger"
-              onClick={deleteCollaborator}
-              isLoading={isDeleting}
+              onClick={handleDeleteCollaborator}
+              isLoading={deleteLoading}
             >
               Supprimer
             </Button>

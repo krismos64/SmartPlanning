@@ -52,7 +52,7 @@ const useCreateCollaborator = (props?: UseCreateCollaboratorProps) => {
 
       // Appel à l'API pour créer le collaborateur
       const response = await axios.post<CollaboratorApiResponse>(
-        `${import.meta.env.VITE_API_URL || ""}/api/collaborators`,
+        `${import.meta.env.VITE_API_URL || ""}/collaborators`,
         data,
         config
       );

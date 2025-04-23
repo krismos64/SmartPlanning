@@ -47,7 +47,7 @@ const useDeleteCollaborator = (props?: UseDeleteCollaboratorProps) => {
 
       // Appel à l'API pour supprimer le collaborateur
       const response = await axios.delete(
-        `${import.meta.env.VITE_API_URL || ""}/api/collaborators/${id}`,
+        `${import.meta.env.VITE_API_URL || ""}/collaborators/${id}`,
         config
       );
 

@@ -43,7 +43,7 @@ const useFetchCollaborators = () => {
 
       // Appel à l'API pour récupérer les collaborateurs
       const response = await axios.get<CollaboratorsApiResponse>(
-        `${import.meta.env.VITE_API_URL || ""}/api/collaborators`,
+        `${import.meta.env.VITE_API_URL || ""}/collaborators`,
         config
       );
 
