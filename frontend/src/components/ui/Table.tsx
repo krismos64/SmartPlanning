@@ -261,13 +261,13 @@ const Table: React.FC<TableProps> = ({
     );
 
     // Génération des boutons de navigation
-    const pageButtons = [];
+    const pageButtons: React.ReactNode[] = [];
 
     // Bouton "Précédent"
     pageButtons.push(pageButton(currentPage - 1, "←", currentPage === 1));
 
     // Pages spécifiques à afficher
-    const pagesToShow = [];
+    const pagesToShow: number[] = [];
 
     // Toujours afficher la première page
     pagesToShow.push(1);

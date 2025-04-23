@@ -15,37 +15,30 @@ interface TeamEventsCalendarProps {
   teamName: string;
 }
 
-/**
- * Composant d'affichage des événements d'équipe
- *
- * Affiche les événements d'une équipe avec possibilité de filtrage
- * par date et par type d'événement.
- */
 const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
   events,
   teamName,
 }) => {
-  // États pour le filtrage
   const [startDateFilter, setStartDateFilter] = useState<Date | null>(null);
   const [endDateFilter, setEndDateFilter] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Fonction pour obtenir le style de badge en fonction du type d'événement
-  const getEventBadgeVariant = (eventType: string) => {
+  const getEventBadgeType = (
+    eventType: string
+  ): "success" | "warning" | "info" | "error" => {
     switch (eventType) {
       case "meeting":
-        return "primary";
+        return "info";
       case "training":
         return "success";
       case "teambuilding":
         return "warning";
       default:
-        return "neutral";
+        return "error";
     }
   };
 
-  // Fonction pour obtenir le libellé du type d'événement
   const getEventTypeLabel = (eventType: string) => {
     switch (eventType) {
       case "meeting":
@@ -59,10 +52,8 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
     }
   };
 
-  // Filtrer les événements en fonction des critères sélectionnés
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      // Filtrer par texte de recherche
       const matchesSearch =
         searchTerm.trim() === "" ||
         event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,26 +61,23 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
         (event.description &&
           event.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Filtrer par date de début
       const matchesStartDate =
         !startDateFilter ||
         isWithinInterval(event.startDate, {
           start: startOfDay(startDateFilter),
-          end: endOfDay(endDateFilter || startDateFilter),
+          end: endOfDay(endDateFilter ?? startDateFilter),
         });
 
       return matchesSearch && matchesStartDate;
     });
   }, [events, searchTerm, startDateFilter, endDateFilter]);
 
-  // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
     setStartDateFilter(null);
     setEndDateFilter(null);
     setSearchTerm("");
   };
 
-  // Mise en forme des données pour le tableau
   const tableData = filteredEvents.map((event) => ({
     date: (
       <div>
@@ -97,7 +85,7 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
           {format(new Date(event.startDate), "dd MMM yyyy", { locale: fr })}
         </div>
         <div className="text-xs text-[var(--text-secondary)]">
-          {format(new Date(event.startDate), "HH:mm", { locale: fr })} -
+          {format(new Date(event.startDate), "HH:mm", { locale: fr })} -{" "}
           {format(new Date(event.endDate), "HH:mm", { locale: fr })}
         </div>
       </div>
@@ -115,17 +103,15 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
     location: event.location,
     type: (
       <Badge
-        variant={getEventBadgeVariant(event.eventType)}
+        type={getEventBadgeType(event.eventType)}
         label={getEventTypeLabel(event.eventType)}
       />
     ),
   }));
 
   return (
-    <Card
-      title={`Calendrier des événements - ${teamName}`}
-      icon={<CalendarDays size={18} />}
-      actions={
+    <Card title={`Calendrier des événements - ${teamName}`}>
+      <div className="flex justify-end pr-4 pt-4">
         <Button
           variant="ghost"
           size="sm"
@@ -134,37 +120,33 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
         >
           {showFilters ? "Cacher les filtres" : "Filtrer"}
         </Button>
-      }
-    >
-      {/* Section de filtrage */}
+      </div>
       {showFilters && (
         <div className="p-4 bg-[var(--background-tertiary)] border-b border-[var(--border)]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <InputField
+              name="search"
               label="Rechercher"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Titre, lieu..."
               icon={<Search size={16} />}
             />
-
             <DatePicker
               label="Date de début"
-              selectedDate={startDateFilter}
+              selectedDate={startDateFilter ?? undefined}
               onChange={setStartDateFilter}
               placeholder="Filtrer par date de début"
             />
-
             <DatePicker
               label="Date de fin"
-              selectedDate={endDateFilter}
+              selectedDate={endDateFilter ?? undefined}
               onChange={setEndDateFilter}
-              minDate={startDateFilter}
+              minDate={startDateFilter ?? undefined}
               placeholder="Filtrer par date de fin"
               disabled={!startDateFilter}
             />
           </div>
-
           <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" onClick={resetFilters}>
               Réinitialiser les filtres
@@ -173,7 +155,6 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
         </div>
       )}
 
-      {/* Tableau des événements */}
       <div className="p-4">
         <Table
           columns={[
@@ -189,7 +170,6 @@ const TeamEventsCalendar: React.FC<TeamEventsCalendarProps> = ({
             icon: <CalendarDays size={40} />,
           }}
         />
-
         <div className="mt-4 text-sm text-[var(--text-secondary)]">
           {filteredEvents.length} événement
           {filteredEvents.length !== 1 ? "s" : ""} trouvé

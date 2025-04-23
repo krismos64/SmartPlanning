@@ -54,10 +54,7 @@ const InputField: React.FC<InputFieldProps> = ({
   autoComplete,
   helperText,
 }) => {
-  // État pour suivre si le champ a le focus
   const [isFocused, setIsFocused] = React.useState(false);
-
-  // Détermine si le label doit être animé vers le haut
   const isActive = isFocused || value !== "";
 
   return (
@@ -67,8 +64,8 @@ const InputField: React.FC<InputFieldProps> = ({
           htmlFor={name}
           className={`absolute transition-all duration-200 pointer-events-none ${
             isActive
-              ? "text-xs text-blue-600 top-1"
-              : "text-base text-gray-500 top-1/2 -translate-y-1/2"
+              ? "text-xs text-[var(--accent-primary)] top-1"
+              : "text-base text-[var(--text-secondary)] top-1/2 -translate-y-1/2"
           }`}
           initial={false}
           animate={{
@@ -101,13 +98,17 @@ const InputField: React.FC<InputFieldProps> = ({
           placeholder={isActive ? placeholder : ""}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className={`w-full px-3 pt-6 pb-2 border rounded-lg outline-none transition-colors duration-200
-            ${disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"} 
-            text-gray-900 placeholder-gray-400
+          className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200
+            ${
+              disabled
+                ? "bg-[var(--background-tertiary)] cursor-not-allowed"
+                : "bg-[var(--background-secondary)]"
+            } 
+            text-[var(--text-primary)] placeholder-[var(--text-secondary)]
             ${
               error
-                ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-                : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+                ? "border border-red-500 focus:ring-red-200"
+                : "border border-[var(--border)] focus:ring-[var(--accent-primary)]/30"
             }
             focus:ring-4
             ${icon ? "pl-10" : "pl-3"}`}
@@ -130,7 +131,7 @@ const InputField: React.FC<InputFieldProps> = ({
       )}
 
       {helperText && !error && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           {helperText}
         </p>
       )}

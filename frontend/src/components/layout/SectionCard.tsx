@@ -47,7 +47,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
 
   return (
     <motion.div
-      className={`bg-white rounded-xl shadow-sm ${
+      className={`bg-white dark:bg-gray-900 rounded-xl shadow-sm ${
         overflowVisible ? "overflow-visible" : "overflow-hidden"
       } ${className}`}
       style={accentStyle}
@@ -60,10 +60,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
     >
       {(title || actions) && (
         <div
-          className={`${headerPadding} border-b border-gray-200 flex items-center justify-between`}
+          className={`${headerPadding} border-b border-gray-200 dark:border-gray-700 flex items-center justify-between`}
         >
           {title && (
-            <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {title}
+            </h3>
           )}
           {actions && (
             <div className="flex items-center space-x-2">{actions}</div>

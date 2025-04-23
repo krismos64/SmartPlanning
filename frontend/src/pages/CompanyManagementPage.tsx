@@ -403,9 +403,14 @@ const CompanyManagementPage: React.FC = () => {
                 title: "Aucune entreprise trouvée",
                 description:
                   "Il n'y a actuellement aucune entreprise enregistrée dans le système.",
-                icon: <Building size={48} className="text-gray-300" />,
+                icon: (
+                  <Building
+                    size={48}
+                    className="text-gray-300 dark:text-gray-600"
+                  />
+                ),
               }}
-              className="w-full border-collapse"
+              className="text-gray-900 dark:text-gray-100 [&_thead]:bg-gray-100 [&_thead]:dark:bg-gray-800 [&_thead_th]:text-gray-700 [&_thead_th]:dark:text-sky-300 [&_td]:text-gray-900 [&_td]:dark:text-gray-100"
             />
           )}
         </SectionCard>

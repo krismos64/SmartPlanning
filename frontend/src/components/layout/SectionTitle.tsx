@@ -58,14 +58,14 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
             {icon}
           </motion.div>
         )}
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
           {title}
         </h2>
       </div>
 
       {subtitle && (
         <motion.p
-          className="mt-2 text-sm text-gray-500 max-w-2xl"
+          className="mt-2 text-sm text-gray-500 dark:text-gray-300 max-w-2xl"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.3 }}

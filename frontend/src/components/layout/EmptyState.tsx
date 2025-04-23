@@ -39,7 +39,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
     >
       {icon && (
         <motion.div
-          className="mb-4 text-gray-400"
+          className="mb-4 text-gray-400 dark:text-gray-500"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.3 }}
@@ -49,7 +49,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       )}
 
       <motion.h3
-        className="text-lg font-medium text-gray-900 mb-2 text-center"
+        className="text-lg font-medium text-gray-900 dark:text-white mb-2 text-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.3 }}
@@ -59,7 +59,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
       {description && (
         <motion.p
-          className="text-sm text-gray-500 text-center max-w-md mb-6"
+          className="text-sm text-gray-500 dark:text-gray-300 text-center max-w-md mb-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.3 }}
