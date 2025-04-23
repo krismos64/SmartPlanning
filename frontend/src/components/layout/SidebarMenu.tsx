@@ -60,7 +60,7 @@ const menuItems = [
     id: "collaborateurs",
     label: "Collaborateurs",
     icon: Users,
-    route: "/gestion-des-equipes",
+    route: "/collaborateurs",
   },
   {
     id: "statistiques",

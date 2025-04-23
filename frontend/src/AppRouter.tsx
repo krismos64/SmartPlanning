@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
+import CollaboratorManagementPage from "./pages/CollaboratorManagementPage";
 import CompanyManagementPage from "./pages/CompanyManagementPage";
 import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -13,7 +14,6 @@ import LoginPage from "./pages/LoginPage";
 import PlanningValidationPage from "./pages/PlanningValidationPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
-import TeamManagementPage from "./pages/TeamManagementPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
 import UserManagementPage from "./pages/UserManagementPage";
 import VacationsPage from "./pages/VacationsPage";
@@ -71,7 +71,6 @@ const AppRouter: React.FC = () => {
           path="/validation-des-plannings"
           element={<PlanningValidationPage />}
         />
-        <Route path="/gestion-des-equipes" element={<TeamManagementPage />} />
         <Route path="/gestion-des-conges" element={<VacationsPage />} />
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
@@ -82,6 +81,10 @@ const AppRouter: React.FC = () => {
         <Route
           path="/gestion-des-entreprises"
           element={<CompanyManagementPage />}
+        />
+        <Route
+          path="/collaborateurs"
+          element={<CollaboratorManagementPage />}
         />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
 
