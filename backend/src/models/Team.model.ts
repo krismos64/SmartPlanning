@@ -1,13 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-// Interface pour le document Team
 export interface ITeam extends Document {
   name: string;
   managerIds: mongoose.Types.ObjectId[];
+  employeeIds: mongoose.Types.ObjectId[];
   companyId: mongoose.Types.ObjectId;
 }
 
-// Définition du schéma principal Team
 const teamSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
@@ -15,6 +14,13 @@ const teamSchema: Schema = new Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+        required: true,
+      },
+    ],
+    employeeIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Employee",
         required: true,
       },
     ],
@@ -27,7 +33,5 @@ const teamSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-// Création du modèle
 export const TeamModel = mongoose.model<ITeam>("Team", teamSchema);
-
 export default TeamModel;

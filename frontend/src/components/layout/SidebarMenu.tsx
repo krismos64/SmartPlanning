@@ -142,16 +142,14 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   }, [user?.companyId]);
 
   const dynamicMenuItems = useMemo(() => {
-    const items = [...menuItems];
+    let items = [...menuItems];
+
+    // Supprimer "Collaborateurs" uniquement pour les admins
     if (user?.role === "admin") {
-      const collaborateursIndex = items.findIndex(
-        (item) => item.id === "collaborateurs"
-      );
-      if (collaborateursIndex !== -1) {
-        items.splice(collaborateursIndex + 1, 0, adminMenuItem);
-        items.splice(collaborateursIndex + 2, 0, companyManagementMenuItem);
-      }
+      items = items.filter((item) => item.id !== "collaborateurs");
+      items.push(adminMenuItem, companyManagementMenuItem);
     }
+
     return items;
   }, [user]);
 

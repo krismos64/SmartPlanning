@@ -18,6 +18,7 @@ import {
   Building,
   Edit,
   Plus,
+  Trash,
   Trash2,
   User,
   UserCheck,
@@ -53,7 +54,7 @@ interface UserFormData {
   firstName: string;
   lastName: string;
   email: string;
-  role: "admin" | "directeur" | "manager" | "employé";
+  role: "admin" | "directeur" | "manager" | "employee";
   password?: string;
   photoUrl?: string;
   companyId: string;
@@ -81,7 +82,7 @@ const roleOptions = [
   { value: "admin", label: "Administrateur" },
   { value: "directeur", label: "Directeur" },
   { value: "manager", label: "Manager" },
-  { value: "employé", label: "Employé" },
+  { value: "employee", label: "Employé" },
 ];
 
 const statusOptions = [
@@ -135,7 +136,7 @@ const UserManagementPage: React.FC = () => {
     firstName: "",
     lastName: "",
     email: "",
-    role: "employé",
+    role: "employee",
     password: "",
     photoUrl: undefined,
     companyId: "",
@@ -152,8 +153,8 @@ const UserManagementPage: React.FC = () => {
   const [roleModalOpen, setRoleModalOpen] = useState<boolean>(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedUserRole, setSelectedUserRole] = useState<
-    "admin" | "directeur" | "manager" | "employé"
-  >("employé");
+    "admin" | "directeur" | "manager" | "employee"
+  >("employee");
 
   // Nouveaux états pour édition et suppression
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
@@ -205,130 +206,107 @@ const UserManagementPage: React.FC = () => {
   }, [fetchUsers]);
 
   /**
-   * Optimisation des utilisateurs filtrés en utilisant useMemo
-   * pour éviter des recalculs inutiles lors des re-rendus
+   * Filtrage des utilisateurs avec useMemo pour l'optimisation
    */
   const filteredUsers = React.useMemo(() => {
-    if (!users.length) {
-      return [];
-    }
+    return users
+      .filter((user) => {
+        const roleMatch = !filters.role || user.role === filters.role;
+        const statusMatch = !filters.status || user.status === filters.status;
+        const companyMatch =
+          !filters.companyId || user.companyId === filters.companyId;
 
-    // Filtrage des utilisateurs selon les critères
-    let result = [...users];
+        // Sécurité supplémentaire: ne pas afficher user_id dans les résultats
+        if (user._id === "user_id") return false;
 
-    if (filters.role) {
-      result = result.filter((user) => user.role === filters.role);
-    }
+        return roleMatch && statusMatch && companyMatch;
+      })
+      .map((user) => {
+        const creationDate = new Date(
+          user.createdAt || Date.now()
+        ).toLocaleDateString("fr-FR");
+        const companyName =
+          companies.find((c) => c._id === user.companyId)?.name || "-";
 
-    if (filters.status) {
-      result = result.filter((user) => user.status === filters.status);
-    }
-
-    // Filtrage par entreprise
-    if (filters.companyId) {
-      result = result.filter(
-        (user) => (user as any).companyId === filters.companyId
-      );
-    }
-
-    // Format des données pour le tableau
-    return result.map((user) => {
-      // Trouver l'entreprise associée à l'utilisateur
-      const company = companies.find((c) => c._id === (user as any).companyId);
-
-      return {
-        _id: user._id,
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        company: company ? company.name : "Non assignée",
-        role: (
-          <Badge
-            type={
-              user.role === "admin"
-                ? "info"
-                : user.role === "directeur"
-                ? "info"
-                : user.role === "manager"
-                ? "success"
-                : "warning"
-            }
-            label={
-              user.role === "admin"
-                ? "Administrateur"
-                : user.role === "directeur"
-                ? "Directeur"
-                : user.role === "manager"
-                ? "Manager"
-                : "Employé"
-            }
-          />
-        ),
-        status: (
-          <Badge
-            type={user.status === "active" ? "success" : "error"}
-            label={user.status === "active" ? "Actif" : "Inactif"}
-          />
-        ),
-        createdAt: new Date(user.createdAt).toLocaleDateString("fr-FR"),
-        actions: (
-          <div className="flex space-x-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => handleOpenRoleModal(user._id, user.role)}
-              icon={
-                <UserCheck
-                  size={14}
-                  className="text-indigo-600 dark:text-indigo-300"
-                />
+        return {
+          id: user._id,
+          name: (
+            <div className="flex items-center">
+              <Avatar
+                src={user.photoUrl}
+                alt={`${user.firstName} ${user.lastName}`}
+                size="sm"
+                className="mr-2"
+              >
+                {/* Le composant Avatar n'utilise pas de fallback prop, 
+                  on laisse le composant gérer son propre fallback  */}
+              </Avatar>
+              <div className="ml-3">
+                <p className="font-medium">{`${user.firstName} ${user.lastName}`}</p>
+              </div>
+            </div>
+          ),
+          email: user.email,
+          company: companyName,
+          role: (
+            <Badge
+              type={
+                user.role === "admin"
+                  ? "info"
+                  : user.role === "directeur"
+                  ? "info"
+                  : user.role === "manager"
+                  ? "success"
+                  : "warning"
               }
-              className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-indigo-300"
-            >
-              Rôle
-            </Button>
-
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => handleEditUser(user)}
-              icon={
-                <Edit
-                  size={14}
-                  className="text-indigo-600 dark:text-indigo-300"
-                />
+              label={
+                user.role === "admin"
+                  ? "Administrateur"
+                  : user.role === "directeur"
+                  ? "Directeur"
+                  : user.role === "manager"
+                  ? "Manager"
+                  : "Employé"
               }
-              className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-indigo-300"
-            >
-              Éditer
-            </Button>
-
-            <Button
-              size="sm"
-              variant={user.status === "active" ? "danger" : "primary"}
+            />
+          ),
+          status: (
+            <div
+              className="cursor-pointer"
               onClick={() => handleToggleStatus(user._id, user.status)}
-              className={
-                user.status === "active"
-                  ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
-                  : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
-              }
             >
-              {user.status === "active" ? "Désactiver" : "Activer"}
-            </Button>
-
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => handleOpenDeleteModal(user._id)}
-              icon={<Trash2 size={14} className="text-white" />}
-              className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
-            >
-              Supprimer
-            </Button>
-          </div>
-        ),
-      };
-    });
-  }, [users, filters, companies]);
+              <Badge
+                type={user.status === "active" ? "success" : "error"}
+                label={user.status === "active" ? "Actif" : "Inactif"}
+              />
+            </div>
+          ),
+          createdAt: creationDate,
+          actions: (
+            <div className="flex space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditUser(user)}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Éditer l'utilisateur"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleOpenDeleteModal(user._id)}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Supprimer l'utilisateur"
+              >
+                <Trash className="h-4 w-4 text-red-500" />
+              </Button>
+            </div>
+          ),
+        };
+      });
+  }, [users, filters.role, filters.status, filters.companyId, companies]);
 
   /**
    * Gestion du changement des filtres
@@ -378,7 +356,7 @@ const UserManagementPage: React.FC = () => {
   const handleRoleChange = (value: string) => {
     setFormData({
       ...formData,
-      role: value as "admin" | "directeur" | "manager" | "employé",
+      role: value as "admin" | "directeur" | "manager" | "employee",
     });
 
     if (formErrors.role) {
@@ -554,7 +532,7 @@ const UserManagementPage: React.FC = () => {
         firstName: "",
         lastName: "",
         email: "",
-        role: "employé",
+        role: "employee",
         password: "",
         photoUrl: undefined,
         companyId: "",
@@ -580,7 +558,7 @@ const UserManagementPage: React.FC = () => {
    */
   const handleOpenRoleModal = (
     userId: string,
-    role: "admin" | "directeur" | "manager" | "employé"
+    role: "admin" | "directeur" | "manager" | "employee"
   ) => {
     setSelectedUserId(userId);
     setSelectedUserRole(role);
@@ -663,7 +641,7 @@ const UserManagementPage: React.FC = () => {
       firstName: "",
       lastName: "",
       email: "",
-      role: "employé",
+      role: "employee",
       password: "",
       photoUrl: undefined,
       companyId: "",
@@ -764,7 +742,6 @@ const UserManagementPage: React.FC = () => {
           className="mb-8 text-gray-900 dark:text-white [&>h1]:text-gray-900 [&>h1]:dark:text-white [&>p]:text-gray-600 [&>p]:dark:text-gray-200"
         />
 
-        {/* Section de filtres et bouton d'ajout */}
         {/* Section de filtres et bouton d'ajout */}
         <SectionCard
           className="relative z-50 mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm"
@@ -879,11 +856,9 @@ const UserManagementPage: React.FC = () => {
           <div className="space-y-4">
             {/* Photo de profil */}
             <div className="flex flex-col items-center mb-6">
-              <Avatar
-                src={previewUrl}
-                size="xl"
-                className="mb-4 border-2 border-indigo-600 dark:border-indigo-400"
-              />
+              <div className="mb-4 border-2 border-indigo-600 dark:border-indigo-400 rounded-full overflow-hidden">
+                <Avatar src={previewUrl} size="xl" alt="Photo de profil" />
+              </div>
 
               <FileUpload
                 label="Photo de profil (optionnelle)"

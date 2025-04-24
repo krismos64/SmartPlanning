@@ -51,7 +51,8 @@ const requireRole = (roles: string[]) => {
 // Interface pour la création d'équipe
 interface CreateTeamInput {
   name: string;
-  managerId: string;
+  managerIds: string[];
+  employeeIds: string[];
   companyId: string;
 }
 
@@ -59,6 +60,7 @@ interface CreateTeamInput {
 interface UpdateTeamInput {
   name?: string;
   managerIds?: string[];
+  employeeIds?: string[];
 }
 
 const router = express.Router();
@@ -92,11 +94,10 @@ router.get(
         });
       }
 
-      // Récupérer toutes les équipes de l'entreprise
-      const teams = await TeamModel.find({ companyId }).populate(
-        "managerIds",
-        "firstName lastName email"
-      );
+      // Récupérer toutes les équipes de l'entreprise avec managers et employés peuplés
+      const teams = await TeamModel.find({ companyId })
+        .populate("managerIds", "firstName lastName email")
+        .populate("employeeIds", "firstName lastName email status"); // Ajout du peuplement des employés
 
       return res.status(200).json({
         success: true,
@@ -124,65 +125,122 @@ router.post(
   requireRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
-      const { name, managerId, companyId } = req.body as CreateTeamInput;
-      const userWithAuth = req as any;
+      const { name, managerIds, employeeIds, companyId } =
+        req.body as CreateTeamInput;
 
       // Validation des champs requis
-      if (!name || !managerId || !companyId) {
+      if (!name || !managerIds || !employeeIds || !companyId) {
         return res.status(400).json({
           success: false,
-          message: "Tous les champs sont requis (name, managerId, companyId)",
+          message:
+            "Tous les champs sont requis (name, managerIds, employeeIds, companyId)",
         });
       }
 
-      // Vérifier que le managerId et companyId sont des ObjectId valides
-      if (
-        !mongoose.Types.ObjectId.isValid(managerId) ||
-        !mongoose.Types.ObjectId.isValid(companyId)
-      ) {
+      // Vérifier que les tableaux ne sont pas vides
+      if (!Array.isArray(managerIds) || managerIds.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "Les identifiants fournis ne sont pas valides",
+          message: "Au moins un manager doit être sélectionné",
         });
       }
 
-      // Vérifier que le manager existe, a le rôle "manager" et appartient à l'entreprise
-      const manager = await User.findById(managerId);
-      if (!manager) {
-        return res.status(404).json({
+      if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+        return res.status(400).json({
           success: false,
-          message: "Le manager spécifié n'existe pas",
+          message: "Au moins un employé doit être sélectionné",
         });
       }
 
-      if (manager.role !== "manager") {
+      // Vérifier que companyId est un ObjectId valide
+      if (!mongoose.Types.ObjectId.isValid(companyId)) {
         return res.status(400).json({
           success: false,
-          message: "L'utilisateur spécifié n'est pas un manager",
+          message: "L'identifiant de l'entreprise n'est pas valide",
         });
       }
 
-      if (!manager.companyId || manager.companyId.toString() !== companyId) {
+      // Vérifier que tous les managerIds sont des ObjectId valides
+      const invalidManagerIds = managerIds.filter(
+        (id) => !mongoose.Types.ObjectId.isValid(id)
+      );
+      if (invalidManagerIds.length > 0) {
         return res.status(400).json({
           success: false,
-          message: "Le manager n'appartient pas à l'entreprise spécifiée",
+          message: "Certains identifiants de managers ne sont pas valides",
+        });
+      }
+
+      // Vérifier que tous les employeeIds sont des ObjectId valides
+      const invalidEmployeeIds = employeeIds.filter(
+        (id) => !mongoose.Types.ObjectId.isValid(id)
+      );
+      if (invalidEmployeeIds.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Certains identifiants d'employés ne sont pas valides",
+        });
+      }
+
+      // Vérifier que tous les managers existent, ont le rôle "manager" et appartiennent à l'entreprise
+      const managerPromises = managerIds.map(async (managerId) => {
+        const manager = await User.findById(managerId);
+        if (!manager) {
+          throw new Error(`Le manager avec l'ID ${managerId} n'existe pas`);
+        }
+        if (manager.role !== "manager") {
+          throw new Error(
+            `L'utilisateur avec l'ID ${managerId} n'est pas un manager`
+          );
+        }
+        if (!manager.companyId || manager.companyId.toString() !== companyId) {
+          throw new Error(
+            `Le manager avec l'ID ${managerId} n'appartient pas à l'entreprise spécifiée`
+          );
+        }
+        return manager;
+      });
+
+      // Vérifier que tous les employés existent et appartiennent à l'entreprise
+      const employeePromises = employeeIds.map(async (employeeId) => {
+        const employee = await EmployeeModel.findById(employeeId);
+        if (!employee) {
+          throw new Error(`L'employé avec l'ID ${employeeId} n'existe pas`);
+        }
+        if (
+          !employee.companyId ||
+          employee.companyId.toString() !== companyId
+        ) {
+          throw new Error(
+            `L'employé avec l'ID ${employeeId} n'appartient pas à l'entreprise spécifiée`
+          );
+        }
+        return employee;
+      });
+
+      try {
+        await Promise.all([...managerPromises, ...employeePromises]);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: (error as Error).message,
         });
       }
 
       // Créer la nouvelle équipe
       const newTeam = new TeamModel({
         name,
-        managerIds: [managerId],
+        managerIds,
+        employeeIds,
         companyId,
       });
 
       const savedTeam = await newTeam.save();
 
-      // Récupérer l'équipe avec les informations du manager
-      const team = await TeamModel.findById(savedTeam._id).populate(
-        "managerIds",
-        "firstName lastName email"
-      );
+      // Récupérer l'équipe avec les informations des managers
+      const team = await TeamModel.findById(savedTeam._id)
+        .populate("managerIds", "firstName lastName email")
+        .populate("employeeIds", "firstName lastName email");
 
       return res.status(201).json({
         success: true,
@@ -211,7 +269,7 @@ router.patch(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { name, managerId } = req.body as UpdateTeamInput;
+      const { name, managerIds, employeeIds } = req.body as UpdateTeamInput;
       const userWithAuth = req as any;
 
       // Vérifier que l'ID de l'équipe est valide
@@ -238,43 +296,88 @@ router.patch(
         updateData.name = name;
       }
 
-      if (managerId !== undefined) {
-        // Vérifier que le managerId est valide
-        if (!mongoose.Types.ObjectId.isValid(managerId)) {
+      if (managerIds !== undefined) {
+        // Vérifier que les managerIds sont valides
+        const invalidManagerIds = managerIds.filter(
+          (id) => !mongoose.Types.ObjectId.isValid(id)
+        );
+        if (invalidManagerIds.length > 0) {
           return res.status(400).json({
             success: false,
-            message: "L'identifiant du manager n'est pas valide",
+            message: "Certains identifiants de managers ne sont pas valides",
           });
         }
 
-        // Vérifier que le manager existe, a le rôle "manager" et appartient à l'entreprise
-        const manager = await User.findById(managerId);
-        if (!manager) {
-          return res.status(404).json({
-            success: false,
-            message: "Le manager spécifié n'existe pas",
-          });
-        }
+        // Vérifier que tous les managers existent, ont le rôle "manager" et appartiennent à l'entreprise
+        const managerPromises = managerIds.map(async (managerId) => {
+          const manager = await User.findById(managerId);
+          if (!manager) {
+            throw new Error(`Le manager avec l'ID ${managerId} n'existe pas`);
+          }
+          if (manager.role !== "manager") {
+            throw new Error(
+              `L'utilisateur avec l'ID ${managerId} n'est pas un manager`
+            );
+          }
+          if (
+            !manager.companyId ||
+            manager.companyId.toString() !== team.companyId.toString()
+          ) {
+            throw new Error(
+              `Le manager avec l'ID ${managerId} n'appartient pas à l'entreprise de cette équipe`
+            );
+          }
+          return manager;
+        });
 
-        if (manager.role !== "manager") {
+        try {
+          await Promise.all(managerPromises);
+        } catch (error) {
           return res.status(400).json({
             success: false,
-            message: "L'utilisateur spécifié n'est pas un manager",
+            message: (error as Error).message,
           });
         }
 
-        if (
-          !manager.companyId ||
-          manager.companyId.toString() !== team.companyId.toString()
-        ) {
+        updateData.managerIds = managerIds;
+      }
+
+      if (employeeIds !== undefined) {
+        const invalidEmployeeIds = employeeIds.filter(
+          (id) => !mongoose.Types.ObjectId.isValid(id)
+        );
+        if (invalidEmployeeIds.length > 0) {
           return res.status(400).json({
             success: false,
-            message:
-              "Le manager n'appartient pas à l'entreprise de cette équipe",
+            message: "Certains identifiants d'employés ne sont pas valides",
           });
         }
 
-        updateData.managerIds = [managerId];
+        const employeeChecks = employeeIds.map(async (employeeId) => {
+          const employee = await EmployeeModel.findById(employeeId);
+          if (!employee) {
+            throw new Error(`L'employé avec l'ID ${employeeId} n'existe pas`);
+          }
+          if (
+            !employee.companyId ||
+            employee.companyId.toString() !== team.companyId.toString()
+          ) {
+            throw new Error(
+              `L'employé avec l'ID ${employeeId} n'appartient pas à l'entreprise de cette équipe`
+            );
+          }
+        });
+
+        try {
+          await Promise.all(employeeChecks);
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: (error as Error).message,
+          });
+        }
+
+        updateData.employeeIds = employeeIds;
       }
 
       // Mettre à jour l'équipe
@@ -282,7 +385,9 @@ router.patch(
         id,
         { $set: updateData },
         { new: true }
-      ).populate("managerIds", "firstName lastName email");
+      )
+        .populate("managerIds", "firstName lastName email")
+        .populate("employeeIds", "firstName lastName email status"); // <-- Ajout ici
 
       return res.status(200).json({
         success: true,

@@ -4,48 +4,47 @@ import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import morgan from "morgan";
-import { adminCompaniesRouter } from "./routes/admin/companies.route";
-import adminUsersRoutes from "./routes/admin/users.route";
 
-// Routes
 import adminTeamRoutes from "./routes/admin/adminTeam.routes";
+import { adminCompaniesRouter } from "./routes/admin/companies.route";
+import adminEmployeesRoutes from "./routes/admin/employees";
+import adminUsersRoutes from "./routes/admin/users.route";
 import authRoutes from "./routes/auth.routes";
 import collaboratorRoutes from "./routes/collaborator.routes";
 
-// Load env variables
+// Charger les variables d'environnement
 dotenv.config();
 
-// Initialize Express
+// Initialisation de l'application
 const app: Express = express();
 
-// Connection à MongoDB
+// Connexion à MongoDB
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/smartplanning")
-  .then(() => {
-    console.log("✅ Connected to MongoDB");
-  })
+  .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => {
     console.error("❌ Error connecting to MongoDB:", err);
     process.exit(1);
   });
 
 // Middlewares
-app.use(morgan("dev")); // Logging
+app.use(morgan("dev"));
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true,
   })
-); // CORS
-app.use(helmet()); // Sécurité
-app.use(express.json()); // Body parser pour JSON
-app.use(express.urlencoded({ extended: true })); // Body parser pour URL-encoded
+);
+app.use(helmet());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);
+app.use("/api/admin/employees", adminEmployeesRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
 
 // Route par défaut
@@ -64,5 +63,4 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ message: "Erreur serveur", error: err.message });
 });
 
-// Export de l'app
 export default app;

@@ -56,7 +56,7 @@ const canManageRole = (
   const targetRole = req.body.role;
 
   // Vérifie si le rôle cible est valide et différent de "admin"
-  if (!targetRole || !["manager", "employé"].includes(targetRole)) {
+  if (!targetRole || !["manager", "employee"].includes(targetRole)) {
     return res.status(400).json({
       success: false,
       message: "Rôle invalide ou non autorisé",
@@ -76,7 +76,7 @@ const canManageRole = (
   }
 
   // Les managers peuvent gérer uniquement les employés
-  if (req.user.role === "manager" && targetRole === "employé") {
+  if (req.user.role === "manager" && targetRole === "employee") {
     return next();
   }
 
@@ -226,7 +226,7 @@ router.post(
       }
 
       // Valider le teamId pour un employé
-      if (role === "employé" && !teamId) {
+      if (role === "employee" && !teamId) {
         return res.status(400).json({
           success: false,
           message: "L'identifiant d'équipe est requis pour un employé",
@@ -264,9 +264,9 @@ router.post(
 
       // Pour les managers ou employés, créer aussi une entrée dans le modèle Employee
       let employee = null;
-      if (role === "manager" || role === "employé") {
+      if (role === "manager" || role === "employee") {
         // Déterminer le teamId
-        const employeeTeamId = role === "employé" ? teamId : null;
+        const employeeTeamId = role === "employee" ? teamId : null;
 
         employee = new EmployeeModel({
           userId: savedUser._id,
@@ -342,7 +342,7 @@ router.patch(
       if (role && role !== targetUser.role) {
         if (
           req.user.role === "manager" ||
-          !["manager", "employé"].includes(role)
+          !["manager", "employee"].includes(role)
         ) {
           return res.status(403).json({
             success: false,
@@ -405,7 +405,7 @@ router.patch(
         if (lastName) targetEmployee.lastName = lastName;
 
         // Mise à jour de l'équipe si fournie (et si employé)
-        if (teamId && targetUser.role === "employé") {
+        if (teamId && targetUser.role === "employee") {
           targetEmployee.teamId = teamId;
         }
 
@@ -419,7 +419,7 @@ router.patch(
 
       // Créer un nouvel enregistrement Employee si passage de manager à employé
       if (
-        role === "employé" &&
+        role === "employee" &&
         targetUser.role === "manager" &&
         !targetEmployee
       ) {

@@ -33,7 +33,7 @@ const roleOptions = [
   { value: "admin", label: "Administrateur" },
   { value: "directeur", label: "Directeur" },
   { value: "manager", label: "Manager" },
-  { value: "employé", label: "Employé" },
+  { value: "employee", label: "Employé" },
 ];
 
 // Interface pour les entreprises
@@ -56,7 +56,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     firstName: "",
     lastName: "",
     email: "",
-    role: "employé",
+    role: "employee",
     companyId: "",
   });
 
@@ -442,7 +442,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           <Select
             label="Rôle"
             options={roleOptions}
-            value={formData.role || "employé"}
+            value={formData.role || "employee"}
             onChange={handleRoleChange}
             icon={
               <User size={18} className="text-indigo-600 dark:text-sky-300" />

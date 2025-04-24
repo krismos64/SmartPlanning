@@ -56,10 +56,11 @@ const employeeSchema = new Schema<EmployeeDocument>(
       ref: "Company",
       required: [true, "L'identifiant de l'entreprise est requis"],
     },
+    // Peut être null si l'employé n'est pas encore affecté à une équipe
     teamId: {
       type: Schema.Types.ObjectId,
       ref: "Team",
-      required: [true, "L'identifiant de l'équipe est requis"],
+      default: null,
     },
     firstName: {
       type: String,

@@ -70,10 +70,10 @@ const getAvailableRoles = (currentUserRole: string) => {
   if (currentUserRole === "directeur") {
     return [
       { value: "manager", label: "Manager" },
-      { value: "employé", label: "Employé" },
+      { value: "employee", label: "Employé" },
     ];
   } else if (currentUserRole === "manager") {
-    return [{ value: "employé", label: "Employé" }];
+    return [{ value: "employee", label: "Employé" }];
   }
   return [];
 };
@@ -117,7 +117,7 @@ const CollaboratorManagementPage: React.FC = () => {
     firstName: "",
     lastName: "",
     email: "",
-    role: "employé",
+    role: "employee",
     password: "",
     teamId: undefined,
     contractHoursPerWeek: undefined,
@@ -332,7 +332,7 @@ const CollaboratorManagementPage: React.FC = () => {
   const handleRoleChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
-      role: value as "manager" | "employé",
+      role: value as "manager" | "employee",
     }));
 
     if (formErrors.role) {
@@ -408,7 +408,7 @@ const CollaboratorManagementPage: React.FC = () => {
     // Si l'utilisateur est manager, le teamId est obligatoire pour les employés
     if (
       user?.role === "manager" &&
-      formData.role === "employé" &&
+      formData.role === "employee" &&
       !formData.teamId
     ) {
       errors.teamId = "L'équipe est requise";
@@ -440,7 +440,7 @@ const CollaboratorManagementPage: React.FC = () => {
       firstName: "",
       lastName: "",
       email: "",
-      role: user?.role === "directeur" ? "manager" : "employé",
+      role: user?.role === "directeur" ? "manager" : "employee",
       password: "",
       teamId: user?.role === "manager" ? user._id : undefined,
       contractHoursPerWeek: 35,
@@ -697,7 +697,7 @@ const CollaboratorManagementPage: React.FC = () => {
             {/* Afficher le sélecteur d'équipe uniquement si l'utilisateur est un directeur 
                 ou si c'est un manager qui crée un employé */}
             {(user?.role === "directeur" ||
-              (user?.role === "manager" && formData.role === "employé")) && (
+              (user?.role === "manager" && formData.role === "employee")) && (
               <Select
                 label="Équipe"
                 options={teamOptions}

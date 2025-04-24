@@ -12,7 +12,7 @@ export interface Collaborator {
   firstName: string;
   lastName: string;
   email: string;
-  role: Extract<UserRole, "manager" | "employé">;
+  role: Extract<UserRole, "manager" | "employee">;
   companyId: string;
   status: "active" | "inactive";
   teamId?: string;
@@ -42,7 +42,7 @@ export interface CreateCollaboratorInput {
   lastName: string;
   email: string;
   password: string;
-  role: Extract<UserRole, "manager" | "employé">;
+  role: Extract<UserRole, "manager" | "employee">;
   teamId?: string;
   contractHoursPerWeek?: number;
 }
@@ -56,7 +56,7 @@ export interface UpdateCollaboratorInput {
   lastName?: string;
   email?: string;
   password?: string;
-  role?: Extract<UserRole, "manager" | "employé">;
+  role?: Extract<UserRole, "manager" | "employee">;
   teamId?: string;
   contractHoursPerWeek?: number;
 }

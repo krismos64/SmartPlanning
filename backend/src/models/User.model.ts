@@ -10,7 +10,7 @@ export type LoginHistoryItem = {
 };
 
 // Type pour les rôles utilisateur
-export type UserRole = "admin" | "directeur" | "manager" | "employé";
+export type UserRole = "admin" | "directeur" | "manager" | "employee";
 
 // Interface pour les données Google OAuth
 export interface GoogleProfile {
@@ -111,8 +111,8 @@ const userSchema = new Schema<UserDocument>(
     },
     role: {
       type: String,
-      enum: ["admin", "directeur", "manager", "employé"],
-      default: "employé",
+      enum: ["admin", "directeur", "manager", "employee"],
+      default: "employee",
     },
     status: {
       type: String,

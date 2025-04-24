@@ -56,10 +56,11 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: "admin" | "directeur" | "manager" | "employé";
+  role: "admin" | "directeur" | "manager" | "employee";
   status: "active" | "inactive";
   createdAt: string;
   photoUrl?: string;
+  companyId?: string;
 }
 
 /**
