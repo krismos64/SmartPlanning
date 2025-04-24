@@ -63,7 +63,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 1.0.0
+### Version actuelle : 1.1.0
 
 **Fonctionnalités implémentées :**
 
@@ -83,11 +83,32 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - Incidents et tâches
 - Demandes de congés
 
+✅ **Administration et gestion**
+
+- **Gestion complète des utilisateurs**
+  - Création, modification et suppression d'utilisateurs
+  - Attribution de rôles (admin, directeur, manager, employé)
+  - Activation/désactivation des comptes
+  - Upload de photos de profil (intégration Cloudinary)
+  - Filtrage par rôle, statut et entreprise
+- **Gestion des entreprises**
+
+  - Création et édition des entreprises
+  - Upload de logos
+  - Association des utilisateurs à leurs entreprises
+  - Vue globale de toutes les entreprises
+
+- **Gestion des équipes**
+  - Création d'équipes au sein des entreprises
+  - Attribution de responsables d'équipe
+  - Ajout/suppression de membres
+  - Organisation hiérarchique
+
 ✅ **Interface utilisateur**
 
 - Page d'accueil et authentification
-- Tableau de bord principal
-- Gestion des utilisateurs et des équipes
+- Tableau de bord principal avec statistiques
+- Interfaces administratives complètes
 - Visualisation des plannings hebdomadaires
 - Interface de suivi des incidents
 - Gestion des tâches des employés
@@ -97,8 +118,17 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 - Système JWT pour l'authentification
 - Support pour Google OAuth
-- Contrôle d'accès basé sur les rôles
+- Contrôle d'accès basé sur les rôles (RBAC)
 - Protection des routes API
+- Validation des formulaires côté client et serveur
+
+✅ **Expérience utilisateur avancée**
+
+- Mode clair/sombre basé sur les préférences système
+- Interfaces responsives pour desktop et mobile
+- Système de notifications et toasts
+- Modals et confirmations pour les actions importantes
+- Composants UI optimisés et réutilisables
 
 **Fonctionnalités en cours de développement :**
 
@@ -122,25 +152,55 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ### Dernières mises à jour
 
-- Mise en place de l'authentification avec JWT et Google OAuth
-- Développement des interfaces de gestion des plannings
-- Implémentation des modèles de données pour le suivi des incidents
-- Configuration initiale de la base de données MongoDB
-- Développement du système de validation des plannings générés
+- Finalisation des modules d'administration (gestion des utilisateurs, entreprises, équipes)
+- Correction des problèmes TypeScript dans les composants UI
+- Amélioration du système de filtrage et de recherche dans les interfaces administratives
+- Optimisation de performance avec useMemo pour les listes filtrées
+- Mise en place d'un système de gestion des erreurs unifié
+- Amélioration de l'accessibilité des composants UI
 
 ## Stack technique
 
 | Catégorie                     | Technologies                                                      |
 | ----------------------------- | ----------------------------------------------------------------- |
-| **Frontend**                  | React.js, TypeScript, TailwindCSS, Framer Motion                  |
+| **Frontend**                  | React.js, TypeScript, TailwindCSS, Framer Motion, React Router    |
 | **Backend**                   | Node.js, Express.js, TypeScript, JWT                              |
 | **Base de données**           | MongoDB Atlas, Mongoose                                           |
 | **Intelligence artificielle** | OpenAI API                                                        |
 | **Authentification**          | JWT, Google OAuth, Passport.js                                    |
+| **Upload de fichiers**        | Cloudinary, Multer                                                |
 | **Déploiement**               | Docker, Vercel/Netlify (Frontend), Heroku/Digital Ocean (Backend) |
 | **Outils de développement**   | ESLint, Prettier, Jest, React Testing Library                     |
 
 ## Changelog
+
+### Version 1.1.0
+
+- **Correction et amélioration des composants UI**
+
+  - Résolution des problèmes de typage TypeScript dans les composants Badge, Avatar et Button
+  - Amélioration de la cohérence visuelle des composants dans les thèmes clair/sombre
+  - Optimisation de l'accessibilité avec l'utilisation d'attributs aria-label
+
+- **Administration des utilisateurs - Améliorations**
+
+  - Ajout de la propriété `companyId` au type User pour corriger les erreurs TypeScript
+  - Correction des filtres par entreprise dans la gestion utilisateurs
+  - Amélioration visuelle des badges de rôle et statut
+  - Implémentation de feedback visuel pour les actions d'édition et suppression
+
+- **Gestion des entreprises - Optimisations**
+
+  - Amélioration de l'interface de gestion des entreprises
+  - Optimisation des requêtes API pour une meilleure performance
+  - Support multi-équipes au sein d'une entreprise
+
+- **Refactoring et typage**
+  - Amélioration du typage dans tous les composants administratifs
+  - Utilisation cohérente des interfaces TypeScript
+  - Séparation claire des responsabilités dans les services API
+
+### Version 1.0.0
 
 - **Filtre par entreprise sur la gestion des utilisateurs**
 
@@ -160,11 +220,6 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
   - Permet d'afficher plus d'options sans scroll immédiat, surtout pour les entreprises.
   - Comportement responsive : la hauteur reste raisonnable sur mobile.
   - Aucun impact sur les autres composants utilisant `<Select />`.
-
-- **Refactoring et typage**
-
-  - Ajout de la propriété `companyId` dans le type `User` côté frontend et backend.
-  - Nettoyage des effets et des noms de variables pour plus de clarté (`selectedCompanyId`, `filteredUsers`, etc).
 
 - **Divers**
   - Ajout de commentaires explicites sur tous les effets et blocs importants.
@@ -242,7 +297,7 @@ cd frontend
 npm run dev
 ```
 
-Le backend sera accessible à l'adresse [http://localhost:5000](http://localhost:5000) et le frontend à [http://localhost:3000](http://localhost:3000).
+Le backend sera accessible à l'adresse [http://localhost:5050](http://localhost:5050) et le frontend à [http://localhost:5173](http://localhost:5173).
 
 ## Scripts d'initialisation
 
