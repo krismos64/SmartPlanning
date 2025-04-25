@@ -12,12 +12,15 @@ import {
   Brain,
   Calendar,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Edit,
   Eye,
+  Grid,
   Plus,
-  Search,
   Trash,
+  User,
   Users,
 } from "lucide-react";
 import React, {
@@ -41,7 +44,6 @@ import SectionTitle from "../components/layout/SectionTitle";
 import Avatar from "../components/ui/Avatar";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
-import DatePicker from "../components/ui/DatePicker";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Select from "../components/ui/Select";
 import Table from "../components/ui/Table";
@@ -108,6 +110,22 @@ const TIME_OPTIONS = Array.from({ length: 24 * 4 + 1 }, (_, i) => {
     .padStart(2, "0")}`;
 });
 
+// Constantes pour les noms de mois en français
+const MONTH_NAMES = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
+];
+
 /**
  * Calcule la durée en minutes entre deux horaires au format "HH:MM"
  */
@@ -148,9 +166,15 @@ const WeeklySchedulePage: React.FC = () => {
   const [weekNumber, setWeekNumber] = useState<number>(getISOWeek(new Date()));
   // État pour stocker la date sélectionnée dans le DatePicker
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [selectedTeam, setSelectedTeam] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"team" | "employee" | "global">(
+    "global"
+  );
 
   // États pour les données et le chargement
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [teams, setTeams] = useState<{ _id: string; name: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -302,17 +326,29 @@ const WeeklySchedulePage: React.FC = () => {
   }, []);
 
   /**
+   * Fonction pour récupérer les équipes
+   */
+  const fetchTeams = useCallback(async () => {
+    try {
+      const response = await api.get(`/teams`);
+      setTeams(response.data.data || []);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des équipes:", error);
+    }
+  }, []);
+
+  /**
    * Chargement initial des données au montage du composant
-   * et à chaque changement d'année ou de numéro de semaine
    */
   useEffect(() => {
     fetchSchedules();
     fetchEmployees();
-  }, [fetchSchedules, fetchEmployees]);
+    fetchTeams();
+  }, [fetchSchedules, fetchEmployees, fetchTeams]);
 
   /**
    * Vérifie si un planning existe déjà pour l'employé sélectionné
-   * et charge ses données dans le formulaire si nécessaire
+   * et la semaine/année courante, puis charge ses données dans le formulaire si nécessaire
    */
   const checkExistingSchedule = useCallback(() => {
     if (!selectedEmployeeId) {
@@ -321,8 +357,12 @@ const WeeklySchedulePage: React.FC = () => {
       return;
     }
 
+    // Vérification d'un planning existant pour cet employé POUR LA SEMAINE ET L'ANNÉE SPÉCIFIQUES
     const existingSchedule = schedules.find(
-      (schedule) => schedule.employeeId === selectedEmployeeId
+      (schedule) =>
+        schedule.employeeId === selectedEmployeeId &&
+        schedule.weekNumber === weekNumber &&
+        schedule.year === year
     );
 
     if (existingSchedule) {
@@ -358,7 +398,7 @@ const WeeklySchedulePage: React.FC = () => {
       setIsEditMode(false);
       resetForm();
     }
-  }, [selectedEmployeeId, schedules]);
+  }, [selectedEmployeeId, schedules, weekNumber, year]);
 
   /**
    * Réinitialise le formulaire avec des valeurs par défaut
@@ -463,9 +503,25 @@ const WeeklySchedulePage: React.FC = () => {
       return;
     }
 
+    // Vérifier si un planning existe déjà pour cet employé sur cette semaine spécifique
+    const existingScheduleForWeek = schedules.find(
+      (schedule) =>
+        schedule.employeeId === selectedEmployeeId &&
+        schedule.weekNumber === weekNumber &&
+        schedule.year === year
+    );
+
+    if (existingScheduleForWeek) {
+      setError(
+        `Un planning existe déjà pour cet employé sur la semaine ${weekNumber} de ${year}.`
+      );
+      setShowErrorToast(true);
+      return;
+    }
+
     // Préparation des données à envoyer
     const payload = preparePayload();
-    console.log("Payload envoyé au backend :", payload);
+    console.log("Payload envoyé au backend pour création:", payload);
 
     if (!payload) {
       setError("Impossible de préparer les données du planning.");
@@ -495,7 +551,9 @@ const WeeklySchedulePage: React.FC = () => {
         },
       });
 
-      setSuccess("Planning hebdomadaire créé avec succès.");
+      setSuccess(
+        `Planning hebdomadaire créé avec succès pour la semaine ${weekNumber} de ${year}.`
+      );
       setShowSuccessToast(true);
 
       // Réinitialisation du formulaire et rechargement
@@ -532,6 +590,23 @@ const WeeklySchedulePage: React.FC = () => {
     const payload = preparePayload();
     if (!payload) return;
 
+    // Vérifier que le planning est bien pour la semaine sélectionnée
+    const existingSchedule = schedules.find(
+      (s) => s._id === existingScheduleId
+    );
+    if (
+      !existingSchedule ||
+      existingSchedule.weekNumber !== weekNumber ||
+      existingSchedule.year !== year
+    ) {
+      setError(
+        `Le planning que vous essayez de modifier n'est pas pour la semaine ${weekNumber} de ${year}.`
+      );
+      setShowErrorToast(true);
+      return;
+    }
+
+    console.log("Payload envoyé au backend pour mise à jour:", payload);
     setCreatingSchedule(true);
     setError(null);
 
@@ -556,7 +631,9 @@ const WeeklySchedulePage: React.FC = () => {
       });
 
       // Notification de succès
-      setSuccess("Planning hebdomadaire mis à jour avec succès");
+      setSuccess(
+        `Planning hebdomadaire mis à jour avec succès pour la semaine ${weekNumber} de ${year}.`
+      );
       setShowSuccessToast(true);
 
       // Rechargement des plannings
@@ -837,6 +914,306 @@ const WeeklySchedulePage: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
+  // Fonctions pour la navigation dans le calendrier
+  const goToPreviousWeek = () => {
+    const prevWeek = new Date(selectedDate);
+    prevWeek.setDate(prevWeek.getDate() - 7);
+    setSelectedDate(prevWeek);
+    setYear(getYear(prevWeek));
+    setWeekNumber(getISOWeek(prevWeek));
+    fetchSchedules();
+  };
+
+  const goToNextWeek = () => {
+    const nextWeek = new Date(selectedDate);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    setSelectedDate(nextWeek);
+    setYear(getYear(nextWeek));
+    setWeekNumber(getISOWeek(nextWeek));
+    fetchSchedules();
+  };
+
+  const goToCurrentWeek = () => {
+    const today = new Date();
+    setSelectedDate(today);
+    setYear(getYear(today));
+    setWeekNumber(getISOWeek(today));
+    fetchSchedules();
+  };
+
+  const handleMonthChange = (increment: number) => {
+    const newMonth = new Date(calendarMonth);
+    newMonth.setMonth(newMonth.getMonth() + increment);
+    setCalendarMonth(newMonth);
+  };
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    setYear(getYear(date));
+    setWeekNumber(getISOWeek(date));
+    fetchSchedules();
+  };
+
+  const changeViewMode = (mode: "team" | "employee" | "global") => {
+    setViewMode(mode);
+    setSelectedTeam("");
+  };
+
+  /**
+   * Génération du calendrier interactif
+   */
+  const renderCalendar = () => {
+    const today = new Date();
+    const firstDayOfMonth = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth(),
+      1
+    );
+    const lastDayOfMonth = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth() + 1,
+      0
+    );
+
+    // Obtenir le jour de la semaine du 1er du mois (0 = Dimanche, 1 = Lundi, etc.)
+    let firstDayOfWeek = firstDayOfMonth.getDay();
+    if (firstDayOfWeek === 0) firstDayOfWeek = 7; // Ajuster pour que Lundi = 1
+
+    // Calculer le nombre de jours du mois précédent à afficher
+    const daysFromPrevMonth = firstDayOfWeek - 1;
+
+    // Calculer le nombre total de jours dans le mois
+    const daysInMonth = lastDayOfMonth.getDate();
+
+    // Créer un tableau de dates à afficher dans le calendrier
+    const calendarDays: Date[] = [];
+
+    // Ajouter les jours du mois précédent
+    const prevMonth = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth() - 1,
+      1
+    );
+    const daysInPrevMonth = new Date(
+      prevMonth.getFullYear(),
+      prevMonth.getMonth() + 1,
+      0
+    ).getDate();
+
+    for (
+      let i = daysInPrevMonth - daysFromPrevMonth + 1;
+      i <= daysInPrevMonth;
+      i++
+    ) {
+      calendarDays.push(
+        new Date(prevMonth.getFullYear(), prevMonth.getMonth(), i)
+      );
+    }
+
+    // Ajouter les jours du mois actuel
+    for (let i = 1; i <= daysInMonth; i++) {
+      calendarDays.push(
+        new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), i)
+      );
+    }
+
+    // Ajouter les jours du mois suivant pour compléter la grille (6 semaines au total)
+    const remainingDays = 42 - calendarDays.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      calendarDays.push(
+        new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, i)
+      );
+    }
+
+    // Organiser les jours en semaines
+    const weeks: Date[][] = [];
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      weeks.push(calendarDays.slice(i, i + 7));
+    }
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 overflow-hidden">
+        <div className="flex justify-between items-center mb-4">
+          <button
+            onClick={() => handleMonthChange(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h3 className="text-lg font-semibold">
+            {MONTH_NAMES[calendarMonth.getMonth()]}{" "}
+            {calendarMonth.getFullYear()}
+          </h3>
+          <button
+            onClick={() => handleMonthChange(1)}
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {["L", "M", "M", "J", "V", "S", "D"].map((day, index) => (
+            <div
+              key={index}
+              className="text-center text-sm font-medium text-gray-500 dark:text-gray-400"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {weeks.map((week, weekIndex) => (
+            <React.Fragment key={weekIndex}>
+              {week.map((date, dayIndex) => {
+                const isCurrentMonth =
+                  date.getMonth() === calendarMonth.getMonth();
+                const isToday =
+                  date.getDate() === today.getDate() &&
+                  date.getMonth() === today.getMonth() &&
+                  date.getFullYear() === today.getFullYear();
+                const isSelected =
+                  getISOWeek(date) === weekNumber &&
+                  date.getFullYear() === year;
+
+                // Vérifier si la date appartient à la semaine sélectionnée
+                const weekStart = startOfISOWeek(selectedDate);
+                const weekEnd = addDays(weekStart, 6);
+                const isInSelectedWeek = date >= weekStart && date <= weekEnd;
+
+                return (
+                  <motion.div
+                    key={dayIndex}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleDateClick(date)}
+                    className={`
+                      aspect-square flex items-center justify-center rounded-lg text-sm cursor-pointer
+                      transition-colors duration-200
+                      ${
+                        !isCurrentMonth
+                          ? "text-gray-300 dark:text-gray-600"
+                          : ""
+                      }
+                      ${
+                        isCurrentMonth &&
+                        !isToday &&
+                        !isSelected &&
+                        !isInSelectedWeek
+                          ? "text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                          : ""
+                      }
+                      ${
+                        isInSelectedWeek
+                          ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200"
+                          : ""
+                      }
+                      ${
+                        isToday
+                          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-bold"
+                          : ""
+                      }
+                      ${
+                        isSelected
+                          ? "bg-indigo-500 dark:bg-indigo-600 text-white font-bold"
+                          : ""
+                      }
+                    `}
+                  >
+                    {date.getDate()}
+                  </motion.div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="flex justify-between mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={goToPreviousWeek}
+            icon={<ChevronLeft size={16} />}
+          >
+            Sem. préc.
+          </Button>
+          <Button size="sm" variant="secondary" onClick={goToCurrentWeek}>
+            Aujourd'hui
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={goToNextWeek}
+            icon={<ChevronRight size={16} />}
+            className="flex flex-row-reverse items-center gap-2"
+          >
+            Sem. suiv.
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * Rendu du sélecteur de vue (équipe/employé/global)
+   */
+  const renderViewSelector = () => {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-4">
+        <h3 className="text-lg font-semibold mb-3">Vue des plannings</h3>
+        <div className="flex flex-col space-y-2">
+          <div className="flex space-x-2 mb-3">
+            <Button
+              size="sm"
+              variant={viewMode === "global" ? "primary" : "secondary"}
+              onClick={() => changeViewMode("global")}
+              icon={<Grid size={16} />}
+              className={viewMode === "global" ? "bg-indigo-600" : ""}
+            >
+              Vue globale
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "team" ? "primary" : "secondary"}
+              onClick={() => changeViewMode("team")}
+              icon={<Users size={16} />}
+              className={viewMode === "team" ? "bg-indigo-600" : ""}
+            >
+              Par équipe
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "employee" ? "primary" : "secondary"}
+              onClick={() => changeViewMode("employee")}
+              icon={<User size={16} />}
+              className={viewMode === "employee" ? "bg-indigo-600" : ""}
+            >
+              Par employé
+            </Button>
+          </div>
+
+          {viewMode === "team" && (
+            <div className="mt-2">
+              <select
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+              >
+                <option value="">Toutes les équipes</option>
+                {teams.map((team) => (
+                  <option key={team._id} value={team._id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <LayoutWithSidebar
       activeItem="plannings-hebdomadaires"
@@ -925,82 +1302,73 @@ const WeeklySchedulePage: React.FC = () => {
           className="mb-8"
         />
 
-        {/* Section de recherche avec DatePicker */}
-        <SectionCard
-          title="Rechercher un planning"
-          accentColor="var(--accent-primary)"
-          className="mb-8 rounded-2xl shadow-md"
-        >
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* DatePicker pour la sélection de semaine */}
-            <div className="w-full md:w-2/3">
-              <DatePicker
-                label="Semaine à consulter"
-                selectedDate={selectedDate}
-                onChange={handleDateChange}
-                placeholder="JJ/MM/AAAA"
-                required
-                className="w-full"
-              />
-            </div>
-
-            <div className="w-full md:w-1/3 flex items-end">
-              <Button
-                onClick={fetchSchedules}
-                variant="primary"
-                isLoading={loading}
-                fullWidth
-                icon={<Search size={18} />}
-                className="rounded-xl"
+        {/* Grille principale avec calendrier et filtres */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="md:col-span-1">
+            <div className="space-y-6">
+              {/* Calendrier interactif */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
               >
-                Rechercher
-              </Button>
+                {renderCalendar()}
+              </motion.div>
+
+              {/* Sélecteur de vue */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                {renderViewSelector()}
+              </motion.div>
             </div>
           </div>
-        </SectionCard>
 
-        {/* Tableau des plannings */}
-        <motion.div
-          ref={tableRef}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-8"
-        >
-          <SectionCard
-            title={`Plannings validés - Semaine ${weekNumber}, ${year}`}
-            className="rounded-2xl shadow-md"
+          {/* Tableau des plannings */}
+          <motion.div
+            ref={tableRef}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="md:col-span-2"
           >
-            {loading ? (
-              <div className="py-12 flex justify-center">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : schedules.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table
-                  columns={tableColumns}
-                  data={tableData}
-                  emptyState={{
-                    title: "Aucun planning",
-                    description:
-                      "Aucun planning n'a été trouvé pour cette semaine",
-                    icon: (
-                      <Calendar
-                        size={40}
-                        className="text-gray-400 dark:text-gray-600"
-                      />
-                    ),
-                  }}
-                  className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
-                />
-              </div>
-            ) : (
-              <div className="text-center py-12 text-[var(--text-secondary)] dark:text-gray-400">
-                Aucun planning validé trouvé pour cette semaine.
-              </div>
-            )}
-          </SectionCard>
-        </motion.div>
+            <SectionCard
+              title={`Plannings validés - Semaine ${weekNumber}, ${year}`}
+              className="rounded-2xl shadow-md h-full"
+            >
+              {loading ? (
+                <div className="py-12 flex justify-center">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : schedules.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table
+                    columns={tableColumns}
+                    data={tableData}
+                    emptyState={{
+                      title: "Aucun planning",
+                      description:
+                        "Aucun planning n'a été trouvé pour cette semaine",
+                      icon: (
+                        <Calendar
+                          size={40}
+                          className="text-gray-400 dark:text-gray-600"
+                        />
+                      ),
+                    }}
+                    className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+                  />
+                </div>
+              ) : (
+                <div className="text-center py-12 text-[var(--text-secondary)] dark:text-gray-400">
+                  Aucun planning validé trouvé pour cette semaine.
+                </div>
+              )}
+            </SectionCard>
+          </motion.div>
+        </div>
 
         {/* Formulaire de création/modification de planning */}
         <motion.div
@@ -1016,6 +1384,19 @@ const WeeklySchedulePage: React.FC = () => {
             accentColor={isEditMode ? "var(--warning)" : "var(--success)"}
             className="rounded-2xl shadow-md"
           >
+            <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800">
+              <div className="flex items-center gap-2">
+                <Calendar
+                  className="text-indigo-600 dark:text-indigo-400"
+                  size={18}
+                />
+                <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                  Planification pour: Semaine {weekNumber}, {year} (
+                  {getWeekDateRange(year, weekNumber)})
+                </span>
+              </div>
+            </div>
+
             <form onSubmit={handleSaveSchedule}>
               <div className="mb-4">
                 <Select
