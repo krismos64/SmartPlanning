@@ -36,10 +36,7 @@ const SwitchContainer = styled.button`
   }
 `;
 
-export const ThemeSwitch: React.FC<ThemeSwitchProps> = ({
-  onChange,
-  checked,
-}) => {
+const ThemeSwitch: React.FC<ThemeSwitchProps> = ({ onChange, checked }) => {
   return (
     <SwitchContainer onClick={onChange} aria-label="Changer de thème">
       {checked ? <Sun size={18} /> : <Moon size={18} />}

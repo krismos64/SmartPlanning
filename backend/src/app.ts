@@ -11,7 +11,10 @@ import adminEmployeesRoutes from "./routes/admin/employees";
 import adminUsersRoutes from "./routes/admin/users.route";
 import authRoutes from "./routes/auth.routes";
 import collaboratorRoutes from "./routes/collaborator.routes";
-
+import employeeRoutes from "./routes/employee.routes";
+import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
+import teamRoutes from "./routes/teams.route";
+import weeklySchedulesRouter from "./routes/weeklySchedules.route";
 // Charger les variables d'environnement
 dotenv.config();
 
@@ -46,7 +49,10 @@ app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);
 app.use("/api/admin/employees", adminEmployeesRoutes);
 app.use("/api/collaborators", collaboratorRoutes);
-
+app.use("/api/employees", employeeRoutes);
+app.use("/api/generated-schedules", generatedSchedulesRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/weekly-schedules", weeklySchedulesRouter);
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {
   res.json({ message: "SmartPlanning API" });

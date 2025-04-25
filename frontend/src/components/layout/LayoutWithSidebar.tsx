@@ -6,17 +6,17 @@ import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { User } from "../../types/User";
+import { getEnvVar } from "../../utils/getEnv";
 import { useTheme } from "../ThemeProvider";
 import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
-import { ThemeSwitch } from "../ui/ThemeSwitch";
+import ThemeSwitch from "../ui/ThemeSwitch";
 import SidebarMenu from "./SidebarMenu";
 
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
 // URL de base de l'API (fix pour TypeScript)
-const API_URL =
-  (import.meta as any).env?.VITE_API_URL || "http://localhost:5050/api";
+const API_URL = getEnvVar("VITE_API_URL", "http://localhost:5050/api");
 
 interface LayoutWithSidebarProps {
   children: React.ReactNode;
@@ -226,10 +226,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                         onClick={() => navigate("/profil")}
                         className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 rounded-full px-4 py-2"
                       >
-                        <Avatar
-                          name={`${currentUser.firstName} ${currentUser.lastName}`}
-                          src={currentUser.photoUrl}
-                        />
+                        <Avatar size="md" src={currentUser.photoUrl} />
                         <span className="hidden md:inline">
                           {currentUser.firstName} {currentUser.lastName}
                         </span>

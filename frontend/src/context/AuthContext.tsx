@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await axios.get(`${API_URL}/auth/me`);
 
         if (response.data.success) {
-          setUser(response.data.data);
+          setUser({ ...response.data.data, token });
           setIsAuthenticated(true);
         } else {
           // Token invalide
@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setAuthToken(token);
 
         // Mettre à jour l'état
-        setUser(user);
+        setUser({ ...user, token });
         setIsAuthenticated(true);
       } else {
         throw new Error(response.data.message || "Échec de la connexion");

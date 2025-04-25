@@ -1,4 +1,4 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
 // Définition du statut du planning hebdomadaire
 enum ScheduleStatus {
@@ -12,23 +12,23 @@ export interface ScheduleData {
 }
 
 // Interface pour le document WeeklySchedule
-export interface IWeeklySchedule {
+export interface IWeeklySchedule extends Document {
   employeeId: mongoose.Types.ObjectId;
   year: number;
   weekNumber: number;
-  scheduleData: ScheduleData;
-  status: ScheduleStatus;
+  scheduleData: Record<string, string[]>;
+  status: "approved" | "draft";
   updatedBy: mongoose.Types.ObjectId;
   notes?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  dailyNotes?: Record<string, string>;
+  dailyDates: Record<string, Date>;
+  totalWeeklyMinutes: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Interface pour le document WeeklySchedule avec les méthodes de Mongoose
-export interface WeeklyScheduleDocument extends IWeeklySchedule, Document {}
-
 // Définition du schéma principal WeeklySchedule
-const weeklyScheduleSchema = new Schema<WeeklyScheduleDocument>(
+const weeklyScheduleSchema = new Schema<IWeeklySchedule>(
   {
     employeeId: {
       type: Schema.Types.ObjectId,
@@ -59,7 +59,7 @@ const weeklyScheduleSchema = new Schema<WeeklyScheduleDocument>(
     },
     status: {
       type: String,
-      enum: Object.values(ScheduleStatus),
+      enum: ["approved", "draft"],
       required: [true, "Le statut est requis"],
       default: ScheduleStatus.DRAFT,
     },
@@ -74,6 +74,19 @@ const weeklyScheduleSchema = new Schema<WeeklyScheduleDocument>(
     notes: {
       type: String,
     },
+    dailyNotes: {
+      type: Map,
+      of: String,
+    },
+    dailyDates: {
+      type: Map,
+      of: Date,
+      required: [true, "Les dates quotidiennes sont requises"],
+    },
+    totalWeeklyMinutes: {
+      type: Number,
+      required: [true, "Le total des minutes hebdomadaires est requis"],
+    },
   },
   {
     timestamps: true,
@@ -87,10 +100,9 @@ weeklyScheduleSchema.index(
 );
 
 // Création du modèle
-export const WeeklyScheduleModel: Model<WeeklyScheduleDocument> =
-  mongoose.model<WeeklyScheduleDocument>(
-    "WeeklySchedule",
-    weeklyScheduleSchema
-  );
+const WeeklyScheduleModel = mongoose.model<IWeeklySchedule>(
+  "WeeklySchedule",
+  weeklyScheduleSchema
+);
 
 export default WeeklyScheduleModel;

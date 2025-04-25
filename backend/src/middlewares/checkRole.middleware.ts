@@ -9,12 +9,12 @@ import { NextFunction, Response } from "express";
 import { AuthRequest } from "./auth.middleware";
 
 /**
- * Crée un middleware qui vérifie si l'utilisateur a le rôle requis
+ * Crée un middleware qui vérifie si l'utilisateur a l'un des rôles requis
  *
- * @param role - Le rôle requis pour accéder à la ressource (ex: "admin", "manager")
+ * @param roles - Les rôles autorisés pour accéder à la ressource (ex: ["admin", "manager"])
  * @returns Un middleware Express qui vérifie le rôle de l'utilisateur
  */
-const checkRole = (role: string) => {
+const checkRole = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     try {
       // Vérifier si l'utilisateur est attaché à la requête
@@ -25,15 +25,15 @@ const checkRole = (role: string) => {
         return;
       }
 
-      // Vérifier si l'utilisateur a le rôle requis
-      if (req.user.role !== role) {
+      // Vérifier si l'utilisateur a l'un des rôles requis
+      if (!roles.includes(req.user.role)) {
         res.status(403).json({
           message: "Accès interdit – rôle insuffisant",
         });
         return;
       }
 
-      // Si l'utilisateur a le bon rôle, passer au middleware suivant
+      // Si l'utilisateur a un rôle autorisé, passer au middleware suivant
       next();
     } catch (error) {
       console.error("Erreur lors de la vérification du rôle:", error);

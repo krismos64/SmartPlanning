@@ -16,6 +16,7 @@ import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { User } from "../../types/User";
+import { getEnvVar } from "../../utils/getEnv";
 
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
@@ -121,7 +122,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         }
 
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/admin/companies/${user.companyId}`
+          `${getEnvVar("VITE_API_URL")}/admin/companies/${user.companyId}`
         );
 
         if (response.data.success) {

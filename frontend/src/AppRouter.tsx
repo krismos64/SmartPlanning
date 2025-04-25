@@ -11,7 +11,7 @@ import DatePickerDemoPage from "./pages/DatePickerDemoPage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
 import LoginPage from "./pages/LoginPage";
-import PlanningValidationPage from "./pages/PlanningValidationPage";
+import ManagerPlanningValidationPage from "./pages/ManagerPlanningValidationPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
@@ -69,10 +69,6 @@ const AppRouter: React.FC = () => {
           path="/plannings-hebdomadaires"
           element={<WeeklySchedulePage />}
         />
-        <Route
-          path="/validation-des-plannings"
-          element={<PlanningValidationPage />}
-        />
         <Route path="/gestion-des-conges" element={<VacationsPage />} />
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
@@ -87,6 +83,10 @@ const AppRouter: React.FC = () => {
         <Route
           path="/collaborateurs"
           element={<CollaboratorManagementPage />}
+        />
+        <Route
+          path="/validation-plannings"
+          element={<ManagerPlanningValidationPage />}
         />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
 

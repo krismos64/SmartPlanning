@@ -9,5 +9,6 @@ export interface User {
   status: "active" | "inactive";
   createdAt: string;
   photoUrl?: string; // URL de la photo de profil (optionnelle)
-  companyId?: string; // ID de l'entreprise à laquelle l'utilisateur est rattaché
+  companyId?: string;
+  token?: string;
 }

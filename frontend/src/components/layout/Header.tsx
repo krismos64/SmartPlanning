@@ -4,7 +4,7 @@ import styled from "styled-components";
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { useTheme } from "../../components/ThemeProvider";
 import Button from "../ui/Button";
-import { ThemeSwitch } from "../ui/ThemeSwitch";
+import ThemeSwitch from "../ui/ThemeSwitch";
 
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
