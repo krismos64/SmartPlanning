@@ -82,6 +82,25 @@ const weeklyScheduleSchema = new Schema<IWeeklySchedule>(
       type: Map,
       of: Date,
       required: [true, "Les dates quotidiennes sont requises"],
+      validate: {
+        validator: function (v: Map<string, any>) {
+          // Validation basique pour s'assurer que les valeurs sont soit des dates,
+          // soit des chaînes pouvant être converties en dates
+          if (!v || v.size === 0) return false;
+
+          for (const [_, value] of v.entries()) {
+            if (!(value instanceof Date)) {
+              try {
+                new Date(value);
+              } catch (err) {
+                return false;
+              }
+            }
+          }
+          return true;
+        },
+        message: "Les dates quotidiennes doivent être des dates valides",
+      },
     },
     totalWeeklyMinutes: {
       type: Number,
@@ -92,6 +111,25 @@ const weeklyScheduleSchema = new Schema<IWeeklySchedule>(
     timestamps: true,
   }
 );
+
+// Middleware pour traiter les notes vides avant la sauvegarde
+weeklyScheduleSchema.pre("findOneAndUpdate", function (next) {
+  // @ts-ignore - Accès au contenu de la mise à jour
+  const update = this.getUpdate() as any;
+
+  // Si les notes quotidiennes sont présentes dans la mise à jour
+  if (update && update.dailyNotes) {
+    // S'assurer que les notes vides sont stockées comme des chaînes vides
+    // et non comme undefined ou null pour éviter les problèmes de fusion
+    Object.keys(update.dailyNotes).forEach((day) => {
+      if (!update.dailyNotes[day]) {
+        update.dailyNotes[day] = "";
+      }
+    });
+  }
+
+  next();
+});
 
 // Index pour améliorer les performances de recherche
 weeklyScheduleSchema.index(

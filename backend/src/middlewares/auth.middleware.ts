@@ -40,7 +40,18 @@ export function authenticateToken(
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    req.user = (decoded as any).user;
+    const user = (decoded as any).user;
+
+    // Assurer la cohérence du format utilisateur en ajoutant userId s'il est manquant
+    if (user && user.id && !user.userId) {
+      user.userId = user.id;
+    }
+
+    req.user = user;
+
+    // Debug pour vérifier le format de l'utilisateur
+    console.log("User après transformation:", req.user);
+
     next();
   } catch (error) {
     return res

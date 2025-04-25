@@ -80,7 +80,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await axios.get(`${API_URL}/auth/me`);
 
         if (response.data.success) {
-          setUser({ ...response.data.data, token });
+          // S'assurer que l'ID est disponible dans le format attendu par le backend
+          const userData = response.data.data;
+          // Ajouter userId qui est attendu par le middleware d'authentification
+          setUser({
+            ...userData,
+            token,
+            userId: userData._id, // Assurer la cohérence avec le format attendu par le backend
+          });
           setIsAuthenticated(true);
         } else {
           // Token invalide
@@ -119,8 +126,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { token, user } = response.data;
         setAuthToken(token);
 
-        // Mettre à jour l'état
-        setUser({ ...user, token });
+        // Mettre à jour l'état en ajoutant userId pour la cohérence avec le backend
+        setUser({
+          ...user,
+          token,
+          userId: user._id, // Assurer la cohérence avec le format attendu par le backend
+        });
         setIsAuthenticated(true);
       } else {
         throw new Error(response.data.message || "Échec de la connexion");

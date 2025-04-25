@@ -14,6 +14,7 @@ import {
   Check,
   Clock,
   Edit,
+  Eye,
   Plus,
   Search,
   Trash,
@@ -28,6 +29,7 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import api from "../services/api"; // Importer l'instance API configurée
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -61,6 +63,7 @@ interface Schedule {
   year: number;
   weekNumber: number;
   status: "approved" | "draft";
+  updatedAt: string;
 }
 
 // Interface pour les données de time slots
@@ -192,8 +195,17 @@ const WeeklySchedulePage: React.FC = () => {
 
   // Calcul du temps total hebdomadaire en minutes
   const totalWeeklyMinutes = useMemo(() => {
-    return Object.values(scheduleData).reduce((total, daySlots) => {
-      const dayMinutes = daySlots.reduce((sum, slot) => {
+    return Object.entries(scheduleData).reduce((total, [day, slots]) => {
+      if (!slots || !Array.isArray(slots)) return total;
+
+      const dayMinutes = slots.reduce((sum, slot) => {
+        if (
+          !slot ||
+          typeof slot.start !== "string" ||
+          typeof slot.end !== "string"
+        ) {
+          return sum;
+        }
         return sum + calculateDuration(slot.start, slot.end);
       }, 0);
       return total + dayMinutes;
@@ -206,6 +218,14 @@ const WeeklySchedulePage: React.FC = () => {
     { label: "Plannings", href: "/plannings-hebdomadaires" },
     { label: `Semaine ${weekNumber}` },
   ];
+
+  // Ajout des états pour la modal de détails et la confirmation de suppression
+  const [isViewModalOpen, setIsViewModalOpen] = useState<boolean>(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [currentSchedule, setCurrentSchedule] = useState<Schedule | null>(null);
+  const [deletingScheduleId, setDeletingScheduleId] = useState<string | null>(
+    null
+  );
 
   /**
    * Gestionnaire de changement de date dans le DatePicker
@@ -235,11 +255,11 @@ const WeeklySchedulePage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get<{
+      const response = await api.get<{
         success: boolean;
         data: Schedule[];
         count: number;
-      }>(`/api/weekly-schedules/week/${year}/${weekNumber}`);
+      }>(`/weekly-schedules/week/${year}/${weekNumber}`);
 
       setSchedules(response.data.data);
 
@@ -265,10 +285,10 @@ const WeeklySchedulePage: React.FC = () => {
    */
   const fetchEmployees = useCallback(async () => {
     try {
-      const response = await axios.get<{
+      const response = await api.get<{
         success: boolean;
         data: { _id: string; firstName: string; lastName: string }[];
-      }>("/api/employees");
+      }>("/employees");
 
       const employeeOptions = response.data.data.map((emp) => ({
         _id: emp._id,
@@ -310,14 +330,22 @@ const WeeklySchedulePage: React.FC = () => {
       setIsEditMode(true);
 
       // Conversion du format des créneaux horaires de l'API vers le format de l'UI
-      const formattedScheduleData: Record<string, TimeSlot[]> = {};
+      const formattedScheduleData: Record<string, TimeSlot[]> = DAY_KEYS.reduce(
+        (acc, day) => ({ ...acc, [day]: [] }),
+        {}
+      );
 
-      Object.entries(existingSchedule.scheduleData).forEach(([day, slots]) => {
-        formattedScheduleData[day] = slots.map((slot) => {
-          const [start, end] = slot.split("-");
-          return { start, end };
-        });
-      });
+      // Remplir avec les données existantes
+      Object.entries(existingSchedule.scheduleData || {}).forEach(
+        ([day, slots]) => {
+          if (Array.isArray(slots)) {
+            formattedScheduleData[day] = slots.map((slot) => {
+              const [start, end] = slot.split("-");
+              return { start, end };
+            });
+          }
+        }
+      );
 
       setScheduleData(formattedScheduleData);
       setDailyNotes(
@@ -352,7 +380,8 @@ const WeeklySchedulePage: React.FC = () => {
    * Prépare le payload pour l'API
    */
   const preparePayload = () => {
-    const userId = user?._id;
+    // Utilisons userId ou _id selon ce qui est disponible
+    const userId = user?.userId || user?._id;
     if (!userId) {
       setError("Session utilisateur invalide. Veuillez vous reconnecter.");
       setShowErrorToast(true);
@@ -375,30 +404,40 @@ const WeeklySchedulePage: React.FC = () => {
       return null;
     }
 
-    const filteredDailyNotes: Record<string, string> = {};
-    Object.entries(dailyNotes).forEach(([day, note]) => {
-      if (note.trim()) {
-        filteredDailyNotes[day] = note.trim();
+    // Création d'un objet dailyNotes complet, avec des chaînes vides pour les notes supprimées
+    // Ainsi, les notes supprimées seront explicitement mises à jour avec des chaînes vides
+    const formattedDailyNotes: Record<string, string> = {};
+    Object.keys(dailyNotes).forEach((day) => {
+      formattedDailyNotes[day] = dailyNotes[day]?.trim() || "";
+    });
+
+    // Créer dailyDates uniquement pour les jours qui ont des créneaux
+    const formattedDailyDates: Record<string, string> = {};
+    Object.entries(weekDates).forEach(([day, date]) => {
+      if (formattedScheduleData[day]) {
+        // Convertir explicitement en chaîne de date ISO pour éviter les problèmes de sérialisation
+        formattedDailyDates[day] = date.toISOString();
       }
     });
 
-    const validDailyDates = Object.fromEntries(
-      Object.entries(weekDates).filter(([day]) => formattedScheduleData[day])
-    );
+    // Pour le debug
+    console.log("User courant:", {
+      _id: user?._id,
+      userId: user?.userId,
+    });
+
+    console.log("Notes quotidiennes formatées:", formattedDailyNotes);
 
     return {
       employeeId: selectedEmployeeId,
-      updatedBy: userId,
+      updatedBy: userId, // L'ID de l'utilisateur qui crée/modifie le planning
       year,
       weekNumber,
       status: "approved" as const,
-      notes: notes.trim() || undefined,
+      notes: notes.trim() || "",
       scheduleData: formattedScheduleData,
-      dailyNotes:
-        Object.keys(filteredDailyNotes).length > 0
-          ? filteredDailyNotes
-          : undefined,
-      dailyDates: validDailyDates,
+      dailyNotes: formattedDailyNotes, // Toujours envoyer l'objet complet, même avec des chaînes vides
+      dailyDates: formattedDailyDates,
       totalWeeklyMinutes,
     };
   };
@@ -434,16 +473,27 @@ const WeeklySchedulePage: React.FC = () => {
       return;
     }
 
-    // Ajout explicite de l'utilisateur qui met à jour
-    payload.updatedBy = user._id;
-
     // Activation de l'indicateur de chargement
     setCreatingSchedule(true);
     setError(null);
 
     try {
-      // Requête vers l'API
-      await axios.post("/api/weekly-schedules", payload); // ✅ suffit
+      // Vérifier que le token est présent dans localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Votre session a expiré. Veuillez vous reconnecter.");
+        setShowErrorToast(true);
+        setCreatingSchedule(false);
+        return;
+      }
+
+      // Requête vers l'API avec l'instance configurée et vérification des en-têtes
+      await api.post("/weekly-schedules", payload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // S'assurer que le token est bien envoyé
+        },
+      });
 
       setSuccess("Planning hebdomadaire créé avec succès.");
       setShowSuccessToast(true);
@@ -486,8 +536,24 @@ const WeeklySchedulePage: React.FC = () => {
     setError(null);
 
     try {
-      // Envoi de la requête de mise à jour au backend
-      await axios.post("/api/weekly-schedules", payload); // ✅ suffit
+      // Vérifier que le token est présent dans localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Votre session a expiré. Veuillez vous reconnecter.");
+        setShowErrorToast(true);
+        setCreatingSchedule(false);
+        return;
+      }
+
+      console.log("Mise à jour du planning:", existingScheduleId);
+
+      // Envoi de la requête de mise à jour au backend avec PUT
+      await api.put(`/weekly-schedules/${existingScheduleId}`, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // S'assurer que le token est bien envoyé
+        },
+      });
 
       // Notification de succès
       setSuccess("Planning hebdomadaire mis à jour avec succès");
@@ -522,12 +588,18 @@ const WeeklySchedulePage: React.FC = () => {
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 409) {
         setError(`Un planning existe déjà pour cet employé sur cette semaine`);
+      } else if (
+        error.response?.status === 401 ||
+        error.response?.status === 403
+      ) {
+        setError(`Problème d'authentification. Veuillez vous reconnecter.`);
       } else {
         setError(
           error.response?.data?.message ||
             `Erreur lors de la ${operation} du planning`
         );
       }
+      console.error("Détails de l'erreur:", error.response?.data);
     } else {
       setError(`Une erreur inattendue s'est produite`);
       console.error(`Erreur lors de la ${operation} du planning:`, error);
@@ -665,6 +737,15 @@ const WeeklySchedulePage: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
+            onClick={() => fetchScheduleDetails(schedule._id)}
+            icon={<Eye size={16} />}
+            className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-400"
+          >
+            Voir
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               setSelectedEmployeeId(schedule.employeeId);
               formRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -672,6 +753,15 @@ const WeeklySchedulePage: React.FC = () => {
             icon={<Edit size={16} />}
           >
             Éditer
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => confirmDeleteSchedule(schedule._id)}
+            icon={<Trash size={16} />}
+            className="bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-600 dark:text-red-400"
+          >
+            Supprimer
           </Button>
         </div>
       ),
@@ -684,6 +774,68 @@ const WeeklySchedulePage: React.FC = () => {
 
     return rowData;
   });
+
+  /**
+   * Récupère les détails d'un planning spécifique
+   */
+  const fetchScheduleDetails = async (scheduleId: string) => {
+    try {
+      const response = await api.get<{
+        success: boolean;
+        data: Schedule;
+      }>(`/weekly-schedules/${scheduleId}`);
+
+      setCurrentSchedule(response.data.data);
+      setIsViewModalOpen(true);
+    } catch (error) {
+      console.error("Erreur lors de la récupération du planning:", error);
+      setError("Impossible de récupérer les détails du planning");
+      setShowErrorToast(true);
+    }
+  };
+
+  /**
+   * Gère la suppression d'un planning
+   */
+  const handleDeleteSchedule = async () => {
+    if (!deletingScheduleId) return;
+
+    try {
+      // Vérifier que le token est présent dans localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Votre session a expiré. Veuillez vous reconnecter.");
+        setShowErrorToast(true);
+        return;
+      }
+
+      await api.delete(`/weekly-schedules/${deletingScheduleId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setSuccess("Planning supprimé avec succès");
+      setShowSuccessToast(true);
+
+      // Fermer la modal de confirmation et réinitialiser l'ID
+      setIsDeleteModalOpen(false);
+      setDeletingScheduleId(null);
+
+      // Recharger la liste des plannings
+      fetchSchedules();
+    } catch (error) {
+      handleApiError(error, "suppression");
+    }
+  };
+
+  /**
+   * Ouvre la modal de confirmation de suppression
+   */
+  const confirmDeleteSchedule = (scheduleId: string) => {
+    setDeletingScheduleId(scheduleId);
+    setIsDeleteModalOpen(true);
+  };
 
   return (
     <LayoutWithSidebar
@@ -892,12 +1044,15 @@ const WeeklySchedulePage: React.FC = () => {
                       locale: fr,
                     });
 
-                    // Calcul du temps total pour ce jour
-                    const dayTotalMinutes = scheduleData[day].reduce(
-                      (total, slot) =>
-                        total + calculateDuration(slot.start, slot.end),
-                      0
-                    );
+                    // Calcul du temps total pour ce jour avec vérification
+                    const dayTotalMinutes =
+                      scheduleData[day] && Array.isArray(scheduleData[day])
+                        ? scheduleData[day].reduce(
+                            (total, slot) =>
+                              total + calculateDuration(slot.start, slot.end),
+                            0
+                          )
+                        : 0;
 
                     return (
                       <div
@@ -932,7 +1087,8 @@ const WeeklySchedulePage: React.FC = () => {
 
                         {/* Liste des créneaux horaires pour ce jour */}
                         <div className="space-y-2">
-                          {scheduleData[day].length === 0 ? (
+                          {!scheduleData[day] ||
+                          scheduleData[day].length === 0 ? (
                             <p className="text-sm text-[var(--text-secondary)] italic">
                               Aucun créneau horaire défini
                             </p>
@@ -1101,6 +1257,233 @@ const WeeklySchedulePage: React.FC = () => {
             </form>
           </SectionCard>
         </motion.div>
+
+        {/* Modal de consultation détaillée */}
+        {isViewModalOpen && currentSchedule && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">
+                    Planning de {currentSchedule.employeeName}
+                  </h2>
+                  <button
+                    onClick={() => setIsViewModalOpen(false)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Semaine
+                    </p>
+                    <p className="font-medium">
+                      Semaine {currentSchedule.weekNumber},{" "}
+                      {currentSchedule.year}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Statut
+                    </p>
+                    <p className="font-medium">
+                      {currentSchedule.status === "approved"
+                        ? "Approuvé"
+                        : "Brouillon"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Temps total hebdomadaire
+                    </p>
+                    <p className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {formatDuration(currentSchedule.totalWeeklyMinutes)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Dernière mise à jour
+                    </p>
+                    <p className="font-medium">
+                      {new Date(currentSchedule.updatedAt).toLocaleDateString(
+                        "fr-FR",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="font-medium mb-2">Horaires hebdomadaires</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 text-left">
+                            Jour
+                          </th>
+                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 text-left">
+                            Horaires
+                          </th>
+                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 text-left">
+                            Notes
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {DAY_KEYS.map((day, index) => (
+                          <tr key={day}>
+                            <td className="border px-3 py-2">
+                              {DAYS_OF_WEEK[index]}
+                              <br />
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {currentSchedule.dailyDates?.[day]
+                                  ? new Date(
+                                      currentSchedule.dailyDates[day]
+                                    ).toLocaleDateString("fr-FR", {
+                                      day: "numeric",
+                                      month: "short",
+                                    })
+                                  : "—"}
+                              </span>
+                            </td>
+                            <td className="border px-3 py-2">
+                              {currentSchedule.scheduleData?.[day]?.length ? (
+                                <div>
+                                  {currentSchedule.scheduleData[day].map(
+                                    (slot, slotIndex) => {
+                                      const [start, end] = slot.split("-");
+                                      return (
+                                        <div
+                                          key={slotIndex}
+                                          className="mb-1 last:mb-0"
+                                        >
+                                          <span className="text-sm">
+                                            {start} – {end}
+                                          </span>
+                                          <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
+                                            (
+                                            {formatDuration(
+                                              calculateDuration(start, end)
+                                            )}
+                                            )
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-500 italic">
+                                  Repos
+                                </span>
+                              )}
+                            </td>
+                            <td className="border px-3 py-2">
+                              {currentSchedule.dailyNotes?.[day] ? (
+                                <p className="text-sm">
+                                  {currentSchedule.dailyNotes[day]}
+                                </p>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-500 italic">
+                                  —
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {currentSchedule.notes && (
+                  <div className="mb-4">
+                    <h3 className="font-medium mb-2">Notes générales</h3>
+                    <p className="p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                      {currentSchedule.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-end mt-4">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setIsViewModalOpen(false)}
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmation de suppression */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-center mb-4">
+                  <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-3">
+                    <Trash
+                      size={24}
+                      className="text-red-600 dark:text-red-400"
+                    />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-center mb-2">
+                  Confirmer la suppression
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
+                  Êtes-vous sûr de vouloir supprimer ce planning ? Cette action
+                  est irréversible.
+                </p>
+
+                <div className="flex gap-4 justify-center">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setIsDeleteModalOpen(false);
+                      setDeletingScheduleId(null);
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={handleDeleteSchedule}
+                  >
+                    Supprimer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </PageWrapper>
     </LayoutWithSidebar>
   );

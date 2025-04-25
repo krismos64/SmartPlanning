@@ -11,4 +11,5 @@ export interface User {
   photoUrl?: string; // URL de la photo de profil (optionnelle)
   companyId?: string;
   token?: string;
+  userId?: string; // Ajout de userId pour la compatibilité avec le middleware d'auth
 }
