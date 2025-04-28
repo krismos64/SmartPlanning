@@ -5,7 +5,6 @@
  * dont un utilisateur est manager
  */
 import express, { Response } from "express";
-import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import { TeamModel } from "../models/Team.model";
 
@@ -13,33 +12,22 @@ import { TeamModel } from "../models/Team.model";
 const router = express.Router();
 
 /**
- * @route   GET /api/teams?managerId=xxx
- * @desc    Récupérer toutes les équipes dont l'utilisateur est manager
+ * @route   GET /api/teams
+ * @desc    Récupérer toutes les équipes dont l'utilisateur authentifié est manager
  * @access  Private (nécessite authentification)
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    // Récupération du managerId depuis les paramètres de requête
-    const { managerId } = req.query;
-
-    // Vérification que le managerId est bien fourni
-    if (!managerId) {
-      return res.status(400).json({
+    // Vérification que l'utilisateur est bien authentifié
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
         success: false,
-        message: "Le paramètre managerId est requis",
+        message: "Utilisateur non authentifié ou identification invalide",
       });
     }
 
-    // Vérification de la validité de l'ID
-    if (!mongoose.Types.ObjectId.isValid(managerId as string)) {
-      return res.status(400).json({
-        success: false,
-        message: "ID de manager invalide",
-      });
-    }
-
-    // Recherche des équipes dont le managerId fait partie du tableau managerIds
-    const teams = await TeamModel.find({ managerIds: managerId })
+    // Recherche des équipes dont l'utilisateur authentifié est manager
+    const teams = await TeamModel.find({ managerIds: req.user._id })
       .populate("managerIds", "firstName lastName email photoUrl")
       .populate("employeeIds", "firstName lastName email photoUrl");
 

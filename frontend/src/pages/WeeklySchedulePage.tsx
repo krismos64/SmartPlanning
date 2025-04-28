@@ -159,7 +159,7 @@ const formatDuration = (minutes: number): string => {
  */
 const WeeklySchedulePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   // État pour la sélection de semaine et date
   const [year, setYear] = useState<number>(new Date().getFullYear());
@@ -251,6 +251,21 @@ const WeeklySchedulePage: React.FC = () => {
     null
   );
 
+  // Vérification automatique de l'état d'authentification
+  useEffect(() => {
+    if (!user || !user._id) {
+      console.warn("Utilisateur non authentifié ou ID utilisateur manquant", {
+        isAuthenticated,
+        user,
+      });
+    } else {
+      console.log("État d'authentification OK", {
+        userId: user._id,
+        role: user.role,
+      });
+    }
+  }, [user, isAuthenticated]);
+
   /**
    * Gestionnaire de changement de date dans le DatePicker
    * Extrait l'année et le numéro de semaine ISO à partir de la date sélectionnée
@@ -326,14 +341,26 @@ const WeeklySchedulePage: React.FC = () => {
   }, []);
 
   /**
-   * Fonction pour récupérer les équipes
+   * Fonction pour récupérer les équipes dont l'utilisateur connecté est manager
    */
   const fetchTeams = useCallback(async () => {
     try {
-      const response = await api.get(`/teams`);
-      setTeams(response.data.data || []);
+      const response = await api.get("/teams");
+
+      if (response.data.success) {
+        setTeams(response.data.data || []);
+      } else {
+        setError(
+          "Erreur lors de la récupération des équipes: format de réponse invalide"
+        );
+        setShowErrorToast(true);
+      }
     } catch (error) {
       console.error("Erreur lors de la récupération des équipes:", error);
+      setError(
+        "Impossible de récupérer les équipes. Veuillez réessayer ultérieurement."
+      );
+      setShowErrorToast(true);
     }
   }, []);
 
@@ -417,244 +444,195 @@ const WeeklySchedulePage: React.FC = () => {
   }, [selectedEmployeeId, checkExistingSchedule]);
 
   /**
-   * Prépare le payload pour l'API
+   * Prépare le payload pour la création ou mise à jour d'un planning hebdomadaire
+   * Convertit les données du formulaire au format attendu par l'API
    */
-  const preparePayload = () => {
-    // Utilisons userId ou _id selon ce qui est disponible
-    const userId = user?.userId || user?._id;
-    if (!userId) {
-      setError("Session utilisateur invalide. Veuillez vous reconnecter.");
-      setShowErrorToast(true);
-      return null;
+  const preparePayload = (): Record<string, any> => {
+    // Vérification de l'utilisateur et de son ID
+    if (!user) {
+      throw new Error(
+        "Session utilisateur invalide. Veuillez vous reconnecter."
+      );
     }
 
-    // Formatage des horaires uniquement si slots présents
-    const formattedScheduleData: Record<string, string[]> = {};
-    Object.entries(scheduleData).forEach(([day, slots]) => {
-      if (slots.length > 0) {
-        formattedScheduleData[day] = slots.map(
-          (slot) => `${slot.start}-${slot.end}`
-        );
-      }
-    });
-
-    if (Object.keys(formattedScheduleData).length === 0) {
-      setError("Veuillez définir au moins un créneau horaire.");
-      setShowErrorToast(true);
-      return null;
+    if (!user._id) {
+      throw new Error(
+        "Information utilisateur incomplète. Veuillez vous reconnecter."
+      );
     }
 
-    // Création d'un objet dailyNotes complet, avec des chaînes vides pour les notes supprimées
-    // Ainsi, les notes supprimées seront explicitement mises à jour avec des chaînes vides
-    const formattedDailyNotes: Record<string, string> = {};
-    Object.keys(dailyNotes).forEach((day) => {
-      formattedDailyNotes[day] = dailyNotes[day]?.trim() || "";
+    // Validation des données essentielles
+    if (!selectedEmployeeId) {
+      throw new Error("Veuillez sélectionner un employé.");
+    }
+
+    // Vérifier qu'au moins un créneau horaire est défini
+    const hasTimeSlots = Object.values(scheduleData).some(
+      (slots) => slots && slots.length > 0
+    );
+    if (!hasTimeSlots) {
+      throw new Error("Veuillez définir au moins un créneau horaire.");
+    }
+
+    // Convertir les créneaux horaires au format attendu par l'API
+    const scheduleObj: Record<string, string[]> = {};
+    DAY_KEYS.forEach((day) => {
+      scheduleObj[day] =
+        scheduleData[day]?.map((slot) => `${slot.start}-${slot.end}`) || [];
     });
 
-    // Créer dailyDates uniquement pour les jours qui ont des créneaux
-    const formattedDailyDates: Record<string, string> = {};
+    // Préparer les notes quotidiennes
+    const notesObj: Record<string, string> = {};
+    DAY_KEYS.forEach((day) => {
+      notesObj[day] = dailyNotes[day]?.trim() || "";
+    });
+
+    // Préparer les dates des jours avec planification
+    const datesObj: Record<string, string> = {};
     Object.entries(weekDates).forEach(([day, date]) => {
-      if (formattedScheduleData[day]) {
-        // Convertir explicitement en chaîne de date ISO pour éviter les problèmes de sérialisation
-        formattedDailyDates[day] = date.toISOString();
+      if (scheduleData[day]?.length > 0) {
+        datesObj[day] = date.toISOString();
       }
     });
 
-    // Pour le debug
-    console.log("User courant:", {
-      _id: user?._id,
-      userId: user?.userId,
-    });
-
-    console.log("Notes quotidiennes formatées:", formattedDailyNotes);
-
+    // Construction et retour du payload final avec updatedBy obligatoire
     return {
       employeeId: selectedEmployeeId,
-      updatedBy: userId, // L'ID de l'utilisateur qui crée/modifie le planning
+      updatedBy: user._id, // Important: inclure l'ID de l'utilisateur qui fait la modification
       year,
       weekNumber,
-      status: "approved" as const,
-      notes: notes.trim() || "",
-      scheduleData: formattedScheduleData,
-      dailyNotes: formattedDailyNotes, // Toujours envoyer l'objet complet, même avec des chaînes vides
-      dailyDates: formattedDailyDates,
+      status: "approved",
+      notes: notes?.trim() || "",
+      scheduleData: scheduleObj, // Objet avec structure {day: string[]}
+      dailyNotes: notesObj, // Objet avec structure {day: string}
+      dailyDates: datesObj, // Objet avec structure {day: string ISO}
       totalWeeklyMinutes,
     };
   };
 
   /**
-   * Gère la création d'un nouveau planning hebdomadaire
+   * Envoie le planning au serveur avec l'API Fetch
+   * Gère l'authentification et les erreurs HTTP
    */
-  const handleCreateSchedule = async () => {
-    // Vérification de l'authentification
-    if (!user || !user._id) {
-      setError(
-        "Utilisateur non authentifié : impossible de valider le planning."
+  const sendScheduleWithFetch = async (
+    payload: Record<string, any>
+  ): Promise<boolean> => {
+    // Vérifier que l'utilisateur est connecté
+    if (!user) {
+      throw new Error(
+        "Session utilisateur invalide. Veuillez vous reconnecter."
       );
-      setShowErrorToast(true);
-      console.warn("User context manquant ou invalide :", user); // Debug
-      return;
     }
 
-    // Validation des données requises
-    if (!selectedEmployeeId) {
-      setError("Veuillez sélectionner un employé.");
-      setShowErrorToast(true);
-      return;
-    }
-
-    // Vérifier si un planning existe déjà pour cet employé sur cette semaine spécifique
-    const existingScheduleForWeek = schedules.find(
-      (schedule) =>
-        schedule.employeeId === selectedEmployeeId &&
-        schedule.weekNumber === weekNumber &&
-        schedule.year === year
-    );
-
-    if (existingScheduleForWeek) {
-      setError(
-        `Un planning existe déjà pour cet employé sur la semaine ${weekNumber} de ${year}.`
+    // Vérifier que l'ID utilisateur est disponible
+    if (!user._id) {
+      throw new Error(
+        "Information utilisateur incomplète. Veuillez vous reconnecter."
       );
-      setShowErrorToast(true);
-      return;
     }
 
-    // Préparation des données à envoyer
-    const payload = preparePayload();
-    console.log("Payload envoyé au backend pour création:", payload);
-
-    if (!payload) {
-      setError("Impossible de préparer les données du planning.");
-      setShowErrorToast(true);
-      return;
+    // Récupérer le token d'authentification
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Votre session a expiré. Veuillez vous reconnecter.");
     }
 
-    // Activation de l'indicateur de chargement
+    // Vérification supplémentaire sur la structure du payload
+    if (!payload.scheduleData || typeof payload.scheduleData !== "object") {
+      throw new Error("Format de données de planning invalide");
+    }
+
+    // Déterminer l'URL en fonction du mode (création ou édition)
+    const baseUrl = "/api/weekly-schedules";
+    const url =
+      isEditMode && existingScheduleId
+        ? `${baseUrl}/${existingScheduleId}`
+        : baseUrl;
+
+    try {
+      // Effectuer la requête avec Fetch API
+      const response = await fetch(url, {
+        method: isEditMode ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      // Traiter les réponses d'erreur
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Erreur serveur:", errorData);
+
+        // Gérer les codes d'erreur spécifiques
+        if (response.status === 400) {
+          throw new Error(errorData.message || "Données de planning invalides");
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error("Votre session a expiré. Veuillez vous reconnecter.");
+        } else if (response.status === 409) {
+          throw new Error(
+            "Un planning existe déjà pour cet employé sur cette semaine"
+          );
+        } else {
+          throw new Error(errorData.message || `Erreur ${response.status}`);
+        }
+      }
+
+      // Traiter la réponse réussie
+      const data = await response.json();
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de l'envoi du planning:", error);
+      throw error;
+    }
+  };
+
+  /**
+   * Gère la soumission du formulaire de planning
+   * Coordonne la préparation des données et l'envoi au serveur
+   */
+  const handleSaveSchedule = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+
+    // Activer l'indicateur de chargement et réinitialiser les erreurs
     setCreatingSchedule(true);
     setError(null);
 
     try {
-      // Vérifier que le token est présent dans localStorage
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Votre session a expiré. Veuillez vous reconnecter.");
+      // Vérification préliminaire de l'authentification
+      if (!user || !user._id) {
+        setError("Veuillez vous reconnecter avant de soumettre le planning");
         setShowErrorToast(true);
-        setCreatingSchedule(false);
         return;
       }
 
-      // Requête vers l'API avec l'instance configurée et vérification des en-têtes
-      await api.post("/weekly-schedules", payload, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // S'assurer que le token est bien envoyé
-        },
-      });
+      // Préparer le payload et envoyer les données
+      const payload = preparePayload();
+      await sendScheduleWithFetch(payload);
 
+      // Gérer le succès
       setSuccess(
-        `Planning hebdomadaire créé avec succès pour la semaine ${weekNumber} de ${year}.`
+        `Planning hebdomadaire ${
+          isEditMode ? "mis à jour" : "créé"
+        } avec succès pour la semaine ${weekNumber} de ${year}.`
       );
       setShowSuccessToast(true);
 
-      // Réinitialisation du formulaire et rechargement
+      // Réinitialisation et rechargement
       resetForm();
       setSelectedEmployeeId("");
       fetchSchedules();
     } catch (error: unknown) {
-      handleApiError(error, "création");
+      console.error("Erreur lors de la sauvegarde du planning:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue lors de l'envoi des données"
+      );
+      setShowErrorToast(true);
     } finally {
       setCreatingSchedule(false);
-    }
-  };
-
-  /**
-   * Gère la mise à jour d'un planning hebdomadaire existant
-   */
-  const handleUpdateSchedule = async () => {
-    // Vérification de l'authentification
-    if (!user || !user._id) {
-      setError(
-        "Utilisateur non authentifié : impossible de valider le planning."
-      );
-      setShowErrorToast(true);
-      console.log("User context:", user); // Debug temporaire
-      return;
-    }
-
-    if (!existingScheduleId) {
-      setError("Impossible de mettre à jour: planning introuvable");
-      setShowErrorToast(true);
-      return;
-    }
-
-    const payload = preparePayload();
-    if (!payload) return;
-
-    // Vérifier que le planning est bien pour la semaine sélectionnée
-    const existingSchedule = schedules.find(
-      (s) => s._id === existingScheduleId
-    );
-    if (
-      !existingSchedule ||
-      existingSchedule.weekNumber !== weekNumber ||
-      existingSchedule.year !== year
-    ) {
-      setError(
-        `Le planning que vous essayez de modifier n'est pas pour la semaine ${weekNumber} de ${year}.`
-      );
-      setShowErrorToast(true);
-      return;
-    }
-
-    console.log("Payload envoyé au backend pour mise à jour:", payload);
-    setCreatingSchedule(true);
-    setError(null);
-
-    try {
-      // Vérifier que le token est présent dans localStorage
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Votre session a expiré. Veuillez vous reconnecter.");
-        setShowErrorToast(true);
-        setCreatingSchedule(false);
-        return;
-      }
-
-      console.log("Mise à jour du planning:", existingScheduleId);
-
-      // Envoi de la requête de mise à jour au backend avec PUT
-      await api.put(`/weekly-schedules/${existingScheduleId}`, payload, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // S'assurer que le token est bien envoyé
-        },
-      });
-
-      // Notification de succès
-      setSuccess(
-        `Planning hebdomadaire mis à jour avec succès pour la semaine ${weekNumber} de ${year}.`
-      );
-      setShowSuccessToast(true);
-
-      // Rechargement des plannings
-      fetchSchedules();
-    } catch (error: unknown) {
-      handleApiError(error, "mise à jour");
-    } finally {
-      setCreatingSchedule(false);
-    }
-  };
-
-  /**
-   * Gère la soumission du formulaire
-   */
-  const handleSaveSchedule = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (isEditMode) {
-      await handleUpdateSchedule();
-    } else {
-      await handleCreateSchedule();
     }
   };
 

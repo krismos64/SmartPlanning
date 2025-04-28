@@ -27,7 +27,7 @@ export interface AuthRequest extends Request {
  * - Ajoute les informations utilisateur décodées à l'objet request
  */
 export function authenticateToken(
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) {
@@ -42,15 +42,16 @@ export function authenticateToken(
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
     const user = (decoded as any).user;
 
-    // Assurer la cohérence du format utilisateur en ajoutant userId s'il est manquant
-    if (user && user.id && !user.userId) {
-      user.userId = user.id;
+    // Normaliser l'ID utilisateur: transformer id en _id pour la cohérence
+    if (user && user.id) {
+      user._id = user.id;
+      delete user.id;
     }
 
     req.user = user;
 
-    // Debug pour vérifier le format de l'utilisateur
-    console.log("User après transformation:", req.user);
+    // Log pour debug rapide
+    console.log("User authentifié:", req.user);
 
     next();
   } catch (error) {
