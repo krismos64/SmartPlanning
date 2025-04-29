@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import EmployeeModel from "../models/Employee.model";
 import { TeamModel } from "../models/Team.model";
+import User from "../models/User.model";
 
 const router = express.Router();
 
@@ -76,7 +77,7 @@ router.get(
 
 /**
  * Route POST /api/employees
- * Crée un nouvel employé
+ * Crée un nouvel employé et un compte utilisateur associé
  */
 router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   const {
@@ -96,37 +97,98 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .json({ success: false, message: "Champs obligatoires manquants" });
   }
 
+  // Démarrer une session pour assurer la cohérence des opérations
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
+    // Vérifier si l'email existe déjà dans la collection des utilisateurs
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: "Cet email est déjà utilisé par un autre utilisateur",
+      });
+    }
+
+    // Créer un nouvel utilisateur
     const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await User.create(
+      [
+        {
+          firstName,
+          lastName,
+          email,
+          password: hashedPassword,
+          role: "employee",
+          status: "active",
+          isEmailVerified: true, // Bypass car compte créé par un admin
+          companyId,
+        },
+      ],
+      { session }
+    );
 
-    const newEmployee = await EmployeeModel.create({
-      firstName,
-      lastName,
-      email,
-      password: hashedPassword,
-      teamId,
-      companyId,
-      contractHoursPerWeek: contractHoursPerWeek || 35,
-      status: status || "actif",
-    });
+    // Créer l'employé associé
+    const newEmployee = await EmployeeModel.create(
+      [
+        {
+          firstName,
+          lastName,
+          email,
+          teamId,
+          companyId,
+          contractHoursPerWeek: contractHoursPerWeek || 35,
+          status: status || "actif",
+          userId: newUser[0]._id, // Association avec l'utilisateur créé
+        },
+      ],
+      { session }
+    );
 
-    const employeeResponse = {
-      _id: newEmployee._id,
-      firstName: newEmployee.firstName,
-      lastName: newEmployee.lastName,
-      email: newEmployee.email,
-      teamId: newEmployee.teamId,
-      companyId: newEmployee.companyId,
-      contractHoursPerWeek: newEmployee.contractHoursPerWeek,
-      status: newEmployee.status,
+    // Valider la transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // Préparer la réponse sans inclure les informations sensibles
+    const response = {
+      employee: {
+        _id: newEmployee[0]._id,
+        firstName: newEmployee[0].firstName,
+        lastName: newEmployee[0].lastName,
+        email: newEmployee[0].email,
+        teamId: newEmployee[0].teamId,
+        companyId: newEmployee[0].companyId,
+        contractHoursPerWeek: newEmployee[0].contractHoursPerWeek,
+        status: newEmployee[0].status,
+        userId: newEmployee[0].userId,
+      },
+      user: {
+        _id: newUser[0]._id,
+        firstName: newUser[0].firstName,
+        lastName: newUser[0].lastName,
+        email: newUser[0].email,
+        role: newUser[0].role,
+        isEmailVerified: newUser[0].isEmailVerified,
+      },
     };
 
-    return res.status(201).json({ success: true, data: employeeResponse });
+    return res.status(201).json({
+      success: true,
+      message: "Employé et utilisateur créés avec succès",
+      data: response,
+    });
   } catch (error) {
-    console.error("Erreur création employé:", error);
+    // En cas d'erreur, annuler la transaction
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("Erreur création employé et utilisateur:", error);
     return res.status(500).json({
       success: false,
-      message: "Erreur serveur",
+      message: "Erreur serveur lors de la création",
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -134,13 +196,18 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
 /**
  * Route PATCH /api/employees/:employeeId
- * Met à jour un employé existant
+ * Met à jour un employé existant et son utilisateur associé si nécessaire
  */
 router.patch(
   "/:employeeId",
   authenticateToken,
   async (req: AuthRequest, res: Response) => {
     const { employeeId } = req.params;
+    const updateData = { ...req.body };
+
+    // Extraire et supprimer le mot de passe de l'objet de mise à jour pour l'employé
+    const { password } = updateData;
+    delete updateData.password;
 
     if (!mongoose.Types.ObjectId.isValid(employeeId)) {
       return res
@@ -148,32 +215,60 @@ router.patch(
         .json({ success: false, message: "Identifiant employé invalide" });
     }
 
+    // Démarrer une session pour assurer la cohérence des opérations
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-      const updateData: any = { ...req.body };
+      // Récupérer l'employé pour obtenir son userId
+      const employee = await EmployeeModel.findById(employeeId);
 
-      // Si un nouveau mot de passe est fourni, le hasher
-      if (updateData.password) {
-        updateData.password = await bcrypt.hash(updateData.password, 10);
-      }
-
-      const updatedEmployee = await EmployeeModel.findByIdAndUpdate(
-        employeeId,
-        updateData,
-        { new: true, lean: true }
-      );
-
-      if (!updatedEmployee) {
+      if (!employee) {
+        await session.abortTransaction();
+        session.endSession();
         return res
           .status(404)
           .json({ success: false, message: "Employé non trouvé" });
       }
 
-      return res.status(200).json({ success: true, data: updatedEmployee });
+      // Mettre à jour l'employé
+      const updatedEmployee = await EmployeeModel.findByIdAndUpdate(
+        employeeId,
+        updateData,
+        { new: true, lean: true, session }
+      );
+
+      // Si un mot de passe est fourni et que l'employé a un userId, mettre à jour l'utilisateur
+      if (password && employee.userId) {
+        // Hacher le nouveau mot de passe
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Mettre à jour le mot de passe de l'utilisateur
+        await User.findByIdAndUpdate(
+          employee.userId,
+          { password: hashedPassword },
+          { session }
+        );
+      }
+
+      // Valider la transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.status(200).json({
+        success: true,
+        message: "Employé mis à jour avec succès",
+        data: updatedEmployee,
+      });
     } catch (error) {
+      // En cas d'erreur, annuler la transaction
+      await session.abortTransaction();
+      session.endSession();
+
       console.error("Erreur mise à jour employé:", error);
       return res.status(500).json({
         success: false,
-        message: "Erreur serveur",
+        message: "Erreur serveur lors de la mise à jour",
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -182,7 +277,7 @@ router.patch(
 
 /**
  * Route DELETE /api/employees/:employeeId
- * Supprime un employé
+ * Supprime un employé et son utilisateur associé
  */
 router.delete(
   "/:employeeId",
@@ -196,23 +291,47 @@ router.delete(
         .json({ success: false, message: "Identifiant employé invalide" });
     }
 
-    try {
-      const deletedEmployee = await EmployeeModel.findByIdAndDelete(employeeId);
+    // Démarrer une session pour assurer la cohérence des opérations
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-      if (!deletedEmployee) {
+    try {
+      // Récupérer l'employé pour obtenir son userId avant suppression
+      const employee = await EmployeeModel.findById(employeeId);
+
+      if (!employee) {
+        await session.abortTransaction();
+        session.endSession();
         return res
           .status(404)
           .json({ success: false, message: "Employé non trouvé" });
       }
 
-      return res
-        .status(200)
-        .json({ success: true, message: "Employé supprimé" });
+      // Supprimer l'employé
+      await EmployeeModel.findByIdAndDelete(employeeId, { session });
+
+      // Si l'employé avait un userId, supprimer également l'utilisateur associé
+      if (employee.userId) {
+        await User.findByIdAndDelete(employee.userId, { session });
+      }
+
+      // Valider la transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.status(200).json({
+        success: true,
+        message: "Employé et utilisateur associé supprimés avec succès",
+      });
     } catch (error) {
-      console.error("Erreur suppression employé:", error);
+      // En cas d'erreur, annuler la transaction
+      await session.abortTransaction();
+      session.endSession();
+
+      console.error("Erreur suppression employé et utilisateur:", error);
       return res.status(500).json({
         success: false,
-        message: "Erreur serveur",
+        message: "Erreur serveur lors de la suppression",
         error: error instanceof Error ? error.message : String(error),
       });
     }

@@ -100,6 +100,8 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
           contractHoursPerWeek: initialData.contractHoursPerWeek || 40,
           status: initialData.status || "actif",
           companyId: companyId, // Toujours utiliser l'ID d'entreprise fourni
+          // En mode édition, le mot de passe est vide par défaut
+          password: "",
         });
       } else {
         // Mode création: réinitialiser le formulaire
@@ -185,12 +187,23 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
       isValid = false;
     }
 
-    // Valider mot de passe (uniquement en mode création)
+    // Valider mot de passe selon le mode
     if (!isEditMode) {
+      // En mode création: mot de passe obligatoire
       if (!formData.password?.trim()) {
         errors.password = "Le mot de passe est requis";
         isValid = false;
       } else if (formData.password.length < 6) {
+        errors.password = "Le mot de passe doit contenir au moins 6 caractères";
+        isValid = false;
+      }
+    } else {
+      // En mode édition: mot de passe optionnel, mais validé s'il est rempli
+      if (
+        formData.password &&
+        formData.password.trim().length > 0 &&
+        formData.password.length < 6
+      ) {
         errors.password = "Le mot de passe doit contenir au moins 6 caractères";
         isValid = false;
       }
@@ -231,13 +244,24 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
     setLoading(true);
 
     try {
+      // Copier les données du formulaire pour éviter de modifier l'état directement
+      const dataToSubmit = { ...formData };
+
+      // En mode édition, si le mot de passe est vide, le supprimer des données à envoyer
+      if (
+        isEditMode &&
+        (!dataToSubmit.password || dataToSubmit.password.trim() === "")
+      ) {
+        delete dataToSubmit.password;
+      }
+
       if (isEditMode && initialData?._id) {
         // Mode édition
-        await updateEmployee(initialData._id, formData);
+        await updateEmployee(initialData._id, dataToSubmit);
         setToastMessage("Collaborateur mis à jour avec succès");
       } else {
         // Mode création
-        await addEmployee(formData as NewEmployeeData);
+        await addEmployee(dataToSubmit as NewEmployeeData);
         setToastMessage("Collaborateur ajouté avec succès");
       }
 
@@ -303,20 +327,29 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
             error={formErrors.email}
           />
 
-          {/* Mot de passe (uniquement en mode création) */}
-          {!isEditMode && (
-            <InputField
-              label="Mot de passe"
-              name="password"
-              type="password"
-              value={formData.password || ""}
-              onChange={handleInputChange}
-              required
-              icon={<Lock size={18} className="text-[var(--accent-primary)]" />}
-              error={formErrors.password}
-              helperText="Minimum 6 caractères"
-            />
-          )}
+          {/* Mot de passe - adaptation selon le mode */}
+          <InputField
+            label={
+              isEditMode ? "Nouveau mot de passe (optionnel)" : "Mot de passe"
+            }
+            name="password"
+            type="password"
+            value={formData.password || ""}
+            onChange={handleInputChange}
+            required={!isEditMode} // Obligatoire uniquement en mode création
+            placeholder={
+              isEditMode
+                ? "Laisser vide pour conserver le mot de passe actuel"
+                : ""
+            }
+            icon={<Lock size={18} className="text-[var(--accent-primary)]" />}
+            error={formErrors.password}
+            helperText={
+              isEditMode
+                ? "Minimum 6 caractères si modifié"
+                : "Minimum 6 caractères"
+            }
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Équipe */}
