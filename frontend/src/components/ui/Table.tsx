@@ -252,7 +252,7 @@ const Table: React.FC<TableProps> = ({
         className={`px-3 py-1.5 rounded-md ${
           number === currentPage
             ? "bg-[var(--accent-primary)] text-white"
-            : "bg-[var(--background-secondary)] text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]"
+            : "bg-[var(--background-secondary)] dark:bg-gray-800 text-[var(--text-secondary)] dark:text-gray-300 hover:bg-[var(--background-tertiary)] dark:hover:bg-gray-700"
         } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
         aria-current={number === currentPage ? "page" : undefined}
       >
@@ -298,7 +298,7 @@ const Table: React.FC<TableProps> = ({
         pageButtons.push(
           <span
             key={`ellipsis-${index}`}
-            className="px-3 py-1.5 text-[var(--text-tertiary)]"
+            className="px-3 py-1.5 text-[var(--text-tertiary)] dark:text-gray-500"
           >
             ...
           </span>
@@ -327,18 +327,18 @@ const Table: React.FC<TableProps> = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--background-secondary)]/30"
+        className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-lg border border-dashed border-[var(--border)] dark:border-gray-700 bg-[var(--background-secondary)]/30 dark:bg-gray-800/30"
       >
         {emptyState.icon && (
-          <div className="mb-4 text-[var(--text-tertiary)]">
+          <div className="mb-4 text-[var(--text-tertiary)] dark:text-gray-400">
             {emptyState.icon}
           </div>
         )}
-        <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
+        <h3 className="text-lg font-medium text-[var(--text-primary)] dark:text-white mb-2">
           {emptyState.title}
         </h3>
         {emptyState.description && (
-          <p className="text-[var(--text-secondary)] max-w-md">
+          <p className="text-[var(--text-secondary)] dark:text-gray-300 max-w-md">
             {emptyState.description}
           </p>
         )}
@@ -357,15 +357,19 @@ const Table: React.FC<TableProps> = ({
         <>
           {/* Tableau avec défilement horizontal pour mobile */}
           <div className="overflow-x-auto">
-            <table role="table" className="w-full border-collapse text-sm">
-              {/* En-tête du tableau */}
-              <thead className="bg-[var(--background-secondary)]">
+            {/* Fond global du tableau adapté au mode dark */}
+            <table
+              role="table"
+              className="w-full border-collapse text-sm dark:bg-gray-900"
+            >
+              {/* En-tête du tableau avec fond plus foncé en mode dark */}
+              <thead className="bg-[var(--background-secondary)] dark:bg-gray-800">
                 <tr role="row">
                   {columns.map((column) => (
                     <th
                       key={column.key}
                       role="columnheader"
-                      className={`text-left py-3 px-4 font-medium text-[var(--text-secondary)] border-b border-[var(--border)] ${
+                      className={`text-left py-3 px-4 font-medium text-[var(--text-secondary)] dark:text-white border-b border-[var(--border)] dark:border-gray-700 ${
                         column.sortable ? "cursor-pointer select-none" : ""
                       } ${column.className || ""}`}
                       onClick={() => handleSort(column)}
@@ -388,14 +392,14 @@ const Table: React.FC<TableProps> = ({
                 </tr>
               </thead>
 
-              {/* Corps du tableau */}
+              {/* Corps du tableau avec texte plus clair en mode dark */}
               <tbody>
                 <AnimatePresence mode="wait">
                   {getPaginatedData().map((row, rowIndex) => (
                     <motion.tr
                       key={rowIndex}
                       role="row"
-                      className={`border-b border-[var(--border)] hover:bg-[var(--background-tertiary)]/50 transition-colors ${
+                      className={`border-b border-[var(--border)] dark:border-gray-700 hover:bg-[var(--background-tertiary)]/50 dark:hover:bg-gray-800/60 transition-colors ${
                         onRowClick ? "cursor-pointer" : ""
                       }`}
                       onClick={() => onRowClick && onRowClick(row)}
@@ -411,7 +415,7 @@ const Table: React.FC<TableProps> = ({
                         <td
                           key={`${rowIndex}-${column.key}`}
                           role="cell"
-                          className={`py-3 px-4 text-[var(--text-primary)] align-middle ${
+                          className={`py-3 px-4 text-[var(--text-primary)] dark:text-gray-300 align-middle ${
                             column.className || ""
                           }`}
                         >

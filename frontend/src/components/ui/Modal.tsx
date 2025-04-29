@@ -173,8 +173,8 @@ const Modal: React.FC<ModalProps> = ({
               aria-labelledby={titleId}
               className={`
                 w-full max-w-md
-                bg-[var(--background-primary)]
-                text-[var(--text-primary)]
+                bg-white dark:bg-gray-900
+                text-gray-900 dark:text-white
                 rounded-2xl
                 p-6
                 shadow-xl
@@ -195,11 +195,11 @@ const Modal: React.FC<ModalProps> = ({
                 onClick={onClose}
                 className="
                   absolute top-4 right-4
-                  text-[var(--text-tertiary)]
-                  hover:text-[var(--text-secondary)]
+                  text-gray-400 dark:text-gray-500
+                  hover:text-gray-700 dark:hover:text-gray-300
                   focus:outline-none
                   focus:ring-2
-                  focus:ring-[var(--focus)]
+                  focus:ring-indigo-400
                   focus:ring-offset-2
                   rounded-full
                   p-1
@@ -228,7 +228,7 @@ const Modal: React.FC<ModalProps> = ({
               {title && (
                 <h2
                   id={titleId}
-                  className="text-xl font-semibold mb-4 pr-8" // pr-8 pour éviter chevauchement avec bouton fermeture
+                  className="text-xl font-semibold mb-4 pr-8 text-gray-900 dark:text-white" // pr-8 pour éviter chevauchement avec bouton fermeture
                 >
                   {title}
                 </h2>

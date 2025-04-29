@@ -327,7 +327,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
             error={formErrors.email}
           />
 
-          {/* Mot de passe - adaptation selon le mode */}
+          {/* Mot de passe */}
           <InputField
             label={
               isEditMode ? "Nouveau mot de passe (optionnel)" : "Mot de passe"

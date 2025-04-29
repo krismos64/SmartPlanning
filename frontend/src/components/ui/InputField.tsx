@@ -62,7 +62,7 @@ const InputField: React.FC<InputFieldProps> = ({
       {label && (
         <motion.label
           htmlFor={name}
-          className={`absolute transition-all duration-200 pointer-events-none ${
+          className={`absolute transition-all duration-200 pointer-events-none dark:text-gray-300 ${
             isActive
               ? "text-xs text-[var(--accent-primary)] top-1"
               : "text-base text-[var(--text-secondary)] top-1/2 -translate-y-1/2"
@@ -102,13 +102,13 @@ const InputField: React.FC<InputFieldProps> = ({
             ${
               disabled
                 ? "bg-[var(--background-tertiary)] cursor-not-allowed"
-                : "bg-[var(--background-secondary)]"
+                : "bg-[var(--background-secondary)] dark:bg-gray-800"
             } 
-            text-[var(--text-primary)] placeholder-[var(--text-secondary)]
+            text-[var(--text-primary)] dark:text-white placeholder-[var(--text-secondary)] dark:placeholder-gray-400
             ${
               error
                 ? "border border-red-500 focus:ring-red-200"
-                : "border border-[var(--border)] focus:ring-[var(--accent-primary)]/30"
+                : "border border-[var(--border)] dark:border-gray-600 focus:ring-[var(--accent-primary)]/30"
             }
             focus:ring-4
             ${icon ? "pl-10" : "pl-3"}`}
@@ -120,7 +120,7 @@ const InputField: React.FC<InputFieldProps> = ({
 
       {error && (
         <motion.p
-          className="text-red-500 text-xs mt-1"
+          className="text-red-500 dark:text-red-400 text-xs mt-1"
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
@@ -131,7 +131,7 @@ const InputField: React.FC<InputFieldProps> = ({
       )}
 
       {helperText && !error && (
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+        <p className="mt-1 text-xs text-[var(--text-secondary)] dark:text-gray-400">
           {helperText}
         </p>
       )}

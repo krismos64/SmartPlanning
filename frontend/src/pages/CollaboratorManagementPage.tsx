@@ -73,12 +73,42 @@ interface TeamFormErrors {
 
 // Définition des colonnes du tableau pour les collaborateurs
 const collaboratorColumns = [
-  { key: "name", label: "Nom", sortable: true },
-  { key: "email", label: "Email", sortable: true },
-  { key: "status", label: "Statut", sortable: true },
-  { key: "team", label: "Équipe", sortable: true },
-  { key: "contractHours", label: "Heures/semaine", sortable: true },
-  { key: "actions", label: "Actions", sortable: false },
+  {
+    key: "name",
+    label: "Nom",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
+    key: "email",
+    label: "Email",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
+    key: "status",
+    label: "Statut",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
+    key: "team",
+    label: "Équipe",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
+    key: "contractHours",
+    label: "Heures/semaine",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
+    key: "actions",
+    label: "Actions",
+    sortable: false,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
 ];
 
 // Éléments du fil d'ariane
@@ -344,16 +374,32 @@ const CollaboratorManagementPage: React.FC = () => {
 
       return {
         _id: employee._id,
-        name: `${employee.firstName} ${employee.lastName}`,
-        email: employeeWithEmail.email || "Email non défini",
+        name: (
+          <span className="font-medium text-gray-800 dark:text-gray-100">
+            {`${employee.firstName} ${employee.lastName}`}
+          </span>
+        ),
+        email: (
+          <span className="text-gray-600 dark:text-gray-300">
+            {employeeWithEmail.email || "Email non défini"}
+          </span>
+        ),
         status: (
           <Badge
             type={employee.status === "actif" ? "success" : "warning"}
             label={employee.status === "actif" ? "Actif" : "Inactif"}
           />
         ),
-        team: team ? team.name : "Non assignée",
-        contractHours: employee.contractHoursPerWeek || 35,
+        team: (
+          <span className="text-gray-700 dark:text-gray-200">
+            {team ? team.name : "Non assignée"}
+          </span>
+        ),
+        contractHours: (
+          <span className="text-gray-700 dark:text-gray-200">
+            {employee.contractHoursPerWeek || 35}
+          </span>
+        ),
         actions: (
           <motion.div
             className="flex space-x-2"
@@ -364,20 +410,29 @@ const CollaboratorManagementPage: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              icon={<Edit size={16} />}
+              icon={
+                <Edit
+                  size={16}
+                  className="text-indigo-600 dark:text-indigo-400"
+                />
+              }
               onClick={() =>
                 handleOpenEditCollaborator(employee as EmployeeWithEmail)
               }
               aria-label="Modifier ce collaborateur"
+              className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
             >
               {""}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              icon={<Trash2 size={16} className="text-red-500" />}
+              icon={
+                <Trash2 size={16} className="text-red-500 dark:text-red-400" />
+              }
               onClick={() => handleOpenDeleteEmployeeModal(employee._id)}
               aria-label="Supprimer ce collaborateur"
+              className="hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               {""}
             </Button>
@@ -616,7 +671,7 @@ const CollaboratorManagementPage: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Sélecteur d'équipe */}
+        {/* Sélecteur d'équipe avec styles améliorés pour le mode sombre */}
         <motion.div
           className="mb-6"
           initial={{ opacity: 0, y: 10 }}
@@ -632,6 +687,7 @@ const CollaboratorManagementPage: React.FC = () => {
             value={selectedTeamId}
             onChange={handleTeamSelection}
             disabled={teamsLoading || managerTeams.length === 0}
+            className="dark:text-white" // Style adapté pour le mode sombre
           />
         </motion.div>
 
@@ -641,23 +697,26 @@ const CollaboratorManagementPage: React.FC = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          <SectionCard>
+          <SectionCard className="dark:bg-gray-800/60 dark:border-gray-700">
             {teamsLoading ? (
               <div className="flex justify-center items-center p-8">
                 <LoadingSpinner size="lg" />
               </div>
             ) : managerTeams.length === 0 ? (
-              <Card className="p-8 text-center">
+              <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <Users size={48} className="mx-auto text-gray-400 mb-4" />
+                  <Users
+                    size={48}
+                    className="mx-auto text-gray-400 dark:text-gray-300 mb-4"
+                  />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     Aucune équipe trouvée
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  <p className="text-gray-500 dark:text-gray-300 mb-4">
                     Vous n'avez pas encore créé d'équipes. Commencez par créer
                     une équipe pour ajouter des collaborateurs.
                   </p>
@@ -676,17 +735,20 @@ const CollaboratorManagementPage: React.FC = () => {
                 <LoadingSpinner size="lg" />
               </div>
             ) : displayedEmployees.length === 0 ? (
-              <Card className="p-8 text-center">
+              <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <User size={48} className="mx-auto text-gray-400 mb-4" />
+                  <User
+                    size={48}
+                    className="mx-auto text-gray-400 dark:text-gray-300 mb-4"
+                  />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     Aucun collaborateur trouvé
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  <p className="text-gray-500 dark:text-gray-300 mb-4">
                     {selectedTeamId
                       ? "Cette équipe ne contient pas encore de collaborateurs."
                       : "Vous n'avez pas encore de collaborateurs dans vos équipes."}
@@ -706,6 +768,7 @@ const CollaboratorManagementPage: React.FC = () => {
                 <Table
                   columns={collaboratorColumns}
                   data={displayedEmployees}
+                  className="dark:bg-gray-800/60 dark:border-gray-700"
                 />
               </AnimatePresence>
             )}

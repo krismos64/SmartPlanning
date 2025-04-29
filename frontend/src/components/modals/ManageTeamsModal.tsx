@@ -318,20 +318,20 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
 
             {/* Modal principal avec animation */}
             <motion.div
-              className="relative z-10 w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden"
+              className="relative z-10 w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-xl overflow-hidden"
               initial="hidden"
               animate="visible"
               exit="exit"
               variants={modalVariants}
             >
               {/* En-tête */}
-              <header className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+              <header className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                     Gestion des équipes
                   </h2>
                   <button
-                    className="p-1 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="p-1 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                     onClick={onClose}
                   >
                     <X size={20} />
@@ -381,12 +381,12 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
                   {/* Affichage conditionnel selon le nombre d'équipes */}
                   {teams.length === 0 ? (
                     <motion.div
-                      className="text-center p-8 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg"
                       variants={fadeInVariants}
                       initial="hidden"
                       animate="visible"
                     >
-                      <p className="text-gray-500 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400">
                         Vous n'avez pas encore d'équipes.
                       </p>
                     </motion.div>
@@ -396,7 +396,7 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
                         {teams.map((team, index) => (
                           <motion.li
                             key={team._id}
-                            className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                            className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                             custom={index}
                             variants={listItemVariants}
                             initial="hidden"
@@ -441,16 +441,22 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
                               </div>
                             ) : (
                               <>
-                                <span className="flex-grow font-medium text-gray-800 dark:text-gray-200">
+                                <span className="flex-grow font-medium text-gray-900 dark:text-white">
                                   {team.name}
                                 </span>
                                 <div className="flex space-x-1">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    icon={<Edit size={16} />}
+                                    icon={
+                                      <Edit
+                                        size={16}
+                                        className="text-indigo-600 dark:text-indigo-400"
+                                      />
+                                    }
                                     onClick={() => startEditing(team)}
                                     disabled={loading}
+                                    className="hover:bg-gray-200 dark:hover:bg-gray-700"
                                   >
                                     {""}
                                   </Button>
@@ -460,11 +466,12 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
                                     icon={
                                       <Trash2
                                         size={16}
-                                        className="text-red-500"
+                                        className="text-red-500 dark:text-red-400"
                                       />
                                     }
                                     onClick={() => startDeleting(team._id)}
                                     disabled={loading}
+                                    className="hover:bg-gray-200 dark:hover:bg-gray-700"
                                   >
                                     {""}
                                   </Button>
@@ -483,20 +490,20 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
               <AnimatePresence>
                 {showConfirmDelete && (
                   <motion.div
-                    className="absolute inset-0 flex items-center justify-center bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm p-6"
+                    className="absolute inset-0 flex items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-6"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <div className="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-lg max-w-sm w-full">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-sm w-full border border-gray-100 dark:border-gray-700">
                       <div className="flex items-center justify-center text-amber-500 mb-4">
                         <AlertTriangle size={48} />
                       </div>
                       <h3 className="text-lg font-bold text-center text-gray-900 dark:text-white mb-2">
                         Supprimer cette équipe ?
                       </h3>
-                      <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
+                      <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
                         Cette action est irréversible et les collaborateurs de
                         cette équipe seront désassociés.
                       </p>
@@ -505,6 +512,7 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
                           variant="ghost"
                           onClick={cancelDeleting}
                           disabled={loading}
+                          className="hover:bg-gray-200 dark:hover:bg-gray-700"
                         >
                           Annuler
                         </Button>
@@ -526,7 +534,7 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
                 !editingTeam &&
                 !teamToDelete &&
                 !showConfirmDelete && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80">
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80">
                     <LoadingSpinner size="lg" />
                   </div>
                 )}
