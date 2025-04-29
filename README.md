@@ -63,7 +63,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 1.1.0
+### Version actuelle : 1.2.0
 
 **Fonctionnalités implémentées :**
 
@@ -73,6 +73,13 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - Configuration TypeScript
 - Configuration de MongoDB avec Mongoose
 - Système de routes API Express
+
+✅ **Architecture API et communication frontend-backend**
+
+- Instance axios centralisée (axiosInstance) pour tous les appels API
+- Système d'intercepteurs pour la gestion automatique de l'authentification
+- Gestion unifiée des erreurs et des réponses API
+- Structure modulaire pour les services API côté frontend
 
 ✅ **Modèles de données**
 
@@ -173,6 +180,27 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Outils de développement**   | ESLint, Prettier, Jest, React Testing Library                     |
 
 ## Changelog
+
+### Version 1.2.0
+
+- **Refactorisation des appels API avec axiosInstance**
+
+  - Centralisation des appels API via une instance axios configurée
+  - Remplacement de tous les imports et appels directs à axios par axiosInstance dans les fichiers frontend
+  - Amélioration de la cohérence et de la maintenabilité du code
+  - Standardisation des en-têtes de requêtes et de la gestion des erreurs
+
+- **Mise en place d'un système d'intercepteurs**
+
+  - Création d'un système d'intercepteurs pour gérer l'authentification
+  - Ajout automatique du token d'authentification aux en-têtes des requêtes
+  - Gestion automatique des erreurs 401 (Unauthorized) avec redirection vers la page de login
+  - Centralisation de la logique d'authentification pour une meilleure sécurité
+
+- **Optimisation de l'architecture frontend**
+  - Séparation claire des responsabilités entre les composants et les services API
+  - Amélioration de la gestion des erreurs API avec messages utilisateur appropriés
+  - Structure modulaire facilitant les futures évolutions
 
 ### Version 1.1.0
 

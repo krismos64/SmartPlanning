@@ -4,7 +4,6 @@
  * Permet aux managers de visualiser et gérer les incidents signalés pour leur équipe.
  * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
  */
-import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, Calendar, Eye, Plus, Shield, User } from "lucide-react";
 import React, {
@@ -14,6 +13,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants de layout
 import PageWrapper from "../components/layout/PageWrapper";
@@ -211,9 +211,10 @@ const IncidentTrackingPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get<{ success: boolean; data: Incident[] }>(
-        "/api/incidents/team"
-      );
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Incident[];
+      }>("/api/incidents/team");
 
       // Tri des incidents par date (les plus récents en premier)
       const sortedIncidents = [...response.data.data].sort((a, b) => {
@@ -240,9 +241,10 @@ const IncidentTrackingPage: React.FC = () => {
   // Fonction pour récupérer la liste des employés
   const fetchEmployees = useCallback(async () => {
     try {
-      const response = await axios.get<{ success: boolean; data: Employee[] }>(
-        "/api/employees"
-      );
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Employee[];
+      }>("/api/employees");
       setEmployees(response.data.data);
 
       // Définir l'employé par défaut si la liste n'est pas vide
@@ -288,7 +290,7 @@ const IncidentTrackingPage: React.FC = () => {
     setError(null);
 
     try {
-      await axios.post("/api/incidents", {
+      await axiosInstance.post("/api/incidents", {
         employeeId: formData.employeeId,
         type: formData.type,
         description: formData.description.trim() || undefined,

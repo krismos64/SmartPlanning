@@ -1,5 +1,5 @@
-import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 /**
  * Interface définissant la structure des utilisateurs retournés
@@ -67,7 +67,7 @@ const useFetchCompanyUsers = (
           : `/api/admin/users?role=${role}&companyId=${companyId}`;
 
       // Effectuer la requête
-      const response = await axios.get(endpoint);
+      const response = await axiosInstance.get(endpoint);
 
       // Extraire les données selon le format de réponse
       const userData =

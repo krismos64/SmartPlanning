@@ -137,7 +137,7 @@ const TeamEventPlanner: React.FC<TeamEventPlannerProps> = ({
 
     try {
       // Dans une app réelle, vous feriez un appel API ici
-      // const response = await axios.post(`/api/teams/${teamId}/events`, formData);
+      // const response = await axiosInstance.post(`/api/teams/${teamId}/events`, formData);
 
       // Simuler une requête réseau
       await new Promise((resolve) => setTimeout(resolve, 1000));

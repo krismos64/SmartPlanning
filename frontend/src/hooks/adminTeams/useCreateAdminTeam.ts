@@ -3,8 +3,8 @@
  *
  * @module hooks/adminTeams
  */
-import axios from "axios";
 import { useCallback, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 
 /**
  * Interface pour les données de création d'une équipe
@@ -80,7 +80,7 @@ const useCreateAdminTeam = (
       setError(null);
 
       try {
-        const response = await axios.post<CreateAdminTeamResponse>(
+        const response = await axiosInstance.post<CreateAdminTeamResponse>(
           "/api/admin/teams",
           data
         );

@@ -1,7 +1,7 @@
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Building, Save, User, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 import {
   adminUserService,
   uploadFile,
@@ -73,7 +73,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     const fetchCompanies = async () => {
       setCompanyLoading(true);
       try {
-        const response = await axios.get("/api/admin/companies");
+        const response = await axiosInstance.get("/api/admin/companies");
         setCompanies(response.data || []);
       } catch (err) {
         console.error("Erreur lors du chargement des entreprises:", err);

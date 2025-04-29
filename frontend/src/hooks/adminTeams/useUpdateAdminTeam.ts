@@ -3,8 +3,8 @@
  *
  * @module hooks/adminTeams
  */
-import axios from "axios";
 import { useCallback, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 
 /**
  * Interface pour les données de mise à jour d'une équipe
@@ -87,7 +87,7 @@ const useUpdateAdminTeam = (
       setError(null);
 
       try {
-        const response = await axios.patch<UpdateAdminTeamResponse>(
+        const response = await axiosInstance.patch<UpdateAdminTeamResponse>(
           `/api/admin/teams/${id}`,
           data
         );

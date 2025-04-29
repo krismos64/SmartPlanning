@@ -637,29 +637,26 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   /**
-   * Gestion uniforme des erreurs d'API
+   * Gestion standardisée des erreurs API
    */
   const handleApiError = (error: unknown, operation: string) => {
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 409) {
         setError(`Un planning existe déjà pour cet employé sur cette semaine`);
-      } else if (
-        error.response?.status === 401 ||
-        error.response?.status === 403
-      ) {
-        setError(`Problème d'authentification. Veuillez vous reconnecter.`);
+      } else if (error.response?.data?.message) {
+        // Utiliser le message d'erreur du backend si disponible
+        setError(`Erreur lors de ${operation}: ${error.response.data.message}`);
       } else {
+        // Message générique basé sur le statut HTTP
         setError(
-          error.response?.data?.message ||
-            `Erreur lors de la ${operation} du planning`
+          `Erreur lors de ${operation} (${error.response?.status || "inconnu"})`
         );
       }
-      console.error("Détails de l'erreur:", error.response?.data);
     } else {
-      setError(`Une erreur inattendue s'est produite`);
-      console.error(`Erreur lors de la ${operation} du planning:`, error);
+      // Pour les erreurs non-Axios
+      setError(`Erreur inattendue lors de ${operation}`);
+      console.error("Erreur non-Axios:", error);
     }
-
     setShowErrorToast(true);
   };
 

@@ -1,6 +1,6 @@
-import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
+import axiosInstance from "../../../api/axiosInstance";
 
 interface Manager {
   _id: string;
@@ -96,7 +96,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
         employeeIds: selectedEmployees,
       };
 
-      await axios.post("/api/admin/teams", payload);
+      await axiosInstance.post("/api/admin/teams", payload);
       onTeamCreated();
       onClose();
     } catch (error) {

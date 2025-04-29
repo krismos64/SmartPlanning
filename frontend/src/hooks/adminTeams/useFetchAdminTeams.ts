@@ -3,8 +3,8 @@
  *
  * @module hooks/adminTeams
  */
-import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 
 /**
  * Interface pour une équipe récupérée via l'API admin
@@ -70,7 +70,7 @@ const useFetchAdminTeams = (companyId: string): UseFetchAdminTeamsReturn => {
     setError(null);
 
     try {
-      const response = await axios.get<AdminTeamsApiResponse>(
+      const response = await axiosInstance.get<AdminTeamsApiResponse>(
         `/api/admin/teams?companyId=${companyId}`
       );
 

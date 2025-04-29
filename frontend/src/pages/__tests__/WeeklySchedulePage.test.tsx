@@ -5,8 +5,8 @@
  * depuis le chargement des données jusqu'à la soumission du formulaire.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import axios from "axios";
 import { MemoryRouter } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 import * as validateModule from "../../utils/validateWeeklySchedule";
 import WeeklySchedulePage from "../WeeklySchedulePage";
 
@@ -14,7 +14,7 @@ process.env.VITE_API_URL = "http://localhost:5050/api";
 
 // Mock des modules externes
 jest.mock("axios");
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedAxios = axiosInstance as jest.Mocked<typeof axiosInstance>;
 
 // Mocks pour les dépendances problématiques
 jest.mock("react-helmet-async");

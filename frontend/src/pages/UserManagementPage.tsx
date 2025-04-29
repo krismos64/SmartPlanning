@@ -13,7 +13,6 @@ import api, {
   User as UserType,
 } from "../services/api";
 
-import axios from "axios";
 import {
   Building,
   Edit,
@@ -26,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -168,7 +168,7 @@ const UserManagementPage: React.FC = () => {
     const fetchCompanies = async () => {
       setCompanyLoading(true);
       try {
-        const response = await axios.get("/api/admin/companies");
+        const response = await axiosInstance.get("/api/admin/companies");
         setCompanies(response.data || []);
       } catch (err) {
         console.error("Erreur lors du chargement des entreprises:", err);

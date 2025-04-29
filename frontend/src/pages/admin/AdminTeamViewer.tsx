@@ -4,11 +4,11 @@
  * Cette page permet aux administrateurs de SmartPlanning de visualiser et gérer
  * l'ensemble des équipes associées à une entreprise spécifique.
  */
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Plus, Trash2, Users } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 
 // Hooks personnalisés
 import {
@@ -195,7 +195,9 @@ const AdminTeamViewer: React.FC = () => {
       try {
         if (!companyId) return;
 
-        const response = await axios.get(`/api/admin/companies/${companyId}`);
+        const response = await axiosInstance.get(
+          `/api/admin/companies/${companyId}`
+        );
         setCompany(response.data.data);
       } catch (error) {
         console.error("Erreur lors de la récupération de l'entreprise:", error);

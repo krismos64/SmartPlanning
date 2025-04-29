@@ -4,7 +4,6 @@
  * Permet aux employés de demander des congés et aux managers de les gérer.
  * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
  */
-import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Calendar,
@@ -16,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants de layout
 import PageWrapper from "../components/layout/PageWrapper";
@@ -174,7 +174,7 @@ const VacationsPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get<{
+      const response = await axiosInstance.get<{
         success: boolean;
         data: VacationRequest[];
       }>("/api/vacations");
@@ -233,7 +233,7 @@ const VacationsPage: React.FC = () => {
     setError(null);
 
     try {
-      await axios.post("/api/vacations", formData);
+      await axiosInstance.post("/api/vacations", formData);
 
       setSuccess("Demande de congés envoyée avec succès");
       setShowSuccessToast(true);
@@ -268,7 +268,7 @@ const VacationsPage: React.FC = () => {
     setError(null);
 
     try {
-      await axios.put(`/api/vacations/${id}`, { status });
+      await axiosInstance.put(`/api/vacations/${id}`, { status });
 
       setSuccess(
         `Demande de congés ${

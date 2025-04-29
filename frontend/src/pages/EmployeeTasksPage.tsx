@@ -4,10 +4,10 @@
  * Permet aux employés de visualiser et gérer leurs tâches assignées.
  * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
  */
-import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { Calendar, Check, ClipboardList, Plus } from "lucide-react";
 import React, { FormEvent, useCallback, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants de layout
 import PageWrapper from "../components/layout/PageWrapper";
@@ -114,9 +114,10 @@ const EmployeeTasksPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get<{ success: boolean; data: Task[] }>(
-        "/api/tasks/my-tasks"
-      );
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Task[];
+      }>("/api/tasks/my-tasks");
 
       // Tri des tâches par date d'échéance (les tâches sans date à la fin)
       const sortedTasks = response.data.data.sort((a, b) => {
@@ -152,7 +153,9 @@ const EmployeeTasksPage: React.FC = () => {
     setError(null);
 
     try {
-      await axios.patch(`/api/tasks/${taskId}`, { status: "completed" });
+      await axiosInstance.patch(`/api/tasks/${taskId}`, {
+        status: "completed",
+      });
 
       setSuccess("Tâche marquée comme terminée !");
       setShowSuccessToast(true);
@@ -198,7 +201,7 @@ const EmployeeTasksPage: React.FC = () => {
         ...(formData.dueDate && { dueDate: formData.dueDate }),
       };
 
-      await axios.post("/api/tasks", taskData);
+      await axiosInstance.post("/api/tasks", taskData);
 
       setSuccess("Tâche ajoutée avec succès !");
       setShowSuccessToast(true);

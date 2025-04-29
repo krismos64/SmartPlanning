@@ -3,8 +3,8 @@
  *
  * @module hooks/adminTeams
  */
-import axios from "axios";
 import { useCallback, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 
 /**
  * Interface pour la réponse de l'API
@@ -76,7 +76,9 @@ const useDeleteAdminTeam = (
 
       try {
         // La suppression retourne généralement un 204 No Content
-        await axios.delete<DeleteAdminTeamResponse>(`/api/admin/teams/${id}`);
+        await axiosInstance.delete<DeleteAdminTeamResponse>(
+          `/api/admin/teams/${id}`
+        );
 
         if (showToast) {
           showToast("Équipe supprimée avec succès", "success");

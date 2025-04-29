@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { createContext, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 import { User } from "../types/User";
 
 // Interface définissant la structure du contexte d'authentification
@@ -24,10 +25,10 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
 // Configuration axios avec token
 const setAuthToken = (token: string | null) => {
   if (token) {
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     localStorage.setItem("token", token);
   } else {
-    delete axios.defaults.headers.common["Authorization"];
+    delete axiosInstance.defaults.headers.common["Authorization"];
     localStorage.removeItem("token");
   }
 };
@@ -77,7 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setAuthToken(token);
 
         // Appel à l'API pour vérifier le token
-        const response = await axios.get(`${API_URL}/auth/me`);
+        const response = await axiosInstance.get(`${API_URL}/auth/me`);
 
         if (response.data.success) {
           // S'assurer que l'ID est disponible dans le format attendu par le backend
@@ -115,7 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     try {
       // Appel à l'API d'authentification
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axiosInstance.post(`${API_URL}/auth/login`, {
         email,
         password,
       });
@@ -153,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       // Appel à l'API de déconnexion
-      await axios.post(`${API_URL}/auth/logout`);
+      await axiosInstance.post(`${API_URL}/auth/logout`);
 
       // Supprimer le token
       setAuthToken(null);

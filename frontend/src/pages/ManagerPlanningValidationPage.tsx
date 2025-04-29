@@ -4,10 +4,10 @@
  * Interface permettant à un manager ou directeur de visualiser et valider
  * les plannings générés automatiquement pour les employés de son équipe.
  */
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Calendar, Check, Users, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -132,7 +132,9 @@ const ManagerPlanningValidationPage: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await axios.get(`/api/teams?managerId=${currentUserId}`);
+      const response = await axiosInstance.get(
+        `/api/teams?managerId=${currentUserId}`
+      );
       const result = Array.isArray(response.data)
         ? response.data
         : response.data?.teams || [];
@@ -154,7 +156,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `/api/generated-schedules?managerId=${currentUserId}&teamId=${selectedTeamId}&week=${selectedWeek}&year=${selectedYear}`
       );
 
@@ -257,7 +259,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
       }
 
       // 1. Créer un planning validé dans weeklySchedules
-      await axios.post("/api/weekly-schedules", {
+      await axiosInstance.post("/api/weekly-schedules", {
         employeeId: schedule.employeeId,
         year: selectedYear,
         weekNumber: selectedWeek,
@@ -266,7 +268,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
       });
 
       // 2. Supprimer le planning généré
-      await axios.delete(`/api/generated-schedules/${scheduleId}`);
+      await axiosInstance.delete(`/api/generated-schedules/${scheduleId}`);
 
       // 3. Mettre à jour l'UI
       setSuccess(
@@ -308,7 +310,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
       setLoading(true);
 
       // Mettre à jour le statut du planning généré
-      await axios.put(`/api/generated-schedules/${currentSchedule}`, {
+      await axiosInstance.put(`/api/generated-schedules/${currentSchedule}`, {
         action: "update",
         status: "rejected",
       });

@@ -1,4 +1,3 @@
-import axios from "axios";
 import { motion } from "framer-motion";
 import {
   BarChart,
@@ -13,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { User } from "../../types/User";
@@ -118,10 +118,12 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       try {
         const token = localStorage.getItem("token");
         if (token) {
-          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+          axiosInstance.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${token}`;
         }
 
-        const response = await axios.get(
+        const response = await axiosInstance.get(
           `${getEnvVar("VITE_API_URL")}/admin/companies/${user.companyId}`
         );
 

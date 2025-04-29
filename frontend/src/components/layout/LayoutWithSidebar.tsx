@@ -1,9 +1,9 @@
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { User } from "../../types/User";
 import { getEnvVar } from "../../utils/getEnv";
@@ -47,7 +47,9 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
 
         // Configuration de l'en-tête d'autorisation
         if (token) {
-          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+          axiosInstance.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${token}`;
         } else {
           // Rediriger vers la page de connexion si pas de token
           navigate("/login");
@@ -55,7 +57,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
         }
 
         // Appel à l'API pour récupérer les informations utilisateur
-        const response = await axios.get(`${API_URL}/auth/me`);
+        const response = await axiosInstance.get(`${API_URL}/auth/me`);
 
         if (response.data.success) {
           setCurrentUser(response.data.data);

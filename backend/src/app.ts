@@ -10,7 +10,6 @@ import { adminCompaniesRouter } from "./routes/admin/companies.route";
 import adminEmployeesRoutes from "./routes/admin/employees";
 import adminUsersRoutes from "./routes/admin/users.route";
 import authRoutes from "./routes/auth.routes";
-import collaboratorRoutes from "./routes/collaborator.routes";
 import employeeRoutes from "./routes/employee.routes";
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
 import teamRoutes from "./routes/teams.route";
@@ -34,7 +33,7 @@ mongoose
 app.use(morgan("dev"));
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   })
 );
@@ -48,7 +47,6 @@ app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);
 app.use("/api/admin/employees", adminEmployeesRoutes);
-app.use("/api/collaborators", collaboratorRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/generated-schedules", generatedSchedulesRoutes);
 app.use("/api/teams", teamRoutes);

@@ -8,9 +8,9 @@
  * - Suppression des entreprises
  */
 
-import axios from "axios";
 import { Building, Edit, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -97,7 +97,7 @@ const CompanyManagementPage: React.FC = () => {
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/admin/companies");
+      const response = await axiosInstance.get("/api/admin/companies");
       const data = Array.isArray(response.data) ? response.data : [];
       console.log("Données entreprises récupérées :", response.data);
       setCompanies(data);
@@ -318,14 +318,14 @@ const CompanyManagementPage: React.FC = () => {
     try {
       if (isEditMode && selectedCompany) {
         // Mise à jour d'une entreprise existante
-        await axios.put(
+        await axiosInstance.put(
           `/api/admin/companies/${selectedCompany._id}`,
           formData
         );
         setSuccess("Entreprise mise à jour avec succès !");
       } else {
         // Création d'une nouvelle entreprise
-        await axios.post("/api/admin/companies", formData);
+        await axiosInstance.post("/api/admin/companies", formData);
         setSuccess("Entreprise créée avec succès !");
       }
 
@@ -359,7 +359,7 @@ const CompanyManagementPage: React.FC = () => {
 
     setDeletingCompany(true);
     try {
-      await axios.delete(`/api/admin/companies/${deleteCompanyId}`);
+      await axiosInstance.delete(`/api/admin/companies/${deleteCompanyId}`);
       setSuccess("Entreprise supprimée avec succès !");
       setShowSuccessToast(true);
 
