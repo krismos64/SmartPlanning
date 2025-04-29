@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=flat-square)
 ![État](https://img.shields.io/badge/État-En%20développement-orange?style=flat-square)
 
 SmartPlanning est une application SaaS de gestion intelligente des plannings avec IA intégrée, construite avec la stack MERN + TypeScript.
@@ -63,7 +63,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 1.2.0
+### Version actuelle : 1.3.0
 
 **Fonctionnalités implémentées :**
 
@@ -137,6 +137,31 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - Modals et confirmations pour les actions importantes
 - Composants UI optimisés et réutilisables
 
+✅ **Gestion des équipes et collaborateurs par les managers**
+
+- **Interface complète de gestion d'équipe**
+  - Tableau de bord dédié aux managers pour la gestion de leurs équipes
+  - Création, modification et suppression d'équipes
+  - Assignation de responsabilités et de rôles au sein des équipes
+  - Vue d'ensemble des membres de l'équipe avec leurs compétences
+  - Filtrage et recherche avancés des membres
+- **Gestion des collaborateurs**
+  - Ajout et suppression de collaborateurs dans les équipes
+  - Modification des informations des collaborateurs (compétences, disponibilités, etc.)
+  - Suivi des performances et disponibilités
+  - Gestion des accréditations et accès
+  - Attribution de tâches spécifiques aux collaborateurs
+
+✅ **Génération et validation de plannings**
+
+- **Interface de validation des plannings générés**
+  - Visualisation des plannings générés par l'IA pour approbation
+  - Possibilité de modifier les plannings avant validation
+  - Système de rejet avec commentaires
+- **Intégration avec le système de planification standard**
+  - Bouton de navigation vers la page de validation des plannings IA
+  - Transformation des plannings validés en plannings officiels
+
 **Fonctionnalités en cours de développement :**
 
 🔄 **Intelligence artificielle**
@@ -159,6 +184,10 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ### Dernières mises à jour
 
+- Finalisation des interfaces de gestion d'équipes et de collaborateurs pour les managers
+- Ajout de la page de validation des plannings générés par l'IA
+- Implémentation de l'interface de validation/rejet des plannings générés
+- Intégration avec le système de plannings hebdomadaires
 - Finalisation des modules d'administration (gestion des utilisateurs, entreprises, équipes)
 - Correction des problèmes TypeScript dans les composants UI
 - Amélioration du système de filtrage et de recherche dans les interfaces administratives
@@ -180,6 +209,35 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Outils de développement**   | ESLint, Prettier, Jest, React Testing Library                     |
 
 ## Changelog
+
+### Version 1.3.0
+
+- **Intégration de l'interface de validation des plannings générés par l'IA**
+
+  - Ajout d'une nouvelle page `ManagerPlanningValidationPage` pour la validation des plannings générés
+  - Interface permettant aux managers de visualiser, modifier, approuver ou rejeter les plannings
+  - Système de conversion des plannings validés en plannings officiels
+  - Intégration des retours utilisateurs pour améliorer la génération future
+
+- **Amélioration de la page de plannings hebdomadaires**
+
+  - Ajout d'un bouton de navigation vers la page de validation des plannings IA
+  - Utilisation de l'icône Brain de Lucide pour indiquer les fonctionnalités liées à l'IA
+  - Animation avec Framer Motion pour une meilleure expérience utilisateur
+  - Préparation pour l'intégration complète des algorithmes d'IA
+
+- **Finalisation des interfaces de gestion pour les managers**
+
+  - Interface complète pour la création, modification et suppression d'équipes
+  - Système de gestion des collaborateurs avec ajout/suppression et modification des informations
+  - Tableaux de bord dédiés avec filtres et recherche avancés
+  - Gestion des permissions et rôles au sein des équipes
+  - Interfaces responsives adaptées aux différents appareils
+
+- **Refactorisation et optimisations**
+  - Réorganisation du code pour faciliter l'intégration future des services d'IA
+  - Amélioration des performances de chargement des plannings
+  - Meilleure gestion des états de chargement et des erreurs
 
 ### Version 1.2.0
 
