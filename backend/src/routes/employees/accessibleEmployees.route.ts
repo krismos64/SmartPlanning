@@ -75,6 +75,63 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       // Manager: accès aux employés de ses équipes
       query = { teamId: { $in: user.teamIds } };
       console.log("Manager query: Team employees", query);
+
+      // Log détaillé pour debug
+      console.log("Manager teamIds:", user.teamIds);
+
+      // Vérifier explicitement si des employés existent avec ces teamIds
+      const testEmployees = await mongoose
+        .model("Employee")
+        .find(query)
+        .select("_id firstName lastName teamId");
+
+      console.log("Employees found for manager teams:", testEmployees.length);
+      if (testEmployees.length === 0) {
+        console.log("Aucun employé trouvé dans les équipes du manager");
+
+        // Solution alternative: récupérer tous les employés qui ne sont pas managers
+        // Cette solution est temporaire jusqu'à ce que les relations team soient correctement configurées
+        console.log("Recherche d'employés sans filtre de teamId");
+
+        // Récupérer l'ID de l'entreprise du manager (s'il existe)
+        let alternativeQuery = {};
+        if (user.companyId) {
+          alternativeQuery = { companyId: user.companyId };
+        }
+
+        const allEmployees = await mongoose
+          .model("Employee")
+          .find(alternativeQuery)
+          .select("_id firstName lastName role teamId")
+          .sort({ lastName: 1 });
+
+        // Filtrer pour ne pas inclure les managers/directeurs, mais inclure tous les employés standards
+        const filteredEmployees = allEmployees.filter(
+          (emp) =>
+            !emp.role ||
+            (emp.role.toLowerCase() !== "manager" &&
+              emp.role.toLowerCase() !== "directeur" &&
+              emp.role.toLowerCase() !== "director")
+        );
+
+        console.log(
+          `Alternative: ${filteredEmployees.length} employés trouvés`
+        );
+
+        return res.status(200).json({
+          success: true,
+          data: filteredEmployees.map((emp) => ({
+            _id: emp._id,
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+          })),
+        });
+      } else {
+        console.log(
+          "Employees teamIds:",
+          testEmployees.map((e) => e.teamId)
+        );
+      }
     } else {
       // Fallback: si le rôle n'est pas reconnu, retourner l'utilisateur lui-même
       console.log("Fallback: Returning user as employee");
@@ -100,9 +157,18 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .select("_id firstName lastName")
       .sort({ lastName: 1 });
 
-    // Si aucun employé trouvé, renvoyer au moins l'utilisateur actuel pour que l'interface reste fonctionnelle
-    if (employees.length === 0) {
-      console.log("No employees found, returning current user");
+    // Filtrer pour exclure l'utilisateur actuel (ne pas afficher le manager dans sa propre liste)
+    const filteredEmployees = employees.filter(
+      (emp) => emp._id.toString() !== user._id.toString()
+    );
+
+    console.log(
+      `Employés trouvés: ${employees.length}, après filtrage: ${filteredEmployees.length}`
+    );
+
+    // Si aucun employé trouvé après filtrage, renvoyer au moins l'utilisateur actuel pour que l'interface reste fonctionnelle
+    if (filteredEmployees.length === 0) {
+      console.log("No employees found after filtering, returning current user");
       return res.status(200).json({
         success: true,
         data: [
@@ -115,10 +181,10 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Renvoyer les résultats
+    // Renvoyer les résultats filtrés
     return res.status(200).json({
       success: true,
-      data: employees,
+      data: filteredEmployees,
     });
   } catch (error) {
     console.error(

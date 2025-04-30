@@ -14,6 +14,7 @@ export interface IVacationRequest {
   endDate: Date;
   status: VacationRequestStatus;
   requestedBy: mongoose.Types.ObjectId;
+  updatedBy?: mongoose.Types.ObjectId;
   reason?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -58,6 +59,10 @@ const vacationRequestSchema = new Schema<VacationRequestDocument>(
         true,
         "L'identifiant de l'utilisateur ayant effectué la demande est requis",
       ],
+    },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
     reason: {
       type: String,

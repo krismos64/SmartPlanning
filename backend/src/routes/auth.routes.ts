@@ -156,12 +156,30 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         role: user.role,
         status: user.status,
         companyId: user.companyId,
+        teamIds: user.teamIds || [],
       },
     });
   } catch (error) {
     console.error("Erreur /me:", error);
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
+});
+
+/**
+ * @route POST /api/auth/logout
+ * @desc Déconnecte l'utilisateur (côté serveur, le token reste valide)
+ */
+router.post("/logout", (req: Request, res: Response) => {
+  // Note: Comme nous utilisons des JWT, il n'y a pas vraiment de session à invalider
+  // côté serveur. Le client doit simplement supprimer le token.
+  // Mais cette route peut être utilisée pour des logs ou des statistiques.
+
+  console.log("Déconnexion utilisateur");
+
+  res.status(200).json({
+    success: true,
+    message: "Déconnexion réussie",
+  });
 });
 
 export default router;

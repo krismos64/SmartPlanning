@@ -41,6 +41,7 @@ export interface IUser {
   loginHistory?: LoginHistoryItem[];
   preferences?: UserPreferences;
   companyId?: mongoose.Types.ObjectId;
+  teamIds?: mongoose.Types.ObjectId[];
   createdAt?: Date;
   updatedAt?: Date;
   lastLogin?: Date;
@@ -168,6 +169,12 @@ const userSchema = new Schema<UserDocument>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
     },
+    teamIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Team",
+      },
+    ],
     photoUrl: {
       type: String,
       trim: true,

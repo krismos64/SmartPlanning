@@ -215,6 +215,7 @@ const VacationsPage: React.FC = () => {
         data: Employee[];
       }>("/api/employees/accessible");
 
+      console.log("Employés accessibles reçus:", response.data.data);
       setAccessibleEmployees(response.data.data);
     } catch (error) {
       console.error(
@@ -232,6 +233,7 @@ const VacationsPage: React.FC = () => {
   const fetchVacationRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
+    console.log("Récupération des demandes de congés...");
 
     try {
       const response = await axiosInstance.get<{
@@ -239,7 +241,12 @@ const VacationsPage: React.FC = () => {
         data: VacationRequest[];
       }>("/api/vacations");
 
+      console.log("Demandes de congés reçues:", response.data);
       setVacationRequests(response.data.data);
+      console.log(
+        "État mis à jour avec les nouvelles demandes:",
+        response.data.data
+      );
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des demandes de congés:",
@@ -252,10 +259,10 @@ const VacationsPage: React.FC = () => {
     }
   }, []);
 
-  // Charger les données au montage du composant
+  // Charger les données au montage du composant et après les actions de succès
   useEffect(() => {
     fetchVacationRequests();
-  }, [fetchVacationRequests]);
+  }, [fetchVacationRequests, showSuccessToast]);
 
   // Charger les employés accessibles si l'utilisateur est manager, directeur ou admin
   useEffect(() => {
@@ -368,7 +375,13 @@ const VacationsPage: React.FC = () => {
     setError(null);
 
     try {
-      await axiosInstance.put(`/api/vacations/${id}`, { status });
+      console.log(
+        `Envoi de la requête PUT pour la demande ${id} avec statut ${status}`
+      );
+      const response = await axiosInstance.put(`/api/vacations/${id}`, {
+        status,
+      });
+      console.log("Réponse reçue du serveur:", response.data);
 
       setSuccess(
         `Demande de congés ${
@@ -377,8 +390,10 @@ const VacationsPage: React.FC = () => {
       );
       setShowSuccessToast(true);
 
+      console.log("Rafraîchissement des données après mise à jour");
       // Rafraîchir les données
-      fetchVacationRequests();
+      await fetchVacationRequests();
+      console.log("Données actualisées:", vacationRequests);
     } catch (error) {
       console.error("Erreur lors de la mise à jour du statut:", error);
       setError("Erreur lors de la mise à jour du statut");
@@ -672,101 +687,118 @@ const VacationsPage: React.FC = () => {
                     ? [{ key: "actions", label: "Actions", className: "w-48" }]
                     : []),
                 ]}
-                data={filteredRequests.map((request) => ({
-                  employee: (
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        src={null}
-                        alt={`${request.employeeId.firstName} ${request.employeeId.lastName}`}
-                        size="sm"
+                data={filteredRequests
+                  .filter((request) => request && typeof request === "object")
+                  .map((request) => ({
+                    employee: (
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          src={null}
+                          alt={`${request.employeeId?.firstName || ""} ${
+                            request.employeeId?.lastName || ""
+                          }`}
+                          size="sm"
+                        />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {request.employeeId?.firstName || "Employé"}{" "}
+                          {request.employeeId?.lastName || "inconnu"}
+                        </span>
+                      </div>
+                    ),
+                    period: (
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                          <CalendarDays size={14} />
+                          <span>
+                            {request.startDate
+                              ? formatDate(request.startDate)
+                              : "N/A"}{" "}
+                            -{" "}
+                            {request.endDate
+                              ? formatDate(request.endDate)
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="text-xs text-[var(--text-secondary)] mt-1">
+                          {request.startDate && request.endDate
+                            ? `${calculateDuration(
+                                request.startDate,
+                                request.endDate
+                              )} jour(s)`
+                            : "Durée indéterminée"}
+                        </div>
+                      </div>
+                    ),
+                    status: (
+                      <Badge
+                        label={translateStatus(request.status)}
+                        type={getStatusBadgeType(request.status)}
                       />
-                      <span className="text-[var(--text-primary)] font-medium">
-                        {request.employeeId.firstName}{" "}
-                        {request.employeeId.lastName}
-                      </span>
-                    </div>
-                  ),
-                  period: (
-                    <div>
-                      <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
-                        <CalendarDays size={14} />
-                        <span>
-                          {formatDate(request.startDate)} -{" "}
-                          {formatDate(request.endDate)}
-                        </span>
+                    ),
+                    reason: (
+                      <div className="max-w-xs text-[var(--text-primary)]">
+                        {request.reason !== undefined &&
+                        request.reason !== null ? (
+                          request.reason
+                        ) : (
+                          <span className="text-[var(--text-tertiary)] italic">
+                            Non spécifié
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-[var(--text-secondary)] mt-1">
-                        {calculateDuration(request.startDate, request.endDate)}{" "}
-                        jour(s)
-                      </div>
-                    </div>
-                  ),
-                  status: (
-                    <Badge
-                      label={translateStatus(request.status)}
-                      type={getStatusBadgeType(request.status)}
-                    />
-                  ),
-                  reason: (
-                    <div className="max-w-xs text-[var(--text-primary)]">
-                      {request.reason || (
-                        <span className="text-[var(--text-tertiary)] italic">
-                          Non spécifié
-                        </span>
-                      )}
-                    </div>
-                  ),
-                  ...(userRole !== "employee"
-                    ? {
-                        actions:
-                          request.status === "pending" ? (
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() =>
-                                  handleUpdateVacationStatus(
-                                    request._id,
-                                    "approved"
-                                  )
-                                }
-                                isLoading={actionLoading === request._id}
-                                icon={<CheckCircle2 size={14} />}
-                                className="bg-green-600 hover:bg-green-700 focus:ring-green-500/40"
-                              >
-                                Approuver
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() =>
-                                  handleUpdateVacationStatus(
-                                    request._id,
-                                    "rejected"
-                                  )
-                                }
-                                isLoading={actionLoading === request._id}
-                                icon={<XCircle size={14} />}
-                              >
-                                Refuser
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="text-[var(--text-tertiary)] text-xs text-right">
-                              {request.status === "approved"
-                                ? "Approuvé"
-                                : "Refusé"}{" "}
-                              par{" "}
-                              <span className="font-medium">
-                                {request.updatedBy
-                                  ? `${request.updatedBy.firstName} ${request.updatedBy.lastName}`
-                                  : "le système"}
-                              </span>
-                            </div>
-                          ),
-                      }
-                    : {}),
-                }))}
+                    ),
+                    ...(userRole !== "employee"
+                      ? {
+                          actions:
+                            request.status === "pending" ? (
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleUpdateVacationStatus(
+                                      request._id,
+                                      "approved"
+                                    )
+                                  }
+                                  isLoading={actionLoading === request._id}
+                                  icon={<CheckCircle2 size={14} />}
+                                  className="bg-green-600 hover:bg-green-700 focus:ring-green-500/40"
+                                >
+                                  Approuver
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleUpdateVacationStatus(
+                                      request._id,
+                                      "rejected"
+                                    )
+                                  }
+                                  isLoading={actionLoading === request._id}
+                                  icon={<XCircle size={14} />}
+                                >
+                                  Refuser
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="text-[var(--text-tertiary)] text-xs text-right">
+                                {request.status === "approved"
+                                  ? "Approuvé"
+                                  : "Refusé"}{" "}
+                                par{" "}
+                                <span className="font-medium">
+                                  {request.updatedBy &&
+                                  request.updatedBy.firstName
+                                    ? `${request.updatedBy.firstName} ${request.updatedBy.lastName}`
+                                    : "le système"}
+                                </span>
+                              </div>
+                            ),
+                        }
+                      : {}),
+                  }))}
                 emptyState={{
                   title: "Aucune demande de congé",
                   description: `Aucune demande ${

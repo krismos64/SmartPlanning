@@ -116,6 +116,8 @@ export const generateToken = (user: IUser): string => {
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
+        teamIds: user.teamIds || [],
+        companyId: user.companyId,
       },
     },
     process.env.JWT_SECRET as string,
