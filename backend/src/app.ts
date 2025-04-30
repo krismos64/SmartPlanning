@@ -11,8 +11,10 @@ import adminEmployeesRoutes from "./routes/admin/employees";
 import adminUsersRoutes from "./routes/admin/users.route";
 import authRoutes from "./routes/auth.routes";
 import employeeRoutes from "./routes/employee.routes";
+import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route";
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
 import teamRoutes from "./routes/teams.route";
+import vacationRoutes from "./routes/vacations.routes";
 import weeklySchedulesRouter from "./routes/weeklySchedules.route";
 // Charger les variables d'environnement
 dotenv.config();
@@ -47,9 +49,11 @@ app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);
 app.use("/api/admin/employees", adminEmployeesRoutes);
+app.use("/api/employees/accessible", accessibleEmployeesRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/generated-schedules", generatedSchedulesRoutes);
 app.use("/api/teams", teamRoutes);
+app.use("/api/vacations", vacationRoutes);
 app.use("/api/weekly-schedules", weeklySchedulesRouter);
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {
