@@ -150,7 +150,7 @@ const Modal: React.FC<ModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden flex items-center justify-center p-4">
           {/* Fond semi-transparent */}
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm"
@@ -163,81 +163,79 @@ const Modal: React.FC<ModalProps> = ({
             aria-hidden="true"
           />
 
-          {/* Conteneur pour centrer le contenu */}
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            {/* Contenu de la modale */}
-            <motion.div
-              ref={contentRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={titleId}
-              className={`
-                w-full max-w-md
-                bg-white dark:bg-gray-900
-                text-gray-900 dark:text-white
-                rounded-2xl
-                p-6
-                shadow-xl
-                relative
-                overflow-hidden
-                ${className}
-              `}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              variants={contentVariants}
-              tabIndex={-1}
+          {/* Contenu de la modale */}
+          <motion.div
+            ref={contentRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            className={`
+              w-full max-w-md
+              bg-white dark:bg-gray-900
+              text-gray-900 dark:text-white
+              rounded-2xl
+              p-6
+              shadow-xl
+              relative
+              overflow-hidden
+              max-h-[calc(100vh-2rem)]
+              ${className}
+            `}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={contentVariants}
+            tabIndex={-1}
+          >
+            {/* Bouton de fermeture (X) */}
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onClose}
+              className="
+                absolute top-4 right-4
+                text-gray-400 dark:text-gray-500
+                hover:text-gray-700 dark:hover:text-gray-300
+                focus:outline-none
+                focus:ring-2
+                focus:ring-indigo-400
+                focus:ring-offset-2
+                rounded-full
+                p-1
+                transition-colors
+                duration-200
+              "
+              aria-label="Fermer"
             >
-              {/* Bouton de fermeture (X) */}
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={onClose}
-                className="
-                  absolute top-4 right-4
-                  text-gray-400 dark:text-gray-500
-                  hover:text-gray-700 dark:hover:text-gray-300
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-indigo-400
-                  focus:ring-offset-2
-                  rounded-full
-                  p-1
-                  transition-colors
-                  duration-200
-                "
-                aria-label="Fermer"
+              <svg
+                className="h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg
-                  className="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
 
-              {/* Titre de la modale (si fourni) */}
-              {title && (
-                <h2
-                  id={titleId}
-                  className="text-xl font-semibold mb-4 pr-8 text-gray-900 dark:text-white" // pr-8 pour éviter chevauchement avec bouton fermeture
-                >
-                  {title}
-                </h2>
-              )}
+            {/* Titre de la modale (si fourni) */}
+            {title && (
+              <h2
+                id={titleId}
+                className="text-xl font-semibold mb-4 pr-8 text-gray-900 dark:text-white" // pr-8 pour éviter chevauchement avec bouton fermeture
+              >
+                {title}
+              </h2>
+            )}
 
-              {/* Contenu de la modale */}
-              <div className={title ? "" : "pt-3"}>{children}</div>
-            </motion.div>
-          </div>
+            {/* Contenu de la modale */}
+            <div className={title ? "" : "pt-3"}>{children}</div>
+          </motion.div>
         </div>
       )}
     </AnimatePresence>

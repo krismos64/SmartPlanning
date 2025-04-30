@@ -24,8 +24,9 @@ import {
   Users,
   X,
 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+import { AuthContext } from "../context/AuthContext";
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -43,6 +44,7 @@ import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
+import SelectMulti from "../components/ui/SelectMulti";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
@@ -58,12 +60,23 @@ interface UserFormData {
   password?: string;
   photoUrl?: string;
   companyId: string;
+  teamId?: string;
+  teamIds?: string[]; // Pour stocker plusieurs équipes pour les managers
 }
 
 // Interface pour les entreprises
 interface Company {
   _id: string;
   name: string;
+}
+
+// Interface pour les équipes
+interface Team {
+  _id: string;
+  name: string;
+  managerIds: string[]; // Tableau d'IDs des managers
+  employeeIds: string[]; // Tableau d'IDs des employés (EmployeeModel)
+  companyId: string;
 }
 
 interface UserFormErrors {
@@ -74,6 +87,7 @@ interface UserFormErrors {
   password?: string;
   photo?: string;
   companyId?: string;
+  teamId?: string;
 }
 
 // Définir les options de rôle et statut
@@ -97,6 +111,7 @@ const userColumns = [
   { key: "email", label: "Email", sortable: true },
   { key: "company", label: "Entreprise", sortable: true },
   { key: "role", label: "Rôle", sortable: true },
+  { key: "teams", label: "Équipes", sortable: false },
   { key: "status", label: "Statut", sortable: true },
   { key: "createdAt", label: "Date de création", sortable: true },
   { key: "actions", label: "Actions", sortable: false },
@@ -116,6 +131,10 @@ const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
+
+  // Obtenir le contexte d'authentification
+  const authContext = useContext(AuthContext);
+  const currentUser = authContext?.user;
 
   // États pour les filtres
   const [filters, setFilters] = useState({
@@ -140,6 +159,8 @@ const UserManagementPage: React.FC = () => {
     password: "",
     photoUrl: undefined,
     companyId: "",
+    teamId: "",
+    teamIds: [],
   });
 
   const [formErrors, setFormErrors] = useState<UserFormErrors>({});
@@ -148,6 +169,9 @@ const UserManagementPage: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyLoading, setCompanyLoading] = useState<boolean>(false);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState<boolean>(false);
+  const [employees, setEmployees] = useState<any[]>([]);
 
   // États pour le modal de mise à jour du rôle
   const [roleModalOpen, setRoleModalOpen] = useState<boolean>(false);
@@ -180,6 +204,301 @@ const UserManagementPage: React.FC = () => {
     fetchCompanies();
   }, []);
 
+  // Chargement des équipes
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        if (!currentUser?.companyId) {
+          console.warn(
+            "⚠️ Pas de companyId disponible pour charger les équipes"
+          );
+          return;
+        }
+
+        console.log("🔄 DÉBUT CHARGEMENT ÉQUIPES");
+        const companyId = String(currentUser.companyId);
+        console.log(`🏢 COMPANY ID UTILISÉ: ${companyId}`);
+
+        // Ajout d'un timestamp pour éviter le cache
+        const timestamp = new Date().getTime();
+        const response = await axiosInstance.get(
+          `/api/admin/teams?companyId=${companyId}&_t=${timestamp}`
+        );
+        console.log("📥 REÇU API TEAMS:", response);
+
+        // Détection avancée de la structure des données
+        let teamsRawData = null;
+
+        if (response.data) {
+          // Log détaillé de la structure de la réponse
+          console.log("📊 TYPE DE RÉPONSE TEAMS:", typeof response.data);
+          console.log(
+            "📊 CLÉS DE LA RÉPONSE TEAMS:",
+            Object.keys(response.data)
+          );
+
+          if (typeof response.data === "object") {
+            if (Array.isArray(response.data)) {
+              teamsRawData = response.data;
+              console.log(
+                "📋 TEAMS TROUVÉES DIRECTEMENT DANS DATA (ARRAY):",
+                teamsRawData.length
+              );
+            } else if (
+              "data" in response.data &&
+              Array.isArray(response.data.data)
+            ) {
+              teamsRawData = response.data.data;
+              console.log(
+                "📋 TEAMS TROUVÉES DANS DATA.DATA (ARRAY):",
+                teamsRawData.length
+              );
+            } else if (
+              "teams" in response.data &&
+              Array.isArray(response.data.teams)
+            ) {
+              teamsRawData = response.data.teams;
+              console.log(
+                "📋 TEAMS TROUVÉES DANS DATA.TEAMS (ARRAY):",
+                teamsRawData.length
+              );
+            } else {
+              console.log(
+                "⚠️ FORMAT DE DONNÉES TEAMS INATTENDU:",
+                response.data
+              );
+              return;
+            }
+          }
+        }
+
+        if (!teamsRawData || !Array.isArray(teamsRawData)) {
+          console.error("❌ DONNÉES TEAMS INVALIDES");
+          return;
+        }
+
+        // S'assurer que tous les IDs sont des chaînes de caractères et créer un objet formaté
+        const formattedTeams = teamsRawData
+          .filter((team) => team && typeof team === "object") // Filtrer les éléments invalides
+          .map((team: any) => {
+            const formatted = {
+              ...team,
+              _id: team._id ? String(team._id) : `unknown-${Math.random()}`,
+              companyId: team.companyId ? String(team.companyId) : null,
+              // Gérer correctement managerIds comme un tableau
+              managerIds: Array.isArray(team.managerIds)
+                ? team.managerIds.map((id: any) => String(id))
+                : team.managerId
+                ? [String(team.managerId)]
+                : [],
+              // S'assurer que employeeIds est un tableau valide
+              employeeIds: Array.isArray(team.employeeIds)
+                ? team.employeeIds.map((id: any) => String(id))
+                : [],
+              name: team.name || "Équipe sans nom",
+            };
+
+            console.log(`👥 ÉQUIPE FORMATÉE:`, {
+              _id: formatted._id,
+              name: formatted.name,
+              managerIds: formatted.managerIds,
+              employeeIds: formatted.employeeIds,
+              companyId: formatted.companyId,
+            });
+
+            return formatted;
+          });
+
+        console.log(`✅ TOTAL ÉQUIPES TRAITÉES: ${formattedTeams.length}`);
+
+        if (formattedTeams.length > 0) {
+          console.log("👁️ PREMIÈRE ÉQUIPE:", formattedTeams[0]);
+        }
+
+        setTeams(formattedTeams);
+      } catch (err) {
+        console.error("❌ ERREUR CHARGEMENT ÉQUIPES:", err);
+      }
+    };
+
+    if (currentUser?.companyId) {
+      fetchTeams();
+    }
+  }, [currentUser?.companyId]);
+
+  // Chargement des employés
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        console.log("🔄 DÉBUT CHARGEMENT EMPLOYÉS");
+
+        // On s'assure d'avoir un companyId valide
+        if (!currentUser?.companyId) {
+          console.warn(
+            "⚠️ Pas de companyId disponible pour charger les employés"
+          );
+          return;
+        }
+
+        const companyId = String(currentUser.companyId);
+        const timestamp = new Date().getTime();
+
+        // Approche directe avec les employés qui ont un teamId
+        console.log("🔍 TENTATIVE ENDPOINT EMPLOYEES AVEC TEAMID");
+        const response = await axiosInstance
+          .get(
+            `/api/admin/employees/withteams?companyId=${companyId}&_t=${timestamp}`
+          )
+          .catch(async (err) => {
+            console.warn("⚠️ Endpoint withteams non disponible:", err?.message);
+
+            // Approche alternative - créer un endpoint personnalisé pour récupérer les employés avec leurs équipes
+            console.log("🔄 CRÉATION D'UN ENDPOINT PERSONNALISÉ");
+
+            // Récupérer tous les employés
+            const employeesResponse = await axiosInstance.get(
+              `/api/admin/employees?companyId=${companyId}`
+            );
+            const allEmployees =
+              employeesResponse.data.employees ||
+              employeesResponse.data.data ||
+              employeesResponse.data;
+
+            if (!Array.isArray(allEmployees)) {
+              throw new Error("Format de données employés invalide");
+            }
+
+            // Récupérer toutes les équipes
+            const teamsResponse = await axiosInstance.get(
+              `/api/admin/teams?companyId=${companyId}`
+            );
+            const allTeams =
+              teamsResponse.data.data ||
+              teamsResponse.data.teams ||
+              teamsResponse.data;
+
+            if (!Array.isArray(allTeams)) {
+              throw new Error("Format de données équipes invalide");
+            }
+
+            // Associer manuellement les équipes aux employés
+            const enrichedEmployees = allEmployees.map((emp) => {
+              // Chercher les équipes où cet employé est référencé
+              const matchingTeams = allTeams.filter((team) => {
+                if (!Array.isArray(team.employeeIds)) return false;
+                return team.employeeIds.some(
+                  (id: string) => String(id) === String(emp._id)
+                );
+              });
+
+              return {
+                ...emp,
+                teams: matchingTeams.map(
+                  (t: { _id: string | number; name: string }) => ({
+                    _id: t._id,
+                    name: t.name,
+                  })
+                ),
+              };
+            });
+
+            return { data: enrichedEmployees };
+          });
+
+        if (!response || !response.data) {
+          console.error("❌ IMPOSSIBLE DE RÉCUPÉRER LES DONNÉES EMPLOYÉS");
+          setError("Impossible de récupérer les employés");
+          setShowErrorToast(true);
+          return;
+        }
+
+        // Extraction des données employés
+        let employeesRawData = null;
+
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            employeesRawData = response.data;
+          } else if (typeof response.data === "object") {
+            // Recherche dans toutes les propriétés possibles
+            if (Array.isArray(response.data.data)) {
+              employeesRawData = response.data.data;
+            } else if (Array.isArray(response.data.employees)) {
+              employeesRawData = response.data.employees;
+            } else {
+              // Chercher n'importe quelle propriété contenant un tableau
+              for (const key in response.data) {
+                if (
+                  Array.isArray(response.data[key]) &&
+                  response.data[key].length > 0
+                ) {
+                  employeesRawData = response.data[key];
+                  console.log(`🔍 TROUVÉ TABLEAU DANS PROPRIÉTÉ '${key}'`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (!employeesRawData || !Array.isArray(employeesRawData)) {
+          console.error("❌ DONNÉES EMPLOYEES INVALIDES");
+          setError("Format de données employés invalide");
+          setShowErrorToast(true);
+          return;
+        }
+
+        // Formater les données avec une approche defensive
+        const formattedEmployees = employeesRawData
+          .filter((emp) => emp && typeof emp === "object")
+          .map((emp: any) => {
+            // Normaliser tous les champs importants
+            const formatted = {
+              _id: emp._id ? String(emp._id) : `unknown-${Math.random()}`,
+              userId: emp.userId ? String(emp.userId) : null,
+              teamId: emp.teamId ? String(emp.teamId) : null,
+              // Stocker les équipes associées si disponibles dans la réponse
+              teams: emp.teams
+                ? emp.teams.map(
+                    (t: { _id: string | number; name: string }) => ({
+                      _id: t._id,
+                      name: t.name,
+                    })
+                  )
+                : [],
+              firstName: emp.firstName || emp.user?.firstName || "",
+              lastName: emp.lastName || emp.user?.lastName || "",
+              email: emp.email || emp.user?.email || "",
+              status: emp.status || "actif",
+              companyId: emp.companyId
+                ? String(emp.companyId)
+                : currentUser?.companyId
+                ? String(currentUser.companyId)
+                : null,
+            };
+
+            // Log des équipes associées aux employés pour le debugging
+            if (formatted.teams && formatted.teams.length > 0) {
+              console.log(
+                `👤 EMPLOYÉ ${formatted.firstName} ${formatted.lastName} A ${formatted.teams.length} ÉQUIPES:`,
+                formatted.teams.map((t: { name: string }) => t.name).join(", ")
+              );
+            }
+
+            return formatted;
+          });
+
+        console.log(`✅ TOTAL EMPLOYÉS TRAITÉS: ${formattedEmployees.length}`);
+        setEmployees(formattedEmployees);
+      } catch (err) {
+        console.error("❌ ERREUR CHARGEMENT EMPLOYÉS:", err);
+        setError("Erreur lors du chargement des employés");
+        setShowErrorToast(true);
+      }
+    };
+
+    fetchEmployees();
+  }, [currentUser?.companyId]);
+
   /**
    * Récupération des utilisateurs depuis l'API
    */
@@ -187,8 +506,17 @@ const UserManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await adminUserService.getAllUsers();
-      console.log("UTILISATEURS RÉCUPÉRÉS :", data);
-      setUsers(data);
+      console.log("UTILISATEURS RÉCUPÉRÉS BRUTS:", data);
+
+      // Normaliser les IDs
+      const formattedUsers = data.map((user: any) => ({
+        ...user,
+        _id: String(user._id),
+        companyId: user.companyId ? String(user.companyId) : null,
+      }));
+
+      setUsers(formattedUsers);
+      console.log("UTILISATEURS TRAITÉS:", formattedUsers);
     } catch (err) {
       console.error("Erreur lors de la récupération des utilisateurs:", err);
       setError("Impossible de récupérer la liste des utilisateurs.");
@@ -209,6 +537,178 @@ const UserManagementPage: React.FC = () => {
    * Filtrage des utilisateurs avec useMemo pour l'optimisation
    */
   const filteredUsers = React.useMemo(() => {
+    console.log("🔎 DÉBUT GÉNÉRATION TABLEAU DES UTILISATEURS");
+    console.log(
+      `👥 ${users.length} utilisateurs, 📚 ${teams.length} équipes, 👤 ${employees.length} employés`
+    );
+
+    // Fonction utilitaire pour obtenir les équipes d'un utilisateur
+    const getUserTeams = (user: UserType): string[] => {
+      const result: string[] = [];
+      const userId = String(user._id);
+
+      // Pour les administrateurs et directeurs, ne pas afficher d'équipes
+      if (user.role === "admin" || user.role === "directeur") {
+        return [];
+      }
+
+      // 1. Pour les managers - vérifier les équipes qu'ils gèrent
+      if (user.role === "manager") {
+        console.log(
+          `🔍 RECHERCHE DES ÉQUIPES GÉRÉES PAR ${user.firstName} (ID: ${userId})`
+        );
+
+        // Vérification des données des équipes
+        console.log(
+          `📋 DONNÉES TEAMS DISPONIBLES:`,
+          JSON.stringify(teams.slice(0, 2), null, 2)
+        );
+
+        // Trouver toutes les équipes où l'utilisateur est référencé comme manager
+        const managerTeams = teams.filter((team) => {
+          if (!team.managerIds || !Array.isArray(team.managerIds)) {
+            console.log(
+              `⚠️ ÉQUIPE ${team.name}: managerIds non valide`,
+              team.managerIds
+            );
+            return false;
+          }
+
+          // Vérification détaillée des managerIds
+          console.log(
+            `🔍 ÉQUIPE ${team.name}: vérification des ${team.managerIds.length} managers`
+          );
+          console.log(
+            `   Manager IDs:`,
+            JSON.stringify(team.managerIds, null, 2)
+          );
+
+          const isManager = team.managerIds.some((managerId: any) => {
+            // Si managerId est un objet avec _id
+            if (
+              typeof managerId === "object" &&
+              managerId !== null &&
+              managerId._id
+            ) {
+              const match = String(managerId._id) === userId;
+              if (match)
+                console.log(
+                  `✅ MATCH TROUVÉ: managerId est un objet avec _id=${managerId._id}`
+                );
+              return match;
+            }
+
+            // Si managerId est une chaîne
+            const match = String(managerId) === userId;
+            if (match)
+              console.log(
+                `✅ MATCH TROUVÉ: managerId est une chaîne: ${managerId}`
+              );
+            return match;
+          });
+
+          if (isManager) {
+            console.log(
+              `✅ ${user.firstName} EST MANAGER DE L'ÉQUIPE: ${team.name}`
+            );
+          }
+
+          return isManager;
+        });
+
+        console.log(
+          `📊 TROUVÉ ${managerTeams.length} ÉQUIPES GÉRÉES PAR ${user.firstName}`
+        );
+
+        managerTeams.forEach((team) => {
+          if (!result.includes(team.name)) {
+            console.log(`✅ ÉQUIPE MANAGÉE AJOUTÉE: ${team.name}`);
+            result.push(team.name);
+          }
+        });
+      }
+
+      // 2. Pour les employés - rechercher via la collection des employés
+      if (user.role === "employee") {
+        // Trouver les employés liés à cet utilisateur
+        const matchingEmployees = employees.filter((emp) => {
+          if (!emp.userId) return false;
+          return String(emp.userId) === userId;
+        });
+
+        // 2.1 D'abord vérifier si l'employé a des équipes pré-associées (du backend)
+        matchingEmployees.forEach((emp) => {
+          if (emp.teams && Array.isArray(emp.teams) && emp.teams.length > 0) {
+            emp.teams.forEach((team: any) => {
+              if (team.name && !result.includes(team.name)) {
+                console.log(`✅ ÉQUIPE PRÉ-ASSOCIÉE: ${team.name}`);
+                result.push(team.name);
+              }
+            });
+          }
+        });
+
+        // 2.2 Sinon, chercher via teamId
+        if (result.length === 0) {
+          matchingEmployees.forEach((emp) => {
+            if (emp.teamId) {
+              const teamId = String(emp.teamId);
+              const team = teams.find((t) => String(t._id) === teamId);
+
+              if (team) {
+                console.log(`✅ ÉQUIPE TROUVÉE VIA TEAMID: ${team.name}`);
+                if (!result.includes(team.name)) {
+                  result.push(team.name);
+                }
+              }
+            }
+          });
+        }
+      }
+
+      // 3. Dernier recours - chercher dans les employeeIds des équipes
+      if (result.length === 0 && user.role === "employee") {
+        console.log(
+          `🔄 MÉTHODE ALTERNATIVE: Recherche dans les employeeIds des équipes`
+        );
+
+        const employeeTeams = teams.filter((team) => {
+          if (!Array.isArray(team.employeeIds)) return false;
+
+          return team.employeeIds.some((empId) => {
+            // Cas 1: L'ID utilisateur est directement dans employeeIds (rare)
+            if (String(empId) === userId) return true;
+
+            // Cas 2: Chercher les employés liés à cet ID d'employé
+            const matchingEmployee = employees.find(
+              (emp) =>
+                String(emp._id) === String(empId) &&
+                String(emp.userId) === userId
+            );
+
+            return !!matchingEmployee;
+          });
+        });
+
+        employeeTeams.forEach((team) => {
+          if (!result.includes(team.name)) {
+            console.log(`✅ ÉQUIPE TROUVÉE VIA EMPLOYEEIDS: ${team.name}`);
+            result.push(team.name);
+          }
+        });
+      }
+
+      // Résumé des équipes trouvées
+      console.log(
+        `📋 ÉQUIPES FINALES POUR ${user.firstName}: ${
+          result.length > 0 ? result.join(", ") : "Aucune"
+        }`
+      );
+
+      return result;
+    };
+
+    // Filtre et map des utilisateurs
     return users
       .filter((user) => {
         const roleMatch = !filters.role || user.role === filters.role;
@@ -227,6 +727,9 @@ const UserManagementPage: React.FC = () => {
         ).toLocaleDateString("fr-FR");
         const companyName =
           companies.find((c) => c._id === user.companyId)?.name || "-";
+
+        // Récupérer les équipes de l'utilisateur
+        const userTeams = getUserTeams(user);
 
         return {
           id: user._id,
@@ -270,6 +773,40 @@ const UserManagementPage: React.FC = () => {
               }
             />
           ),
+          teams: (
+            <span className="text-gray-700 dark:text-gray-300">
+              {user.role === "admin" || user.role === "directeur" ? (
+                <div className="flex items-center">
+                  <span className="text-gray-500 dark:text-gray-400 text-sm italic">
+                    Aucune équipe
+                  </span>
+                </div>
+              ) : userTeams.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {userTeams.map((teamName, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200"
+                    >
+                      {teamName}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  <span className="text-red-500 text-sm">Aucune équipe</span>
+                  {(user.role === "employee" || user.role === "manager") && (
+                    <button
+                      className="text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline mt-1"
+                      onClick={() => handleEditUser(user)}
+                    >
+                      Assigner à une équipe
+                    </button>
+                  )}
+                </div>
+              )}
+            </span>
+          ),
           status: (
             <div
               className="cursor-pointer"
@@ -306,7 +843,15 @@ const UserManagementPage: React.FC = () => {
           ),
         };
       });
-  }, [users, filters.role, filters.status, filters.companyId, companies]);
+  }, [
+    users,
+    filters.role,
+    filters.status,
+    filters.companyId,
+    companies,
+    teams,
+    employees,
+  ]);
 
   /**
    * Gestion du changement des filtres
@@ -374,12 +919,87 @@ const UserManagementPage: React.FC = () => {
     setFormData({
       ...formData,
       companyId: value,
+      teamId: "",
     });
 
     if (formErrors.companyId) {
       setFormErrors({
         ...formErrors,
         companyId: "",
+      });
+    }
+
+    // Charger les équipes pour cette entreprise
+    if (value) {
+      loadTeamsForCompany(value);
+    } else {
+      setTeams([]);
+    }
+  };
+
+  /**
+   * Charger les équipes pour une entreprise spécifique
+   */
+  const loadTeamsForCompany = async (companyId: string) => {
+    try {
+      setTeamsLoading(true);
+      const timestamp = new Date().getTime();
+      const response = await axiosInstance.get(
+        `/api/admin/teams?companyId=${companyId}&_t=${timestamp}`
+      );
+
+      // Extraire les équipes de la réponse
+      let teamsData = null;
+      if (response.data && response.data.data) {
+        teamsData = response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        teamsData = response.data;
+      } else if (response.data && response.data.teams) {
+        teamsData = response.data.teams;
+      }
+
+      if (teamsData && Array.isArray(teamsData)) {
+        setTeams(teamsData);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement des équipes:", err);
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+
+  /**
+   * Gestion du changement d'équipe (sélection simple - pour les employés)
+   */
+  const handleTeamChange = (value: string) => {
+    setFormData({
+      ...formData,
+      teamId: value,
+    });
+
+    if (formErrors.teamId) {
+      setFormErrors({
+        ...formErrors,
+        teamId: "",
+      });
+    }
+  };
+
+  /**
+   * Gestion du changement d'équipes multiples (pour les managers)
+   */
+  const handleTeamMultiChange = (values: string[]) => {
+    setFormData({
+      ...formData,
+      teamIds: values,
+      // Si une seule équipe est sélectionnée, on l'utilise aussi pour teamId pour compatibilité
+      teamId: values.length === 1 ? values[0] : undefined,
+    });
+
+    if (formErrors.teamId) {
+      setFormErrors({
+        ...formErrors,
+        teamId: "",
       });
     }
   };
@@ -461,6 +1081,21 @@ const UserManagementPage: React.FC = () => {
       isValid = false;
     }
 
+    // Pour les managers, valider qu'au moins une équipe est sélectionnée
+    if (
+      formData.role === "manager" &&
+      (!formData.teamIds || formData.teamIds.length === 0)
+    ) {
+      errors.teamId = "Sélectionnez au moins une équipe";
+      isValid = false;
+    }
+
+    // Pour les employés, valider qu'une équipe est sélectionnée
+    if (formData.role === "employee" && !formData.teamId) {
+      errors.teamId = "L'équipe est requise";
+      isValid = false;
+    }
+
     // Valider le mot de passe s'il est fourni
     if (formData.password && formData.password.length < 8) {
       errors.password = "Le mot de passe doit contenir au moins 8 caractères";
@@ -521,11 +1156,131 @@ const UserManagementPage: React.FC = () => {
         photoUrl,
       };
 
+      console.log("Envoi des données utilisateur:", userData);
+
       // Envoyer les données à l'API
       const response = await adminUserService.createUser(userData);
 
-      // Mettre à jour la liste des utilisateurs
-      setUsers([...users, response.user]);
+      if (!response || !response.user) {
+        throw new Error(
+          "Réponse invalide de l'API lors de la création de l'utilisateur"
+        );
+      }
+
+      console.log("Utilisateur créé avec succès:", response.user);
+
+      // Gérer l'assignation à une équipe si nécessaire
+      if (
+        formData.teamId &&
+        formData.role === "employee" &&
+        response.user &&
+        response.user._id
+      ) {
+        try {
+          // Récupérer les employés pour trouver celui correspondant à l'utilisateur créé
+          const empResponse = await axiosInstance.get(
+            `/api/admin/employees/withteams?companyId=${formData.companyId}`
+          );
+          const allEmployees = empResponse.data.data || [];
+
+          // Trouver l'employé nouvellement créé (par son userId)
+          const newEmployee = allEmployees.find(
+            (emp: any) =>
+              emp.userId && String(emp.userId) === String(response.user._id)
+          );
+
+          if (newEmployee) {
+            // Mettre à jour l'employé avec le teamId
+            await axiosInstance.patch(
+              `/api/admin/employees/${newEmployee._id}`,
+              {
+                teamId: formData.teamId,
+              }
+            );
+
+            // Ajouter l'employé à l'équipe
+            await axiosInstance.patch(
+              `/api/admin/teams/${formData.teamId}/employees`,
+              {
+                employeeId: newEmployee._id,
+                action: "add",
+              }
+            );
+
+            console.log("Employé associé à l'équipe avec succès");
+          } else {
+            console.warn("Employé non trouvé après création de l'utilisateur");
+          }
+        } catch (err) {
+          console.error("Erreur lors de l'assignation d'équipe:", err);
+          // Continuer même en cas d'erreur d'assignation
+        }
+      } else if (
+        formData.role === "manager" &&
+        response.user &&
+        response.user._id
+      ) {
+        try {
+          // Utiliser teamIds pour les managers (sélection multiple)
+          const teamsToAssign =
+            formData.teamIds && formData.teamIds.length > 0
+              ? formData.teamIds
+              : formData.teamId
+              ? [formData.teamId]
+              : [];
+
+          console.log(
+            `🔄 Association du manager à ${teamsToAssign.length} équipes`
+          );
+
+          // Parcourir toutes les équipes sélectionnées
+          for (const teamId of teamsToAssign) {
+            // Récupérer l'équipe sélectionnée
+            const teamResponse = await axiosInstance.get(
+              `/api/admin/teams/${teamId}`
+            );
+            const teamData = teamResponse.data.data || teamResponse.data;
+
+            if (teamData) {
+              // Extraire les managerIds existants
+              const existingManagerIds = teamData.managerIds || [];
+              const managerIdsToSend = existingManagerIds.map((m: any) =>
+                typeof m === "object" && m._id ? m._id : m
+              );
+
+              // Vérifier que le manager n'est pas déjà dans la liste
+              if (!managerIdsToSend.includes(response.user._id)) {
+                // Ajouter le nouveau manager à l'équipe
+                await axiosInstance.patch(`/api/admin/teams/${teamId}`, {
+                  managerIds: [...managerIdsToSend, response.user._id],
+                });
+                console.log(`✅ Manager ajouté à l'équipe ${teamId}`);
+              }
+            }
+          }
+        } catch (err) {
+          console.error(
+            "Erreur lors de l'assignation d'équipes pour le manager:",
+            err
+          );
+          // Continuer même en cas d'erreur d'assignation des équipes
+        }
+      }
+
+      // Mettre à jour la liste des utilisateurs localement plutôt que de recharger
+      const newUser = {
+        ...response.user,
+        // S'assurer que tous les champs requis pour l'affichage sont présents
+        _id: String(response.user._id),
+        companyId: response.user.companyId
+          ? String(response.user.companyId)
+          : formData.companyId,
+        status: response.user.status || "active",
+        createdAt: response.user.createdAt || new Date().toISOString(),
+      };
+
+      setUsers((prevUsers) => [...prevUsers, newUser]);
+      console.log("Utilisateur ajouté à la liste locale");
 
       // Réinitialiser le formulaire et fermer le modal
       setFormData({
@@ -536,6 +1291,8 @@ const UserManagementPage: React.FC = () => {
         password: "",
         photoUrl: undefined,
         companyId: "",
+        teamId: "",
+        teamIds: [],
       });
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -544,9 +1301,19 @@ const UserManagementPage: React.FC = () => {
       // Afficher un message de succès
       setSuccess("Utilisateur ajouté avec succès");
       setShowSuccessToast(true);
-    } catch (err) {
+
+      // Actualiser la liste depuis le serveur en arrière-plan pour s'assurer que tout est synchronisé
+      fetchUsers().catch((e) =>
+        console.error("Erreur lors de l'actualisation de la liste:", e)
+      );
+    } catch (err: any) {
       console.error("Erreur lors de l'ajout de l'utilisateur:", err);
-      setError("Impossible d'ajouter l'utilisateur");
+      // Message d'erreur plus détaillé si disponible
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Impossible d'ajouter l'utilisateur";
+      setError(errorMessage);
       setShowErrorToast(true);
     } finally {
       setLoading(false);
@@ -645,6 +1412,8 @@ const UserManagementPage: React.FC = () => {
       password: "",
       photoUrl: undefined,
       companyId: "",
+      teamId: "",
+      teamIds: [],
     });
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -797,6 +1566,11 @@ const UserManagementPage: React.FC = () => {
                 }
                 className="text-gray-700 dark:text-white border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 [&_label]:text-gray-700 [&_label]:dark:text-white"
               />
+              {formErrors.companyId && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {formErrors.companyId}
+                </p>
+              )}
             </div>
 
             <div className="w-full md:w-1/4 flex items-end">
@@ -851,9 +1625,9 @@ const UserManagementPage: React.FC = () => {
           isOpen={modalOpen}
           onClose={handleCloseModal}
           title="Ajouter un utilisateur"
-          className="bg-white dark:bg-gray-900 text-gray-900 dark:text-indigo-300"
+          className="bg-white dark:bg-gray-900 text-gray-900 dark:text-indigo-300 max-h-[90vh] overflow-visible"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[calc(90vh-6rem)] overflow-y-auto pr-2">
             {/* Photo de profil */}
             <div className="flex flex-col items-center mb-6">
               <div className="mb-4 border-2 border-indigo-600 dark:border-indigo-400 rounded-full overflow-hidden">
@@ -918,6 +1692,32 @@ const UserManagementPage: React.FC = () => {
               className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
 
+            {/* Entreprise */}
+            <Select
+              label="Entreprise"
+              options={[
+                { value: "", label: "-- Sélectionner une entreprise --" },
+                ...companies.map((company) => ({
+                  value: company._id,
+                  label: company.name,
+                })),
+              ]}
+              value={formData.companyId}
+              onChange={handleCompanyChange}
+              icon={
+                <Building
+                  size={18}
+                  className="text-indigo-600 dark:text-sky-300"
+                />
+              }
+              className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+            />
+            {formErrors.companyId && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {formErrors.companyId}
+              </p>
+            )}
+
             {/* Rôle */}
             <Select
               label="Rôle"
@@ -930,20 +1730,75 @@ const UserManagementPage: React.FC = () => {
               className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
 
-            {/* Entreprise */}
-            <Select
-              label="Entreprise"
-              options={companies.map((company) => ({
-                value: company._id,
-                label: company.name,
-              }))}
-              value={formData.companyId}
-              onChange={handleCompanyChange}
-              icon={
-                <User size={18} className="text-indigo-600 dark:text-sky-300" />
-              }
-              className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-            />
+            {/* Équipe - affiché uniquement pour les employés et managers */}
+            {(formData.role === "employee" || formData.role === "manager") &&
+              formData.companyId && (
+                <div className="relative">
+                  {formData.role === "manager" ? (
+                    <SelectMulti
+                      label="Équipes gérées"
+                      options={teams.map((team) => ({
+                        value: team._id,
+                        label: team.name,
+                      }))}
+                      value={formData.teamIds || []}
+                      onChange={handleTeamMultiChange}
+                      placeholder="Sélectionner une ou plusieurs équipes..."
+                      className="text-gray-700 dark:text-sky-300"
+                    />
+                  ) : (
+                    <Select
+                      label="Équipe"
+                      options={[
+                        { value: "", label: "-- Sélectionner une équipe --" },
+                        ...teams.map((team) => ({
+                          value: team._id,
+                          label: team.name,
+                        })),
+                      ]}
+                      value={formData.teamId || ""}
+                      onChange={handleTeamChange}
+                      icon={
+                        <Users
+                          size={18}
+                          className="text-indigo-600 dark:text-sky-300"
+                        />
+                      }
+                      className="text-gray-700 dark:text-sky-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                    />
+                  )}
+                  {formErrors.teamId && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {formErrors.teamId}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {formData.role === "manager"
+                      ? "Sélectionnez les équipes que ce manager va gérer."
+                      : "Sélectionnez l'équipe à laquelle cet employé appartiendra."}
+                  </p>
+                  {teamsLoading && (
+                    <div className="absolute right-2 top-10">
+                      <div className="animate-spin h-4 w-4 border-2 border-indigo-500 rounded-full border-t-transparent"></div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            {/* Message pour les rôles admin et directeur */}
+            {(formData.role === "admin" || formData.role === "directeur") && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                  <Users
+                    size={18}
+                    className="text-indigo-600 dark:text-sky-300 mr-2"
+                  />
+                  Les{" "}
+                  {formData.role === "admin" ? "administrateurs" : "directeurs"}{" "}
+                  ne sont pas associés à des équipes spécifiques.
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex justify-end space-x-3 pt-2">

@@ -463,4 +463,142 @@ router.delete(
   }
 );
 
+/**
+ * @route   PATCH /api/admin/teams/:id/employees
+ * @desc    Ajoute ou retire un employé d'une équipe
+ * @access  Admin uniquement
+ */
+router.patch(
+  "/:id/employees",
+  authenticateToken,
+  requireRole(["admin"]),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { employeeId, action } = req.body;
+
+      // Vérifier que l'action est valide
+      if (action !== "add" && action !== "remove") {
+        return res.status(400).json({
+          success: false,
+          message: "L'action doit être 'add' ou 'remove'",
+        });
+      }
+
+      // Vérifier que les IDs sont valides
+      if (
+        !mongoose.Types.ObjectId.isValid(id) ||
+        !mongoose.Types.ObjectId.isValid(employeeId)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Les identifiants fournis ne sont pas valides",
+        });
+      }
+
+      // Vérifier que l'équipe existe
+      const team = await TeamModel.findById(id);
+      if (!team) {
+        return res.status(404).json({
+          success: false,
+          message: "L'équipe spécifiée n'existe pas",
+        });
+      }
+
+      // Vérifier que l'employé existe
+      const employee = await EmployeeModel.findById(employeeId);
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "L'employé spécifié n'existe pas",
+        });
+      }
+
+      // Vérifier que l'employé et l'équipe appartiennent à la même entreprise
+      if (team.companyId.toString() !== employee.companyId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "L'employé et l'équipe doivent appartenir à la même entreprise",
+        });
+      }
+
+      let updateOperation;
+      let updateMessage;
+
+      if (action === "add") {
+        // Vérifier si l'employé est déjà dans l'équipe
+        const isAlreadyInTeam = team.employeeIds.some(
+          (id) => id.toString() === employeeId
+        );
+
+        if (isAlreadyInTeam) {
+          return res.status(400).json({
+            success: false,
+            message: "L'employé est déjà dans cette équipe",
+          });
+        }
+
+        // Ajouter l'employé à l'équipe
+        updateOperation = { $addToSet: { employeeIds: employeeId } };
+        updateMessage = "Employé ajouté à l'équipe avec succès";
+
+        // Mettre à jour le teamId de l'employé
+        await EmployeeModel.findByIdAndUpdate(employeeId, {
+          $set: { teamId: id },
+        });
+      } else {
+        // Vérifier si l'employé est dans l'équipe
+        const isInTeam = team.employeeIds.some(
+          (id) => id.toString() === employeeId
+        );
+
+        if (!isInTeam) {
+          return res.status(400).json({
+            success: false,
+            message: "L'employé n'est pas dans cette équipe",
+          });
+        }
+
+        // Retirer l'employé de l'équipe
+        updateOperation = { $pull: { employeeIds: employeeId } };
+        updateMessage = "Employé retiré de l'équipe avec succès";
+
+        // Si l'employé a cette équipe comme teamId, mettre à null
+        const employeeToUpdate = await EmployeeModel.findById(employeeId);
+        if (
+          employeeToUpdate &&
+          employeeToUpdate.teamId &&
+          employeeToUpdate.teamId.toString() === id
+        ) {
+          await EmployeeModel.findByIdAndUpdate(employeeId, {
+            $set: { teamId: null },
+          });
+        }
+      }
+
+      // Mettre à jour l'équipe
+      const updatedTeam = await TeamModel.findByIdAndUpdate(
+        id,
+        updateOperation,
+        { new: true }
+      )
+        .populate("managerIds", "firstName lastName email")
+        .populate("employeeIds", "firstName lastName email status");
+
+      return res.status(200).json({
+        success: true,
+        message: updateMessage,
+        data: updatedTeam,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'équipe:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la mise à jour de l'équipe",
+      });
+    }
+  }
+);
+
 export default router;

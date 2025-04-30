@@ -10,28 +10,53 @@ const router = express.Router();
 
 /**
  * Route GET /api/employees
- * Liste tous les employés actifs du manager connecté (toutes ses équipes)
+ * Liste tous les employés actifs:
+ * - Pour un admin: tous les employés
+ * - Pour un manager: seulement les employés de ses équipes
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user || req.user.role !== "manager") {
+    if (
+      !req.user ||
+      (req.user.role !== "manager" && req.user.role !== "admin")
+    ) {
       return res.status(403).json({ success: false, message: "Accès refusé" });
     }
 
-    const managerTeams = await TeamModel.find(
-      { managerIds: req.user._id },
-      "_id"
-    ).lean();
-    const teamIds = managerTeams.map((team) => team._id);
+    let employees;
 
-    const employees = await EmployeeModel.find(
-      { teamId: { $in: teamIds }, status: "actif" },
-      "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl"
-    )
-      .sort({ lastName: 1, firstName: 1 })
-      .lean();
+    if (req.user.role === "admin") {
+      // L'admin a accès à tous les employés actifs
+      employees = await EmployeeModel.find(
+        { status: "actif" },
+        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
+      )
+        .populate("teamId", "name") // <<<<<< C'est la seule ligne à ajouter
+        .sort({ lastName: 1, firstName: 1 })
+        .lean();
+    } else {
+      // Le manager n'a accès qu'aux employés de ses équipes
+      const managerTeams = await TeamModel.find(
+        { managerIds: req.user._id },
+        "_id"
+      ).lean();
+      const teamIds = managerTeams.map((team) => team._id);
 
-    return res.status(200).json({ success: true, data: employees });
+      employees = await EmployeeModel.find(
+        { teamId: { $in: teamIds }, status: "actif" },
+        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
+      )
+        .sort({ lastName: 1, firstName: 1 })
+        .lean();
+    }
+
+    // Conversion du champ userId en string pour assurer la cohérence dans la réponse API
+    const formattedEmployees = employees.map((emp) => ({
+      ...emp,
+      userId: emp.userId?.toString() || null,
+    }));
+
+    return res.status(200).json({ success: true, data: formattedEmployees });
   } catch (error) {
     console.error("Erreur récupération employés:", error);
     return res.status(500).json({

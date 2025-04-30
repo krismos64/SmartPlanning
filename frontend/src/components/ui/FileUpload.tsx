@@ -102,7 +102,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             type="button"
             variant="secondary"
             icon={<Upload size={16} />}
-            className="cursor-pointer"
+            className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-600"
           >
             {buttonText}
           </Button>

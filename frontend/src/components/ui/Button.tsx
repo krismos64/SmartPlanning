@@ -18,9 +18,9 @@ export interface ButtonProps {
   /** Type HTML du bouton */
   type?: "button" | "submit" | "reset";
   /** Variante visuelle du bouton */
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  variant?: "primary" | "secondary" | "danger" | "ghost" | "outline";
   /** Taille du bouton */
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xs";
   /** État désactivé */
   disabled?: boolean;
   /** État de chargement */
@@ -61,6 +61,8 @@ const Button: React.FC<ButtonProps> = ({
       "bg-[var(--error)] text-white hover:bg-[var(--error-dark)] focus:ring-[var(--error)]/40",
     ghost:
       "bg-transparent text-[var(--text-primary)] hover:bg-[var(--background-secondary)] focus:ring-[var(--background-tertiary)]",
+    outline:
+      "bg-transparent border border-[var(--background-tertiary)] text-[var(--text-primary)] hover:bg-[var(--background-tertiary)] focus:ring-[var(--background-tertiary)]",
   };
 
   // Mapping des tailles vers les classes CSS appropriées
@@ -68,6 +70,7 @@ const Button: React.FC<ButtonProps> = ({
     sm: "text-xs px-2.5 py-1.5 rounded",
     md: "text-sm px-4 py-2 rounded-md",
     lg: "text-base px-6 py-2.5 rounded-lg",
+    xs: "text-xs px-2 py-1 rounded",
   };
 
   // Classes de base communes à tous les boutons
@@ -81,8 +84,22 @@ const Button: React.FC<ButtonProps> = ({
   // Classes pour la largeur du bouton
   const widthClasses = fullWidth ? "w-full" : "";
 
+  // Modifier la section de la classe des icônes pour les rendre plus visibles en mode dark
+  const iconClasses = `
+    ${size === "sm" ? "mr-1.5" : size === "xs" ? "mr-1" : "mr-2"} 
+    ${fullWidth ? "mr-2" : ""}
+    ${
+      variant === "ghost"
+        ? "text-inherit group-hover:text-inherit dark:text-gray-300 dark:group-hover:text-white"
+        : variant === "outline"
+        ? "text-inherit group-hover:text-inherit dark:text-gray-300 dark:group-hover:text-white"
+        : "text-inherit dark:text-white"
+    }
+    transition-colors
+  `;
+
   // Assemblage final des classes CSS
-  const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabledClasses} ${widthClasses} ${className}`;
+  const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabledClasses} ${widthClasses} ${className} ${iconClasses}`;
 
   return (
     <motion.button
