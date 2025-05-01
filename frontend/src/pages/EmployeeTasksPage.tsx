@@ -2,15 +2,27 @@
  * EmployeeTasksPage - Page de gestion des tâches employé
  *
  * Permet aux employés de visualiser et gérer leurs tâches assignées.
- * Intègre les composants du design system SmartPlanning pour une expérience cohérente.
+ * Intègre la structure de layout global de l'application (LayoutWithSidebar)
+ * avec header, footer, et sidebar pour une navigation cohérente.
+ * Conserve la logique métier de gestion des tâches via l'API.
  */
 import { AnimatePresence, motion } from "framer-motion";
-import { Calendar, Check, ClipboardList, Plus } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  ClipboardList,
+  Edit,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import React, { FormEvent, useCallback, useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
 
-// Composants de layout
+// Composant de layout global
+import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
 import PageWrapper from "../components/layout/PageWrapper";
+
+// Composants de layout
 import SectionCard from "../components/layout/SectionCard";
 import SectionTitle from "../components/layout/SectionTitle";
 
@@ -21,6 +33,7 @@ import Button from "../components/ui/Button";
 import DatePicker from "../components/ui/DatePicker";
 import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import SelectField from "../components/ui/SelectField";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
@@ -35,7 +48,8 @@ interface Task {
 // Types pour le formulaire d'ajout
 interface TaskFormData {
   title: string;
-  dueDate: string;
+  dueDate: Date | null;
+  status: "pending" | "inProgress" | "completed";
 }
 
 // Fonction utilitaire pour formater les dates
@@ -95,6 +109,8 @@ const EmployeeTasksPage: React.FC = () => {
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
 
   // Items du fil d'ariane
   const breadcrumbItems = [
@@ -105,8 +121,21 @@ const EmployeeTasksPage: React.FC = () => {
   // État pour le formulaire d'ajout de tâche
   const [formData, setFormData] = useState<TaskFormData>({
     title: "",
-    dueDate: "",
+    dueDate: null,
+    status: "pending",
   });
+
+  // État pour le formulaire d'édition
+  const [editFormData, setEditFormData] = useState<TaskFormData>({
+    title: "",
+    dueDate: null,
+    status: "pending",
+  });
+
+  // Scroll to top au chargement de la page
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Fonction pour récupérer les tâches de l'employé connecté
   const fetchTasks = useCallback(async () => {
@@ -171,12 +200,92 @@ const EmployeeTasksPage: React.FC = () => {
     }
   };
 
+  // Fonction pour supprimer une tâche
+  const deleteTask = async (taskId: string) => {
+    setUpdatingTaskId(taskId);
+    setError(null);
+
+    try {
+      await axiosInstance.delete(`/api/tasks/${taskId}`);
+
+      setSuccess("Tâche supprimée avec succès !");
+      setShowSuccessToast(true);
+      setShowEditModal(false);
+      setEditingTask(null);
+
+      // Mettre à jour la liste
+      fetchTasks();
+    } catch (error) {
+      console.error("Erreur lors de la suppression de la tâche:", error);
+      setError("Impossible de supprimer la tâche. Veuillez réessayer.");
+      setShowErrorToast(true);
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  // Fonction pour mettre à jour une tâche existante
+  const updateTask = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!editingTask) return;
+
+    setUpdatingTaskId(editingTask._id);
+    setError(null);
+
+    try {
+      // Préparation des données à envoyer
+      const taskData = {
+        title: editFormData.title.trim(),
+        status: editFormData.status,
+        ...(editFormData.dueDate && {
+          dueDate: editFormData.dueDate.toISOString(),
+        }),
+      };
+
+      await axiosInstance.patch(`/api/tasks/${editingTask._id}`, taskData);
+
+      setSuccess("Tâche mise à jour avec succès !");
+      setShowSuccessToast(true);
+      setShowEditModal(false);
+      setEditingTask(null);
+
+      // Rafraîchir la liste des tâches
+      fetchTasks();
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de la tâche:", error);
+      setError("Impossible de mettre à jour la tâche. Veuillez réessayer.");
+      setShowErrorToast(true);
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
   // Gestionnaire pour mettre à jour le formulaire
-  const handleInputChange = (name: string, value: string) => {
+  const handleInputChange = (name: string, value: string | Date | null) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+  };
+
+  // Gestionnaire pour mettre à jour le formulaire d'édition
+  const handleEditInputChange = (name: string, value: string | Date | null) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Fonction pour ouvrir le modal d'édition
+  const openEditModal = (task: Task) => {
+    setEditingTask(task);
+    setEditFormData({
+      title: task.title,
+      dueDate: task.dueDate ? new Date(task.dueDate) : null,
+      status: task.status,
+    });
+    setShowEditModal(true);
   };
 
   // Fonction pour ajouter une nouvelle tâche
@@ -197,8 +306,9 @@ const EmployeeTasksPage: React.FC = () => {
       // Préparation des données à envoyer
       const taskData = {
         title: formData.title.trim(),
+        status: formData.status,
         // N'inclure dueDate que si elle est renseignée
-        ...(formData.dueDate && { dueDate: formData.dueDate }),
+        ...(formData.dueDate && { dueDate: formData.dueDate.toISOString() }),
       };
 
       await axiosInstance.post("/api/tasks", taskData);
@@ -209,7 +319,8 @@ const EmployeeTasksPage: React.FC = () => {
       // Réinitialiser le formulaire
       setFormData({
         title: "",
-        dueDate: "",
+        dueDate: null,
+        status: "pending",
       });
 
       // Masquer le formulaire
@@ -236,7 +347,11 @@ const EmployeeTasksPage: React.FC = () => {
   };
 
   return (
-    <PageWrapper>
+    <LayoutWithSidebar
+      activeItem="tasks"
+      pageTitle="Mes Tâches | SmartPlanning"
+      showHeader={true}
+    >
       {/* Notifications */}
       <Toast
         message={error || ""}
@@ -251,24 +366,23 @@ const EmployeeTasksPage: React.FC = () => {
         onClose={closeSuccessToast}
       />
 
-      {/* En-tête avec fil d'ariane */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-        <Breadcrumb items={breadcrumbItems} />
-      </div>
+      {/* Contenu centré avec PageWrapper */}
+      <PageWrapper>
+        {/* En-tête avec fil d'ariane */}
+        <div className="mb-6">
+          <Breadcrumb items={breadcrumbItems} />
+        </div>
 
-      {/* Titre de la page */}
-      <SectionTitle
-        title="Mes Tâches"
-        subtitle="Gérez et suivez l'avancement de vos tâches"
-        icon={<ClipboardList size={24} />}
-        className="mb-8"
-      />
+        {/* Titre de la page */}
+        <SectionTitle
+          title="Mes Tâches"
+          subtitle="Gérez et suivez l'avancement de vos tâches"
+          icon={<ClipboardList size={24} />}
+          className="mb-8"
+        />
 
-      {/* Formulaire d'ajout de tâche */}
-      <SectionCard
-        title="Nouvelle tâche"
-        className="mb-8"
-        actions={
+        {/* Bouton d'ajout de tâche */}
+        <div className="flex justify-end mb-4">
           <Button
             variant={showAddForm ? "ghost" : "primary"}
             onClick={() => setShowAddForm(!showAddForm)}
@@ -276,8 +390,9 @@ const EmployeeTasksPage: React.FC = () => {
           >
             {showAddForm ? "Annuler" : "Ajouter une tâche"}
           </Button>
-        }
-      >
+        </div>
+
+        {/* Formulaire d'ajout de tâche */}
         <AnimatePresence>
           {showAddForm && (
             <motion.div
@@ -285,154 +400,277 @@ const EmployeeTasksPage: React.FC = () => {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
-              className="overflow-hidden"
+              className="mb-8 overflow-hidden"
             >
-              <div className="p-6 border-t border-[var(--border)]">
-                <form onSubmit={addNewTask} className="space-y-6">
+              <SectionCard title="Nouvelle tâche" className="mb-4">
+                <div className="p-6 border-t border-[var(--border)]">
+                  <form onSubmit={addNewTask} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Titre de la tâche */}
+                      <InputField
+                        label="Titre"
+                        name="title"
+                        value={formData.title}
+                        onChange={(e) =>
+                          handleInputChange("title", e.target.value)
+                        }
+                        placeholder="Titre de la tâche"
+                        required
+                      />
+
+                      {/* Date d'échéance */}
+                      <div className="relative pt-6">
+                        <DatePicker
+                          label="Date d'échéance (optionnelle)"
+                          selectedDate={formData.dueDate}
+                          onChange={(date) =>
+                            handleInputChange("dueDate", date)
+                          }
+                          minDate={new Date()}
+                        />
+                      </div>
+
+                      {/* Sélection du statut avec le nouveau composant */}
+                      <SelectField
+                        label="Statut"
+                        name="status"
+                        value={formData.status}
+                        onChange={(e) =>
+                          handleInputChange("status", e.target.value)
+                        }
+                        options={[
+                          { value: "pending", label: "En attente" },
+                          { value: "inProgress", label: "En cours" },
+                          { value: "completed", label: "Terminée" },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        isLoading={loading}
+                        icon={<Check size={16} />}
+                      >
+                        Ajouter
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </SectionCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Liste des tâches */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <SectionCard title="Liste de tâches" className="mb-8">
+            <div className="mb-4 text-sm text-[var(--text-secondary)]">
+              {tasks.filter((task) => task.status !== "completed").length}{" "}
+              tâche(s) en cours
+            </div>
+
+            {loading && !updatingTaskId ? (
+              <div className="flex justify-center items-center py-16">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : tasks.length > 0 ? (
+              <div className="p-4 overflow-x-auto">
+                <Table
+                  columns={[
+                    { key: "title", label: "Titre" },
+                    { key: "dueDate", label: "Échéance", className: "w-40" },
+                    { key: "status", label: "Statut", className: "w-32" },
+                    { key: "actions", label: "Actions", className: "w-56" },
+                  ]}
+                  data={tasks.map((task) => ({
+                    title: (
+                      <div
+                        className={
+                          task.status === "completed"
+                            ? "line-through text-[var(--text-tertiary)]"
+                            : "text-[var(--text-primary)]"
+                        }
+                      >
+                        {task.title}
+                      </div>
+                    ),
+                    dueDate: (
+                      <div
+                        className={
+                          isOverdue(task.dueDate) && task.status !== "completed"
+                            ? "text-[var(--error)]"
+                            : "text-[var(--text-secondary)]"
+                        }
+                      >
+                        {task.dueDate ? (
+                          <div className="flex items-center gap-2">
+                            <Calendar size={16} />
+                            {formatDate(task.dueDate)}
+                          </div>
+                        ) : (
+                          "Aucune échéance"
+                        )}
+                      </div>
+                    ),
+                    status: (
+                      <Badge
+                        type={
+                          getStatusVariant(task.status) as
+                            | "success"
+                            | "error"
+                            | "info"
+                            | "warning"
+                        }
+                        label={translateStatus(task.status)}
+                      />
+                    ),
+                    actions: (
+                      <div className="flex space-x-2">
+                        {task.status !== "completed" && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => markAsCompleted(task._id)}
+                            isLoading={updatingTaskId === task._id}
+                            icon={<Check size={16} />}
+                          >
+                            Terminer
+                          </Button>
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openEditModal(task)}
+                          icon={<Edit size={16} />}
+                        >
+                          Modifier
+                        </Button>
+                      </div>
+                    ),
+                  }))}
+                  emptyState={{
+                    title: "Aucune tâche",
+                    description: "Commencez par ajouter une nouvelle tâche",
+                    icon: <ClipboardList size={40} />,
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <ClipboardList
+                  size={48}
+                  className="text-[var(--text-tertiary)] mb-4"
+                />
+                <p className="text-lg text-[var(--text-primary)] mb-2">
+                  Aucune tâche à afficher
+                </p>
+                <p className="text-sm text-[var(--text-tertiary)]">
+                  Commencez par ajouter une nouvelle tâche
+                </p>
+              </div>
+            )}
+          </SectionCard>
+        </motion.div>
+
+        {/* Modale d'édition de tâche */}
+        {showEditModal && editingTask && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full"
+            >
+              <div className="p-6 border-b border-[var(--border)]">
+                <h3 className="text-lg font-medium text-[var(--text-primary)]">
+                  Modifier la tâche
+                </h3>
+              </div>
+              <div className="p-6">
+                <form onSubmit={updateTask} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Titre de la tâche */}
                     <InputField
                       label="Titre"
-                      value={formData.title}
+                      name="title"
+                      value={editFormData.title}
                       onChange={(e) =>
-                        handleInputChange("title", e.target.value)
+                        handleEditInputChange("title", e.target.value)
                       }
                       placeholder="Titre de la tâche"
                       required
                     />
 
                     {/* Date d'échéance */}
-                    <DatePicker
-                      label="Date d'échéance (optionnelle)"
-                      selectedDate={
-                        formData.dueDate ? new Date(formData.dueDate) : null
-                      }
-                      onChange={(date) => {
-                        if (date) {
-                          handleInputChange(
-                            "dueDate",
-                            date.toISOString().split("T")[0]
-                          );
+                    <div className="relative pt-6">
+                      <DatePicker
+                        label="Date d'échéance (optionnelle)"
+                        selectedDate={editFormData.dueDate}
+                        onChange={(date) =>
+                          handleEditInputChange("dueDate", date)
                         }
-                      }}
-                      minDate={new Date()}
+                        minDate={new Date()}
+                      />
+                    </div>
+
+                    {/* Sélection du statut */}
+                    <SelectField
+                      label="Statut"
+                      name="status"
+                      value={editFormData.status}
+                      onChange={(e) =>
+                        handleEditInputChange("status", e.target.value)
+                      }
+                      options={[
+                        { value: "pending", label: "En attente" },
+                        { value: "inProgress", label: "En cours" },
+                        { value: "completed", label: "Terminée" },
+                      ]}
                     />
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex justify-between pt-4">
                     <Button
-                      type="submit"
-                      variant="primary"
-                      isLoading={loading}
-                      icon={<Check size={16} />}
+                      type="button"
+                      variant="danger"
+                      onClick={() => deleteTask(editingTask._id)}
+                      isLoading={updatingTaskId === editingTask._id}
+                      icon={<Trash2 size={16} />}
                     >
-                      Ajouter
+                      Supprimer
                     </Button>
+                    <div className="flex space-x-3">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setShowEditModal(false)}
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        isLoading={updatingTaskId === editingTask._id}
+                        icon={<Check size={16} />}
+                      >
+                        Mettre à jour
+                      </Button>
+                    </div>
                   </div>
                 </form>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </SectionCard>
-
-      {/* Liste des tâches */}
-      <SectionCard
-        title="Liste de tâches"
-        className="mb-8"
-        description={`${
-          tasks.filter((task) => task.status !== "completed").length
-        } tâche(s) en cours`}
-      >
-        {loading && !updatingTaskId ? (
-          <div className="flex justify-center items-center py-16">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : tasks.length > 0 ? (
-          <div className="p-4 overflow-x-auto">
-            <Table
-              columns={[
-                { key: "title", label: "Titre" },
-                { key: "dueDate", label: "Échéance", className: "w-40" },
-                { key: "status", label: "Statut", className: "w-32" },
-                { key: "actions", label: "Actions", className: "w-40" },
-              ]}
-              data={tasks.map((task) => ({
-                title: (
-                  <div
-                    className={
-                      task.status === "completed"
-                        ? "line-through text-[var(--text-tertiary)]"
-                        : "text-[var(--text-primary)]"
-                    }
-                  >
-                    {task.title}
-                  </div>
-                ),
-                dueDate: (
-                  <div
-                    className={
-                      isOverdue(task.dueDate) && task.status !== "completed"
-                        ? "text-[var(--error)]"
-                        : "text-[var(--text-secondary)]"
-                    }
-                  >
-                    {task.dueDate ? (
-                      <div className="flex items-center gap-2">
-                        <Calendar size={16} />
-                        {formatDate(task.dueDate)}
-                      </div>
-                    ) : (
-                      "Aucune échéance"
-                    )}
-                  </div>
-                ),
-                status: (
-                  <Badge
-                    variant={getStatusVariant(task.status)}
-                    label={translateStatus(task.status)}
-                  />
-                ),
-                actions:
-                  task.status !== "completed" ? (
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => markAsCompleted(task._id)}
-                      isLoading={updatingTaskId === task._id}
-                      icon={<Check size={16} />}
-                    >
-                      Marquer terminée
-                    </Button>
-                  ) : (
-                    <span className="text-[var(--text-tertiary)] text-sm italic">
-                      Tâche complétée
-                    </span>
-                  ),
-              }))}
-              emptyState={{
-                title: "Aucune tâche",
-                description: "Commencez par ajouter une nouvelle tâche",
-                icon: <ClipboardList size={40} />,
-              }}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <ClipboardList
-              size={48}
-              className="text-[var(--text-tertiary)] mb-4"
-            />
-            <p className="text-lg text-[var(--text-primary)] mb-2">
-              Aucune tâche à afficher
-            </p>
-            <p className="text-sm text-[var(--text-tertiary)]">
-              Commencez par ajouter une nouvelle tâche
-            </p>
           </div>
         )}
-      </SectionCard>
-    </PageWrapper>
+      </PageWrapper>
+    </LayoutWithSidebar>
   );
 };
 

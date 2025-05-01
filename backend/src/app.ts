@@ -13,6 +13,7 @@ import authRoutes from "./routes/auth.routes";
 import employeeRoutes from "./routes/employee.routes";
 import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route";
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
+import tasksRoutes from "./routes/tasks.routes";
 import teamRoutes from "./routes/teams.route";
 import vacationRoutes from "./routes/vacations.routes";
 import weeklySchedulesRouter from "./routes/weeklySchedules.route";
@@ -55,6 +56,7 @@ app.use("/api/generated-schedules", generatedSchedulesRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/vacations", vacationRoutes);
 app.use("/api/weekly-schedules", weeklySchedulesRouter);
+app.use("/api/tasks", tasksRoutes);
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {
   res.json({ message: "SmartPlanning API" });
