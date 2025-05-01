@@ -14,6 +14,7 @@ import LoginPage from "./pages/LoginPage";
 import ManagerPlanningValidationPage from "./pages/ManagerPlanningValidationPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
+import StatsPage from "./pages/StatsPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
 import UserManagementPage from "./pages/UserManagementPage";
 import VacationsPage from "./pages/VacationsPage";
@@ -88,6 +89,7 @@ const AppRouter: React.FC = () => {
           path="/validation-plannings"
           element={<ManagerPlanningValidationPage />}
         />
+        <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
 
         {/* Routes d'administration */}
