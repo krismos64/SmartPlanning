@@ -405,55 +405,70 @@ const EmployeeTasksPage: React.FC = () => {
               <SectionCard title="Nouvelle tâche" className="mb-4">
                 <div className="p-6 border-t border-[var(--border)]">
                   <form onSubmit={addNewTask} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col space-y-5">
                       {/* Titre de la tâche */}
-                      <InputField
-                        label="Titre"
-                        name="title"
-                        value={formData.title}
-                        onChange={(e) =>
-                          handleInputChange("title", e.target.value)
-                        }
-                        placeholder="Titre de la tâche"
-                        required
-                      />
-
-                      {/* Date d'échéance */}
-                      <div className="relative pt-6">
-                        <DatePicker
-                          label="Date d'échéance (optionnelle)"
-                          selectedDate={formData.dueDate}
-                          onChange={(date) =>
-                            handleInputChange("dueDate", date)
+                      <div>
+                        <h3 className="text-md font-medium text-[var(--text-primary)] mb-2 dark:text-gray-200">
+                          Titre de la tâche
+                        </h3>
+                        <InputField
+                          name="title"
+                          value={formData.title}
+                          onChange={(e) =>
+                            handleInputChange("title", e.target.value)
                           }
-                          minDate={new Date()}
+                          placeholder="Entrez le titre de la tâche"
+                          required
                         />
                       </div>
 
-                      {/* Sélection du statut avec le nouveau composant */}
-                      <SelectField
-                        label="Statut"
-                        name="status"
-                        value={formData.status}
-                        onChange={(e) =>
-                          handleInputChange("status", e.target.value)
-                        }
-                        options={[
-                          { value: "pending", label: "En attente" },
-                          { value: "inProgress", label: "En cours" },
-                          { value: "completed", label: "Terminée" },
-                        ]}
-                      />
+                      {/* Date d'échéance */}
+                      <div>
+                        <h3 className="text-md font-medium text-[var(--text-primary)] mb-2 dark:text-gray-200">
+                          Date d'échéance (optionnelle)
+                        </h3>
+                        <div className="relative dark:bg-gray-800 rounded-lg border border-[var(--border)] dark:border-gray-700">
+                          <DatePicker
+                            selectedDate={formData.dueDate}
+                            onChange={(date) =>
+                              handleInputChange("dueDate", date)
+                            }
+                            minDate={new Date()}
+                            className="w-full dark:text-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Sélection du statut */}
+                      <div>
+                        <h3 className="text-md font-medium text-[var(--text-primary)] mb-2 dark:text-gray-200">
+                          Statut
+                        </h3>
+                        <SelectField
+                          label="Statut"
+                          name="status"
+                          value={formData.status}
+                          onChange={(e) =>
+                            handleInputChange("status", e.target.value)
+                          }
+                          options={[
+                            { value: "pending", label: "En attente" },
+                            { value: "inProgress", label: "En cours" },
+                            { value: "completed", label: "Terminée" },
+                          ]}
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end mt-8">
                       <Button
                         type="submit"
                         variant="primary"
                         isLoading={loading}
                         icon={<Check size={16} />}
+                        className="w-full sm:w-auto"
                       >
-                        Ajouter
+                        Ajouter la tâche
                       </Button>
                     </div>
                   </form>
@@ -544,10 +559,11 @@ const EmployeeTasksPage: React.FC = () => {
                           </Button>
                         )}
                         <Button
-                          variant="secondary"
+                          variant="outline"
                           size="sm"
                           onClick={() => openEditModal(task)}
                           icon={<Edit size={16} />}
+                          className="dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600"
                         >
                           Modifier
                         </Button>
@@ -588,69 +604,85 @@ const EmployeeTasksPage: React.FC = () => {
               transition={{ duration: 0.2 }}
               className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full"
             >
-              <div className="p-6 border-b border-[var(--border)]">
-                <h3 className="text-lg font-medium text-[var(--text-primary)]">
+              <div className="p-6 border-b border-[var(--border)] dark:border-gray-700">
+                <h3 className="text-lg font-medium text-[var(--text-primary)] dark:text-white">
                   Modifier la tâche
                 </h3>
               </div>
               <div className="p-6">
                 <form onSubmit={updateTask} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col space-y-5">
                     {/* Titre de la tâche */}
-                    <InputField
-                      label="Titre"
-                      name="title"
-                      value={editFormData.title}
-                      onChange={(e) =>
-                        handleEditInputChange("title", e.target.value)
-                      }
-                      placeholder="Titre de la tâche"
-                      required
-                    />
-
-                    {/* Date d'échéance */}
-                    <div className="relative pt-6">
-                      <DatePicker
-                        label="Date d'échéance (optionnelle)"
-                        selectedDate={editFormData.dueDate}
-                        onChange={(date) =>
-                          handleEditInputChange("dueDate", date)
+                    <div>
+                      <h3 className="text-md font-medium text-[var(--text-primary)] mb-2 dark:text-gray-200">
+                        Titre de la tâche
+                      </h3>
+                      <InputField
+                        name="title"
+                        value={editFormData.title}
+                        onChange={(e) =>
+                          handleEditInputChange("title", e.target.value)
                         }
-                        minDate={new Date()}
+                        placeholder="Entrez le titre de la tâche"
+                        required
                       />
                     </div>
 
+                    {/* Date d'échéance */}
+                    <div>
+                      <h3 className="text-md font-medium text-[var(--text-primary)] mb-2 dark:text-gray-200">
+                        Date d'échéance (optionnelle)
+                      </h3>
+                      <div className="relative dark:bg-gray-800 rounded-lg border border-[var(--border)] dark:border-gray-700">
+                        <DatePicker
+                          selectedDate={editFormData.dueDate}
+                          onChange={(date) =>
+                            handleEditInputChange("dueDate", date)
+                          }
+                          minDate={new Date()}
+                          className="w-full dark:text-white"
+                        />
+                      </div>
+                    </div>
+
                     {/* Sélection du statut */}
-                    <SelectField
-                      label="Statut"
-                      name="status"
-                      value={editFormData.status}
-                      onChange={(e) =>
-                        handleEditInputChange("status", e.target.value)
-                      }
-                      options={[
-                        { value: "pending", label: "En attente" },
-                        { value: "inProgress", label: "En cours" },
-                        { value: "completed", label: "Terminée" },
-                      ]}
-                    />
+                    <div>
+                      <h3 className="text-md font-medium text-[var(--text-primary)] mb-2 dark:text-gray-200">
+                        Statut
+                      </h3>
+                      <SelectField
+                        label="Statut"
+                        name="status"
+                        value={editFormData.status}
+                        onChange={(e) =>
+                          handleEditInputChange("status", e.target.value)
+                        }
+                        options={[
+                          { value: "pending", label: "En attente" },
+                          { value: "inProgress", label: "En cours" },
+                          { value: "completed", label: "Terminée" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
-                  <div className="flex justify-between pt-4">
+                  <div className="flex flex-col sm:flex-row justify-between gap-4 pt-4">
                     <Button
                       type="button"
                       variant="danger"
                       onClick={() => deleteTask(editingTask._id)}
                       isLoading={updatingTaskId === editingTask._id}
                       icon={<Trash2 size={16} />}
+                      className="sm:order-1 order-2"
                     >
                       Supprimer
                     </Button>
-                    <div className="flex space-x-3">
+                    <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 sm:order-2 order-1">
                       <Button
                         type="button"
                         variant="ghost"
                         onClick={() => setShowEditModal(false)}
+                        className="dark:text-gray-200 dark:hover:bg-gray-700"
                       >
                         Annuler
                       </Button>
