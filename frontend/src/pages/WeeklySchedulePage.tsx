@@ -495,19 +495,30 @@ const WeeklySchedulePage: React.FC = () => {
       }
     });
 
-    // Construction et retour du payload final avec updatedBy obligatoire
-    return {
+    // Construction du payload simplifié, adapté au format attendu par le backend
+    const payload = {
       employeeId: selectedEmployeeId,
-      updatedBy: user._id, // Important: inclure l'ID de l'utilisateur qui fait la modification
-      year,
-      weekNumber,
+      updatedBy: user._id, // Important: ID utilisateur qui fait la modification
+      userId: user._id, // Alternative: essayer une autre clé
+      userId_: user._id, // Autre alternative
+      user_id: user._id, // Autre alternative
+      year: year,
+      weekNumber: weekNumber,
       status: "approved",
       notes: notes?.trim() || "",
-      scheduleData: scheduleObj, // Objet avec structure {day: string[]}
-      dailyNotes: notesObj, // Objet avec structure {day: string}
-      dailyDates: datesObj, // Objet avec structure {day: string ISO}
-      totalWeeklyMinutes,
+      scheduleData: scheduleObj, // S'assurer que c'est bien un objet
+      dailyNotes: notesObj,
+      dailyDates: datesObj,
+      totalWeeklyMinutes: totalWeeklyMinutes,
     };
+
+    // Log pour le débogage
+    console.log(
+      "Payload préparé pour l'envoi:",
+      JSON.stringify(payload, null, 2)
+    );
+
+    return payload;
   };
 
   /**
@@ -531,60 +542,76 @@ const WeeklySchedulePage: React.FC = () => {
       );
     }
 
-    // Récupérer le token d'authentification
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("Votre session a expiré. Veuillez vous reconnecter.");
-    }
-
     // Vérification supplémentaire sur la structure du payload
     if (!payload.scheduleData || typeof payload.scheduleData !== "object") {
       throw new Error("Format de données de planning invalide");
     }
 
-    // Déterminer l'URL en fonction du mode (création ou édition)
-    const baseUrl = "/api/weekly-schedules";
-    const url =
-      isEditMode && existingScheduleId
-        ? `${baseUrl}/${existingScheduleId}`
-        : baseUrl;
+    // Vérifier que updatedBy est bien défini et contient une valeur
+    if (!payload.updatedBy) {
+      console.error("updatedBy manquant dans le payload:", payload);
+      throw new Error(
+        "Erreur de validation: ID utilisateur manquant (updatedBy)"
+      );
+    }
 
     try {
-      // Effectuer la requête avec Fetch API
-      const response = await fetch(url, {
-        method: isEditMode ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+      // Log pour vérifier l'URL et la méthode
+      console.log("Envoi de la requête:", {
+        method: isEditMode && existingScheduleId ? "PUT" : "POST",
+        url:
+          isEditMode && existingScheduleId
+            ? `/weekly-schedules/${existingScheduleId}`
+            : "/weekly-schedules",
       });
 
-      // Traiter les réponses d'erreur
+      // Définir les en-têtes manuellement pour s'assurer que tout est correct
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      };
+
+      console.log("En-têtes utilisés:", headers);
+
+      // Essayer avec une approche plus directe pour s'assurer que les données sont envoyées correctement
+      const url = `${
+        import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+      }/weekly-schedules`;
+
+      // Transformer le payload en chaîne JSON
+      const jsonPayload = JSON.stringify(payload);
+      console.log("Payload JSON:", jsonPayload);
+
+      // Utiliser fetch pour plus de contrôle sur la requête
+      const response = await fetch(
+        isEditMode && existingScheduleId ? `${url}/${existingScheduleId}` : url,
+        {
+          method: isEditMode ? "PUT" : "POST",
+          headers: headers,
+          body: jsonPayload,
+        }
+      );
+
+      // Vérifier si la réponse est OK
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Erreur serveur:", errorData);
-
-        // Gérer les codes d'erreur spécifiques
-        if (response.status === 400) {
-          throw new Error(errorData.message || "Données de planning invalides");
-        } else if (response.status === 401 || response.status === 403) {
-          throw new Error("Votre session a expiré. Veuillez vous reconnecter.");
-        } else if (response.status === 409) {
-          throw new Error(
-            "Un planning existe déjà pour cet employé sur cette semaine"
-          );
-        } else {
-          throw new Error(errorData.message || `Erreur ${response.status}`);
-        }
+        throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
       }
 
       // Traiter la réponse réussie
       const data = await response.json();
+      console.log("Réponse reçue avec succès:", data);
       return true;
     } catch (error) {
       console.error("Erreur lors de l'envoi du planning:", error);
-      throw error;
+
+      // Gérer les différents types d'erreurs
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error("Une erreur inconnue est survenue");
+      }
     }
   };
 

@@ -41,15 +41,16 @@ router.post(
       });
 
       // 🔒 Vérification de l'authentification de l'utilisateur
-      if (!req.user || (!req.user.userId && !req.user.id)) {
+      if (!req.user || (!req.user.userId && !req.user.id && !req.user._id)) {
         console.log("Erreur d'authentification: req.user =", req.user);
         return res.status(400).json({
           message: "Utilisateur non authentifié (updatedBy manquant)",
         });
       }
 
-      // Utiliser userId ou id selon ce qui est disponible
-      const authenticatedUserId = req.user.userId || req.user.id;
+      // Utiliser userId, id ou _id selon ce qui est disponible
+      const authenticatedUserId =
+        req.user.userId || req.user.id || req.user._id;
       console.log("ID utilisateur authentifié:", authenticatedUserId);
 
       // 📌 Validation des champs requis
@@ -253,7 +254,7 @@ router.put(
       console.log("User dans req:", req.user);
 
       // 🔒 Vérification de l'authentification de l'utilisateur
-      if (!req.user || (!req.user.userId && !req.user.id)) {
+      if (!req.user || (!req.user.userId && !req.user.id && !req.user._id)) {
         console.log("Erreur d'authentification: req.user =", req.user);
         return res.status(400).json({
           message: "Utilisateur non authentifié (updatedBy manquant)",
@@ -272,8 +273,9 @@ router.put(
         });
       }
 
-      // Utiliser userId ou id selon ce qui est disponible
-      const authenticatedUserId = req.user.userId || req.user.id;
+      // Utiliser userId, id ou _id selon ce qui est disponible
+      const authenticatedUserId =
+        req.user.userId || req.user.id || req.user._id;
       console.log("ID utilisateur authentifié:", authenticatedUserId);
 
       // 📌 Validation des champs requis
