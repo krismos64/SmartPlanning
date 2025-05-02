@@ -1011,17 +1011,17 @@ const WeeklySchedulePage: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <button
             onClick={() => handleMonthChange(-1)}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white transition-colors"
           >
             <ChevronLeft size={20} />
           </button>
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
             {MONTH_NAMES[calendarMonth.getMonth()]}{" "}
             {calendarMonth.getFullYear()}
           </h3>
           <button
             onClick={() => handleMonthChange(1)}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white transition-colors"
           >
             <ChevronRight size={20} />
           </button>
@@ -1110,10 +1110,16 @@ const WeeklySchedulePage: React.FC = () => {
             variant="secondary"
             onClick={goToPreviousWeek}
             icon={<ChevronLeft size={16} />}
+            className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
           >
             Sem. préc.
           </Button>
-          <Button size="sm" variant="secondary" onClick={goToCurrentWeek}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={goToCurrentWeek}
+            className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+          >
             Aujourd'hui
           </Button>
           <Button
@@ -1121,7 +1127,7 @@ const WeeklySchedulePage: React.FC = () => {
             variant="secondary"
             onClick={goToNextWeek}
             icon={<ChevronRight size={16} />}
-            className="flex flex-row-reverse items-center gap-2"
+            className="flex flex-row-reverse items-center gap-2 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
           >
             Sem. suiv.
           </Button>
@@ -1136,7 +1142,9 @@ const WeeklySchedulePage: React.FC = () => {
   const renderViewSelector = () => {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-4">
-        <h3 className="text-lg font-semibold mb-3">Vue des plannings</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+          Vue des plannings
+        </h3>
         <div className="flex flex-col space-y-2">
           <div className="flex space-x-2 mb-3">
             <Button
@@ -1144,7 +1152,11 @@ const WeeklySchedulePage: React.FC = () => {
               variant={viewMode === "global" ? "primary" : "secondary"}
               onClick={() => changeViewMode("global")}
               icon={<Grid size={16} />}
-              className={viewMode === "global" ? "bg-indigo-600" : ""}
+              className={
+                viewMode === "global"
+                  ? "bg-indigo-600 dark:bg-indigo-600 dark:text-white"
+                  : "dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              }
             >
               Vue globale
             </Button>
@@ -1153,7 +1165,11 @@ const WeeklySchedulePage: React.FC = () => {
               variant={viewMode === "team" ? "primary" : "secondary"}
               onClick={() => changeViewMode("team")}
               icon={<Users size={16} />}
-              className={viewMode === "team" ? "bg-indigo-600" : ""}
+              className={
+                viewMode === "team"
+                  ? "bg-indigo-600 dark:bg-indigo-600 dark:text-white"
+                  : "dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              }
             >
               Par équipe
             </Button>
@@ -1162,7 +1178,11 @@ const WeeklySchedulePage: React.FC = () => {
               variant={viewMode === "employee" ? "primary" : "secondary"}
               onClick={() => changeViewMode("employee")}
               icon={<User size={16} />}
-              className={viewMode === "employee" ? "bg-indigo-600" : ""}
+              className={
+                viewMode === "employee"
+                  ? "bg-indigo-600 dark:bg-indigo-600 dark:text-white"
+                  : "dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              }
             >
               Par employé
             </Button>
@@ -1389,7 +1409,7 @@ const WeeklySchedulePage: React.FC = () => {
 
               {/* Grille d'horaires intégrée */}
               <div className="mb-6">
-                <h3 className="font-medium text-[var(--text-primary)] mb-3">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
                   Horaires
                 </h3>
                 <div className="space-y-6">
@@ -1413,14 +1433,14 @@ const WeeklySchedulePage: React.FC = () => {
                     return (
                       <div
                         key={day}
-                        className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] transition-all hover:shadow-md"
+                        className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] dark:bg-gray-800 transition-all hover:shadow-md"
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
                           <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                            <span className="font-medium text-[var(--text-primary)]">
+                            <span className="font-medium text-[var(--text-primary)] dark:text-white">
                               {DAYS_OF_WEEK[dayIndex]}
                             </span>
-                            <span className="text-sm text-[var(--text-secondary)]">
+                            <span className="text-sm text-[var(--text-secondary)] dark:text-gray-300">
                               {formattedDate}
                             </span>
                           </div>
@@ -1452,10 +1472,10 @@ const WeeklySchedulePage: React.FC = () => {
                             scheduleData[day].map((slot, slotIndex) => (
                               <div
                                 key={slotIndex}
-                                className="flex flex-wrap items-center gap-2 p-2 bg-[var(--background-primary)] rounded-lg"
+                                className="flex flex-wrap items-center gap-2 p-2 bg-[var(--background-primary)] dark:bg-gray-700 rounded-lg"
                               >
                                 <div className="flex-1 min-w-[180px] flex items-center gap-2">
-                                  <label className="text-xs text-[var(--text-secondary)]">
+                                  <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
                                     Début
                                   </label>
                                   <select
@@ -1468,7 +1488,7 @@ const WeeklySchedulePage: React.FC = () => {
                                         e.target.value
                                       )
                                     }
-                                    className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--input-background)] text-[var(--text-primary)] text-sm"
+                                    className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
                                   >
                                     {TIME_OPTIONS.filter(
                                       (time) => time < slot.end
@@ -1481,7 +1501,7 @@ const WeeklySchedulePage: React.FC = () => {
                                 </div>
 
                                 <div className="flex-1 min-w-[180px] flex items-center gap-2">
-                                  <label className="text-xs text-[var(--text-secondary)]">
+                                  <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
                                     Fin
                                   </label>
                                   <select
@@ -1494,7 +1514,7 @@ const WeeklySchedulePage: React.FC = () => {
                                         e.target.value
                                       )
                                     }
-                                    className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--input-background)] text-[var(--text-primary)] text-sm"
+                                    className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
                                   >
                                     {TIME_OPTIONS.filter(
                                       (time) => time > slot.start
@@ -1533,7 +1553,7 @@ const WeeklySchedulePage: React.FC = () => {
 
                         {/* Notes pour ce jour */}
                         <div className="mt-3">
-                          <label className="text-xs text-[var(--text-secondary)]">
+                          <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
                             Notes pour {DAYS_OF_WEEK[dayIndex]} (optionnel)
                           </label>
                           <textarea
@@ -1541,7 +1561,7 @@ const WeeklySchedulePage: React.FC = () => {
                             onChange={(e) =>
                               handleDailyNoteChange(day, e.target.value)
                             }
-                            className="mt-1 w-full px-3 py-2 text-sm rounded border border-[var(--border)] bg-[var(--input-background)] text-[var(--text-primary)]"
+                            className="mt-1 w-full px-3 py-2 text-sm rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
                             placeholder={`Notes spécifiques pour ${DAYS_OF_WEEK[dayIndex]}...`}
                             rows={1}
                           />
@@ -1574,7 +1594,7 @@ const WeeklySchedulePage: React.FC = () => {
               <div className="mb-6">
                 <label
                   htmlFor="notes"
-                  className="block text-sm font-medium text-[var(--text-secondary)] mb-1"
+                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-1"
                 >
                   Notes générales (optionnel)
                 </label>
@@ -1583,7 +1603,7 @@ const WeeklySchedulePage: React.FC = () => {
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 rounded-md border border-[var(--border)] dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
                   placeholder="Informations complémentaires..."
                 />
               </div>
@@ -1692,26 +1712,31 @@ const WeeklySchedulePage: React.FC = () => {
                 </div>
 
                 <div className="mb-4">
-                  <h3 className="font-medium mb-2">Horaires hebdomadaires</h3>
+                  <h3 className="font-medium mb-2 dark:text-white">
+                    Horaires hebdomadaires
+                  </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
-                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 text-left">
+                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white text-left">
                             Jour
                           </th>
-                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 text-left">
+                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white text-left">
                             Horaires
                           </th>
-                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 text-left">
+                          <th className="border px-3 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white text-left">
                             Notes
                           </th>
                         </tr>
                       </thead>
                       <tbody>
                         {DAY_KEYS.map((day, index) => (
-                          <tr key={day}>
-                            <td className="border px-3 py-2">
+                          <tr
+                            key={day}
+                            className="dark:border-gray-700 dark:text-gray-200"
+                          >
+                            <td className="border px-3 py-2 dark:border-gray-700">
                               {DAYS_OF_WEEK[index]}
                               <br />
                               <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -1725,7 +1750,7 @@ const WeeklySchedulePage: React.FC = () => {
                                   : "—"}
                               </span>
                             </td>
-                            <td className="border px-3 py-2">
+                            <td className="border px-3 py-2 dark:border-gray-700">
                               {currentSchedule.scheduleData?.[day]?.length ? (
                                 <div>
                                   {currentSchedule.scheduleData[day].map(
@@ -1736,7 +1761,7 @@ const WeeklySchedulePage: React.FC = () => {
                                           key={slotIndex}
                                           className="mb-1 last:mb-0"
                                         >
-                                          <span className="text-sm">
+                                          <span className="text-sm dark:text-gray-300">
                                             {start} – {end}
                                           </span>
                                           <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
@@ -1757,9 +1782,9 @@ const WeeklySchedulePage: React.FC = () => {
                                 </span>
                               )}
                             </td>
-                            <td className="border px-3 py-2">
+                            <td className="border px-3 py-2 dark:border-gray-700">
                               {currentSchedule.dailyNotes?.[day] ? (
-                                <p className="text-sm">
+                                <p className="text-sm dark:text-gray-300">
                                   {currentSchedule.dailyNotes[day]}
                                 </p>
                               ) : (
@@ -1777,8 +1802,10 @@ const WeeklySchedulePage: React.FC = () => {
 
                 {currentSchedule.notes && (
                   <div className="mb-4">
-                    <h3 className="font-medium mb-2">Notes générales</h3>
-                    <p className="p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                    <h3 className="font-medium mb-2 dark:text-white">
+                      Notes générales
+                    </h3>
+                    <p className="p-3 bg-gray-50 dark:bg-gray-700 dark:text-gray-200 rounded">
                       {currentSchedule.notes}
                     </p>
                   </div>
