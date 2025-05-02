@@ -346,6 +346,87 @@ const EmployeeTasksPage: React.FC = () => {
     setShowSuccessToast(false);
   };
 
+  // Fonction pour rendre une carte de tâche (version mobile)
+  // Ajout d'une fonction pour le rendu mobile des tâches
+  const renderTaskCard = (task: Task) => {
+    return (
+      <div
+        key={task._id}
+        className="p-4 mb-4 border border-[var(--border)] dark:border-gray-700 rounded-lg shadow-sm bg-white dark:bg-gray-800"
+      >
+        <div className="flex flex-col space-y-3">
+          {/* Titre de la tâche */}
+          <div
+            className={
+              task.status === "completed"
+                ? "line-through text-[var(--text-tertiary)]"
+                : "text-[var(--text-primary)] dark:text-white font-medium"
+            }
+          >
+            {task.title}
+          </div>
+
+          {/* Date d'échéance */}
+          <div
+            className={
+              isOverdue(task.dueDate) && task.status !== "completed"
+                ? "text-[var(--error)] dark:text-red-400"
+                : "text-[var(--text-secondary)] dark:text-gray-300"
+            }
+          >
+            {task.dueDate ? (
+              <div className="flex items-center gap-2">
+                <Calendar size={16} />
+                {formatDate(task.dueDate)}
+              </div>
+            ) : (
+              "Aucune échéance"
+            )}
+          </div>
+
+          {/* Statut */}
+          <div className="py-1">
+            <Badge
+              type={
+                getStatusVariant(task.status) as
+                  | "success"
+                  | "error"
+                  | "info"
+                  | "warning"
+              }
+              label={translateStatus(task.status)}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2 pt-2">
+            {task.status !== "completed" && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => markAsCompleted(task._id)}
+                isLoading={updatingTaskId === task._id}
+                icon={<Check size={16} />}
+                className="flex-1"
+              >
+                Terminer
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openEditModal(task)}
+              icon={<Edit size={16} />}
+              className="flex-1 dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600"
+            >
+              Modifier
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <LayoutWithSidebar
       activeItem="tasks"
@@ -485,7 +566,7 @@ const EmployeeTasksPage: React.FC = () => {
           transition={{ duration: 0.3 }}
         >
           <SectionCard title="Liste de tâches" className="mb-8">
-            <div className="mb-4 text-sm text-[var(--text-secondary)]">
+            <div className="mb-4 text-sm text-[var(--text-secondary)] dark:text-white">
               {tasks.filter((task) => task.status !== "completed").length}{" "}
               tâche(s) en cours
             </div>
@@ -495,88 +576,101 @@ const EmployeeTasksPage: React.FC = () => {
                 <LoadingSpinner size="lg" />
               </div>
             ) : tasks.length > 0 ? (
-              <div className="p-4 overflow-x-auto">
-                <Table
-                  columns={[
-                    { key: "title", label: "Titre" },
-                    { key: "dueDate", label: "Échéance", className: "w-40" },
-                    { key: "status", label: "Statut", className: "w-32" },
-                    { key: "actions", label: "Actions", className: "w-56" },
-                  ]}
-                  data={tasks.map((task) => ({
-                    title: (
-                      <div
-                        className={
-                          task.status === "completed"
-                            ? "line-through text-[var(--text-tertiary)]"
-                            : "text-[var(--text-primary)]"
-                        }
-                      >
-                        {task.title}
-                      </div>
-                    ),
-                    dueDate: (
-                      <div
-                        className={
-                          isOverdue(task.dueDate) && task.status !== "completed"
-                            ? "text-[var(--error)]"
-                            : "text-[var(--text-secondary)]"
-                        }
-                      >
-                        {task.dueDate ? (
-                          <div className="flex items-center gap-2">
-                            <Calendar size={16} />
-                            {formatDate(task.dueDate)}
-                          </div>
-                        ) : (
-                          "Aucune échéance"
-                        )}
-                      </div>
-                    ),
-                    status: (
-                      <Badge
-                        type={
-                          getStatusVariant(task.status) as
-                            | "success"
-                            | "error"
-                            | "info"
-                            | "warning"
-                        }
-                        label={translateStatus(task.status)}
-                      />
-                    ),
-                    actions: (
-                      <div className="flex space-x-2">
-                        {task.status !== "completed" && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => markAsCompleted(task._id)}
-                            isLoading={updatingTaskId === task._id}
-                            icon={<Check size={16} />}
-                          >
-                            Terminer
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(task)}
-                          icon={<Edit size={16} />}
-                          className="dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600"
+              <>
+                {/* Version Desktop - Table avec scroll horizontal */}
+                <div className="p-4 overflow-x-auto hidden md:block">
+                  {/* // Masquer sur mobile, afficher sur desktop */}
+                  <Table
+                    columns={[
+                      { key: "title", label: "Titre" },
+                      { key: "dueDate", label: "Échéance", className: "w-40" },
+                      { key: "status", label: "Statut", className: "w-32" },
+                      { key: "actions", label: "Actions", className: "w-56" },
+                    ]}
+                    data={tasks.map((task) => ({
+                      title: (
+                        <div
+                          className={
+                            task.status === "completed"
+                              ? "line-through text-[var(--text-tertiary)]"
+                              : "text-[var(--text-primary)] dark:text-white" // Ajustement mode dark
+                          }
                         >
-                          Modifier
-                        </Button>
-                      </div>
-                    ),
-                  }))}
-                  emptyState={{
-                    title: "Aucune tâche",
-                    description: "Commencez par ajouter une nouvelle tâche",
-                    icon: <ClipboardList size={40} />,
-                  }}
-                />
-              </div>
+                          {task.title}
+                        </div>
+                      ),
+                      dueDate: (
+                        <div
+                          className={
+                            isOverdue(task.dueDate) &&
+                            task.status !== "completed"
+                              ? "text-[var(--error)]"
+                              : "text-[var(--text-secondary)] dark:text-gray-100" // Ajustement mode dark
+                          }
+                        >
+                          {task.dueDate ? (
+                            <div className="flex items-center gap-2">
+                              <Calendar size={16} />
+                              {formatDate(task.dueDate)}
+                            </div>
+                          ) : (
+                            "Aucune échéance"
+                          )}
+                        </div>
+                      ),
+                      status: (
+                        <Badge
+                          type={
+                            getStatusVariant(task.status) as
+                              | "success"
+                              | "error"
+                              | "info"
+                              | "warning"
+                          }
+                          label={translateStatus(task.status)}
+                        />
+                      ),
+                      actions: (
+                        <div className="flex space-x-2">
+                          {task.status !== "completed" && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => markAsCompleted(task._id)}
+                              isLoading={updatingTaskId === task._id}
+                              icon={<Check size={16} />}
+                            >
+                              Terminer
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditModal(task)}
+                            icon={<Edit size={16} />}
+                            className="dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-600"
+                          >
+                            Modifier
+                          </Button>
+                        </div>
+                      ),
+                    }))}
+                    emptyState={{
+                      title: "Aucune tâche",
+                      description: "Commencez par ajouter une nouvelle tâche",
+                      icon: <ClipboardList size={40} />,
+                    }}
+                  />
+                </div>
+
+                {/* Version Mobile - Cards verticales */}
+                <div className="px-4 pb-4 block md:hidden">
+                  {/* // Afficher sur mobile, masquer sur desktop */}
+                  <div className="grid grid-cols-1 gap-4">
+                    {tasks.map((task) => renderTaskCard(task))}
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <ClipboardList
