@@ -136,6 +136,13 @@ const modalVariants = {
   exit: { opacity: 0, scale: 0.9, y: -20 },
 };
 
+// Variantes d'animation pour les cartes mobile
+const cardVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
+
 /**
  * Composant principal de la page de gestion des collaborateurs (pour managers)
  */
@@ -374,6 +381,13 @@ const CollaboratorManagementPage: React.FC = () => {
 
       return {
         _id: employee._id,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        rawEmail: employeeWithEmail.email || "Email non défini",
+        teamName: team ? team.name : "Non assignée",
+        rawStatus: employee.status,
+        rawContractHours: employee.contractHoursPerWeek || 35,
         name: (
           <span className="font-medium text-gray-800 dark:text-gray-100">
             {`${employee.firstName} ${employee.lastName}`}
@@ -397,7 +411,7 @@ const CollaboratorManagementPage: React.FC = () => {
         ),
         contractHours: (
           <span className="text-gray-700 dark:text-gray-200">
-            {employee.contractHoursPerWeek || 35}
+            {(employee.contractHoursPerWeek || 35) + "h"}
           </span>
         ),
         actions: (
@@ -603,6 +617,83 @@ const CollaboratorManagementPage: React.FC = () => {
     label: team.name,
   }));
 
+  /**
+   * Rendu d'une carte d'employé pour la version mobile/tablette
+   */
+  const renderEmployeeCard = (employee: any) => {
+    return (
+      <motion.div
+        key={employee._id}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        transition={{ duration: 0.3 }}
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-3 p-4 transition-all"
+      >
+        <div className="flex flex-col space-y-3">
+          {/* Nom et statut */}
+          <div className="flex justify-between items-start">
+            <h3 className="font-bold text-gray-800 dark:text-white text-lg">
+              {employee.fullName}
+            </h3>
+            <Badge
+              type={employee.rawStatus === "actif" ? "success" : "warning"}
+              label={employee.rawStatus === "actif" ? "Actif" : "Inactif"}
+            />
+          </div>
+
+          {/* Email */}
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {employee.rawEmail}
+          </div>
+
+          {/* Équipe et heures */}
+          <div className="flex justify-between items-center text-sm">
+            <div className="text-gray-700 dark:text-gray-300">
+              <span className="font-medium">Équipe:</span> {employee.teamName}
+            </div>
+            <div className="text-gray-700 dark:text-gray-300">
+              <span className="font-medium">Heures:</span>{" "}
+              {employee.rawContractHours}h
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={
+                <Edit
+                  size={16}
+                  className="text-indigo-600 dark:text-indigo-400"
+                />
+              }
+              onClick={() => handleOpenEditCollaborator(employee)}
+              aria-label="Modifier ce collaborateur"
+              className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+            >
+              Modifier
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={
+                <Trash2 size={16} className="text-red-500 dark:text-red-400" />
+              }
+              onClick={() => handleOpenDeleteEmployeeModal(employee._id)}
+              aria-label="Supprimer ce collaborateur"
+              className="hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              Supprimer
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   // Vérifier si l'utilisateur est bien un manager
   if (user && user.role !== "manager") {
     return (
@@ -665,6 +756,7 @@ const CollaboratorManagementPage: React.FC = () => {
               variant="secondary"
               icon={<Settings size={16} />}
               onClick={() => setManageTeamsModalOpen(true)}
+              className="dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
             >
               Gérer mes équipes
             </Button>
@@ -764,13 +856,29 @@ const CollaboratorManagementPage: React.FC = () => {
                 </motion.div>
               </Card>
             ) : (
-              <AnimatePresence>
-                <Table
-                  columns={collaboratorColumns}
-                  data={displayedEmployees}
-                  className="dark:bg-gray-800/60 dark:border-gray-700"
-                />
-              </AnimatePresence>
+              <>
+                {/* Version desktop (tableau) - visible uniquement sur md et plus */}
+                <div className="hidden md:block">
+                  <AnimatePresence>
+                    <Table
+                      columns={collaboratorColumns}
+                      data={displayedEmployees}
+                      className="dark:bg-gray-800/60 dark:border-gray-700"
+                    />
+                  </AnimatePresence>
+                </div>
+
+                {/* Version mobile/tablette (cards) - visible uniquement sur sm et moins */}
+                <div className="block md:hidden">
+                  <div className="space-y-4 px-1 py-2">
+                    <AnimatePresence>
+                      {displayedEmployees.map((employee) =>
+                        renderEmployeeCard(employee)
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </>
             )}
           </SectionCard>
         </motion.div>
