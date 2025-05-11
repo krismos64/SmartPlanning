@@ -78,7 +78,7 @@ const userMenuItems = [
     icon: Settings,
     route: "/parametres",
   },
-  { id: "profil", label: "Mon profil", icon: UserIcon, route: "/profil" },
+  { id: "profil", label: "Mon profil", icon: UserIcon, route: "/mon-profil" },
 ];
 
 const adminMenuItem = {

@@ -7,7 +7,7 @@
 import bcrypt from "bcrypt";
 import { Request, Response, Router } from "express";
 import randomstring from "randomstring";
-import authMiddleware from "../middlewares/auth.middleware";
+import authMiddleware, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
 import User, { UserRole } from "../models/User.model";
 
@@ -150,6 +150,211 @@ router.put(
       console.error("Erreur lors de la modification de l'utilisateur:", error);
       return res.status(500).json({
         message: "Erreur serveur lors de la modification de l'utilisateur",
+      });
+    }
+  }
+);
+
+/**
+ * @route GET /api/users/me
+ * @desc Récupère les données de l'utilisateur actuellement connecté
+ * @access Authentifié uniquement
+ */
+router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    // Récupérer l'ID de l'utilisateur depuis le token
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié",
+      });
+    }
+
+    // Récupérer les données de l'utilisateur sans le mot de passe
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    // Renvoyer uniquement les données pertinentes
+    return res.status(200).json({
+      success: true,
+      data: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        photoUrl: user.photoUrl,
+        role: user.role,
+        companyId: user.companyId,
+        teamIds: user.teamIds,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération du profil:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erreur serveur lors de la récupération du profil",
+    });
+  }
+});
+
+/**
+ * @route PUT /api/users/me
+ * @desc Met à jour les informations personnelles de l'utilisateur connecté
+ * @access Authentifié uniquement
+ */
+router.put("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    // Récupérer l'ID de l'utilisateur depuis le token
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié",
+      });
+    }
+
+    // Extraire uniquement les champs modifiables
+    const { firstName, lastName, email, photoUrl } = req.body;
+
+    // Vérifier si l'email existe déjà (sauf pour l'utilisateur actuel)
+    if (email) {
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: userId },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Cette adresse email est déjà utilisée par un autre compte",
+        });
+      }
+    }
+
+    // Mettre à jour les informations de l'utilisateur
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          ...(firstName !== undefined && { firstName }),
+          ...(lastName !== undefined && { lastName }),
+          ...(email !== undefined && { email }),
+          ...(photoUrl !== undefined && { photoUrl }),
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    // Récupérer les données sans le mot de passe
+    const userData = updatedUser.toObject();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = userData;
+
+    return res.status(200).json({
+      success: true,
+      data: userWithoutPassword,
+    });
+  } catch (error: any) {
+    console.error("Erreur lors de la mise à jour du profil:", error);
+
+    // Gérer les erreurs de validation MongoDB
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Données de profil invalides",
+        errors: Object.values(error.errors).map((err: any) => err.message),
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Erreur serveur lors de la mise à jour du profil",
+    });
+  }
+});
+
+/**
+ * @route PUT /api/users/password
+ * @desc Change le mot de passe de l'utilisateur connecté
+ * @access Authentifié uniquement
+ */
+router.put(
+  "/password",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // Récupérer l'ID de l'utilisateur depuis le token
+      const userId = req.user?._id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      // Extraire les mots de passe du corps de la requête
+      const { currentPassword, newPassword } = req.body;
+
+      // Vérifier que les deux mots de passe sont fournis
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Les mots de passe actuel et nouveau sont requis",
+        });
+      }
+
+      // Récupérer l'utilisateur avec son mot de passe (qui est normalement exclu par défaut)
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
+
+      // Vérifier que le mot de passe actuel est correct
+      const isMatch = await user.comparePassword(currentPassword);
+
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Mot de passe actuel incorrect",
+        });
+      }
+
+      // Mettre à jour le mot de passe (le hachage est géré par le middleware pre-save)
+      user.password = newPassword;
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Mot de passe mis à jour avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur lors du changement de mot de passe:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors du changement de mot de passe",
       });
     }
   }

@@ -17,10 +17,13 @@ import RegisterPage from "./pages/RegisterPage";
 import StatsPage from "./pages/StatsPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
 import UserManagementPage from "./pages/UserManagementPage";
+import UserProfilePage from "./pages/UserProfilePage";
 import VacationsPage from "./pages/VacationsPage";
 import WeeklySchedulePage from "./pages/WeeklySchedulePage";
 // Import des composants d'administration
 import AdminTeamViewer from "./pages/admin/AdminTeamViewer";
+// Import du layout avec sidebar
+import LayoutWithSidebar from "./components/layout/LayoutWithSidebar";
 
 /**
  * Composant Page 404 simplifié pour les routes non trouvées
@@ -91,6 +94,16 @@ const AppRouter: React.FC = () => {
         />
         <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
+
+        {/* Route pour le profil utilisateur */}
+        <Route
+          path="/mon-profil"
+          element={
+            <LayoutWithSidebar activeItem="profil" pageTitle="Mon Profil">
+              <UserProfilePage />
+            </LayoutWithSidebar>
+          }
+        />
 
         {/* Routes d'administration */}
         <Route
