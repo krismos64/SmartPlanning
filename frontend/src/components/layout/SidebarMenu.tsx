@@ -15,6 +15,7 @@ import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 
 import planningAnimation from "../../assets/animations/planning-animation.json";
+import { useAuth } from "../../hooks/useAuth";
 import { User } from "../../types/User";
 import { getEnvVar } from "../../utils/getEnv";
 
@@ -106,6 +107,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   className = "",
   user,
 }) => {
+  const { logout } = useAuth();
   const [companyData, setCompanyData] = useState<{
     name: string;
     logoUrl?: string;
@@ -198,6 +200,19 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     );
   };
 
+  // Gestion de la déconnexion
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Redirection vers la page d'accueil
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      // En cas d'erreur, on redirige quand même vers la page d'accueil
+      window.location.href = "/";
+    }
+  };
+
   return (
     <div
       className={`flex flex-col h-full shadow-md border-r border-violet-100 dark:border-violet-900 bg-gradient-to-b from-violet-50 to-white dark:from-violet-950 dark:to-gray-900 w-64 flex-shrink-0 ${className}`}
@@ -263,7 +278,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
       <div className="border-t border-violet-100 dark:border-violet-900 p-4 mt-auto bg-gradient-to-b from-white to-violet-50/70 dark:from-gray-900 dark:to-violet-950/30">
         <motion.button
-          onClick={() => onNavigate("/logout")}
+          onClick={handleLogout}
           whileHover={{
             scale: 1.03,
             backgroundColor: "rgba(254, 226, 226, 0.6)",

@@ -267,7 +267,8 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                 </span>
               </div>
               <div className="text-xs text-cyan-600/70 dark:text-cyan-300/70">
-                Tous droits réservés • Fait avec ❤️ par l'équipe SmartPlanning
+                Tous droits réservés • L'équipe SmartPlanning vous remercie de
+                votre confiance.
               </div>
             </div>
           </div>
