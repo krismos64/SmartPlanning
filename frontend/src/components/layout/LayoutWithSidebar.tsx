@@ -225,7 +225,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                     >
                       <Button
                         variant="ghost"
-                        onClick={() => navigate("/profil")}
+                        onClick={() => navigate("/mon-profil")}
                         className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 rounded-full px-4 py-2"
                       >
                         <Avatar size="md" src={currentUser.photoUrl} />
