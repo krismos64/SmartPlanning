@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import {
   AlertTriangle,
   CalendarCheck,
@@ -17,6 +18,31 @@ import DashboardCard from "../components/ui/DashboardCard";
  */
 const DashboardPage: React.FC = () => {
   const { isDarkMode } = useTheme();
+
+  const titleVariants = {
+    hidden: { opacity: 0, y: -50 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.8,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const subtitleVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.8,
+        delay: 0.3,
+        ease: "easeOut",
+      },
+    },
+  };
 
   const features = [
     {
@@ -69,18 +95,33 @@ const DashboardPage: React.FC = () => {
       pageTitle="Dashboard SmartPlanning – Vue d'ensemble RH"
     >
       <div
-        className={`max-w-6xl mx-auto mb-12 ${
+        className={`max-w-6xl mx-auto mb-12 relative ${
           isDarkMode ? "text-gray-100" : "text-gray-900"
         }`}
       >
-        <h1 className="text-3xl md:text-4xl font-bold mb-2 text-center text-gray-900 dark:text-white">
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-purple-500/5 rounded-3xl blur-3xl -z-10"></div>
+
+        <motion.h1
+          className="text-3xl md:text-5xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 font-['Rajdhani',sans-serif] tracking-wider"
+          initial="hidden"
+          animate="visible"
+          variants={titleVariants}
+        >
           Tableau de bord
-        </h1>
-        <p className="text-center mb-10 max-w-2xl mx-auto text-gray-500 dark:text-gray-400">
+        </motion.h1>
+
+        <div className="h-1 w-20 mx-auto bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mb-8 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+
+        <motion.p
+          className="text-center mb-12 max-w-2xl mx-auto text-gray-500 dark:text-gray-400 text-lg"
+          initial="hidden"
+          animate="visible"
+          variants={subtitleVariants}
+        >
           Bienvenue sur votre espace de gestion SmartPlanning. Accédez
           rapidement à toutes les fonctionnalités pour gérer efficacement votre
           équipe.
-        </p>
+        </motion.p>
 
         <CardGrid>
           {features.map((feature, index) => (

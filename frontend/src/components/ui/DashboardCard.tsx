@@ -20,16 +20,38 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  const iconVariants = {
+    initial: { scale: 1 },
+    hover: {
+      scale: 1.2,
+      rotate: 5,
+      filter: "drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))",
+      transition: { duration: 0.3, yoyo: Infinity, repeatDelay: 0.5 },
+    },
+  };
+
+  const textVariants = {
+    initial: { x: 0 },
+    hover: {
+      x: 5,
+      textShadow: "0 0 8px rgba(59, 130, 246, 0.8)",
+      transition: { duration: 0.3 },
+    },
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
-        duration: 0.5,
-        delay: delay * 0.1,
+        duration: 0.6,
+        delay: delay * 0.15,
         ease: [0.22, 1, 0.36, 1],
       }}
-      whileHover={{ scale: 1.03 }}
+      whileHover={{
+        scale: 1.05,
+        boxShadow: "0 0 20px rgba(59, 130, 246, 0.4)",
+      }}
       whileTap={{ scale: 0.98 }}
       onClick={() => navigate(path)}
       className="h-full"
@@ -40,13 +62,19 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
       <Card
         hoverable
         bordered
-        className="h-full cursor-pointer flex flex-col bg-white dark:bg-[#0f172a]"
+        className="h-full cursor-pointer flex flex-col bg-white dark:bg-[#0f172a] border-2 border-transparent dark:hover:border-blue-500/40 hover:border-blue-500/40 backdrop-blur-sm"
       >
-        <div className="mb-4 p-3 rounded-lg w-fit text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-950/20">
-          {icon}
-        </div>
+        <motion.div
+          className="mb-4 p-3 rounded-lg w-fit text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-950/50 backdrop-blur-sm relative overflow-hidden"
+          variants={iconVariants}
+          initial="initial"
+          whileHover="hover"
+        >
+          <div className="z-10 relative">{icon}</div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-sm"></div>
+        </motion.div>
 
-        <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">
+        <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100 font-['Rajdhani',sans-serif] tracking-wide">
           {title}
         </h3>
 
@@ -57,7 +85,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         <div className="flex justify-end mt-4">
           <motion.div
             className="font-medium text-sm text-blue-500 dark:text-blue-400"
-            whileHover={{ x: 5 }}
+            variants={textVariants}
+            initial="initial"
+            whileHover="hover"
           >
             Accéder →
           </motion.div>
