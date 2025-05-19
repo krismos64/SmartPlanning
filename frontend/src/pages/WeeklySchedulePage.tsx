@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Clock,
   Eye,
+  FileDown,
   Pencil,
   Plus,
   Trash,
@@ -126,6 +127,13 @@ const MONTH_NAMES = [
   "Novembre",
   "Décembre",
 ];
+
+// Importer le service de génération de PDF et le modal
+import GeneratePdfModal from "../components/modals/GeneratePdfModal";
+import {
+  generateSchedulePDF,
+  generateTeamSchedulePDF,
+} from "../services/pdfGenerator";
 
 /**
  * Calcule la durée en minutes entre deux horaires au format "HH:MM"
@@ -259,6 +267,10 @@ const WeeklySchedulePage: React.FC = () => {
 
   // États pour le modal de création de planning
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+
+  // État pour la modal de génération de PDF
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
+  const [pdfGenerating, setPdfGenerating] = useState<boolean>(false);
 
   // Vérification automatique de l'état d'authentification
   useEffect(() => {
@@ -869,6 +881,17 @@ const WeeklySchedulePage: React.FC = () => {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedEmployeeId(schedule.employeeId);
+              setIsPdfModalOpen(true);
+            }}
+            className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+          >
+            <FileDown className="h-4 w-4" />
+          </Button>
         </div>
       ),
     };
@@ -1303,6 +1326,80 @@ const WeeklySchedulePage: React.FC = () => {
     checkExistingSchedule();
   }, [selectedEmployeeId, checkExistingSchedule]);
 
+  /**
+   * Gère la génération de PDF en fonction du type et des paramètres
+   */
+  const handleGeneratePdf = async (
+    type: "employee" | "team" | "all",
+    teamId?: string,
+    employeeId?: string
+  ) => {
+    try {
+      setPdfGenerating(true);
+
+      if (type === "employee" && employeeId) {
+        // Chercher le planning de cet employé
+        const employeeSchedule = schedules.find(
+          (s) => s.employeeId === employeeId
+        );
+        if (employeeSchedule) {
+          generateSchedulePDF(employeeSchedule);
+          setSuccess("Le PDF a été généré avec succès pour cet employé");
+        } else {
+          setError("Aucun planning trouvé pour cet employé");
+          setShowErrorToast(true);
+        }
+      } else if (type === "team" && teamId) {
+        // Récupérer les plannings des employés de cette équipe
+        try {
+          setLoading(true);
+          const response = await api.get<{
+            success: boolean;
+            data: Schedule[];
+          }>(`/weekly-schedules/week/${year}/${weekNumber}?teamId=${teamId}`);
+
+          if (response.data.data && response.data.data.length > 0) {
+            // Trouver le nom de l'équipe
+            const team = teams.find((t) => t._id === teamId);
+            generateTeamSchedulePDF(response.data.data, team?.name || "Équipe");
+            setSuccess("Le PDF a été généré avec succès pour cette équipe");
+          } else {
+            setError("Aucun planning trouvé pour cette équipe");
+            setShowErrorToast(true);
+          }
+        } catch (error) {
+          handleApiError(error, "génération du PDF d'équipe");
+        } finally {
+          setLoading(false);
+        }
+      } else if (type === "all") {
+        // Utiliser tous les plannings actuellement chargés
+        if (schedules.length > 0) {
+          generateTeamSchedulePDF(schedules, "Tous les employés");
+          setSuccess("Le PDF a été généré avec succès pour tous les plannings");
+        } else {
+          setError("Aucun planning trouvé pour cette semaine");
+          setShowErrorToast(true);
+        }
+      }
+
+      setShowSuccessToast(true);
+    } catch (error) {
+      console.error("Erreur lors de la génération du PDF:", error);
+      setError("Une erreur est survenue lors de la génération du PDF");
+      setShowErrorToast(true);
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
+  // Pour générer des PDFs
+  const openPdfModal = (employeeId?: string, teamId?: string) => {
+    if (employeeId) setSelectedEmployeeId(employeeId);
+    if (teamId) setSelectedTeam(teamId);
+    setIsPdfModalOpen(true);
+  };
+
   return (
     <LayoutWithSidebar
       activeItem="plannings-hebdomadaires"
@@ -1360,6 +1457,22 @@ const WeeklySchedulePage: React.FC = () => {
               icon={<Plus size={18} />}
             >
               Créer un planning
+            </Button>
+          </motion.div>
+
+          {/* Bouton de génération de PDF */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Button
+              onClick={() => setIsPdfModalOpen(true)}
+              variant="secondary"
+              className="w-full md:w-auto px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
+              icon={<FileDown size={18} />}
+            >
+              Générer PDF
             </Button>
           </motion.div>
         </div>
@@ -1885,7 +1998,10 @@ const WeeklySchedulePage: React.FC = () => {
                                           <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
                                             (
                                             {Math.round(
-                                              (calculateDuration(start, end) /
+                                              (calculateDuration(
+                                                slot.start,
+                                                slot.end
+                                              ) /
                                                 60) *
                                                 100
                                             ) / 100}
@@ -1985,6 +2101,17 @@ const WeeklySchedulePage: React.FC = () => {
             </div>
           </div>
         </Modal>
+
+        {/* Modal de génération de PDF */}
+        <GeneratePdfModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+          onGeneratePdf={handleGeneratePdf}
+          teams={teams}
+          employees={employees}
+          currentEmployeeId={selectedEmployeeId}
+          currentTeamId={selectedTeam}
+        />
       </PageWrapper>
     </LayoutWithSidebar>
   );

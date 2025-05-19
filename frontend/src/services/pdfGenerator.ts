@@ -1,0 +1,481 @@
+import { addDays, format, startOfISOWeek } from "date-fns";
+import { fr } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// Types
+interface Schedule {
+  _id: string;
+  employeeId: string;
+  employeeName: string;
+  teamId?: string;
+  teamName?: string;
+  scheduleData: Record<string, string[]>;
+  dailyNotes?: Record<string, string>;
+  dailyDates?: Record<string, Date>;
+  totalWeeklyMinutes: number;
+  notes?: string;
+  year: number;
+  weekNumber: number;
+  status: "approved" | "draft";
+}
+
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+
+// Constantes
+const DAYS_OF_WEEK = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+];
+
+const DAY_KEYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+// Fonctions utilitaires
+const calculateDuration = (start: string, end: string): number => {
+  const [startHours, startMinutes] = start.split(":").map(Number);
+  const [endHours, endMinutes] = end.split(":").map(Number);
+
+  const startTotalMinutes = startHours * 60 + startMinutes;
+  const endTotalMinutes = endHours * 60 + endMinutes;
+
+  return endTotalMinutes - startTotalMinutes;
+};
+
+/**
+ * Formate une heure du format "HH:MM" vers le format "HHhMM"
+ */
+const formatHourDisplay = (timeStr: string): string => {
+  const [hours, minutes] = timeStr.split(":");
+  return minutes === "00" ? `${hours}h` : `${hours}h${minutes}`;
+};
+
+const formatDuration = (minutes: number): string => {
+  if (minutes <= 0) return "0h";
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) return `${remainingMinutes}min`;
+  if (remainingMinutes === 0) return `${hours}h`;
+
+  return `${hours}h ${remainingMinutes}min`;
+};
+
+/**
+ * Obtient les dates de début et de fin de la semaine pour un numéro de semaine et une année donnés
+ */
+const getWeekDateRange = (
+  year: number,
+  week: number
+): { start: Date; end: Date } => {
+  const startDate = startOfISOWeek(new Date(year, 0, (week - 1) * 7 + 1));
+  const endDate = addDays(startDate, 6);
+  return { start: startDate, end: endDate };
+};
+
+/**
+ * Fonction pour générer un PDF pour un planning individuel
+ */
+export const generateSchedulePDF = async (
+  schedule: Schedule,
+  companyName: string = "Smart Planning"
+): Promise<void> => {
+  // Gestion du nom d'équipe - simplifiée et plus directe
+  let teamName = schedule.teamName || "Non assigné";
+
+  // Si nous avons un teamId mais pas de teamName, tenter de récupérer le nom
+  if (!teamName && schedule.teamId) {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5050/api"}/teams/${
+          schedule.teamId
+        }`
+      );
+      const data = await response.json();
+      if (data.success && data.data && data.data.name) {
+        teamName = data.data.name;
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération du nom de l'équipe:",
+        error
+      );
+    }
+  }
+
+  // Récupérer les infos de l'employé si nous n'avons toujours pas de teamName
+  if (teamName === "Non assigné") {
+    try {
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+        }/employees/${schedule.employeeId}`
+      );
+      const data = await response.json();
+      if (data.success && data.data && data.data.teamName) {
+        teamName = data.data.teamName;
+      } else if (data.success && data.data && data.data.teamId) {
+        // Si on a un teamId mais pas de teamName, chercher le nom de l'équipe
+        const teamResponse = await fetch(
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+          }/teams/${data.data.teamId}`
+        );
+        const teamData = await teamResponse.json();
+        if (teamData.success && teamData.data && teamData.data.name) {
+          teamName = teamData.data.name;
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des infos de l'employé:",
+        error
+      );
+    }
+  }
+
+  // Maintenant, teamName contient soit le nom réel de l'équipe, soit "Non assigné"
+
+  // Initialiser le document PDF - Tous les PDFs sont maintenant en paysage
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
+  // Variables pour le document
+  const now = new Date();
+  const formattedDate = format(now, "dd MMMM yyyy", { locale: fr });
+  const formattedTime = format(now, "HH:mm", { locale: fr });
+
+  // Obtenir les dates de début et de fin de la semaine
+  const { start: weekStart, end: weekEnd } = getWeekDateRange(
+    schedule.year,
+    schedule.weekNumber
+  );
+  const formattedWeekStart = format(weekStart, "dd MMM", { locale: fr });
+  const formattedWeekEnd = format(weekEnd, "dd MMM yyyy", { locale: fr });
+
+  // En-tête
+  doc.setFontSize(18);
+  doc.setTextColor(44, 62, 80); // Bleu foncé
+  doc.text(companyName, 149, 15, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.text(
+    `Planning Hebdomadaire - Semaine ${schedule.weekNumber}, ${schedule.year}`,
+    149,
+    25,
+    { align: "center" }
+  );
+
+  // Ajouter les dates exactes de la semaine
+  doc.setFontSize(12);
+  doc.text(`Du ${formattedWeekStart} au ${formattedWeekEnd}`, 149, 32, {
+    align: "center",
+  });
+
+  // Informations sur l'employé avec nom en gras
+  doc.setTextColor(52, 73, 94);
+  doc.setFont("helvetica", "bold"); // Mettre le nom en gras
+  doc.text(`Employé: ${schedule.employeeName}`, 15, 40);
+  doc.setFont("helvetica", "normal"); // Revenir au style normal
+
+  const totalHours = Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
+  doc.text(`Total hebdomadaire: ${totalHours}h`, 15, 47);
+
+  // Tableau des horaires - Optimisé pour tenir sur une page
+  const tableData: Array<any[]> = [];
+
+  // En-têtes du tableau - version compacte pour tenir sur une page
+  DAY_KEYS.forEach((day, index) => {
+    const dayName = DAYS_OF_WEEK[index];
+    const daySlots = schedule.scheduleData[day] || [];
+
+    // Simplifier pour gagner de la place - une ligne par jour
+    const slots =
+      daySlots.length > 0
+        ? daySlots
+            .map((slot) => {
+              const [start, end] = slot.split("-");
+              return `${formatHourDisplay(start)} - ${formatHourDisplay(end)}`;
+            })
+            .join(", ")
+        : "Repos";
+
+    // Calculer la durée totale du jour
+    const dayTotalMinutes = daySlots.reduce((total, slot) => {
+      const [start, end] = slot.split("-");
+      return total + calculateDuration(start, end);
+    }, 0);
+
+    const dayTotalFormatted = formatDuration(dayTotalMinutes);
+
+    // Une seule ligne par jour avec tous les créneaux
+    tableData.push([
+      dayName,
+      slots,
+      dayTotalFormatted,
+      schedule.dailyNotes?.[day] || "",
+    ]);
+  });
+
+  // Générer le tableau avec autoTable - optimisé pour le paysage et une seule page
+  autoTable(doc, {
+    head: [["Jour", "Horaires", "Durée", "Notes"]],
+    body: tableData,
+    startY: 60,
+    styles: {
+      fontSize: 10,
+      cellPadding: 3,
+      lineColor: [44, 62, 80],
+      lineWidth: 0.1,
+      overflow: "ellipsize",
+      halign: "center",
+      font: "helvetica",
+    },
+    headStyles: {
+      fillColor: [41, 128, 185],
+      textColor: 255,
+      fontStyle: "bold",
+      halign: "center",
+    },
+    bodyStyles: {
+      fillColor: [240, 240, 240], // Fond gris clair pour les lignes du corps
+      textColor: [50, 50, 50], // Couleur de texte plus foncée pour une meilleure lisibilité
+    },
+    alternateRowStyles: {
+      fillColor: [255, 255, 255], // Fond blanc pour les lignes alternées
+    },
+    columnStyles: {
+      0: { cellWidth: 25, halign: "center", fillColor: [230, 230, 240] }, // Jour avec fond légèrement différent
+      1: { cellWidth: 90, halign: "center" },
+      2: { cellWidth: 25, halign: "center" },
+      3: { cellWidth: "auto", halign: "left" }, // Notes alignées à gauche pour faciliter la lecture
+    },
+    didDrawCell: function (data) {
+      // Ajuster la hauteur des cellules pour optimiser l'espace
+      if (
+        data.column.index === 3 &&
+        data.cell.text &&
+        data.cell.text.length > 0
+      ) {
+        const textHeight = data.cell.height - data.cell.padding("vertical");
+        if (textHeight < 10) {
+          data.row.height = 10 + data.cell.padding("vertical");
+        }
+      }
+    },
+    didDrawPage: function () {
+      // Ajouter une bordure autour du tableau
+      const table = (doc as any).lastAutoTable;
+      if (table) {
+        doc.setDrawColor(44, 62, 80); // Même couleur que les lignes
+        doc.setLineWidth(0.3); // Bordure plus épaisse
+        doc.rect(
+          table.startX,
+          table.startY,
+          table.tableWidth,
+          table.finalY - table.startY
+        );
+      }
+    },
+  });
+
+  // Notes globales - réduites pour tenir sur une page
+  if (schedule.notes && schedule.notes.trim() !== "") {
+    const finalY = (doc as any).lastAutoTable.finalY || 150;
+    if (finalY < 140) {
+      // Seulement si on a de la place
+      doc.setFontSize(10);
+      doc.setTextColor(44, 62, 80);
+      doc.text("Notes générales:", 15, finalY + 10);
+
+      doc.setFontSize(9);
+      doc.setTextColor(52, 73, 94);
+      // Limiter la longueur du texte pour tenir sur une page
+      const maxChars = 200;
+      const truncatedNotes =
+        schedule.notes.length > maxChars
+          ? schedule.notes.substring(0, maxChars) + "..."
+          : schedule.notes;
+      const splitNotes = doc.splitTextToSize(truncatedNotes, 260);
+      doc.text(splitNotes, 15, finalY + 18);
+    }
+  }
+
+  // Pied de page avec infos de génération
+  doc.setFontSize(8);
+  doc.setTextColor(127, 140, 141);
+  doc.text(`Généré le ${formattedDate} à ${formattedTime}`, 149, 200, {
+    align: "center",
+  });
+
+  // Télécharger le PDF
+  doc.save(
+    `Planning_${schedule.employeeName.replace(/\s+/g, "_")}_S${
+      schedule.weekNumber
+    }_${schedule.year}.pdf`
+  );
+};
+
+/**
+ * Fonction pour générer un PDF pour l'ensemble des plannings d'une équipe ou des employés sélectionnés
+ * Optimisé pour tenir sur une seule page paysage
+ */
+export const generateTeamSchedulePDF = (
+  schedules: Schedule[],
+  teamName: string = "Équipe",
+  companyName: string = "Smart Planning"
+): void => {
+  // Vérifier qu'il y a des plannings à générer
+  if (!schedules || schedules.length === 0) {
+    console.error("Aucun planning à générer");
+    return;
+  }
+
+  // Extraire la semaine et l'année du premier planning
+  const { weekNumber, year } = schedules[0];
+
+  // Obtenir les dates de début et de fin de la semaine
+  const { start: weekStart, end: weekEnd } = getWeekDateRange(year, weekNumber);
+  const formattedWeekStart = format(weekStart, "dd MMM", { locale: fr });
+  const formattedWeekEnd = format(weekEnd, "dd MMM yyyy", { locale: fr });
+
+  // Initialiser le document PDF
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
+  // Variables pour le document
+  const now = new Date();
+  const formattedDate = format(now, "dd MMMM yyyy", { locale: fr });
+  const formattedTime = format(now, "HH:mm", { locale: fr });
+
+  // En-tête - Optimisé pour l'espace
+  doc.setFontSize(16);
+  doc.setTextColor(44, 62, 80);
+  doc.text(companyName, 149, 15, { align: "center" });
+
+  // Mettre le nom de l'équipe en gras
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Planning - ${teamName} - Semaine ${weekNumber}, ${year}`, 149, 25, {
+    align: "center",
+  });
+  doc.setFont("helvetica", "normal");
+
+  // Ajouter les dates exactes de la semaine
+  doc.setFontSize(12);
+  doc.text(`Du ${formattedWeekStart} au ${formattedWeekEnd}`, 149, 32, {
+    align: "center",
+  });
+
+  doc.setFontSize(10);
+  doc.setTextColor(52, 73, 94);
+  doc.text(`Nombre d'employés: ${schedules.length}`, 15, 40);
+
+  // Approche adaptative selon le nombre d'employés - toujours en mode compact
+  // Toujours utiliser la version ultra-compacte pour garantir une seule page
+  const headers = ["Employé", "Total", ...DAYS_OF_WEEK];
+  let tableData: Array<any[]> = [];
+
+  // Format compact avec une ligne par employé, jours en colonnes
+  schedules.forEach((schedule) => {
+    const employeeName = schedule.employeeName;
+    const totalHours =
+      Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
+
+    const rowData = [employeeName, `${totalHours}h`];
+
+    // Ajouter les horaires condensés pour chaque jour
+    DAY_KEYS.forEach((day) => {
+      const daySlots = schedule.scheduleData[day] || [];
+      // Format avec le nouveau format d'horaires
+      const timeText =
+        daySlots.length > 0
+          ? daySlots
+              .map((slot) => {
+                const [start, end] = slot.split("-");
+                return `${formatHourDisplay(start)} - ${formatHourDisplay(
+                  end
+                )}`;
+              })
+              .join("\n")
+          : "-";
+      rowData.push(timeText);
+    });
+
+    tableData.push(rowData);
+  });
+
+  // Générer le tableau avec autoTable - mode ultra-compact
+  const fontSize = schedules.length > 15 ? 7 : schedules.length > 10 ? 8 : 9;
+
+  autoTable(doc, {
+    head: [headers],
+    body: tableData,
+    startY: 45,
+    styles: {
+      fontSize: fontSize,
+      cellPadding: 2,
+      lineColor: [44, 62, 80],
+      lineWidth: 0.1,
+      overflow: "ellipsize",
+      valign: "middle",
+      halign: "center", // Alignement centré pour tout le texte
+      font: "helvetica",
+    },
+    headStyles: {
+      fillColor: [41, 128, 185],
+      textColor: 255,
+      fontStyle: "bold",
+      halign: "center", // En-têtes centrés
+    },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 35, halign: "left" }, // Nom de l'employé aligné à gauche
+      1: { cellWidth: 15, halign: "center" },
+      // Les autres colonnes sont automatiquement dimensionnées et centrées
+    },
+    // Ajuster le traitement des cellules pour économiser de l'espace
+    didParseCell: function (data: any) {
+      // Appliquer une fonte plus petite aux jours avec beaucoup de créneaux
+      if (data.column.index >= 2 && data.section === "body") {
+        const content = data.cell.text;
+        if (content && content.length > 30) {
+          data.cell.styles.fontSize = fontSize - 1;
+        }
+      }
+    },
+  });
+
+  // Pied de page avec infos de génération
+  doc.setFontSize(8);
+  doc.setTextColor(127, 140, 141);
+  doc.text(`Généré le ${formattedDate} à ${formattedTime}`, 149, 200, {
+    align: "center",
+  });
+
+  // Télécharger le PDF
+  doc.save(
+    `Planning_${teamName.replace(/\s+/g, "_")}_S${weekNumber}_${year}.pdf`
+  );
+};
