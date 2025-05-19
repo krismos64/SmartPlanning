@@ -38,25 +38,44 @@ const useEmployeesByTeam = (teamId: string) => {
         let url = "";
 
         if (teamId) {
-          url = `/api/employees/team/${teamId}`;
+          url = `/employees/team/${teamId}`;
+          console.log(
+            `[useEmployeesByTeam] Récupération des employés pour l'équipe: ${teamId}`
+          );
         } else {
-          url = `/api/employees`; // Liste globale pour toutes les équipes du manager
+          url = `/employees`; // Liste globale pour toutes les équipes du manager
+          console.log(
+            `[useEmployeesByTeam] Récupération de tous les employés (aucune équipe spécifiée)`
+          );
         }
+
+        console.log(`[useEmployeesByTeam] URL d'appel API: ${url}`);
 
         const response = await axiosInstance.get<ApiResponse>(url, {
           signal: abortSignal,
         });
 
         if (!response.data.success) {
+          console.error(`[useEmployeesByTeam] Erreur API:`, response.data);
           throw new Error(response.data.message || "Erreur de récupération");
         }
 
+        console.log(
+          `[useEmployeesByTeam] ${response.data.data.length} employés récupérés:`,
+          response.data.data.map(
+            (e) => `${e.firstName} ${e.lastName} (${e._id})`
+          )
+        );
         setEmployees(response.data.data);
       } catch (err) {
         if (axios.isCancel(err)) return; // ✅ ici correction
 
         const message = err instanceof Error ? err.message : "Erreur inconnue";
-        console.error("Erreur dans useEmployeesByTeam:", message);
+        console.error("[useEmployeesByTeam] Erreur détaillée:", err);
+        console.error(
+          `[useEmployeesByTeam] Erreur lors de la récupération des employés:`,
+          message
+        );
         setError(message);
       } finally {
         setLoading(false);

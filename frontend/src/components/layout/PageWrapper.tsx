@@ -13,12 +13,13 @@ interface PageWrapperProps {
   className?: string;
 }
 
-const Container = styled.div<{ isDarkMode?: boolean }>`
+const Container = styled.div<{ $isDarkMode?: boolean }>`
   min-height: 100vh;
   width: 100%;
   overflow: visible;
-  background-color: ${({ isDarkMode }) => (isDarkMode ? "#0A0F1A" : "#F8F9FA")};
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+  background-color: ${({ $isDarkMode }) =>
+    $isDarkMode ? "#0A0F1A" : "#F8F9FA"};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#F1F5F9" : "#1A202C")};
   transition: background-color 0.3s ease, color 0.3s ease;
   padding: 3rem 1rem;
   display: flex;
@@ -50,7 +51,7 @@ const PageWrapper: React.FC<PageWrapperProps> = ({ children, className }) => {
   const { isDarkMode } = useTheme();
 
   return (
-    <Container isDarkMode={isDarkMode} className={className}>
+    <Container $isDarkMode={isDarkMode} className={className}>
       <AnimatePresence mode="wait">
         <motion.div
           key="page-content"

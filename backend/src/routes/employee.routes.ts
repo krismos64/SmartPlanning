@@ -76,21 +76,88 @@ router.get(
   authenticateToken,
   async (req: Request, res: Response) => {
     const { teamId } = req.params;
+    console.log(
+      `[GET /employees/team/:teamId] Recherche des employés pour l'équipe: ${teamId}`
+    );
 
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
+      console.log(
+        `[GET /employees/team/:teamId] ID d'équipe invalide: ${teamId}`
+      );
       return res
         .status(400)
         .json({ success: false, message: "Identifiant d'équipe invalide" });
     }
 
     try {
-      const employees = await EmployeeModel.find({ teamId })
+      // Vérifier si l'équipe existe d'abord
+      const team = await TeamModel.findById(teamId).lean();
+      if (!team) {
+        console.log(
+          `[GET /employees/team/:teamId] Équipe non trouvée avec ID: ${teamId}`
+        );
+        return res.status(404).json({
+          success: false,
+          message: "Équipe introuvable",
+        });
+      }
+
+      console.log(`[GET /employees/team/:teamId] Équipe trouvée: ${team.name}`);
+      console.log(
+        `[GET /employees/team/:teamId] Employés dans l'équipe:`,
+        team.employeeIds ? team.employeeIds.length : 0
+      );
+
+      // D'abord, rechercher les employés qui ont cette équipe comme teamId
+      const employeesByTeamId = await EmployeeModel.find({ teamId })
         .sort({ lastName: 1, firstName: 1 })
         .lean();
 
-      return res.status(200).json({ success: true, data: employees });
+      console.log(
+        `[GET /employees/team/:teamId] Employés trouvés via teamId: ${employeesByTeamId.length}`
+      );
+
+      // Ensuite, rechercher les employés qui sont listés dans employeeIds de l'équipe
+      let employeesByTeamList = [];
+      if (team.employeeIds && team.employeeIds.length > 0) {
+        employeesByTeamList = await EmployeeModel.find({
+          _id: { $in: team.employeeIds },
+        })
+          .sort({ lastName: 1, firstName: 1 })
+          .lean();
+
+        console.log(
+          `[GET /employees/team/:teamId] Employés trouvés via employeeIds: ${employeesByTeamList.length}`
+        );
+      }
+
+      // Fusionner les deux listes sans doublons
+      const allEmployeeIds = new Set();
+      const allEmployees = [];
+
+      // Ajouter les employés trouvés par teamId
+      for (const emp of employeesByTeamId) {
+        if (!allEmployeeIds.has(emp._id.toString())) {
+          allEmployeeIds.add(emp._id.toString());
+          allEmployees.push(emp);
+        }
+      }
+
+      // Ajouter les employés trouvés par la liste d'employeeIds
+      for (const emp of employeesByTeamList) {
+        if (!allEmployeeIds.has(emp._id.toString())) {
+          allEmployeeIds.add(emp._id.toString());
+          allEmployees.push(emp);
+        }
+      }
+
+      console.log(
+        `[GET /employees/team/:teamId] Total d'employés uniques trouvés: ${allEmployees.length}`
+      );
+
+      return res.status(200).json({ success: true, data: allEmployees });
     } catch (error) {
-      console.error("Erreur récupération employés équipe:", error);
+      console.error("[GET /employees/team/:teamId] Erreur:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur",

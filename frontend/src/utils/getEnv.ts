@@ -32,17 +32,24 @@ export const getEnvVar = (key: string, defaultValue = ""): string => {
     try {
       if (isJestEnvironment) {
         // Environnement Jest : charger dynamiquement le module Jest
-        const jestModule = require("./getEnv.jest");
-        envProvider = {
-          getEnvVar: jestModule.default || jestModule.getEnvVar,
-        };
+        import("./getEnv.jest").then((jestModule) => {
+          envProvider = {
+            getEnvVar: jestModule.default || jestModule.getEnvVar,
+          };
+        });
       } else {
         // Environnement Vite : charger dynamiquement le module Vite
-        const viteModule = require("./getEnv.vite");
-        envProvider = {
-          getEnvVar: viteModule.default || viteModule.getEnvVar,
-        };
+        import("./getEnv.vite").then((viteModule) => {
+          envProvider = {
+            getEnvVar: viteModule.default || viteModule.getEnvVar,
+          };
+        });
       }
+
+      // Pendant le chargement du module, utiliser un provider temporaire
+      envProvider = {
+        getEnvVar: (_: string, dv = "") => dv,
+      };
     } catch (error) {
       // En cas d'échec, afficher un avertissement et utiliser une fonction minimale
       console.warn(

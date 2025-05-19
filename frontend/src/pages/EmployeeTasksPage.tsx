@@ -146,7 +146,7 @@ const EmployeeTasksPage: React.FC = () => {
       const response = await axiosInstance.get<{
         success: boolean;
         data: Task[];
-      }>("/api/tasks/my-tasks");
+      }>("/tasks/my-tasks");
 
       // Tri des tâches par date d'échéance (les tâches sans date à la fin)
       const sortedTasks = response.data.data.sort((a, b) => {
@@ -182,7 +182,7 @@ const EmployeeTasksPage: React.FC = () => {
     setError(null);
 
     try {
-      await axiosInstance.patch(`/api/tasks/${taskId}`, {
+      await axiosInstance.patch(`/tasks/${taskId}`, {
         status: "completed",
       });
 
@@ -206,7 +206,7 @@ const EmployeeTasksPage: React.FC = () => {
     setError(null);
 
     try {
-      await axiosInstance.delete(`/api/tasks/${taskId}`);
+      await axiosInstance.delete(`/tasks/${taskId}`);
 
       setSuccess("Tâche supprimée avec succès !");
       setShowSuccessToast(true);
@@ -243,7 +243,7 @@ const EmployeeTasksPage: React.FC = () => {
         }),
       };
 
-      await axiosInstance.patch(`/api/tasks/${editingTask._id}`, taskData);
+      await axiosInstance.patch(`/tasks/${editingTask._id}`, taskData);
 
       setSuccess("Tâche mise à jour avec succès !");
       setShowSuccessToast(true);
@@ -311,7 +311,7 @@ const EmployeeTasksPage: React.FC = () => {
         ...(formData.dueDate && { dueDate: formData.dueDate.toISOString() }),
       };
 
-      await axiosInstance.post("/api/tasks", taskData);
+      await axiosInstance.post("/tasks", taskData);
 
       setSuccess("Tâche ajoutée avec succès !");
       setShowSuccessToast(true);

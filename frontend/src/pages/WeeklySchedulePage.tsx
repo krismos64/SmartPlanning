@@ -15,11 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Edit,
   Eye,
-  Grid,
+  Pencil,
   Plus,
   Trash,
+  Trash2,
   User,
   Users,
 } from "lucide-react";
@@ -32,6 +32,7 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import useEmployeesByTeam from "../hooks/useEmployeesByTeam"; // Importer le hook pour les employés par équipe
 import api from "../services/api"; // Importer l'instance API configurée
 
 // Composants de layout
@@ -41,10 +42,10 @@ import SectionCard from "../components/layout/SectionCard";
 import SectionTitle from "../components/layout/SectionTitle";
 
 // Composants UI
-import Avatar from "../components/ui/Avatar";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
@@ -168,9 +169,7 @@ const WeeklySchedulePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedTeam, setSelectedTeam] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"team" | "employee" | "global">(
-    "global"
-  );
+  const [viewMode, setViewMode] = useState<"team" | "employee">("team");
 
   // États pour les données et le chargement
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -204,6 +203,13 @@ const WeeklySchedulePage: React.FC = () => {
   // Références pour le défilement
   const formRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Utiliser le hook useEmployeesByTeam pour récupérer les employés de l'équipe sélectionnée
+  const {
+    employees: teamEmployees,
+    loading: loadingTeamEmployees,
+    error: errorTeamEmployees,
+  } = useEmployeesByTeam(selectedTeam);
 
   // Calcul des dates pour chaque jour de la semaine
   const weekDates = useMemo(() => {
@@ -294,11 +300,20 @@ const WeeklySchedulePage: React.FC = () => {
     setError(null);
 
     try {
+      let url = `/weekly-schedules/week/${year}/${weekNumber}`;
+
+      // Ajouter les filtres selon le mode de vue
+      if (viewMode === "team" && selectedTeam) {
+        url += `?teamId=${selectedTeam}`;
+      } else if (viewMode === "employee" && selectedEmployeeId) {
+        url += `?employeeId=${selectedEmployeeId}`;
+      }
+
       const response = await api.get<{
         success: boolean;
         data: Schedule[];
         count: number;
-      }>(`/weekly-schedules/week/${year}/${weekNumber}`);
+      }>(url);
 
       setSchedules(response.data.data);
 
@@ -317,13 +332,19 @@ const WeeklySchedulePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [year, weekNumber]);
+  }, [year, weekNumber, viewMode, selectedTeam, selectedEmployeeId]);
 
   /**
    * Fonction pour récupérer la liste des employés
    */
   const fetchEmployees = useCallback(async () => {
     try {
+      // Si une équipe est sélectionnée et que nous sommes en mode équipe,
+      // les employés sont déjà chargés par useEmployeesByTeam
+      if (viewMode === "team" && selectedTeam) {
+        return;
+      }
+
       const response = await api.get<{
         success: boolean;
         data: { _id: string; firstName: string; lastName: string }[];
@@ -338,7 +359,7 @@ const WeeklySchedulePage: React.FC = () => {
     } catch (error) {
       console.error("Erreur lors de la récupération des employés:", error);
     }
-  }, []);
+  }, [viewMode, selectedTeam]);
 
   /**
    * Fonction pour récupérer les équipes dont l'utilisateur connecté est manager
@@ -771,12 +792,8 @@ const WeeklySchedulePage: React.FC = () => {
    */
   const tableColumns = [
     { key: "employee", label: "Employé", className: "w-40" },
-    ...DAY_KEYS.map((day, index) => ({
-      key: day,
-      label: DAYS_OF_WEEK[index],
-    })),
-    { key: "total", label: "Total", className: "w-24" },
-    { key: "actions", label: "Actions", className: "w-24" },
+    { key: "totalTime", label: "Total", className: "w-24" },
+    { key: "actions", label: "Actions", className: "w-48" },
   ];
 
   /**
@@ -797,61 +814,41 @@ const WeeklySchedulePage: React.FC = () => {
       0
     );
 
-    const rowData: Record<string, any> = {
-      id: schedule._id,
-      // Intégration d'un Avatar avec le nom de l'employé
-      employee: (
-        <div className="flex items-center gap-2">
-          <Avatar size="sm" />
-          <span>{schedule.employeeName}</span>
-        </div>
-      ),
-      total: (
-        <span className="font-medium text-emerald-600 dark:text-emerald-400">
-          {formatDuration(totalMinutes)}
-        </span>
-      ),
+    // Conversion en heures (arrondi à 2 décimales)
+    const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
+
+    return {
+      employee: schedule.employeeName,
+      totalTime: `${totalHours}h`,
       actions: (
         <div className="flex items-center gap-2">
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
-            onClick={() => fetchScheduleDetails(schedule._id)}
-            icon={<Eye size={16} />}
-            className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-400"
+            onClick={() => handleViewSchedule(schedule)}
+            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
           >
-            Voir
+            <Eye className="h-4 w-4" />
           </Button>
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
-            onClick={() => {
-              setSelectedEmployeeId(schedule.employeeId);
-              formRef.current?.scrollIntoView({ behavior: "smooth" });
-            }}
-            icon={<Edit size={16} />}
+            onClick={() => handleEditSchedule(schedule)}
+            className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
-            Éditer
+            <Pencil className="h-4 w-4" />
           </Button>
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
-            onClick={() => confirmDeleteSchedule(schedule._id)}
-            icon={<Trash size={16} />}
-            className="bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-600 dark:text-red-400"
+            onClick={() => handleDeleteSchedule(schedule._id)}
+            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
           >
-            Supprimer
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
     };
-
-    // Ajouter les données par jour
-    DAY_KEYS.forEach((day) => {
-      rowData[day] = formatScheduleTimes(schedule.scheduleData[day]);
-    });
-
-    return rowData;
   });
 
   /**
@@ -876,9 +873,15 @@ const WeeklySchedulePage: React.FC = () => {
   /**
    * Gère la suppression d'un planning
    */
-  const handleDeleteSchedule = async () => {
-    if (!deletingScheduleId) return;
+  const handleDeleteSchedule = (scheduleId: string) => {
+    setDeletingScheduleId(scheduleId);
+    setIsDeleteModalOpen(true);
+  };
 
+  /**
+   * Ouvre la modal de confirmation de suppression
+   */
+  const confirmDeleteSchedule = async (scheduleId: string) => {
     try {
       // Vérifier que le token est présent dans localStorage
       const token = localStorage.getItem("token");
@@ -888,7 +891,7 @@ const WeeklySchedulePage: React.FC = () => {
         return;
       }
 
-      await api.delete(`/weekly-schedules/${deletingScheduleId}`, {
+      await api.delete(`/weekly-schedules/${scheduleId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -906,14 +909,6 @@ const WeeklySchedulePage: React.FC = () => {
     } catch (error) {
       handleApiError(error, "suppression");
     }
-  };
-
-  /**
-   * Ouvre la modal de confirmation de suppression
-   */
-  const confirmDeleteSchedule = (scheduleId: string) => {
-    setDeletingScheduleId(scheduleId);
-    setIsDeleteModalOpen(true);
   };
 
   // Fonctions pour la navigation dans le calendrier
@@ -956,10 +951,28 @@ const WeeklySchedulePage: React.FC = () => {
     fetchSchedules();
   };
 
-  const changeViewMode = (mode: "team" | "employee" | "global") => {
+  const changeViewMode = (mode: "team" | "employee") => {
     setViewMode(mode);
     setSelectedTeam("");
+    setSelectedEmployeeId("");
+
+    // Recharger les employés appropriés lors du changement de mode
+    if (mode === "employee") {
+      fetchEmployees();
+    }
   };
+
+  // Mettre à jour les employés lorsque les employés d'équipe sont chargés
+  useEffect(() => {
+    if (viewMode === "team" && selectedTeam && teamEmployees.length > 0) {
+      // Formater les employés de l'équipe pour le sélecteur
+      const formattedTeamEmployees = teamEmployees.map((emp) => ({
+        _id: emp._id,
+        fullName: `${emp.firstName} ${emp.lastName}`,
+      }));
+      setEmployees(formattedTeamEmployees);
+    }
+  }, [viewMode, selectedTeam, teamEmployees]);
 
   /**
    * Génération du calendrier interactif
@@ -1164,7 +1177,7 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   /**
-   * Rendu du sélecteur de vue (équipe/employé/global)
+   * Rendu du sélecteur de vue (équipe/employé)
    */
   const renderViewSelector = () => {
     return (
@@ -1174,19 +1187,6 @@ const WeeklySchedulePage: React.FC = () => {
         </h3>
         <div className="flex flex-col space-y-2">
           <div className="flex space-x-2 mb-3">
-            <Button
-              size="sm"
-              variant={viewMode === "global" ? "primary" : "secondary"}
-              onClick={() => changeViewMode("global")}
-              icon={<Grid size={16} />}
-              className={
-                viewMode === "global"
-                  ? "bg-indigo-600 dark:bg-indigo-600 dark:text-white"
-                  : "dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-              }
-            >
-              Vue globale
-            </Button>
             <Button
               size="sm"
               variant={viewMode === "team" ? "primary" : "secondary"}
@@ -1231,10 +1231,54 @@ const WeeklySchedulePage: React.FC = () => {
               </select>
             </div>
           )}
+
+          {viewMode === "employee" && (
+            <div className="mt-2">
+              <select
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              >
+                <option value="">Tous les employés</option>
+                {employees.map((employee) => (
+                  <option key={employee._id} value={employee._id}>
+                    {employee.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
     );
   };
+
+  const handleViewSchedule = (schedule: Schedule) => {
+    fetchScheduleDetails(schedule._id);
+  };
+
+  const handleEditSchedule = (schedule: Schedule) => {
+    setSelectedEmployeeId(schedule.employeeId);
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Mise à jour des schedules lorsque l'équipe ou l'employé sélectionné change
+  useEffect(() => {
+    if (selectedTeam) {
+      fetchSchedules();
+    }
+  }, [selectedTeam, fetchSchedules]);
+
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      fetchSchedules();
+    }
+  }, [selectedEmployeeId, fetchSchedules]);
+
+  // Pour la sélection d'employé pour le formulaire
+  useEffect(() => {
+    checkExistingSchedule();
+  }, [selectedEmployeeId, checkExistingSchedule]);
 
   return (
     <LayoutWithSidebar
@@ -1304,12 +1348,15 @@ const WeeklySchedulePage: React.FC = () => {
                   Temps total planifié
                 </span>
                 <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatDuration(
-                    schedules.reduce(
+                  {Math.round(
+                    (schedules.reduce(
                       (total, schedule) => total + schedule.totalWeeklyMinutes,
                       0
-                    )
-                  )}
+                    ) /
+                      60) *
+                      100
+                  ) / 100}
+                  h
                 </span>
               </div>
             </div>
@@ -1380,7 +1427,7 @@ const WeeklySchedulePage: React.FC = () => {
                         />
                       ),
                     }}
-                    className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+                    className="w-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
                   />
                 </div>
               ) : (
@@ -1482,6 +1529,7 @@ const WeeklySchedulePage: React.FC = () => {
                               size="sm"
                               onClick={() => handleAddTimeSlot(day)}
                               icon={<Plus size={14} />}
+                              className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-800/40 text-indigo-600 dark:text-indigo-300 dark:border-indigo-800/50"
                             >
                               Ajouter
                             </Button>
@@ -1557,7 +1605,7 @@ const WeeklySchedulePage: React.FC = () => {
                                   type="button"
                                   variant="secondary"
                                   size="sm"
-                                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-900/50"
                                   onClick={() =>
                                     handleRemoveTimeSlot(day, slotIndex)
                                   }
@@ -1568,9 +1616,12 @@ const WeeklySchedulePage: React.FC = () => {
 
                                 <div className="w-full mt-1 text-xs text-[var(--text-secondary)]">
                                   <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                    {formatDuration(
-                                      calculateDuration(slot.start, slot.end)
-                                    )}
+                                    {Math.round(
+                                      (calculateDuration(slot.start, slot.end) /
+                                        60) *
+                                        100
+                                    ) / 100}
+                                    h
                                   </span>
                                 </div>
                               </div>
@@ -1612,7 +1663,7 @@ const WeeklySchedulePage: React.FC = () => {
                     </span>
                   </div>
                   <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatDuration(totalWeeklyMinutes)}
+                    {Math.round((totalWeeklyMinutes / 60) * 100) / 100}h
                   </span>
                 </div>
               </div>
@@ -1667,12 +1718,12 @@ const WeeklySchedulePage: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">
                     Planning de {currentSchedule.employeeName}
                   </h2>
                   <button
                     onClick={() => setIsViewModalOpen(false)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -1716,7 +1767,10 @@ const WeeklySchedulePage: React.FC = () => {
                       Temps total hebdomadaire
                     </p>
                     <p className="font-medium text-emerald-600 dark:text-emerald-400">
-                      {formatDuration(currentSchedule.totalWeeklyMinutes)}
+                      {Math.round(
+                        (currentSchedule.totalWeeklyMinutes / 60) * 100
+                      ) / 100}
+                      h
                     </p>
                   </div>
                   <div>
@@ -1793,10 +1847,12 @@ const WeeklySchedulePage: React.FC = () => {
                                           </span>
                                           <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
                                             (
-                                            {formatDuration(
-                                              calculateDuration(start, end)
-                                            )}
-                                            )
+                                            {Math.round(
+                                              (calculateDuration(start, end) /
+                                                60) *
+                                                100
+                                            ) / 100}
+                                            h )
                                           </span>
                                         </div>
                                       );
@@ -1842,6 +1898,7 @@ const WeeklySchedulePage: React.FC = () => {
                   <Button
                     variant="secondary"
                     onClick={() => setIsViewModalOpen(false)}
+                    className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     Fermer
                   </Button>
@@ -1852,48 +1909,45 @@ const WeeklySchedulePage: React.FC = () => {
         )}
 
         {/* Modal de confirmation de suppression */}
-        {isDeleteModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
-              <div className="p-6">
-                <div className="flex justify-center mb-4">
-                  <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-3">
-                    <Trash
-                      size={24}
-                      className="text-red-600 dark:text-red-400"
-                    />
-                  </div>
-                </div>
-                <h2 className="text-xl font-bold text-center mb-2">
-                  Confirmer la suppression
-                </h2>
-                <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-                  Êtes-vous sûr de vouloir supprimer ce planning ? Cette action
-                  est irréversible.
-                </p>
-
-                <div className="flex gap-4 justify-center">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setIsDeleteModalOpen(false);
-                      setDeletingScheduleId(null);
-                    }}
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    variant="primary"
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                    onClick={handleDeleteSchedule}
-                  >
-                    Supprimer
-                  </Button>
-                </div>
-              </div>
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setDeletingScheduleId(null);
+          }}
+          title="Confirmer la suppression"
+        >
+          <div className="p-6">
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Êtes-vous sûr de vouloir supprimer ce planning ? Cette action est
+              irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeletingScheduleId(null);
+                }}
+                className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="danger"
+                className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-600 dark:border-red-800"
+                onClick={() => {
+                  if (deletingScheduleId) {
+                    confirmDeleteSchedule(deletingScheduleId);
+                  }
+                }}
+                disabled={!deletingScheduleId}
+              >
+                Supprimer
+              </Button>
             </div>
           </div>
-        )}
+        </Modal>
       </PageWrapper>
     </LayoutWithSidebar>
   );

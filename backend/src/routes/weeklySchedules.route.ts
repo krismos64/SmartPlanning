@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import { isValidObjectId } from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
+import EmployeeModel from "../models/Employee.model";
+import { TeamModel } from "../models/Team.model";
 import WeeklyScheduleModel from "../models/WeeklySchedule.model";
 
 const router = express.Router();
@@ -171,6 +173,14 @@ router.post(
 router.get("/week/:year/:weekNumber", async (req: Request, res: Response) => {
   try {
     const { year, weekNumber } = req.params;
+    const { teamId, employeeId } = req.query;
+
+    console.log("GET /weekly-schedules/week/:year/:weekNumber - Paramètres:", {
+      year,
+      weekNumber,
+      teamId,
+      employeeId,
+    });
 
     const yearNumber = parseInt(year, 10);
     const weekNumberValue = parseInt(weekNumber, 10);
@@ -190,13 +200,110 @@ router.get("/week/:year/:weekNumber", async (req: Request, res: Response) => {
       });
     }
 
-    const schedules = await WeeklyScheduleModel.find({
+    // Construire le filtre de recherche de base
+    const filter: any = {
       year: yearNumber,
       weekNumber: weekNumberValue,
       status: "approved",
-    })
+    };
+
+    // Si on filtre par employé
+    if (employeeId) {
+      filter.employeeId = employeeId;
+      console.log("Filtrage par employé:", employeeId);
+    }
+
+    // Si on filtre par équipe, on doit d'abord récupérer les employés de cette équipe
+    let employeesToFilter: string[] = [];
+    if (teamId) {
+      try {
+        console.log("Récupération des employés pour l'équipe:", teamId);
+
+        // Vérifier d'abord si l'équipe existe
+        const team = await TeamModel.findById(teamId).lean();
+        if (!team) {
+          console.log(`Équipe non trouvée avec ID: ${teamId}`);
+          return res.status(200).json({
+            success: true,
+            data: [],
+            count: 0,
+            message: "Équipe introuvable",
+          });
+        }
+
+        console.log(`Équipe trouvée: ${team.name}`);
+
+        // Récupérer les employés via le champ teamId sur l'employé
+        const employeesByTeamId = await EmployeeModel.find({ teamId: teamId })
+          .select("_id firstName lastName")
+          .lean();
+
+        console.log(`Employés trouvés via teamId: ${employeesByTeamId.length}`);
+
+        // Récupérer les employés listés directement dans l'équipe
+        let employeesByTeamList: any[] = [];
+        if (team.employeeIds && team.employeeIds.length > 0) {
+          employeesByTeamList = await EmployeeModel.find({
+            _id: { $in: team.employeeIds },
+          })
+            .select("_id firstName lastName")
+            .lean();
+
+          console.log(
+            `Employés trouvés via employeeIds: ${employeesByTeamList.length}`
+          );
+        }
+
+        // Fusionner les listes sans doublons
+        const allEmployeeIds = new Set<string>();
+
+        // Ajouter les employés trouvés par teamId
+        for (const emp of employeesByTeamId) {
+          allEmployeeIds.add(emp._id.toString());
+        }
+
+        // Ajouter les employés trouvés par la liste d'employeeIds
+        for (const emp of employeesByTeamList) {
+          allEmployeeIds.add(emp._id.toString());
+        }
+
+        employeesToFilter = Array.from(allEmployeeIds);
+        console.log(
+          `Total d'employés uniques trouvés: ${employeesToFilter.length}`
+        );
+
+        if (employeesToFilter.length > 0) {
+          filter.employeeId = { $in: employeesToFilter };
+          console.log(`Filtre appliqué: ${employeesToFilter.length} employés`);
+        } else {
+          console.log(
+            "Aucun employé trouvé pour cette équipe, aucun résultat ne sera retourné"
+          );
+          return res.status(200).json({
+            success: true,
+            data: [],
+            count: 0,
+            message: "Aucun employé trouvé dans cette équipe",
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Erreur lors de la récupération des employés par équipe:",
+          err
+        );
+      }
+    }
+
+    console.log(
+      "Filtre final pour WeeklyScheduleModel.find():",
+      JSON.stringify(filter, null, 2)
+    );
+
+    const schedules = await WeeklyScheduleModel.find(filter)
       .populate("employeeId", "firstName lastName")
       .lean();
+
+    console.log(`${schedules.length} plannings trouvés`);
 
     const formattedSchedules = schedules.map((schedule: any) => ({
       ...schedule,

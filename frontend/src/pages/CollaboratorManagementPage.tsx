@@ -227,7 +227,7 @@ const CollaboratorManagementPage: React.FC = () => {
       console.log("Récupération des équipes pour le manager:", user._id);
 
       // Appel à l'API pour récupérer les équipes du manager
-      const response = await axiosInstance.get(`/api/teams`);
+      const response = await axiosInstance.get(`/teams`);
       if (response.data && response.data.success) {
         const teams = response.data.data;
         setManagerTeams(teams);
@@ -279,7 +279,7 @@ const CollaboratorManagementPage: React.FC = () => {
     if (!validateTeamForm()) return;
 
     try {
-      const response = await axiosInstance.post("/api/teams", teamFormData);
+      const response = await axiosInstance.post("/teams", teamFormData);
 
       if (response.data && response.data.success) {
         await fetchManagerTeams();
@@ -308,7 +308,7 @@ const CollaboratorManagementPage: React.FC = () => {
 
     try {
       const response = await axiosInstance.patch(
-        `/api/teams/${selectedTeam._id}`,
+        `/teams/${selectedTeam._id}`,
         teamFormData
       );
 
@@ -338,7 +338,7 @@ const CollaboratorManagementPage: React.FC = () => {
     if (!teamToDelete) return;
 
     try {
-      const response = await axiosInstance.delete(`/api/teams/${teamToDelete}`);
+      const response = await axiosInstance.delete(`/teams/${teamToDelete}`);
 
       if (response.data && response.data.success) {
         // Si l'équipe supprimée est celle qui est sélectionnée, réinitialiser la sélection

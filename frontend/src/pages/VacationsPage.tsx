@@ -221,7 +221,7 @@ const VacationsPage: React.FC = () => {
       const response = await axiosInstance.get<{
         success: boolean;
         data: Employee[];
-      }>("/api/employees/accessible");
+      }>("/employees/accessible");
 
       console.log("Employés accessibles reçus:", response.data.data);
       setAccessibleEmployees(response.data.data);
@@ -247,7 +247,7 @@ const VacationsPage: React.FC = () => {
       const response = await axiosInstance.get<{
         success: boolean;
         data: VacationRequest[];
-      }>("/api/vacations");
+      }>("/vacations");
 
       console.log("Demandes de congés reçues:", response.data);
       setVacationRequests(response.data.data);
@@ -346,7 +346,7 @@ const VacationsPage: React.FC = () => {
       // Log des données envoyées au serveur pour débogage
       console.log("Données envoyées:", requestData);
 
-      const response = await axiosInstance.post("/api/vacations", requestData);
+      const response = await axiosInstance.post("/vacations", requestData);
       console.log("Réponse du serveur:", response.data);
 
       setSuccess("Demande de congés envoyée avec succès");
@@ -386,7 +386,7 @@ const VacationsPage: React.FC = () => {
       console.log(
         `Envoi de la requête PUT pour la demande ${id} avec statut ${status}`
       );
-      const response = await axiosInstance.put(`/api/vacations/${id}`, {
+      const response = await axiosInstance.put(`/vacations/${id}`, {
         status,
       });
       console.log("Réponse reçue du serveur:", response.data);
