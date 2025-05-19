@@ -257,6 +257,9 @@ const WeeklySchedulePage: React.FC = () => {
     null
   );
 
+  // États pour le modal de création de planning
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+
   // Vérification automatique de l'état d'authentification
   useEffect(() => {
     if (!user || !user._id) {
@@ -637,6 +640,23 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   /**
+   * Fonction pour ouvrir le modal de création
+   */
+  const openCreateModal = () => {
+    resetForm();
+    setSelectedEmployeeId("");
+    setIsEditMode(false);
+    setIsCreateModalOpen(true);
+  };
+
+  /**
+   * Fonction pour fermer le modal de création
+   */
+  const closeCreateModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  /**
    * Gère la soumission du formulaire de planning
    * Coordonne la préparation des données et l'envoi au serveur
    */
@@ -670,6 +690,9 @@ const WeeklySchedulePage: React.FC = () => {
       // Réinitialisation et rechargement
       resetForm();
       setSelectedEmployeeId("");
+      if (!isEditMode) {
+        closeCreateModal(); // Fermer le modal en cas de création réussie
+      }
       fetchSchedules();
     } catch (error: unknown) {
       console.error("Erreur lors de la sauvegarde du planning:", error);
@@ -1306,22 +1329,40 @@ const WeeklySchedulePage: React.FC = () => {
           <div className="flex-grow"></div>
         </div>
 
-        {/* Bouton de redirection vers la page de validation des plannings générés par l'IA */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-4"
-        >
-          <Button
-            onClick={() => navigate("/validation-plannings")}
-            variant="primary"
-            className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:brightness-110 transition-all duration-300"
-            icon={<Brain size={18} />}
+        {/* Boutons d'action */}
+        <div className="flex flex-wrap gap-4 mb-6">
+          {/* Bouton de redirection vers la page de validation des plannings générés par l'IA */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
           >
-            Valider les plannings générés par l'IA
-          </Button>
-        </motion.div>
+            <Button
+              onClick={() => navigate("/validation-plannings")}
+              variant="primary"
+              className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:brightness-110 transition-all duration-300"
+              icon={<Brain size={18} />}
+            >
+              Valider les plannings générés par l'IA
+            </Button>
+          </motion.div>
+
+          {/* Bouton de création de planning */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Button
+              onClick={openCreateModal}
+              variant="secondary"
+              className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
+              icon={<Plus size={18} />}
+            >
+              Créer un planning
+            </Button>
+          </motion.div>
+        </div>
 
         {/* Récapitulatif de la semaine */}
         <motion.div
@@ -1345,18 +1386,10 @@ const WeeklySchedulePage: React.FC = () => {
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Temps total planifié
+                  Plannings créés
                 </span>
-                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {Math.round(
-                    (schedules.reduce(
-                      (total, schedule) => total + schedule.totalWeeklyMinutes,
-                      0
-                    ) /
-                      60) *
-                      100
-                  ) / 100}
-                  h
+                <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                  {schedules.length}
                 </span>
               </div>
             </div>
@@ -1439,21 +1472,17 @@ const WeeklySchedulePage: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Formulaire de création/modification de planning */}
-        <motion.div
-          ref={formRef}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+        {/* Modal de création/modification de planning */}
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={closeCreateModal}
+          title={
+            isEditMode ? "Modifier le planning" : "Créer un nouveau planning"
+          }
+          className="w-full max-w-5xl max-h-[90vh]"
         >
-          <SectionCard
-            title={
-              isEditMode ? "Modifier le planning" : "Créer un nouveau planning"
-            }
-            accentColor={isEditMode ? "var(--warning)" : "var(--success)"}
-            className="rounded-2xl shadow-md"
-          >
-            <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800">
+          <div className="px-6 py-4">
+            <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800">
               <div className="flex items-center gap-2">
                 <Calendar
                   className="text-indigo-600 dark:text-indigo-400"
@@ -1467,7 +1496,7 @@ const WeeklySchedulePage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveSchedule}>
-              <div className="mb-4">
+              <div className="mb-6">
                 <Select
                   label="Employé"
                   options={employees.map((emp) => ({
@@ -1486,7 +1515,7 @@ const WeeklySchedulePage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
                   Horaires
                 </h3>
-                <div className="space-y-6">
+                <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
                   {DAY_KEYS.map((day, dayIndex) => {
                     // Calcul de la date du jour en fonction de l'année et la semaine
                     const dayDate = weekDates[day];
@@ -1507,7 +1536,7 @@ const WeeklySchedulePage: React.FC = () => {
                     return (
                       <div
                         key={day}
-                        className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] dark:bg-gray-800 transition-all hover:shadow-md"
+                        className="p-3 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] dark:bg-gray-800 transition-all hover:shadow-md"
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
                           <div className="flex items-center gap-2 mb-2 sm:mb-0">
@@ -1549,80 +1578,85 @@ const WeeklySchedulePage: React.FC = () => {
                                 key={slotIndex}
                                 className="flex flex-wrap items-center gap-2 p-2 bg-[var(--background-primary)] dark:bg-gray-700 rounded-lg"
                               >
-                                <div className="flex-1 min-w-[180px] flex items-center gap-2">
-                                  <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
-                                    Début
-                                  </label>
-                                  <select
-                                    value={slot.start}
-                                    onChange={(e) =>
-                                      handleTimeSlotChange(
-                                        day,
-                                        slotIndex,
-                                        "start",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
-                                  >
-                                    {TIME_OPTIONS.filter(
-                                      (time) => time < slot.end
-                                    ).map((time) => (
-                                      <option key={time} value={time}>
-                                        {time}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                <div className="flex flex-col md:flex-row w-full gap-2">
+                                  <div className="flex flex-row items-center gap-2 flex-1">
+                                    <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300 w-10">
+                                      Début
+                                    </label>
+                                    <select
+                                      value={slot.start}
+                                      onChange={(e) =>
+                                        handleTimeSlotChange(
+                                          day,
+                                          slotIndex,
+                                          "start",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
+                                    >
+                                      {TIME_OPTIONS.filter(
+                                        (time) => time < slot.end
+                                      ).map((time) => (
+                                        <option key={time} value={time}>
+                                          {time}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
 
-                                <div className="flex-1 min-w-[180px] flex items-center gap-2">
-                                  <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
-                                    Fin
-                                  </label>
-                                  <select
-                                    value={slot.end}
-                                    onChange={(e) =>
-                                      handleTimeSlotChange(
-                                        day,
-                                        slotIndex,
-                                        "end",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
-                                  >
-                                    {TIME_OPTIONS.filter(
-                                      (time) => time > slot.start
-                                    ).map((time) => (
-                                      <option key={time} value={time}>
-                                        {time}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                  <div className="flex flex-row items-center gap-2 flex-1">
+                                    <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300 w-10">
+                                      Fin
+                                    </label>
+                                    <select
+                                      value={slot.end}
+                                      onChange={(e) =>
+                                        handleTimeSlotChange(
+                                          day,
+                                          slotIndex,
+                                          "end",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
+                                    >
+                                      {TIME_OPTIONS.filter(
+                                        (time) => time > slot.start
+                                      ).map((time) => (
+                                        <option key={time} value={time}>
+                                          {time}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
 
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-900/50"
-                                  onClick={() =>
-                                    handleRemoveTimeSlot(day, slotIndex)
-                                  }
-                                  icon={<Trash size={16} />}
-                                >
-                                  Supprimer
-                                </Button>
+                                  <div className="flex items-center">
+                                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mr-2">
+                                      {Math.round(
+                                        (calculateDuration(
+                                          slot.start,
+                                          slot.end
+                                        ) /
+                                          60) *
+                                          100
+                                      ) / 100}
+                                      h
+                                    </span>
 
-                                <div className="w-full mt-1 text-xs text-[var(--text-secondary)]">
-                                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                    {Math.round(
-                                      (calculateDuration(slot.start, slot.end) /
-                                        60) *
-                                        100
-                                    ) / 100}
-                                    h
-                                  </span>
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-900/50"
+                                      onClick={() =>
+                                        handleRemoveTimeSlot(day, slotIndex)
+                                      }
+                                      icon={<Trash size={16} />}
+                                    >
+                                      Supprimer
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             ))
@@ -1630,7 +1664,7 @@ const WeeklySchedulePage: React.FC = () => {
                         </div>
 
                         {/* Notes pour ce jour */}
-                        <div className="mt-3">
+                        <div className="mt-2">
                           <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
                             Notes pour {DAYS_OF_WEEK[dayIndex]} (optionnel)
                           </label>
@@ -1639,7 +1673,7 @@ const WeeklySchedulePage: React.FC = () => {
                             onChange={(e) =>
                               handleDailyNoteChange(day, e.target.value)
                             }
-                            className="mt-1 w-full px-3 py-2 text-sm rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
+                            className="mt-1 w-full px-3 py-1 text-sm rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
                             placeholder={`Notes spécifiques pour ${DAYS_OF_WEEK[dayIndex]}...`}
                             rows={1}
                           />
@@ -1650,67 +1684,70 @@ const WeeklySchedulePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Récapitulatif du temps total hebdomadaire */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl">
-                <div className="flex flex-col sm:flex-row justify-between items-center">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                    <Clock
-                      size={20}
-                      className="text-indigo-600 dark:text-indigo-400"
-                    />
-                    <span className="font-medium">
-                      Temps total hebdomadaire:
+              {/* Récapitulatif du temps total hebdomadaire et notes générales */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Clock
+                        size={20}
+                        className="text-indigo-600 dark:text-indigo-400"
+                      />
+                      <span className="font-medium">
+                        Temps total hebdomadaire:
+                      </span>
+                    </div>
+                    <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {Math.round((totalWeeklyMinutes / 60) * 100) / 100}h
                     </span>
                   </div>
-                  <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {Math.round((totalWeeklyMinutes / 60) * 100) / 100}h
-                  </span>
+                </div>
+
+                {/* Notes générales */}
+                <div>
+                  <label
+                    htmlFor="notes"
+                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-1"
+                  >
+                    Notes générales (optionnel)
+                  </label>
+                  <textarea
+                    id="notes"
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border)] dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
+                    placeholder="Informations complémentaires..."
+                  />
                 </div>
               </div>
 
-              {/* Notes générales */}
-              <div className="mb-6">
-                <label
-                  htmlFor="notes"
-                  className="block text-sm font-semibold text-gray-800 dark:text-white mb-1"
+              {/* Boutons d'action */}
+              <div className="flex justify-end gap-3 pt-2 sticky bottom-0">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={closeCreateModal}
+                  className="dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
                 >
-                  Notes générales (optionnel)
-                </label>
-                <textarea
-                  id="notes"
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-2 rounded-md border border-[var(--border)] dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
-                  placeholder="Informations complémentaires..."
-                />
-              </div>
-
-              {/* Bouton de soumission */}
-              <div className="flex justify-end">
-                <motion.div
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={creatingSchedule}
+                  disabled={creatingSchedule || !selectedEmployeeId}
+                  icon={isEditMode ? <Check size={18} /> : <Clock size={18} />}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
                 >
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    isLoading={creatingSchedule}
-                    disabled={creatingSchedule}
-                    icon={
-                      isEditMode ? <Check size={18} /> : <Clock size={18} />
-                    }
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium px-6 py-2 rounded-xl shadow-md"
-                  >
-                    {isEditMode
-                      ? "Mettre à jour le planning"
-                      : "Enregistrer le planning"}
-                  </Button>
-                </motion.div>
+                  {isEditMode
+                    ? "Mettre à jour le planning"
+                    : "Enregistrer le planning"}
+                </Button>
               </div>
             </form>
-          </SectionCard>
-        </motion.div>
+          </div>
+        </Modal>
 
         {/* Modal de consultation détaillée */}
         {isViewModalOpen && currentSchedule && (

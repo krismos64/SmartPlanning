@@ -174,10 +174,10 @@ const Modal: React.FC<ModalProps> = ({
               bg-white dark:bg-gray-900
               text-gray-900 dark:text-white
               rounded-2xl
-              p-6
               shadow-xl
               relative
               overflow-hidden
+              flex flex-col
               max-h-[calc(100vh-2rem)]
               ${className}
             `}
@@ -204,6 +204,7 @@ const Modal: React.FC<ModalProps> = ({
                 p-1
                 transition-colors
                 duration-200
+                z-10
               "
               aria-label="Fermer"
             >
@@ -225,16 +226,20 @@ const Modal: React.FC<ModalProps> = ({
 
             {/* Titre de la modale (si fourni) */}
             {title && (
-              <h2
-                id={titleId}
-                className="text-xl font-semibold mb-4 pr-8 text-gray-900 dark:text-white" // pr-8 pour éviter chevauchement avec bouton fermeture
-              >
-                {title}
-              </h2>
+              <div className="p-6 pb-0">
+                <h2
+                  id={titleId}
+                  className="text-xl font-semibold mb-4 pr-8 text-gray-900 dark:text-white" // pr-8 pour éviter chevauchement avec bouton fermeture
+                >
+                  {title}
+                </h2>
+              </div>
             )}
 
-            {/* Contenu de la modale */}
-            <div className={title ? "" : "pt-3"}>{children}</div>
+            {/* Contenu de la modale avec défilement */}
+            <div className="overflow-y-auto">
+              <div className={`${title ? "pt-0" : "pt-3"}`}>{children}</div>
+            </div>
           </motion.div>
         </div>
       )}
