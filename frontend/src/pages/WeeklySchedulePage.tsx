@@ -279,6 +279,9 @@ const WeeklySchedulePage: React.FC = () => {
   // État pour la modal de génération de PDF
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [pdfGenerating, setPdfGenerating] = useState<boolean>(false);
+  const [generationType, setGenerationType] = useState<
+    "employee" | "team" | "all"
+  >("all");
 
   // Vérification automatique de l'état d'authentification
   useEffect(() => {
@@ -849,8 +852,27 @@ const WeeklySchedulePage: React.FC = () => {
    * Ouvre la modal de génération de PDF
    */
   const openPdfModal = (employeeId?: string, teamId?: string) => {
-    if (employeeId) setSelectedEmployeeId(employeeId);
-    if (teamId) setSelectedTeam(teamId);
+    if (employeeId) {
+      setSelectedEmployeeId(employeeId);
+      // Définir le type par défaut sur "employee" quand un employé est sélectionné
+      setGenerationType("employee");
+    } else if (teamId) {
+      setSelectedTeam(teamId);
+      // Définir le type par défaut sur "team" quand une équipe est sélectionnée
+      setGenerationType("team");
+    } else {
+      // Si aucun ID n'est fourni, c'est une génération globale
+      setGenerationType("all");
+    }
+
+    // Log de débogage pour vérifier les valeurs à transmettre
+    console.log("Ouverture du modal PDF avec les paramètres:", {
+      year,
+      weekNumber,
+      selectedEmployeeId: employeeId || selectedEmployeeId,
+      selectedTeamId: teamId || selectedTeam,
+    });
+
     setIsPdfModalOpen(true);
   };
 
@@ -952,7 +974,7 @@ const WeeklySchedulePage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleGeneratePdf("team", team._id)} // Appel direct à la fonction de génération
+                onClick={() => openPdfModal("team", team._id)} // Utiliser la fonction openPdfModal
                 className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
                 title="Générer le PDF pour toute l'équipe" // Ajout du titre explicatif
               >
@@ -1021,9 +1043,7 @@ const WeeklySchedulePage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  handleGeneratePdf("employee", undefined, schedule.employeeId)
-                } // Appel direct à la fonction de génération
+                onClick={() => openPdfModal(schedule.employeeId)}
                 className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
                 title="Générer le PDF de ce planning" // Ajout du titre explicatif
               >
@@ -2003,7 +2023,7 @@ const WeeklySchedulePage: React.FC = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <Button
-              onClick={() => handleGeneratePdf("all")} // Appel direct à la fonction de génération pour tous
+              onClick={() => openPdfModal()} // Utiliser openPdfModal sans arguments pour la génération globale
               variant="secondary"
               className="w-full md:w-auto px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
               icon={<FileDown size={18} />}
@@ -2666,6 +2686,9 @@ const WeeklySchedulePage: React.FC = () => {
           employees={employees}
           currentEmployeeId={selectedEmployeeId}
           currentTeamId={selectedTeam}
+          initialGenerationType={generationType}
+          year={year}
+          weekNumber={weekNumber}
         />
       </PageWrapper>
     </LayoutWithSidebar>
