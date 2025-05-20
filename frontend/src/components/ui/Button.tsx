@@ -31,6 +31,8 @@ export interface ButtonProps {
   className?: string;
   /** Si true, le bouton prend toute la largeur disponible */
   fullWidth?: boolean;
+  /** Texte d'infobulle au survol */
+  title?: string;
 }
 
 /**
@@ -50,6 +52,7 @@ const Button: React.FC<ButtonProps> = ({
   icon,
   className = "",
   fullWidth = false,
+  title,
 }) => {
   // Mapping des variantes vers les classes CSS appropriées
   const variantClasses = {
@@ -109,6 +112,7 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       whileTap={{ scale: disabled || isLoading ? 1 : 0.97 }}
       aria-busy={isLoading}
+      title={title}
     >
       {/* Affichage conditionnel du spinner de chargement */}
       {isLoading && (

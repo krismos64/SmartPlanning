@@ -10,6 +10,7 @@ interface Schedule {
   employeeName: string;
   teamId?: string;
   teamName?: string;
+  managerName?: string;
   scheduleData: Record<string, string[]>;
   dailyNotes?: Record<string, string>;
   dailyDates?: Record<string, Date>;
@@ -119,40 +120,13 @@ export const generateSchedulePDF = async (
     }
   }
 
-  // Récupérer les infos de l'employé si nous n'avons toujours pas de teamName
-  if (teamName === "Non assigné") {
-    try {
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:5050/api"
-        }/employees/${schedule.employeeId}`
-      );
-      const data = await response.json();
-      if (data.success && data.data && data.data.teamName) {
-        teamName = data.data.teamName;
-      } else if (data.success && data.data && data.data.teamId) {
-        // Si on a un teamId mais pas de teamName, chercher le nom de l'équipe
-        const teamResponse = await fetch(
-          `${
-            import.meta.env.VITE_API_URL || "http://localhost:5050/api"
-          }/teams/${data.data.teamId}`
-        );
-        const teamData = await teamResponse.json();
-        if (teamData.success && teamData.data && teamData.data.name) {
-          teamName = teamData.data.name;
-        }
-      }
-    } catch (error) {
-      console.error(
-        "Erreur lors de la récupération des infos de l'employé:",
-        error
-      );
-    }
-  }
-
   // Récupérer le nom du manager
   let managerName = "Non assigné";
-  if (schedule.teamId) {
+
+  // Utiliser directement la propriété managerName si elle existe déjà dans l'objet schedule
+  if (schedule.managerName) {
+    managerName = schedule.managerName as string;
+  } else if (schedule.teamId) {
     try {
       const teamResponse = await fetch(
         `${import.meta.env.VITE_API_URL || "http://localhost:5050/api"}/teams/${
@@ -273,26 +247,46 @@ export const generateSchedulePDF = async (
     align: "center",
   });
 
-  // Informations sur l'employé avec nom en gras
-  doc.setTextColor(52, 73, 94);
-  doc.setFont("helvetica", "bold"); // Mettre le nom en gras
-  doc.text(`Employé: ${schedule.employeeName}`, 15, 40);
-  doc.setFont("helvetica", "normal"); // Revenir au style normal
-
+  // Créer un bloc d'informations stylisé pour les informations de l'employé
   const totalHours = Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
-  doc.text(`Total hebdomadaire: ${totalHours}h`, 15, 47);
 
-  // Ajouter l'information sur l'équipe
-  doc.setFont("helvetica", "bold");
-  doc.text(`Équipe: `, 15, 54);
-  doc.setFont("helvetica", "normal");
-  doc.text(teamName, 35, 54);
+  // Dessiner un fond de couleur claire pour le bloc d'informations
+  doc.setFillColor(240, 245, 255); // Bleu très clair
+  doc.roundedRect(12, 36, 275, 25, 3, 3, "F");
+  doc.setDrawColor(41, 128, 185); // Bordure bleue
+  doc.setLineWidth(0.5);
+  doc.roundedRect(12, 36, 275, 25, 3, 3, "S");
 
-  // Ajouter l'information sur le manager
+  // Diviser l'espace en deux colonnes
+  const colWidth = 275 / 2;
+
+  // Information sur l'employé (colonne gauche)
+  doc.setFontSize(11);
+  doc.setTextColor(44, 62, 80); // Bleu foncé
+
+  // Ligne 1, colonne 1: Employé
   doc.setFont("helvetica", "bold");
-  doc.text(`Responsable: `, 15, 61);
+  doc.text("Employé:", 20, 44);
   doc.setFont("helvetica", "normal");
-  doc.text(managerName, 48, 61);
+  doc.text(schedule.employeeName, 60, 44);
+
+  // Ligne 2, colonne 1: Équipe
+  doc.setFont("helvetica", "bold");
+  doc.text("Équipe:", 20, 52);
+  doc.setFont("helvetica", "normal");
+  doc.text(teamName, 60, 52);
+
+  // Ligne 1, colonne 2: Total hebdomadaire
+  doc.setFont("helvetica", "bold");
+  doc.text("Total hebdomadaire:", 150, 44);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${totalHours}h`, 220, 44);
+
+  // Ligne 2, colonne 2: Responsable
+  doc.setFont("helvetica", "bold");
+  doc.text("Responsable:", 150, 52);
+  doc.setFont("helvetica", "normal");
+  doc.text(managerName, 220, 52);
 
   // Tableau des horaires - Optimisé pour tenir sur une page
   const tableData: Array<any[]> = [];
