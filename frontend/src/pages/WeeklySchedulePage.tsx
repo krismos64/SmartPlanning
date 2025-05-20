@@ -68,6 +68,17 @@ interface Schedule {
   weekNumber: number;
   status: "approved" | "draft";
   updatedAt: string;
+  teamName?: string;
+  teamId?: string;
+}
+
+// Interface pour une équipe
+interface Team {
+  _id: string;
+  name: string;
+  managerIds: { _id: string; firstName: string; lastName: string }[];
+  employeeIds: { _id: string; firstName: string; lastName: string }[];
+  companyId: string;
 }
 
 // Interface pour les données de time slots
@@ -181,7 +192,7 @@ const WeeklySchedulePage: React.FC = () => {
 
   // États pour les données et le chargement
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [teams, setTeams] = useState<{ _id: string; name: string }[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -237,11 +248,7 @@ const WeeklySchedulePage: React.FC = () => {
       if (!slots || !Array.isArray(slots)) return total;
 
       const dayMinutes = slots.reduce((sum, slot) => {
-        if (
-          !slot ||
-          typeof slot.start !== "string" ||
-          typeof slot.end !== "string"
-        ) {
+        if (!slot || !slot.start || !slot.end) {
           return sum;
         }
         return sum + calculateDuration(slot.start, slot.end);
@@ -315,33 +322,49 @@ const WeeklySchedulePage: React.FC = () => {
     setError(null);
 
     try {
-      let url = `/weekly-schedules/week/${year}/${weekNumber}`;
+      // Si en mode équipe et aucune équipe sélectionnée, afficher la liste des équipes
+      if (viewMode === "team" && !selectedTeam) {
+        const teamsResponse = await api.get("/teams");
 
-      // Ajouter les filtres selon le mode de vue
-      if (viewMode === "team" && selectedTeam) {
-        url += `?teamId=${selectedTeam}`;
-      } else if (viewMode === "employee" && selectedEmployeeId) {
-        url += `?employeeId=${selectedEmployeeId}`;
-      }
+        if (teamsResponse.data.success) {
+          // Mettre à jour l'état des équipes
+          setTeams(teamsResponse.data.data || []);
+          // Vider la liste des plannings car nous affichons les équipes à la place
+          setSchedules([]);
+        } else {
+          setError("Erreur lors de la récupération des équipes");
+          setShowErrorToast(true);
+        }
+      } else {
+        // Si une équipe est sélectionnée ou si nous sommes en mode employé, récupérer les plannings
+        let url = `/weekly-schedules/week/${year}/${weekNumber}`;
 
-      const response = await api.get<{
-        success: boolean;
-        data: Schedule[];
-        count: number;
-      }>(url);
+        // Ajouter les filtres selon le mode de vue
+        if (viewMode === "team" && selectedTeam) {
+          url += `?teamId=${selectedTeam}`;
+        } else if (viewMode === "employee" && selectedEmployeeId) {
+          url += `?employeeId=${selectedEmployeeId}`;
+        }
 
-      setSchedules(response.data.data);
+        const response = await api.get<{
+          success: boolean;
+          data: Schedule[];
+          count: number;
+        }>(url);
 
-      // Défilement vers le tableau des résultats s'il y a des données
-      if (response.data.data.length > 0 && tableRef.current) {
-        setTimeout(() => {
-          tableRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+        setSchedules(response.data.data);
+
+        // Défilement vers le tableau des résultats s'il y a des données
+        if (response.data.data.length > 0 && tableRef.current) {
+          setTimeout(() => {
+            tableRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+        }
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération des plannings:", error);
+      console.error("Erreur lors de la récupération des données:", error);
       setError(
-        "Erreur lors de la récupération des plannings. Veuillez réessayer."
+        "Erreur lors de la récupération des données. Veuillez réessayer."
       );
       setShowErrorToast(true);
     } finally {
@@ -702,9 +725,8 @@ const WeeklySchedulePage: React.FC = () => {
       // Réinitialisation et rechargement
       resetForm();
       setSelectedEmployeeId("");
-      if (!isEditMode) {
-        closeCreateModal(); // Fermer le modal en cas de création réussie
-      }
+      // Fermer le modal dans tous les cas après une sauvegarde réussie
+      closeCreateModal();
       fetchSchedules();
     } catch (error: unknown) {
       console.error("Erreur lors de la sauvegarde du planning:", error);
@@ -823,79 +845,149 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   /**
+   * Ouvre la modal de génération de PDF
+   */
+  const openPdfModal = (employeeId?: string, teamId?: string) => {
+    if (employeeId) setSelectedEmployeeId(employeeId);
+    if (teamId) setSelectedTeam(teamId);
+    setIsPdfModalOpen(true);
+  };
+
+  /**
    * Colonnes pour le composant Table
    */
-  const tableColumns = [
-    { key: "employee", label: "Employé", className: "w-40" },
-    { key: "totalTime", label: "Total", className: "w-24" },
-    { key: "actions", label: "Actions", className: "w-48" },
-  ];
+  const tableColumns = useMemo(() => {
+    if (viewMode === "team" && !selectedTeam) {
+      // Colonnes pour l'affichage des équipes
+      return [
+        { key: "name", label: "Équipe", className: "w-60" },
+        { key: "managersCount", label: "Managers", className: "w-24" },
+        { key: "employeesCount", label: "Employés", className: "w-24" },
+        { key: "actions", label: "Actions", className: "w-48" },
+      ];
+    } else {
+      // Colonnes pour l'affichage des plannings
+      return [
+        { key: "employee", label: "Employé", className: "w-40" },
+        { key: "totalTime", label: "Total", className: "w-24" },
+        { key: "actions", label: "Actions", className: "w-48" },
+      ];
+    }
+  }, [viewMode, selectedTeam]);
 
   /**
    * Formatage des données pour le composant Table
    */
-  const tableData = schedules.map((schedule) => {
-    // Calcul du temps total pour ce planning
-    const totalMinutes = Object.values(schedule.scheduleData).reduce(
-      (total, daySlots) => {
-        return (
-          total +
-          daySlots.reduce((sum, slot) => {
-            const [start, end] = slot.split("-");
-            return sum + calculateDuration(start, end);
-          }, 0)
+  const tableData = useMemo(() => {
+    if (viewMode === "team" && !selectedTeam) {
+      // Si nous sommes en mode "équipe" mais sans équipe sélectionnée, afficher la liste des équipes
+      return teams.map((team) => {
+        // Extraire les informations du tableau d'équipes
+        const managersCount = Array.isArray(team.managerIds)
+          ? team.managerIds.length
+          : 0;
+        const employeesCount = Array.isArray(team.employeeIds)
+          ? team.employeeIds.length
+          : 0;
+
+        return {
+          name: team.name,
+          managersCount: managersCount.toString(),
+          employeesCount: employeesCount.toString(),
+          actions: (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedTeam(team._id)}
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="sr-only">Voir l'équipe</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openPdfModal(undefined, team._id)}
+                className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+              >
+                <FileDown className="h-4 w-4" />
+                <span className="sr-only">Télécharger PDF</span>
+              </Button>
+            </div>
+          ),
+        };
+      });
+    } else {
+      // Si une équipe est sélectionnée ou si nous sommes en mode employé, afficher les plannings
+      return schedules.map((schedule) => {
+        // Calcul du temps total pour ce planning
+        const totalMinutes = Object.values(schedule.scheduleData).reduce(
+          (total, daySlots) => {
+            return (
+              total +
+              daySlots.reduce((sum, slot) => {
+                const [start, end] = slot.split("-");
+                return sum + calculateDuration(start, end);
+              }, 0)
+            );
+          },
+          0
         );
-      },
-      0
-    );
 
-    // Conversion en heures (arrondi à 2 décimales)
-    const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
+        // Conversion en heures (arrondi à 2 décimales)
+        const totalHours = Math.round((totalMinutes / 60) * 100) / 100;
 
-    return {
-      employee: schedule.employeeName,
-      totalTime: `${totalHours}h`,
-      actions: (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleViewSchedule(schedule)}
-            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleEditSchedule(schedule)}
-            className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDeleteSchedule(schedule._id)}
-            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSelectedEmployeeId(schedule.employeeId);
-              setIsPdfModalOpen(true);
-            }}
-            className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-          >
-            <FileDown className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    };
-  });
+        return {
+          employee: schedule.employeeName,
+          totalTime: `${totalHours}h`,
+          actions: (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewSchedule(schedule)}
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="sr-only">Voir</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleEditSchedule(schedule)}
+                className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+              >
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">Modifier</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDeleteSchedule(schedule._id)}
+                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Supprimer</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedEmployeeId(schedule.employeeId);
+                  setIsPdfModalOpen(true);
+                }}
+                className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+              >
+                <FileDown className="h-4 w-4" />
+                <span className="sr-only">Télécharger PDF</span>
+              </Button>
+            </div>
+          ),
+        };
+      });
+    }
+  }, [viewMode, selectedTeam, teams, schedules]);
 
   /**
    * Récupère les détails d'un planning spécifique
@@ -1100,6 +1192,7 @@ const WeeklySchedulePage: React.FC = () => {
             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white transition-colors"
           >
             <ChevronLeft size={20} />
+            <span className="sr-only">Mois précédent</span>
           </button>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
             {MONTH_NAMES[calendarMonth.getMonth()]}{" "}
@@ -1110,6 +1203,7 @@ const WeeklySchedulePage: React.FC = () => {
             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white transition-colors"
           >
             <ChevronRight size={20} />
+            <span className="sr-only">Mois suivant</span>
           </button>
         </div>
 
@@ -1304,8 +1398,39 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
+    // Sélectionner l'employé
     setSelectedEmployeeId(schedule.employeeId);
-    formRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    // Activer le mode édition
+    setIsEditMode(true);
+    setExistingScheduleId(schedule._id);
+
+    // Convertir le format des créneaux horaires de l'API vers le format de l'UI
+    const formattedScheduleData: Record<string, TimeSlot[]> = DAY_KEYS.reduce(
+      (acc, day) => ({ ...acc, [day]: [] }),
+      {}
+    );
+
+    // Remplir avec les données existantes
+    Object.entries(schedule.scheduleData || {}).forEach(([day, slots]) => {
+      if (Array.isArray(slots)) {
+        formattedScheduleData[day] = slots.map((slot) => {
+          const [start, end] = slot.split("-");
+          return { start, end };
+        });
+      }
+    });
+
+    // Charger les données du planning dans le formulaire
+    setScheduleData(formattedScheduleData);
+    setDailyNotes(
+      schedule.dailyNotes ||
+        DAY_KEYS.reduce((acc, day) => ({ ...acc, [day]: "" }), {})
+    );
+    setNotes(schedule.notes || "");
+
+    // Ouvrir le modal
+    setIsCreateModalOpen(true);
   };
 
   // Mise à jour des schedules lorsque l'équipe ou l'employé sélectionné change
@@ -1343,8 +1468,84 @@ const WeeklySchedulePage: React.FC = () => {
           (s) => s.employeeId === employeeId
         );
         if (employeeSchedule) {
-          generateSchedulePDF(employeeSchedule);
-          setSuccess("Le PDF a été généré avec succès pour cet employé");
+          try {
+            // 1. Récupérer toutes les équipes pour avoir une liste complète
+            const teamsResponse = await api.get("/teams");
+            const allTeams = teamsResponse.data.success
+              ? teamsResponse.data.data
+              : [];
+
+            // 2. Récupérer tous les employés pour avoir leurs informations complètes
+            const employeesResponse = await api.get("/employees");
+            const allEmployees = employeesResponse.data.success
+              ? employeesResponse.data.data
+              : [];
+
+            // 3. Créer un mapping des équipes par ID
+            const teamsMap = allTeams.reduce(
+              (map: Record<string, any>, team: any) => {
+                map[team._id] = team;
+                return map;
+              },
+              {} as Record<string, any>
+            );
+
+            // 4. Trouver l'employé dans la liste
+            const employee = allEmployees.find(
+              (e: any) => e._id === employeeId
+            );
+
+            // 5. Enrichir le planning avec les informations d'équipe
+            let enrichedSchedule = { ...employeeSchedule };
+
+            if (employee) {
+              // Si on a trouvé l'employé, récupérer son équipe
+              const teamId = employee.teamId;
+
+              if (teamId && teamsMap[teamId]) {
+                // Si l'équipe existe dans notre mapping
+                const team = teamsMap[teamId];
+                enrichedSchedule.teamId = teamId;
+                enrichedSchedule.teamName = team.name;
+                console.log(
+                  `Équipe trouvée pour ${employee.firstName} ${employee.lastName}: ${team.name}`
+                );
+              } else if (teamId) {
+                // Si l'équipe n'est pas dans notre mapping, essayer de la récupérer directement
+                try {
+                  const teamResponse = await api.get(`/teams/${teamId}`);
+                  if (teamResponse.data.success && teamResponse.data.data) {
+                    enrichedSchedule.teamId = teamId;
+                    enrichedSchedule.teamName = teamResponse.data.data.name;
+                  }
+                } catch (error) {
+                  console.warn(
+                    `Impossible de récupérer l'équipe ${teamId} pour ${employee.firstName} ${employee.lastName}:`,
+                    error
+                  );
+                }
+              } else {
+                // Si aucun teamId n'est trouvé, rechercher dans les équipes si l'employé est membre
+                const employeeTeam = allTeams.find(
+                  (team: any) =>
+                    team.employeeIds &&
+                    team.employeeIds.some(
+                      (emp: any) => emp._id === employee._id
+                    )
+                );
+
+                if (employeeTeam) {
+                  enrichedSchedule.teamId = employeeTeam._id;
+                  enrichedSchedule.teamName = employeeTeam.name;
+                }
+              }
+            }
+
+            generateSchedulePDF(enrichedSchedule);
+            setSuccess("Le PDF a été généré avec succès pour cet employé");
+          } catch (error) {
+            handleApiError(error, "génération du PDF");
+          }
         } else {
           setError("Aucun planning trouvé pour cet employé");
           setShowErrorToast(true);
@@ -1361,7 +1562,12 @@ const WeeklySchedulePage: React.FC = () => {
           if (response.data.data && response.data.data.length > 0) {
             // Trouver le nom de l'équipe
             const team = teams.find((t) => t._id === teamId);
-            generateTeamSchedulePDF(response.data.data, team?.name || "Équipe");
+            generateTeamSchedulePDF(
+              response.data.data,
+              team?.name || "Équipe",
+              "Smart Planning",
+              false
+            );
             setSuccess("Le PDF a été généré avec succès pour cette équipe");
           } else {
             setError("Aucun planning trouvé pour cette équipe");
@@ -1375,8 +1581,209 @@ const WeeklySchedulePage: React.FC = () => {
       } else if (type === "all") {
         // Utiliser tous les plannings actuellement chargés
         if (schedules.length > 0) {
-          generateTeamSchedulePDF(schedules, "Tous les employés");
-          setSuccess("Le PDF a été généré avec succès pour tous les plannings");
+          try {
+            setLoading(true);
+
+            // 1. Récupérer d'abord toutes les équipes pour avoir une liste complète
+            const teamsResponse = await api.get("/teams");
+            const allTeams = teamsResponse.data.success
+              ? teamsResponse.data.data
+              : [];
+
+            console.log("Équipes récupérées:", allTeams);
+
+            // 2. Récupérer tous les employés pour avoir leurs informations complètes, y compris l'équipe
+            const employeesResponse = await api.get("/employees");
+            const allEmployees = employeesResponse.data.success
+              ? employeesResponse.data.data
+              : [];
+
+            console.log("Employés récupérés:", allEmployees);
+
+            // 3. Créer un mapping des employés par ID pour un accès facile
+            const employeesMap = allEmployees.reduce(
+              (map: Record<string, any>, emp: any) => {
+                map[emp._id] = emp;
+                return map;
+              },
+              {} as Record<string, any>
+            );
+
+            // 4. Créer un mapping des équipes par ID pour un accès facile
+            const teamsMap = allTeams.reduce(
+              (map: Record<string, any>, team: any) => {
+                map[team._id] = team;
+                return map;
+              },
+              {} as Record<string, any>
+            );
+
+            // 5. Enrichir les plannings avec les informations d'équipe correctes
+            const completedSchedules = await Promise.all(
+              schedules.map(async (schedule) => {
+                // Récupérer l'employé correspondant au planning
+                const employee = employeesMap[schedule.employeeId];
+
+                if (employee) {
+                  // Si l'employé a été trouvé dans notre mapping
+                  let teamId = employee.teamId;
+                  let teamName = "Non assigné";
+
+                  // Si l'employé a une équipe attribuée
+                  if (teamId && teamsMap[teamId]) {
+                    // Si l'équipe existe dans notre mapping
+                    teamName = teamsMap[teamId].name;
+                    console.log(
+                      `Équipe trouvée pour ${employee.firstName} ${employee.lastName}: ${teamName}`
+                    );
+                  } else if (teamId) {
+                    // Si l'équipe n'est pas dans notre mapping, essayer de la récupérer directement
+                    try {
+                      const teamResponse = await api.get(`/teams/${teamId}`);
+                      if (teamResponse.data.success && teamResponse.data.data) {
+                        teamName = teamResponse.data.data.name;
+                        console.log(
+                          `Équipe récupérée par API pour ${employee.firstName} ${employee.lastName}: ${teamName}`
+                        );
+                      }
+                    } catch (error) {
+                      console.warn(
+                        `Impossible de récupérer l'équipe ${teamId} pour ${employee.firstName} ${employee.lastName}:`,
+                        error
+                      );
+                    }
+                  } else {
+                    // Si aucun teamId n'est trouvé, rechercher dans les équipes si l'employé est membre
+                    const employeeTeam = allTeams.find(
+                      (team: any) =>
+                        team.employeeIds &&
+                        team.employeeIds.some(
+                          (emp: any) => emp._id === employee._id
+                        )
+                    );
+
+                    if (employeeTeam) {
+                      teamId = employeeTeam._id;
+                      teamName = employeeTeam.name;
+                      console.log(
+                        `Équipe trouvée par association pour ${employee.firstName} ${employee.lastName}: ${teamName}`
+                      );
+                    }
+                  }
+
+                  // Enrichir le planning avec les informations d'équipe
+                  return {
+                    ...schedule,
+                    teamId,
+                    teamName,
+                    employeeFullName: `${employee.firstName} ${employee.lastName}`,
+                  };
+                }
+
+                // Si nous n'avons pas trouvé l'employé dans notre mapping, faire une requête directe
+                try {
+                  const employeeResponse = await api.get(
+                    `/employees/${schedule.employeeId}`
+                  );
+                  const employee = employeeResponse.data.success
+                    ? employeeResponse.data.data
+                    : null;
+
+                  if (employee) {
+                    let teamId = employee.teamId;
+                    let teamName = "Non assigné";
+
+                    if (teamId) {
+                      // Vérifier d'abord dans notre mapping d'équipes
+                      if (teamsMap[teamId]) {
+                        teamName = teamsMap[teamId].name;
+                      } else {
+                        // Sinon, faire une requête dédiée
+                        try {
+                          const teamResponse = await api.get(
+                            `/teams/${teamId}`
+                          );
+                          if (
+                            teamResponse.data.success &&
+                            teamResponse.data.data
+                          ) {
+                            teamName = teamResponse.data.data.name;
+                          }
+                        } catch (error) {
+                          console.warn(
+                            `Impossible de récupérer l'équipe ${teamId} pour ${schedule.employeeName}:`,
+                            error
+                          );
+                        }
+                      }
+                    }
+
+                    return {
+                      ...schedule,
+                      teamId,
+                      teamName,
+                      employeeFullName: `${employee.firstName} ${employee.lastName}`,
+                    };
+                  }
+                } catch (error) {
+                  console.warn(
+                    `Erreur lors de la récupération des informations pour ${schedule.employeeName}:`,
+                    error
+                  );
+                }
+
+                // Si toutes les tentatives ont échoué, retourner le planning tel quel
+                return schedule;
+              })
+            );
+
+            // Log pour vérifier que les équipes sont bien attribuées
+            console.log(
+              "Plannings enrichis:",
+              completedSchedules.map((s) => ({
+                employeeName: s.employeeName,
+                teamName: s.teamName,
+              }))
+            );
+
+            // 6. Trier les plannings par équipe puis par nom d'employé
+            const sortedSchedules = completedSchedules.sort((a, b) => {
+              // D'abord par équipe
+              const teamA = a.teamName || "ZZZ"; // "ZZZ" pour que "Non assigné" apparaisse à la fin
+              const teamB = b.teamName || "ZZZ";
+              const teamComparison = teamA.localeCompare(teamB);
+
+              // Puis par nom d'employé si même équipe
+              if (teamComparison === 0) {
+                return a.employeeName.localeCompare(b.employeeName);
+              }
+
+              return teamComparison;
+            });
+
+            // 7. Générer le PDF avec les plannings triés par équipe
+            const hasTeamData = sortedSchedules.some(
+              (s) => s.teamName && s.teamName !== "Non assigné"
+            );
+
+            // Appeler la fonction avec les plannings triés et un paramètre qui indique si des données d'équipe sont présentes
+            generateTeamSchedulePDF(
+              sortedSchedules,
+              "Tous les employés",
+              "Smart Planning",
+              hasTeamData
+            );
+
+            setSuccess(
+              "Le PDF a été généré avec succès pour tous les plannings"
+            );
+          } catch (error) {
+            console.error("Erreur lors de la génération du PDF global:", error);
+            setError("Une erreur est survenue lors de la génération du PDF");
+            setShowErrorToast(true);
+          } finally {
+            setLoading(false);
+          }
         } else {
           setError("Aucun planning trouvé pour cette semaine");
           setShowErrorToast(true);
@@ -1394,11 +1801,15 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   // Pour générer des PDFs
-  const openPdfModal = (employeeId?: string, teamId?: string) => {
-    if (employeeId) setSelectedEmployeeId(employeeId);
-    if (teamId) setSelectedTeam(teamId);
-    setIsPdfModalOpen(true);
-  };
+
+  // Modifier le SectionCard pour adapter le titre selon le contexte
+  const renderTableHeader = useMemo(() => {
+    if (viewMode === "team" && !selectedTeam) {
+      return `Liste des équipes disponibles`;
+    } else {
+      return `Plannings validés - Semaine ${weekNumber}, ${year}`;
+    }
+  }, [viewMode, selectedTeam, weekNumber, year]);
 
   return (
     <LayoutWithSidebar
@@ -1550,12 +1961,30 @@ const WeeklySchedulePage: React.FC = () => {
             className="md:col-span-2"
           >
             <SectionCard
-              title={`Plannings validés - Semaine ${weekNumber}, ${year}`}
+              title={renderTableHeader}
               className="rounded-2xl shadow-md h-full"
             >
               {loading ? (
                 <div className="py-12 flex justify-center">
                   <LoadingSpinner size="lg" />
+                </div>
+              ) : viewMode === "team" && !selectedTeam ? (
+                <div className="overflow-x-auto">
+                  <Table
+                    columns={tableColumns}
+                    data={tableData}
+                    emptyState={{
+                      title: "Aucune équipe",
+                      description: "Aucune équipe n'a été trouvée",
+                      icon: (
+                        <Users
+                          size={40}
+                          className="text-gray-400 dark:text-gray-600"
+                        />
+                      ),
+                    }}
+                    className="w-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+                  />
                 </div>
               ) : schedules.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -1578,7 +2007,9 @@ const WeeklySchedulePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-12 text-[var(--text-secondary)] dark:text-gray-400">
-                  Aucun planning validé trouvé pour cette semaine.
+                  {viewMode === "team" && selectedTeam
+                    ? "Aucun planning validé trouvé pour cette équipe et cette semaine."
+                    : "Aucun planning validé trouvé pour cette semaine."}
                 </div>
               )}
             </SectionCard>
@@ -1592,23 +2023,23 @@ const WeeklySchedulePage: React.FC = () => {
           title={
             isEditMode ? "Modifier le planning" : "Créer un nouveau planning"
           }
-          className="w-full max-w-5xl max-h-[90vh]"
+          className="w-full max-w-[90%] max-h-[90vh]"
         >
-          <div className="px-6 py-4">
-            <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800">
+          <div className="px-8 py-6">
+            <div className="mb-8 p-5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800">
               <div className="flex items-center gap-2">
                 <Calendar
                   className="text-indigo-600 dark:text-indigo-400"
-                  size={18}
+                  size={20}
                 />
-                <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                <span className="font-medium text-indigo-700 dark:text-indigo-300 text-lg">
                   Planification pour: Semaine {weekNumber}, {year} (
                   {getWeekDateRange(year, weekNumber)})
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleSaveSchedule}>
+            <form onSubmit={handleSaveSchedule} className="space-y-6">
               <div className="mb-6">
                 <Select
                   label="Employé"
@@ -1624,11 +2055,11 @@ const WeeklySchedulePage: React.FC = () => {
               </div>
 
               {/* Grille d'horaires intégrée */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-                  Horaires
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-5 pb-2 border-b border-gray-200 dark:border-gray-700">
+                  Horaires de la semaine
                 </h3>
-                <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+                <div className="space-y-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6 md:space-y-0">
                   {DAY_KEYS.map((day, dayIndex) => {
                     // Calcul de la date du jour en fonction de l'année et la semaine
                     const dayDate = weekDates[day];
@@ -1649,14 +2080,14 @@ const WeeklySchedulePage: React.FC = () => {
                     return (
                       <div
                         key={day}
-                        className="p-3 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] dark:bg-gray-800 transition-all hover:shadow-md"
+                        className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] dark:bg-gray-800 transition-all hover:shadow-md"
                       >
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                           <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                            <span className="font-medium text-[var(--text-primary)] dark:text-white">
+                            <span className="font-semibold text-lg text-[var(--text-primary)] dark:text-white">
                               {DAYS_OF_WEEK[dayIndex]}
                             </span>
-                            <span className="text-sm text-[var(--text-secondary)] dark:text-gray-300">
+                            <span className="text-sm text-[var(--text-secondary)] dark:text-gray-300 font-medium">
                               {formattedDate}
                             </span>
                           </div>
@@ -1706,7 +2137,7 @@ const WeeklySchedulePage: React.FC = () => {
                                           e.target.value
                                         )
                                       }
-                                      className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
+                                      className="flex-1 px-3 py-2 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
                                       {TIME_OPTIONS.filter(
                                         (time) => time < slot.end
@@ -1732,7 +2163,7 @@ const WeeklySchedulePage: React.FC = () => {
                                           e.target.value
                                         )
                                       }
-                                      className="flex-1 px-2 py-1 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm"
+                                      className="flex-1 px-3 py-2 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
                                       {TIME_OPTIONS.filter(
                                         (time) => time > slot.start
@@ -1761,13 +2192,13 @@ const WeeklySchedulePage: React.FC = () => {
                                       type="button"
                                       variant="secondary"
                                       size="sm"
-                                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-900/50"
+                                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-900/50 p-2 rounded-full"
                                       onClick={() =>
                                         handleRemoveTimeSlot(day, slotIndex)
                                       }
                                       icon={<Trash size={16} />}
                                     >
-                                      Supprimer
+                                      <span className="sr-only">Supprimer</span>
                                     </Button>
                                   </div>
                                 </div>
@@ -1798,50 +2229,50 @@ const WeeklySchedulePage: React.FC = () => {
               </div>
 
               {/* Récapitulatif du temps total hebdomadaire et notes générales */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl shadow-sm lg:col-span-1">
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <Clock
-                        size={20}
+                        size={24}
                         className="text-indigo-600 dark:text-indigo-400"
                       />
-                      <span className="font-medium">
+                      <span className="font-semibold text-lg">
                         Temps total hebdomadaire:
                       </span>
                     </div>
-                    <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                       {Math.round((totalWeeklyMinutes / 60) * 100) / 100}h
                     </span>
                   </div>
                 </div>
 
                 {/* Notes générales */}
-                <div>
+                <div className="lg:col-span-2 xl:col-span-3">
                   <label
                     htmlFor="notes"
-                    className="block text-sm font-semibold text-gray-800 dark:text-white mb-1"
+                    className="block text-base font-semibold text-gray-800 dark:text-white mb-2"
                   >
                     Notes générales (optionnel)
                   </label>
                   <textarea
                     id="notes"
-                    rows={2}
+                    rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border)] dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
+                    className="w-full px-4 py-3 rounded-md border border-[var(--border)] dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
                     placeholder="Informations complémentaires..."
                   />
                 </div>
               </div>
 
               {/* Boutons d'action */}
-              <div className="flex justify-end gap-3 pt-2 sticky bottom-0">
+              <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 mt-6 shadow-md rounded-b-lg z-10">
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={closeCreateModal}
-                  className="dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
+                  className="px-8 py-3 text-base dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
                 >
                   Annuler
                 </Button>
@@ -1850,8 +2281,8 @@ const WeeklySchedulePage: React.FC = () => {
                   variant="primary"
                   isLoading={creatingSchedule}
                   disabled={creatingSchedule || !selectedEmployeeId}
-                  icon={isEditMode ? <Check size={18} /> : <Clock size={18} />}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
+                  icon={isEditMode ? <Check size={20} /> : <Clock size={20} />}
+                  className="px-8 py-3 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
                 >
                   {isEditMode
                     ? "Mettre à jour le planning"
@@ -1889,6 +2320,7 @@ const WeeklySchedulePage: React.FC = () => {
                         d="M6 18L18 6M6 6l12 12"
                       />
                     </svg>
+                    <span className="sr-only">Fermer la fenêtre</span>
                   </button>
                 </div>
 
@@ -1998,10 +2430,7 @@ const WeeklySchedulePage: React.FC = () => {
                                           <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
                                             (
                                             {Math.round(
-                                              (calculateDuration(
-                                                slot.start,
-                                                slot.end
-                                              ) /
+                                              (calculateDuration(start, end) /
                                                 60) *
                                                 100
                                             ) / 100}

@@ -150,6 +150,88 @@ export const generateSchedulePDF = async (
     }
   }
 
+  // Récupérer le nom du manager
+  let managerName = "Non assigné";
+  if (schedule.teamId) {
+    try {
+      const teamResponse = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5050/api"}/teams/${
+          schedule.teamId
+        }`
+      );
+      const teamData = await teamResponse.json();
+
+      if (
+        teamData.success &&
+        teamData.data &&
+        teamData.data.managerIds &&
+        teamData.data.managerIds.length > 0
+      ) {
+        // Si le manager est un objet avec firstName et lastName
+        if (
+          typeof teamData.data.managerIds[0] === "object" &&
+          teamData.data.managerIds[0].firstName
+        ) {
+          const manager = teamData.data.managerIds[0];
+          managerName = `${manager.firstName} ${manager.lastName}`;
+        }
+        // Sinon, c'est juste un ID et on doit chercher les infos du manager
+        else {
+          const managerId =
+            teamData.data.managerIds[0]._id || teamData.data.managerIds[0];
+
+          // Tenter de récupérer les infos du manager depuis l'API
+          try {
+            const managerResponse = await fetch(
+              `${
+                import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+              }/employees/${managerId}`
+            );
+            const managerData = await managerResponse.json();
+
+            if (managerData.success && managerData.data) {
+              managerName = `${managerData.data.firstName} ${managerData.data.lastName}`;
+            }
+          } catch (managerError) {
+            console.error(
+              "Erreur lors de la récupération des infos du manager par ID:",
+              managerError
+            );
+          }
+        }
+      } else {
+        // Si l'équipe n'a pas de managers définis, essayer de trouver les managers à partir de l'API
+        try {
+          const managersResponse = await fetch(
+            `${
+              import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+            }/managers?teamId=${schedule.teamId}`
+          );
+          const managersData = await managersResponse.json();
+
+          if (
+            managersData.success &&
+            managersData.data &&
+            managersData.data.length > 0
+          ) {
+            const manager = managersData.data[0];
+            managerName = `${manager.firstName} ${manager.lastName}`;
+          }
+        } catch (error) {
+          console.error(
+            "Erreur lors de la récupération des managers de l'équipe:",
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des infos du manager:",
+        error
+      );
+    }
+  }
+
   // Maintenant, teamName contient soit le nom réel de l'équipe, soit "Non assigné"
 
   // Initialiser le document PDF - Tous les PDFs sont maintenant en paysage
@@ -200,6 +282,18 @@ export const generateSchedulePDF = async (
   const totalHours = Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
   doc.text(`Total hebdomadaire: ${totalHours}h`, 15, 47);
 
+  // Ajouter l'information sur l'équipe
+  doc.setFont("helvetica", "bold");
+  doc.text(`Équipe: `, 15, 54);
+  doc.setFont("helvetica", "normal");
+  doc.text(teamName, 35, 54);
+
+  // Ajouter l'information sur le manager
+  doc.setFont("helvetica", "bold");
+  doc.text(`Responsable: `, 15, 61);
+  doc.setFont("helvetica", "normal");
+  doc.text(managerName, 48, 61);
+
   // Tableau des horaires - Optimisé pour tenir sur une page
   const tableData: Array<any[]> = [];
 
@@ -240,7 +334,7 @@ export const generateSchedulePDF = async (
   autoTable(doc, {
     head: [["Jour", "Horaires", "Durée", "Notes"]],
     body: tableData,
-    startY: 60,
+    startY: 70, // Décaler le tableau vers le bas pour laisser de la place aux nouvelles infos
     styles: {
       fontSize: 10,
       cellPadding: 3,
@@ -338,11 +432,16 @@ export const generateSchedulePDF = async (
 /**
  * Fonction pour générer un PDF pour l'ensemble des plannings d'une équipe ou des employés sélectionnés
  * Optimisé pour tenir sur une seule page paysage
+ * @param schedules - Les plannings à inclure dans le PDF
+ * @param teamName - Le nom de l'équipe ou "Tous les employés"
+ * @param companyName - Le nom de l'entreprise
+ * @param groupByTeam - Indique si les plannings doivent être regroupés par équipe (uniquement pour "Tous les employés")
  */
 export const generateTeamSchedulePDF = (
   schedules: Schedule[],
   teamName: string = "Équipe",
-  companyName: string = "Smart Planning"
+  companyName: string = "Smart Planning",
+  groupByTeam: boolean = false
 ): void => {
   // Vérifier qu'il y a des plannings à générer
   if (!schedules || schedules.length === 0) {
@@ -393,43 +492,139 @@ export const generateTeamSchedulePDF = (
   doc.setTextColor(52, 73, 94);
   doc.text(`Nombre d'employés: ${schedules.length}`, 15, 40);
 
-  // Approche adaptative selon le nombre d'employés - toujours en mode compact
-  // Toujours utiliser la version ultra-compacte pour garantir une seule page
-  const headers = ["Employé", "Total", ...DAYS_OF_WEEK];
+  // Déterminer si nous générons un PDF pour "Tous les employés"
+  const isAllEmployees = teamName === "Tous les employés";
+
+  // Définir les en-têtes en fonction du mode
+  let headers = isAllEmployees
+    ? ["Employé", "Équipe", "Total", ...DAYS_OF_WEEK]
+    : ["Employé", "Total", ...DAYS_OF_WEEK];
+
+  // Préparer les données pour le tableau
   let tableData: Array<any[]> = [];
+  let tableColors: Array<any> = [];
 
-  // Format compact avec une ligne par employé, jours en colonnes
-  schedules.forEach((schedule) => {
-    const employeeName = schedule.employeeName;
-    const totalHours =
-      Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
+  // Si on regroupe par équipe, trier d'abord les plannings par équipe
+  if (groupByTeam && isAllEmployees) {
+    // Regrouper les plannings par équipe pour l'affichage
+    const teamGroups: Record<string, Schedule[]> = {};
 
-    const rowData = [employeeName, `${totalHours}h`];
-
-    // Ajouter les horaires condensés pour chaque jour
-    DAY_KEYS.forEach((day) => {
-      const daySlots = schedule.scheduleData[day] || [];
-      // Format avec le nouveau format d'horaires
-      const timeText =
-        daySlots.length > 0
-          ? daySlots
-              .map((slot) => {
-                const [start, end] = slot.split("-");
-                return `${formatHourDisplay(start)} - ${formatHourDisplay(
-                  end
-                )}`;
-              })
-              .join("\n")
-          : "-";
-      rowData.push(timeText);
+    // Créer les groupes d'équipe
+    schedules.forEach((schedule) => {
+      const teamKey = schedule.teamName || "Non assigné";
+      if (!teamGroups[teamKey]) {
+        teamGroups[teamKey] = [];
+      }
+      teamGroups[teamKey].push(schedule);
     });
 
-    tableData.push(rowData);
-  });
+    // Parcourir chaque groupe d'équipe
+    Object.entries(teamGroups).forEach(
+      ([teamName, teamSchedules], teamIndex) => {
+        // Si ce n'est pas la première équipe, ajouter une ligne d'en-tête d'équipe
+        if (teamIndex > 0) {
+          // Ajouter une ligne vide entre les équipes
+          const emptyRow = Array(headers.length).fill("");
+          tableData.push(emptyRow);
+          tableColors.push({ fillColor: [240, 240, 240] });
+        }
+
+        // Ajouter les données pour chaque employé de l'équipe
+        teamSchedules.forEach((schedule, employeeIndex) => {
+          const employeeName = schedule.employeeName;
+          const totalHours =
+            Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
+
+          // Créer le tableau de données avec colonne d'équipe
+          const rowData = [employeeName, teamName, `${totalHours}h`];
+
+          // Ajouter les horaires condensés pour chaque jour
+          DAY_KEYS.forEach((day) => {
+            const daySlots = schedule.scheduleData[day] || [];
+            const timeText =
+              daySlots.length > 0
+                ? daySlots
+                    .map((slot) => {
+                      const [start, end] = slot.split("-");
+                      return `${formatHourDisplay(start)}-${formatHourDisplay(
+                        end
+                      )}`;
+                    })
+                    .join("\n")
+                : "-";
+            rowData.push(timeText);
+          });
+
+          tableData.push(rowData);
+
+          // Déterminer la couleur de fond pour ce groupe d'équipe
+          // Alterner les couleurs entre les équipes pour une meilleure visibilité
+          const isEvenTeam = teamIndex % 2 === 0;
+          tableColors.push({
+            fillColor: isEvenTeam ? [255, 255, 255] : [240, 245, 255],
+          });
+        });
+      }
+    );
+  } else {
+    // Mode standard sans regroupement
+    schedules.forEach((schedule) => {
+      const employeeName = schedule.employeeName;
+      const totalHours =
+        Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
+
+      // Obtenir le nom de l'équipe
+      const employeeTeamName = schedule.teamName || "Non assigné";
+
+      // Créer le tableau de données avec ou sans colonne d'équipe
+      const rowData = isAllEmployees
+        ? [employeeName, employeeTeamName, `${totalHours}h`]
+        : [employeeName, `${totalHours}h`];
+
+      // Ajouter les horaires condensés pour chaque jour
+      DAY_KEYS.forEach((day) => {
+        const daySlots = schedule.scheduleData[day] || [];
+        const timeText =
+          daySlots.length > 0
+            ? daySlots
+                .map((slot) => {
+                  const [start, end] = slot.split("-");
+                  return `${formatHourDisplay(start)}-${formatHourDisplay(
+                    end
+                  )}`;
+                })
+                .join("\n")
+            : "-";
+        rowData.push(timeText);
+      });
+
+      tableData.push(rowData);
+    });
+  }
+
+  // Ajuster la taille de police en fonction du nombre d'employés et du mode
+  let fontSize;
+  if (isAllEmployees) {
+    fontSize = schedules.length > 12 ? 6 : schedules.length > 8 ? 7 : 8;
+  } else {
+    fontSize = schedules.length > 15 ? 7 : schedules.length > 10 ? 8 : 9;
+  }
+
+  // Configurer les styles de colonnes selon le mode
+  const columnStyles: Record<string, any> = {
+    0: { fontStyle: "bold", cellWidth: 30, halign: "left" }, // Nom de l'employé aligné à gauche
+  };
+
+  if (isAllEmployees) {
+    // Si "Tous les employés", ajouter un style pour la colonne "Équipe"
+    columnStyles[1] = { cellWidth: 25, halign: "left" };
+    columnStyles[2] = { cellWidth: 12, halign: "center" }; // Total
+  } else {
+    // Sinon, style normal pour la colonne Total
+    columnStyles[1] = { cellWidth: 15, halign: "center" };
+  }
 
   // Générer le tableau avec autoTable - mode ultra-compact
-  const fontSize = schedules.length > 15 ? 7 : schedules.length > 10 ? 8 : 9;
-
   autoTable(doc, {
     head: [headers],
     body: tableData,
@@ -441,7 +636,7 @@ export const generateTeamSchedulePDF = (
       lineWidth: 0.1,
       overflow: "ellipsize",
       valign: "middle",
-      halign: "center", // Alignement centré pour tout le texte
+      halign: "center", // Alignement centré par défaut
       font: "helvetica",
     },
     headStyles: {
@@ -450,18 +645,42 @@ export const generateTeamSchedulePDF = (
       fontStyle: "bold",
       halign: "center", // En-têtes centrés
     },
-    columnStyles: {
-      0: { fontStyle: "bold", cellWidth: 35, halign: "left" }, // Nom de l'employé aligné à gauche
-      1: { cellWidth: 15, halign: "center" },
-      // Les autres colonnes sont automatiquement dimensionnées et centrées
-    },
+    columnStyles: columnStyles,
+    // Utiliser des couleurs de fond personnalisées si disponibles
+    bodyStyles:
+      tableColors.length > 0
+        ? undefined
+        : {
+            fillColor: [240, 240, 240], // Fond gris clair pour les lignes du corps
+            textColor: [50, 50, 50], // Couleur de texte plus foncée pour une meilleure lisibilité
+          },
+    // Utiliser des couleurs alternées uniquement si nous n'utilisons pas de couleurs personnalisées
+    alternateRowStyles:
+      tableColors.length > 0
+        ? undefined
+        : {
+            fillColor: [255, 255, 255], // Fond blanc pour les lignes alternées
+          },
     // Ajuster le traitement des cellules pour économiser de l'espace
     didParseCell: function (data: any) {
       // Appliquer une fonte plus petite aux jours avec beaucoup de créneaux
-      if (data.column.index >= 2 && data.section === "body") {
-        const content = data.cell.text;
-        if (content && content.length > 30) {
-          data.cell.styles.fontSize = fontSize - 1;
+      if (
+        (isAllEmployees && data.column.index >= 3) ||
+        (!isAllEmployees && data.column.index >= 2)
+      ) {
+        if (data.section === "body") {
+          const content = data.cell.text;
+          if (content && content.length > 30) {
+            data.cell.styles.fontSize = fontSize - 1;
+          }
+        }
+      }
+
+      // Appliquer les couleurs personnalisées pour les lignes
+      if (data.section === "body" && tableColors.length > 0) {
+        const rowIndex = data.row.index;
+        if (tableColors[rowIndex]) {
+          Object.assign(data.cell.styles, tableColors[rowIndex]);
         }
       }
     },
