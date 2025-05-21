@@ -8,7 +8,6 @@ import {
   Home,
   LogOut,
   Plane,
-  Settings,
   User as UserIcon,
   Users,
 } from "lucide-react";
@@ -42,6 +41,12 @@ const menuItems = [
     route: "/tableau-de-bord",
   },
   {
+    id: "collaborateurs",
+    label: "Collaborateurs",
+    icon: Users,
+    route: "/collaborateurs",
+  },
+  {
     id: "plannings",
     label: "Plannings",
     icon: Calendar,
@@ -60,12 +65,6 @@ const menuItems = [
     route: "/taches-employes",
   },
   {
-    id: "collaborateurs",
-    label: "Collaborateurs",
-    icon: Users,
-    route: "/collaborateurs",
-  },
-  {
     id: "statistiques",
     label: "Statistiques",
     icon: BarChart,
@@ -74,12 +73,6 @@ const menuItems = [
 ];
 
 const userMenuItems = [
-  {
-    id: "parametres",
-    label: "Paramètres",
-    icon: Settings,
-    route: "/parametres",
-  },
   { id: "profil", label: "Mon profil", icon: UserIcon, route: "/mon-profil" },
 ];
 
@@ -163,13 +156,21 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       items.push(adminMenuItem, companyManagementMenuItem);
     }
 
-    // Ajouter "Incidents employés" pour admin, manager et directeur
+    // Ajouter "Incidents employés" après les demandes de congés
     if (
       user?.role === "admin" ||
       user?.role === "manager" ||
       user?.role === "directeur"
     ) {
-      items.push(incidentsMenuItem);
+      // Trouver l'index après "conges"
+      const congesIndex = items.findIndex((item) => item.id === "conges");
+      if (congesIndex !== -1) {
+        // Insérer incidents après conges
+        items.splice(congesIndex + 1, 0, incidentsMenuItem);
+      } else {
+        // Fallback si "conges" n'est pas trouvé
+        items.push(incidentsMenuItem);
+      }
     }
 
     return items;
