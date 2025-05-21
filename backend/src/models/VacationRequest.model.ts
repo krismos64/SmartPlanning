@@ -34,13 +34,52 @@ const vacationRequestSchema = new Schema<VacationRequestDocument>(
     startDate: {
       type: Date,
       required: [true, "La date de début est requise"],
+      set: function (val: Date | string) {
+        // Si la valeur est une chaîne, extraire seulement la partie YYYY-MM-DD
+        if (typeof val === "string") {
+          const dateStr = val.split("T")[0];
+          const [year, month, day] = dateStr
+            .split("-")
+            .map((n) => parseInt(n, 10));
+          return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        }
+        // Si c'est déjà un objet Date, créer une nouvelle date à midi UTC
+        if (val instanceof Date) {
+          const year = val.getUTCFullYear();
+          const month = val.getUTCMonth();
+          const day = val.getUTCDate();
+          return new Date(Date.UTC(year, month, day, 12, 0, 0));
+        }
+        return val;
+      },
     },
     endDate: {
       type: Date,
       required: [true, "La date de fin est requise"],
+      set: function (val: Date | string) {
+        // Si la valeur est une chaîne, extraire seulement la partie YYYY-MM-DD
+        if (typeof val === "string") {
+          const dateStr = val.split("T")[0];
+          const [year, month, day] = dateStr
+            .split("-")
+            .map((n) => parseInt(n, 10));
+          return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        }
+        // Si c'est déjà un objet Date, créer une nouvelle date à midi UTC
+        if (val instanceof Date) {
+          const year = val.getUTCFullYear();
+          const month = val.getUTCMonth();
+          const day = val.getUTCDate();
+          return new Date(Date.UTC(year, month, day, 12, 0, 0));
+        }
+        return val;
+      },
       validate: {
         validator: function (this: VacationRequestDocument) {
-          return this.startDate <= this.endDate;
+          // Convertir les deux dates en YYYY-MM-DD pour la comparaison
+          const startStr = this.startDate.toISOString().split("T")[0];
+          const endStr = this.endDate.toISOString().split("T")[0];
+          return startStr <= endStr;
         },
         message:
           "La date de fin doit être postérieure ou égale à la date de début",

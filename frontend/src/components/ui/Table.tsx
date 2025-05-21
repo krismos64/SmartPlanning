@@ -53,6 +53,8 @@ export interface TableProps {
   className?: string;
   /** Callback appelé à la sélection d'une ligne */
   onRowClick?: (row: Record<string, any>) => void;
+  /** Callback appelé lors du changement de tri */
+  onSort?: (key: string, order: "asc" | "desc" | null) => void;
 }
 
 /**
@@ -77,6 +79,7 @@ const Table: React.FC<TableProps> = ({
   },
   className = "",
   onRowClick,
+  onSort,
 }) => {
   // État de tri
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -106,18 +109,28 @@ const Table: React.FC<TableProps> = ({
   const handleSort = (column: TableColumn) => {
     if (!column.sortable) return;
 
+    let newOrder: SortOrder = null;
+
     // Si on clique sur la même colonne, on change l'ordre (asc -> desc -> null)
     if (sortKey === column.key) {
       if (sortOrder === "asc") {
+        newOrder = "desc";
         setSortOrder("desc");
       } else if (sortOrder === "desc") {
+        newOrder = null;
         setSortKey(null);
         setSortOrder(null);
       }
     } else {
       // Nouvelle colonne sélectionnée, on commence par l'ordre ascendant
+      newOrder = "asc";
       setSortKey(column.key);
       setSortOrder("asc");
+    }
+
+    // Appeler le callback onSort si défini
+    if (onSort) {
+      onSort(column.key, newOrder);
     }
   };
 

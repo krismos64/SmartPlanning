@@ -137,10 +137,33 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .limit(Number(limit))
       .skip(Number(skip));
 
-    // Renvoyer les résultats
+    // Ajouter des permissions à chaque demande
+    const vacationRequestsWithPermissions = vacationRequests.map((request) => {
+      const requestObj = request.toObject();
+
+      // Déterminer si l'utilisateur peut modifier cette demande
+      const canEdit = ["admin", "directeur", "manager"].includes(user.role);
+
+      // Déterminer si l'utilisateur peut supprimer cette demande
+      const canDelete =
+        ["admin", "directeur", "manager"].includes(user.role) ||
+        (user._id.toString() === requestObj.requestedBy.toString() &&
+          requestObj.status === "pending");
+
+      // Ajouter les permissions à l'objet de demande
+      return {
+        ...requestObj,
+        permissions: {
+          canEdit,
+          canDelete,
+        },
+      };
+    });
+
+    // Renvoyer les résultats avec les permissions
     return res.status(200).json({
       success: true,
-      data: vacationRequests,
+      data: vacationRequestsWithPermissions,
     });
   } catch (error) {
     console.error(
@@ -172,14 +195,49 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Valider la cohérence des dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Standardiser et valider les dates
+    // Convertir au format YYYY-MM-DD pour éviter les problèmes de fuseau horaire
+    const startDateStr =
+      typeof startDate === "string"
+        ? startDate.split("T")[0]
+        : new Date(startDate).toISOString().split("T")[0];
 
-    if (end < start) {
+    const endDateStr =
+      typeof endDate === "string"
+        ? endDate.split("T")[0]
+        : new Date(endDate).toISOString().split("T")[0];
+
+    // Conversion des chaînes de date en objets Date avec le traitement du fuseau horaire
+    const startParts = startDateStr.split("-");
+    const startYear = parseInt(startParts[0], 10);
+    const startMonth = parseInt(startParts[1], 10) - 1;
+    const startDay = parseInt(startParts[2], 10);
+
+    const endParts = endDateStr.split("-");
+    const endYear = parseInt(endParts[0], 10);
+    const endMonth = parseInt(endParts[1], 10) - 1;
+    const endDay = parseInt(endParts[2], 10);
+
+    // Créer les dates à midi UTC
+    const start = new Date(Date.UTC(startYear, startMonth, startDay, 12, 0, 0));
+    const end = new Date(Date.UTC(endYear, endMonth, endDay, 12, 0, 0));
+
+    // Les dates sont maintenant normalisées à midi UTC
+
+    // Vérifier si les dates sont valides
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return res.status(400).json({
         success: false,
-        message: "La date de fin doit être postérieure à la date de début",
+        message: "Les dates fournies ne sont pas valides",
+      });
+    }
+
+    // Comparer les dates au format YYYY-MM-DD
+    if (startDateStr > endDateStr) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "La date de fin doit être égale ou postérieure à la date de début",
       });
     }
 
@@ -257,13 +315,13 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       console.log("Création autorisée pour l'employé:", targetEmployeeId);
     }
 
-    // Créer la nouvelle demande
+    // Créer la nouvelle demande avec les dates normalisées
     const newVacationRequest = new VacationRequestModel({
       employeeId: targetEmployeeId,
       requestedBy: user._id, // On garde une trace de qui a fait la demande
       updatedBy: user._id, // Ajout du champ updatedBy avec l'utilisateur qui crée la demande
-      startDate,
-      endDate,
+      startDate: start, // Utiliser la date normalisée
+      endDate: end, // Utiliser la date normalisée
       reason,
       status: "pending",
     });
@@ -299,6 +357,88 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * @route   GET /api/vacations/:id
+ * @desc    Récupérer une demande de congé spécifique
+ * @access  Privé (basé sur le rôle et les permissions)
+ */
+router.get(
+  "/:id",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const user = req.user;
+
+      // Valider l'ID MongoDB
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de demande invalide",
+          status: 400,
+        });
+      }
+
+      // Récupérer la demande
+      const vacationRequest = await VacationRequestModel.findById(id)
+        .populate("employeeId", "firstName lastName")
+        .populate("updatedBy", "firstName lastName");
+
+      if (!vacationRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Demande de congés non trouvée",
+          status: 404,
+        });
+      }
+
+      // Vérifier si l'utilisateur a les droits d'accès
+      const hasAccess = await hasAccessToVacationRequest(user, vacationRequest);
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: "Vous n'avez pas les droits pour voir cette demande",
+          status: 403,
+        });
+      }
+
+      // Convertir en objet pour pouvoir ajouter des propriétés
+      const requestObj = vacationRequest.toObject();
+
+      // Déterminer si l'utilisateur peut modifier cette demande
+      const canEdit = ["admin", "directeur", "manager"].includes(user.role);
+
+      // Déterminer si l'utilisateur peut supprimer cette demande
+      const canDelete =
+        ["admin", "directeur", "manager"].includes(user.role) ||
+        (user._id.toString() === requestObj.requestedBy.toString() &&
+          requestObj.status === "pending");
+
+      // Ajouter les permissions à l'objet de demande
+      const requestWithPermissions = {
+        ...requestObj,
+        permissions: {
+          canEdit,
+          canDelete,
+        },
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: requestWithPermissions,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération de la demande:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur lors de la récupération de la demande",
+        status: 500,
+      });
+    }
+  }
+);
+
+/**
  * @route   PUT /api/vacations/:id
  * @desc    Mettre à jour une demande de congés
  * @access  Privé (basé sur le rôle et les permissions)
@@ -309,151 +449,286 @@ router.put(
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { startDate, endDate, reason, status } = req.body;
+      const { startDate, endDate, reason, status, employeeId } = req.body;
       const user = req.user;
-
-      console.log("PUT /api/vacations/:id - Début de la route");
-      console.log("ID de la demande:", id);
-      console.log("Corps de la requête:", req.body);
-      console.log("Utilisateur:", { id: user._id, role: user.role });
 
       // Valider l'ID MongoDB
       if (!mongoose.Types.ObjectId.isValid(id)) {
-        console.log("ID de demande invalide");
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
+          status: 400,
         });
       }
 
       // Récupérer la demande existante
       const vacationRequest = await VacationRequestModel.findById(id);
-      console.log("Demande trouvée:", vacationRequest);
 
       if (!vacationRequest) {
-        console.log("Demande non trouvée");
         return res.status(404).json({
           success: false,
           message: "Demande de congés non trouvée",
+          status: 404,
         });
       }
 
       // Vérifier si l'utilisateur a les droits d'accès
       const hasAccess = await hasAccessToVacationRequest(user, vacationRequest);
-      console.log("Accès autorisé:", hasAccess);
 
       if (!hasAccess) {
-        console.log("Accès refusé");
         return res.status(403).json({
           success: false,
           message: "Vous n'avez pas les droits pour modifier cette demande",
+          status: 403,
         });
       }
 
-      // Préparer les champs à mettre à jour
-      const updateData: any = {};
+      // Valider les champs fournis et les appliquer si valides
 
-      // Si c'est l'employé lui-même qui modifie (et que le statut est pending), il peut modifier les dates et raison
-      if (
-        user._id.toString() === vacationRequest.requestedBy.toString() &&
-        vacationRequest.status === "pending"
-      ) {
-        if (startDate) updateData.startDate = startDate;
-        if (endDate) updateData.endDate = endDate;
-        if (reason !== undefined) updateData.reason = reason;
-        updateData.updatedBy = user._id; // Ajouter qui a mis à jour la demande
-        console.log(
-          "Modification par l'employé lui-même, données:",
-          updateData
-        );
-      } else if (["admin", "directeur", "manager"].includes(user.role)) {
-        // Les managers, directeurs et admins peuvent changer le statut
-        if (status) updateData.status = status;
-
-        // Ajouter qui a mis à jour la demande
-        updateData.updatedBy = user._id;
-        console.log("Modification par un administrateur, données:", updateData);
-      }
-
-      // Si aucun champ à mettre à jour
-      if (Object.keys(updateData).length === 0) {
-        console.log("Aucun champ à mettre à jour");
-        return res.status(400).json({
-          success: false,
-          message: "Aucun champ valide à mettre à jour",
-        });
-      }
-
-      // Si on modifie les dates, vérifier leur cohérence
-      if (updateData.startDate || updateData.endDate) {
-        const start = new Date(
-          updateData.startDate || vacationRequest.startDate
-        );
-        const end = new Date(updateData.endDate || vacationRequest.endDate);
-
-        if (end < start) {
-          console.log("Dates incohérentes");
+      // Validation du status si fourni
+      if (status !== undefined) {
+        if (!["pending", "approved", "rejected"].includes(status)) {
           return res.status(400).json({
             success: false,
-            message: "La date de fin doit être postérieure à la date de début",
+            message: "Le statut doit être 'pending', 'approved' ou 'rejected'",
+            status: 400,
           });
         }
+
+        // Seuls les admins, directeurs et managers peuvent modifier le statut
+        if (!["admin", "directeur", "manager"].includes(user.role)) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Seuls les admins, directeurs et managers peuvent modifier le statut",
+            status: 403,
+          });
+        }
+
+        // Appliquer le nouveau statut
+        vacationRequest.status = status;
       }
 
-      console.log("Mise à jour de la demande avec les données:", updateData);
+      // Validation et application de startDate si fourni
+      if (startDate !== undefined) {
+        // Extraire la date au format YYYY-MM-DD
+        const dateString =
+          typeof startDate === "string"
+            ? startDate.split("T")[0] // Si ISO, prendre seulement la partie date
+            : new Date(startDate).toISOString().split("T")[0];
 
-      // Mettre à jour la demande
-      console.log(`Tentative de mise à jour pour l'ID: ${id}`);
-      console.log(`Données de mise à jour: ${JSON.stringify(updateData)}`);
+        // Extraire les composants de la date
+        const parts = dateString.split("-");
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Les mois vont de 0 à 11 en JS
+        const day = parseInt(parts[2], 10);
 
-      // Utiliser findOne puis save pour s'assurer que les hooks et validations sont exécutés
-      const vacReq = await VacationRequestModel.findById(id);
+        // Créer une date à midi UTC ce jour-là
+        const start = new Date(Date.UTC(year, month, day, 12, 0, 0));
 
-      if (!vacReq) {
-        console.log("Demande introuvable lors de la mise à jour finale");
-        return res.status(404).json({
-          success: false,
-          message: "Demande de congés non trouvée lors de la mise à jour",
-        });
+        // Vérifier si la date est valide
+        if (isNaN(start.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "La date de début n'est pas valide",
+            status: 400,
+          });
+        }
+
+        console.log(`Date de début originale: ${startDate}`);
+        console.log(`Date de début parsée: ${dateString}`);
+        console.log(`Date de début normalisée: ${start.toISOString()}`);
+
+        vacationRequest.startDate = start;
       }
 
-      // Application manuelle des modifications
-      Object.assign(vacReq, updateData);
+      // Validation et application de endDate si fourni
+      if (endDate !== undefined) {
+        // Extraire la date au format YYYY-MM-DD
+        const dateString =
+          typeof endDate === "string"
+            ? endDate.split("T")[0] // Si ISO, prendre seulement la partie date
+            : new Date(endDate).toISOString().split("T")[0];
 
-      // Sauvegarde avec validation complète
-      await vacReq.save();
+        // Extraire les composants de la date
+        const parts = dateString.split("-");
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Les mois vont de 0 à 11 en JS
+        const day = parseInt(parts[2], 10);
 
-      // Récupération de la demande mise à jour avec les champs peuplés
+        // Créer une date à midi UTC ce jour-là
+        const end = new Date(Date.UTC(year, month, day, 12, 0, 0));
+
+        // Vérifier si la date est valide
+        if (isNaN(end.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "La date de fin n'est pas valide",
+            status: 400,
+          });
+        }
+
+        console.log(`Date de fin originale: ${endDate}`);
+        console.log(`Date de fin parsée: ${dateString}`);
+        console.log(`Date de fin normalisée: ${end.toISOString()}`);
+
+        vacationRequest.endDate = end;
+      }
+
+      // Vérifier la cohérence des dates
+      if (startDate !== undefined || endDate !== undefined) {
+        // Pour comparer les dates, on utilise toujours le format YYYY-MM-DD
+        // en ignorant l'heure/fuseau horaire
+        const startObj = vacationRequest.startDate;
+        const endObj = vacationRequest.endDate;
+
+        // Convertir en UTC puis extraire YYYY-MM-DD pour comparer
+        const startYMD = startObj.toISOString().substring(0, 10);
+        const endYMD = endObj.toISOString().substring(0, 10);
+
+        // Comparer les dates (même jour = OK)
+        if (startYMD > endYMD) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "La date de fin doit être égale ou postérieure à la date de début",
+            status: 400,
+          });
+        }
+
+        // Les dates sont maintenant correctement normalisées
+      }
+
+      // Appliquer le motif si fourni
+      if (reason !== undefined) {
+        vacationRequest.reason = reason;
+      }
+
+      // Validation et application de employeeId si fourni
+      if (employeeId !== undefined) {
+        // Seuls les admins, directeurs et managers peuvent modifier l'employé associé
+        if (!["admin", "directeur", "manager"].includes(user.role)) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Seuls les admins, directeurs et managers peuvent modifier l'employé associé",
+            status: 403,
+          });
+        }
+
+        // Vérifier si l'ID est un ObjectId valide
+        if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+          return res.status(400).json({
+            success: false,
+            message: "ID d'employé invalide",
+            status: 400,
+          });
+        }
+
+        // Vérifier que l'employé existe
+        const employee = await mongoose.model("Employee").findById(employeeId);
+
+        if (!employee) {
+          return res.status(404).json({
+            success: false,
+            message: "Employé non trouvé",
+            status: 404,
+          });
+        }
+
+        // Vérifier les accès spécifiques selon le rôle
+        if (user.role === "directeur" && user.companyId) {
+          // Directeur peut modifier pour tous les employés de sa compagnie
+          if (employee.companyId.toString() !== user.companyId.toString()) {
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez modifier les demandes que pour les employés de votre entreprise",
+              status: 403,
+            });
+          }
+        } else if (
+          user.role === "manager" &&
+          user.teamIds &&
+          user.teamIds.length > 0
+        ) {
+          // Manager peut modifier pour les membres de ses équipes
+          const isTeamMember = user.teamIds.some(
+            (teamId: mongoose.Types.ObjectId) =>
+              employee.teamId &&
+              employee.teamId.toString() === teamId.toString()
+          );
+
+          if (!isTeamMember) {
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez modifier les demandes que pour les membres de vos équipes",
+              status: 403,
+            });
+          }
+        }
+
+        // Appliquer le nouvel employeeId
+        vacationRequest.employeeId = employeeId;
+      }
+
+      // Mettre à jour le champ updatedBy avec l'utilisateur actuel
+      vacationRequest.updatedBy = user._id;
+
+      // Sauvegarder la demande mise à jour
+      await vacationRequest.save();
+
+      // Récupérer la demande mise à jour avec les champs peuplés
       const updatedVacationRequest = await VacationRequestModel.findById(id)
         .populate("employeeId", "firstName lastName")
         .populate("updatedBy", "firstName lastName");
 
-      console.log(
-        "Type de la réponse après mise à jour:",
-        typeof updatedVacationRequest
-      );
-      console.log(
-        "Demande mise à jour:",
-        JSON.stringify(updatedVacationRequest, null, 2)
-      );
+      // Vérifier si la demande existe toujours
+      if (!updatedVacationRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Demande de congés non trouvée après mise à jour",
+          status: 404,
+        });
+      }
+
+      // Convertir en objet pour pouvoir ajouter des propriétés
+      const requestObj = updatedVacationRequest.toObject();
+
+      // Déterminer les permissions de l'utilisateur sur cette demande
+      const requestWithPermissions = {
+        ...requestObj,
+        permissions: {
+          canEdit: ["admin", "directeur", "manager"].includes(user.role),
+          canDelete:
+            ["admin", "directeur", "manager"].includes(user.role) ||
+            (user._id.toString() === requestObj.requestedBy.toString() &&
+              requestObj.status === "pending"),
+        },
+      };
 
       return res.status(200).json({
         success: true,
-        data: updatedVacationRequest,
+        message: "Demande de congé mise à jour avec succès",
+        data: requestWithPermissions,
       });
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour de la demande:", error);
 
+      // Gérer les erreurs de validation Mongoose
       if (error.name === "ValidationError") {
         return res.status(400).json({
           success: false,
           message: error.message,
+          status: 400,
         });
       }
 
       return res.status(500).json({
         success: false,
         message: "Erreur lors de la mise à jour de la demande",
+        status: 500,
       });
     }
   }
@@ -477,6 +752,7 @@ router.delete(
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
+          status: 400,
         });
       }
 
@@ -487,6 +763,7 @@ router.delete(
         return res.status(404).json({
           success: false,
           message: "Demande de congés non trouvée",
+          status: 404,
         });
       }
 
@@ -497,10 +774,21 @@ router.delete(
         return res.status(403).json({
           success: false,
           message: "Vous n'avez pas les droits pour supprimer cette demande",
+          status: 403,
         });
       }
 
-      // Restriction additionnelle : un employé ne peut supprimer que ses demandes en statut 'pending'
+      // Les admins, directeurs et managers peuvent supprimer n'importe quelle demande
+      if (["admin", "directeur", "manager"].includes(user.role)) {
+        await VacationRequestModel.findByIdAndDelete(id);
+
+        return res.status(200).json({
+          success: true,
+          message: "Demande de congés supprimée avec succès",
+        });
+      }
+
+      // Restriction pour les employés : seulement leurs demandes en statut 'pending'
       if (
         user.role === "employé" &&
         (user._id.toString() !== vacationRequest.requestedBy.toString() ||
@@ -510,6 +798,7 @@ router.delete(
           success: false,
           message:
             "Vous ne pouvez supprimer que vos propres demandes en attente",
+          status: 403,
         });
       }
 
@@ -525,6 +814,7 @@ router.delete(
       return res.status(500).json({
         success: false,
         message: "Erreur lors de la suppression de la demande",
+        status: 500,
       });
     }
   }
