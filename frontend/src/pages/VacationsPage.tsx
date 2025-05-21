@@ -11,6 +11,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  FileDown,
   Plus,
   User,
   XCircle,
@@ -84,6 +85,9 @@ interface TableColumn {
   label: string | React.ReactNode;
   className?: string;
 }
+
+// Importer la fonction d'export PDF
+import { generateVacationPdf } from "../services/generateVacationPdf";
 
 /**
  * Calcule la durée en jours entre deux dates
@@ -1346,59 +1350,74 @@ const VacationsPage: React.FC = () => {
             </Button>
           }
         >
-          <div className="flex flex-wrap gap-3 p-4">
-            {/* Amélioration dark mode */}
-            <Button
-              variant={statusFilter === "all" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setStatusFilter("all")}
-              className={
-                statusFilter !== "all"
-                  ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
-                  : ""
-              }
-            >
-              Tous
-            </Button>
-            <Button
-              variant={statusFilter === "pending" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setStatusFilter("pending")}
-              icon={<Clock size={14} />}
-              className={
-                statusFilter !== "pending"
-                  ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
-                  : ""
-              }
-            >
-              En attente
-            </Button>
-            <Button
-              variant={statusFilter === "approved" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setStatusFilter("approved")}
-              icon={<CheckCircle2 size={14} />}
-              className={
-                statusFilter !== "approved"
-                  ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
-                  : ""
-              }
-            >
-              Approuvés
-            </Button>
-            <Button
-              variant={statusFilter === "rejected" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setStatusFilter("rejected")}
-              icon={<XCircle size={14} />}
-              className={
-                statusFilter !== "rejected"
-                  ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
-                  : ""
-              }
-            >
-              Refusés
-            </Button>
+          <div className="flex flex-wrap justify-between gap-3 p-4">
+            <div className="flex flex-wrap gap-3">
+              {/* Amélioration dark mode */}
+              <Button
+                variant={statusFilter === "all" ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => setStatusFilter("all")}
+                className={
+                  statusFilter !== "all"
+                    ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+                    : ""
+                }
+              >
+                Tous
+              </Button>
+              <Button
+                variant={statusFilter === "pending" ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => setStatusFilter("pending")}
+                icon={<Clock size={14} />}
+                className={
+                  statusFilter !== "pending"
+                    ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+                    : ""
+                }
+              >
+                En attente
+              </Button>
+              <Button
+                variant={statusFilter === "approved" ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => setStatusFilter("approved")}
+                icon={<CheckCircle2 size={14} />}
+                className={
+                  statusFilter !== "approved"
+                    ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+                    : ""
+                }
+              >
+                Approuvés
+              </Button>
+              <Button
+                variant={statusFilter === "rejected" ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => setStatusFilter("rejected")}
+                icon={<XCircle size={14} />}
+                className={
+                  statusFilter !== "rejected"
+                    ? "dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+                    : ""
+                }
+              >
+                Refusés
+              </Button>
+            </div>
+
+            {/* Bouton d'export PDF - visible uniquement pour manager, directeur et admin et si des demandes sont présentes */}
+            {["manager", "directeur", "admin"].includes(userRole) &&
+              filteredRequests.length > 0 && (
+                <Button
+                  variant="secondary"
+                  onClick={() => generateVacationPdf(filteredRequests)}
+                  icon={<FileDown size={14} />}
+                  className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600"
+                >
+                  Exporter PDF
+                </Button>
+              )}
           </div>
         </SectionCard>
       </motion.div>
