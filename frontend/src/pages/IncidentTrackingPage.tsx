@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Calendar,
   Eye,
+  FileDown,
   Pencil,
   Plus,
   Shield,
@@ -25,6 +26,7 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import { useAuth } from "../hooks/useAuth";
+import { generateIncidentPdf } from "../services/generateIncidentPdf";
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -1027,6 +1029,25 @@ const IncidentTrackingPage: React.FC = () => {
         <SectionCard
           title={`Incidents signalés (${incidents.length})`}
           className="mb-8"
+          actions={
+            ["manager", "directeur", "admin"].includes(user?.role ?? "") &&
+            incidents.length > 0 && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  // Convertir le type pour s'assurer que les descriptions vides ont une valeur par défaut
+                  const compatibleIncidents = incidents.map((incident) => ({
+                    ...incident,
+                    description: incident.description || "",
+                  }));
+                  generateIncidentPdf(compatibleIncidents);
+                }}
+                icon={<FileDown size={14} />}
+              >
+                Exporter PDF
+              </Button>
+            )
+          }
         >
           {loading ? (
             <div className="flex justify-center items-center py-16">

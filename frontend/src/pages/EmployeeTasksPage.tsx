@@ -12,11 +12,13 @@ import {
   Check,
   ClipboardList,
   Edit,
+  FileDown,
   Plus,
   Trash2,
 } from "lucide-react";
 import React, { FormEvent, useCallback, useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+import { useAuth } from "../hooks/useAuth";
 
 // Composant de layout global
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -36,6 +38,9 @@ import LoadingSpinner from "../components/ui/LoadingSpinner";
 import SelectField from "../components/ui/SelectField";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
+
+// Service d'export PDF
+import { generateEmployeeTasksPdf } from "../services/generateEmployeeTasksPdf";
 
 // Types pour les tâches
 interface Task {
@@ -111,6 +116,9 @@ const EmployeeTasksPage: React.FC = () => {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
+
+  // Récupération des informations de l'utilisateur connecté
+  const { user } = useAuth();
 
   // Items du fil d'ariane
   const breadcrumbItems = [
@@ -566,9 +574,34 @@ const EmployeeTasksPage: React.FC = () => {
           transition={{ duration: 0.3 }}
         >
           <SectionCard title="Liste de tâches" className="mb-8">
-            <div className="mb-4 text-sm text-[var(--text-secondary)] dark:text-white">
-              {tasks.filter((task) => task.status !== "completed").length}{" "}
-              tâche(s) en cours
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="text-sm text-[var(--text-secondary)] dark:text-white">
+                {tasks.filter((task) => task.status !== "completed").length}{" "}
+                tâche(s) en cours
+              </div>
+
+              {/* Bouton d'export PDF - visible uniquement pour les rôles manager, directeur et admin */}
+              {user &&
+                ["manager", "directeur", "admin"].includes(user.role) &&
+                tasks.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() =>
+                      generateEmployeeTasksPdf(
+                        tasks.map((task) => ({
+                          title: task.title,
+                          dueDate: task.dueDate || "",
+                          status: task.status,
+                        })),
+                        user ? `${user.firstName} ${user.lastName}` : undefined
+                      )
+                    }
+                    icon={<FileDown size={14} />}
+                  >
+                    Exporter PDF
+                  </Button>
+                )}
             </div>
 
             {loading && !updatingTaskId ? (
