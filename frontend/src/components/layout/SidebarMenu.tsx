@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import {
+  AlertCircle,
   BarChart,
   Building,
   Calendar,
@@ -96,6 +97,13 @@ const companyManagementMenuItem = {
   route: "/gestion-des-entreprises",
 };
 
+const incidentsMenuItem = {
+  id: "incidents",
+  label: "Incidents employés",
+  icon: AlertCircle,
+  route: "/incidents",
+};
+
 const SidebarMenu: React.FC<SidebarMenuProps> = ({
   activeItem,
   onNavigate,
@@ -153,6 +161,15 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     if (user?.role === "admin") {
       items = items.filter((item) => item.id !== "collaborateurs");
       items.push(adminMenuItem, companyManagementMenuItem);
+    }
+
+    // Ajouter "Incidents employés" pour admin, manager et directeur
+    if (
+      user?.role === "admin" ||
+      user?.role === "manager" ||
+      user?.role === "directeur"
+    ) {
+      items.push(incidentsMenuItem);
     }
 
     return items;

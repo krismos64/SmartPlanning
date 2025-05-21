@@ -1,5 +1,6 @@
 import React from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "./hooks/useAuth";
 import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
@@ -16,6 +17,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
 import StatsPage from "./pages/StatsPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import VacationsPage from "./pages/VacationsPage";
@@ -51,6 +53,31 @@ const NotFoundPage: React.FC = () => {
 };
 
 /**
+ * Composant de route protégée par rôle
+ */
+interface RoleProtectedRouteProps {
+  element: React.ReactNode;
+  allowedRoles: string[];
+}
+
+const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
+  element,
+  allowedRoles,
+}) => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/connexion" replace />;
+  }
+
+  if (allowedRoles.includes(user.role)) {
+    return <>{element}</>;
+  }
+
+  return <Navigate to="/unauthorized" replace />;
+};
+
+/**
  * Routeur principal de l'application SmartPlanning
  * Définit toutes les routes accessibles dans l'application avec des URLs en français
  */
@@ -64,6 +91,7 @@ const AppRouter: React.FC = () => {
         {/* Routes d'authentification */}
         <Route path="/connexion" element={<LoginPage />} />
         <Route path="/inscription" element={<RegisterPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
         {/* Route du tableau de bord pour utilisateurs connectés */}
         <Route path="/tableau-de-bord" element={<DashboardPage />} />
@@ -76,6 +104,18 @@ const AppRouter: React.FC = () => {
         <Route path="/gestion-des-conges" element={<VacationsPage />} />
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
+
+        {/* Nouvelle route pour les incidents avec protection par rôle */}
+        <Route
+          path="/incidents"
+          element={
+            <RoleProtectedRoute
+              element={<IncidentTrackingPage />}
+              allowedRoles={["admin", "manager", "directeur"]}
+            />
+          }
+        />
+
         <Route
           path="/gestion-des-utilisateurs"
           element={<UserManagementPage />}

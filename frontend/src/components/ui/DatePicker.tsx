@@ -236,12 +236,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
           disabled={disabled}
           readOnly={readOnly}
           className={`w-full px-4 py-2 rounded-md border transition duration-200 
-            focus:outline-none focus:ring-2 bg-[var(--background-secondary)] 
-            placeholder-[var(--text-secondary)]
+            focus:outline-none focus:ring-2 bg-[var(--background-secondary)] dark:bg-gray-700
+            placeholder-[var(--text-secondary)] dark:placeholder-gray-400 dark:text-gray-200
             ${
               error
                 ? "border-red-500 focus:ring-red-300"
-                : "border-[var(--border)] focus:ring-[var(--accent-primary)]"
+                : "border-[var(--border)] focus:ring-[var(--accent-primary)] dark:border-gray-600"
             }
             ${disabled ? "opacity-60 cursor-not-allowed" : ""}
           `}
@@ -256,7 +256,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
             }
           }}
           disabled={disabled || readOnly}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)]"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] dark:text-gray-300"
           aria-label={
             isCalendarOpen ? "Fermer le calendrier" : "Ouvrir le calendrier"
           }
@@ -279,24 +279,24 @@ const DatePicker: React.FC<DatePickerProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute z-50 mt-1 bg-[var(--background-primary)] border border-[var(--border)] rounded-md shadow-lg p-3 w-72"
+            className="absolute z-50 mt-1 bg-[var(--background-primary)] dark:bg-gray-800 border border-[var(--border)] dark:border-gray-700 rounded-md shadow-lg p-3 w-72"
           >
             <div className="mb-3 flex items-center justify-between">
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="p-1 rounded-full hover:bg-[var(--background-tertiary)] text-[var(--text-primary)]"
+                className="p-1 rounded-full hover:bg-[var(--background-tertiary)] dark:hover:bg-gray-700 text-[var(--text-primary)] dark:text-gray-200"
                 aria-label="Mois précédent"
               >
                 <ChevronLeft size={20} />
               </button>
-              <h3 className="text-sm font-medium text-[var(--text-primary)] capitalize">
+              <h3 className="text-sm font-medium text-[var(--text-primary)] dark:text-gray-200 capitalize">
                 {monthYearDisplay}
               </h3>
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="p-1 rounded-full hover:bg-[var(--background-tertiary)] text-[var(--text-primary)]"
+                className="p-1 rounded-full hover:bg-[var(--background-tertiary)] dark:hover:bg-gray-700 text-[var(--text-primary)] dark:text-gray-200"
                 aria-label="Mois suivant"
               >
                 <ChevronRight size={20} />
@@ -307,7 +307,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
               {["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"].map((day) => (
                 <div
                   key={day}
-                  className="text-center text-xs text-[var(--text-secondary)] font-medium"
+                  className="text-center text-xs text-[var(--text-secondary)] dark:text-gray-400 font-medium"
                 >
                   {day}
                 </div>
@@ -317,39 +317,44 @@ const DatePicker: React.FC<DatePickerProps> = ({
             <div className="grid grid-cols-7 gap-1">
               {generateDaysOfMonth().map((day, index) => {
                 if (!day) {
-                  return <div key={`empty-${index}`} className="h-8" />;
+                  return (
+                    <div
+                      key={`empty-${index}`}
+                      className="aspect-square flex items-center justify-center"
+                    ></div>
+                  );
                 }
 
                 const isSelected = selectedDate
-                  ? isSameDay(
-                      day,
-                      isDate(selectedDate)
-                        ? (selectedDate as Date)
-                        : parseISO(selectedDate as string)
-                    )
+                  ? isDate(selectedDate)
+                    ? isSameDay(day, selectedDate as Date)
+                    : isSameDay(day, parseISO(selectedDate as string))
                   : false;
-
-                const isDisabled = isDateDisabled(day);
                 const isTodayDate = isToday(day);
+                const isDisabled = isDateDisabled(day);
 
                 return (
                   <button
-                    key={format(day, "yyyy-MM-dd")}
+                    key={day.toString()}
                     type="button"
                     onClick={() => handleDateSelect(day)}
                     disabled={isDisabled}
-                    className={`h-8 w-8 flex items-center justify-center text-sm rounded-full transition-colors
+                    className={`
+                      aspect-square flex items-center justify-center text-sm rounded-full transition-colors
                       ${
                         isSelected
-                          ? "bg-[var(--accent-primary)] text-white"
+                          ? "bg-[var(--accent-primary)] dark:bg-indigo-600 text-white"
                           : isTodayDate
-                          ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
-                          : "text-[var(--text-primary)] hover:bg-[var(--background-tertiary)]"
+                          ? "bg-[var(--background-tertiary)] dark:bg-gray-700 text-[var(--accent-primary)] dark:text-indigo-400"
+                          : "hover:bg-[var(--background-tertiary)] dark:hover:bg-gray-700"
                       }
-                      ${isDisabled ? "opacity-30 cursor-not-allowed" : ""}
+                      ${
+                        isDisabled
+                          ? "opacity-40 cursor-not-allowed"
+                          : "cursor-pointer"
+                      }
+                      text-[var(--text-primary)] dark:text-gray-200
                     `}
-                    aria-selected={isSelected}
-                    aria-disabled={isDisabled}
                   >
                     {format(day, "d")}
                   </button>
@@ -357,11 +362,11 @@ const DatePicker: React.FC<DatePickerProps> = ({
               })}
             </div>
 
-            <div className="mt-3 border-t border-[var(--border)] pt-2 flex justify-between">
+            <div className="mt-3 border-t border-[var(--border)] dark:border-gray-700 pt-2 flex justify-between">
               <button
                 type="button"
                 onClick={() => handleDateSelect(new Date())}
-                className="text-xs text-[var(--accent-primary)] hover:underline"
+                className="text-xs text-[var(--accent-primary)] dark:text-indigo-400 hover:underline"
                 disabled={isDateDisabled(new Date())}
               >
                 Aujourd'hui
@@ -373,7 +378,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                   setInputValue("");
                   setIsCalendarOpen(false);
                 }}
-                className="text-xs text-[var(--text-secondary)] hover:underline"
+                className="text-xs text-[var(--text-secondary)] dark:text-gray-400 hover:underline"
               >
                 Effacer
               </button>
