@@ -9,6 +9,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Edit,
+  FileDown,
   Plus,
   Settings,
   Shield,
@@ -47,6 +48,9 @@ import Toast from "../components/ui/Toast";
 // Composants modaux
 import CollaboratorFormModal from "../components/modals/CollaboratorFormModal";
 import ManageTeamsModal from "../components/modals/ManageTeamsModal";
+
+// Services
+import { generateCollaboratorsPdf } from "../services/generateCollaboratorsPdf";
 
 // Interface pour les équipes
 interface Team {
@@ -859,6 +863,49 @@ const CollaboratorManagementPage: React.FC = () => {
               <>
                 {/* Version desktop (tableau) - visible uniquement sur md et plus */}
                 <div className="hidden md:block">
+                  {/* Bouton d'export PDF */}
+                  {["manager", "admin", "directeur"].includes(
+                    user?.role || ""
+                  ) &&
+                    displayedEmployees.length > 0 && (
+                      <div className="mb-4 flex justify-end">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            // Préparer les données pour l'export en PDF en utilisant les données originales des employés
+                            const employeesForExport = employees.map(
+                              (employee) => {
+                                const team = managerTeams.find(
+                                  (t) => t._id === employee.teamId
+                                );
+                                return {
+                                  _id: employee._id,
+                                  firstName: employee.firstName,
+                                  lastName: employee.lastName,
+                                  email: employee.email,
+                                  status: employee.status,
+                                  contractHoursPerWeek:
+                                    employee.contractHoursPerWeek,
+                                  companyId: employee.companyId,
+                                  team: team
+                                    ? {
+                                        _id: team._id,
+                                        name: team.name,
+                                      }
+                                    : undefined,
+                                };
+                              }
+                            );
+
+                            generateCollaboratorsPdf(employeesForExport);
+                          }}
+                          icon={<FileDown size={14} />}
+                          className="dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+                        >
+                          Exporter PDF
+                        </Button>
+                      </div>
+                    )}
                   <AnimatePresence>
                     <Table
                       columns={collaboratorColumns}
@@ -870,6 +917,49 @@ const CollaboratorManagementPage: React.FC = () => {
 
                 {/* Version mobile/tablette (cards) - visible uniquement sur sm et moins */}
                 <div className="block md:hidden">
+                  {/* Bouton d'export PDF pour mobile */}
+                  {["manager", "admin", "directeur"].includes(
+                    user?.role || ""
+                  ) &&
+                    displayedEmployees.length > 0 && (
+                      <div className="mb-4 flex justify-end">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            // Préparer les données pour l'export en PDF en utilisant les données originales des employés
+                            const employeesForExport = employees.map(
+                              (employee) => {
+                                const team = managerTeams.find(
+                                  (t) => t._id === employee.teamId
+                                );
+                                return {
+                                  _id: employee._id,
+                                  firstName: employee.firstName,
+                                  lastName: employee.lastName,
+                                  email: employee.email,
+                                  status: employee.status,
+                                  contractHoursPerWeek:
+                                    employee.contractHoursPerWeek,
+                                  companyId: employee.companyId,
+                                  team: team
+                                    ? {
+                                        _id: team._id,
+                                        name: team.name,
+                                      }
+                                    : undefined,
+                                };
+                              }
+                            );
+
+                            generateCollaboratorsPdf(employeesForExport);
+                          }}
+                          icon={<FileDown size={14} />}
+                          className="dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+                        >
+                          Exporter PDF
+                        </Button>
+                      </div>
+                    )}
                   <div className="space-y-4 px-1 py-2">
                     <AnimatePresence>
                       {displayedEmployees.map((employee) =>
