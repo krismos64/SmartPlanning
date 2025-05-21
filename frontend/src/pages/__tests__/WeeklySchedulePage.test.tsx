@@ -54,7 +54,7 @@ describe("WeeklySchedulePage", () => {
   beforeEach(() => {
     // Configuration des mocks d'axios pour simuler les réponses API
     mockedAxios.get.mockImplementation((url) => {
-      if (url === "/api/employees") {
+      if (url === "/employees") {
         return Promise.resolve({ data: mockEmployees });
       } else if (url.includes("/api/weekly-schedules/week/")) {
         return Promise.resolve({ data: mockWeeklySchedules });
@@ -78,7 +78,7 @@ describe("WeeklySchedulePage", () => {
 
     // ÉTAPE 2: Attendre le chargement des employés dans le select
     await waitFor(() => {
-      expect(mockedAxios.get).toHaveBeenCalledWith("/api/employees");
+      expect(mockedAxios.get).toHaveBeenCalledWith("/employees");
     });
 
     // Vérifier que le formulaire est chargé

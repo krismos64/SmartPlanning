@@ -151,9 +151,9 @@ const Modal: React.FC<ModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden flex items-center justify-center p-4">
-          {/* Fond semi-transparent */}
+          {/* Fond semi-transparent avec flou */}
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm"
             initial="hidden"
             animate="visible"
             exit="hidden"
@@ -171,10 +171,11 @@ const Modal: React.FC<ModalProps> = ({
             aria-labelledby={titleId}
             className={`
               w-full max-w-md
-              bg-white dark:bg-gray-900
-              text-gray-900 dark:text-white
-              rounded-2xl
-              shadow-xl
+              bg-gray-900 text-white
+              dark:bg-gray-950 dark:text-gray-100
+              rounded-xl
+              shadow-xl dark:shadow-black/20
+              border border-gray-800 dark:border-gray-700
               relative
               overflow-hidden
               flex flex-col
@@ -194,14 +195,14 @@ const Modal: React.FC<ModalProps> = ({
               onClick={onClose}
               className="
                 absolute top-4 right-4
-                text-gray-400 dark:text-gray-500
-                hover:text-gray-700 dark:hover:text-gray-300
+                text-gray-400 
+                hover:text-white
                 focus:outline-none
                 focus:ring-2
-                focus:ring-indigo-400
-                focus:ring-offset-2
+                focus:ring-indigo-400/50
                 rounded-full
-                p-1
+                p-1.5
+                bg-gray-800 hover:bg-gray-700
                 transition-colors
                 duration-200
                 z-10
@@ -229,7 +230,7 @@ const Modal: React.FC<ModalProps> = ({
               <div className="p-6 pb-0">
                 <h2
                   id={titleId}
-                  className="text-xl font-semibold mb-4 pr-8 text-gray-900 dark:text-white" // pr-8 pour éviter chevauchement avec bouton fermeture
+                  className="text-xl font-semibold mb-4 pr-8 text-white"
                 >
                   {title}
                 </h2>
@@ -238,7 +239,7 @@ const Modal: React.FC<ModalProps> = ({
 
             {/* Contenu de la modale avec défilement */}
             <div className="overflow-y-auto">
-              <div className={`${title ? "pt-0" : "pt-3"}`}>{children}</div>
+              <div className={`p-6 ${title ? "pt-0" : ""}`}>{children}</div>
             </div>
           </motion.div>
         </div>

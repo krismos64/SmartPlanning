@@ -133,7 +133,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get(
-        `/api/teams?managerId=${currentUserId}`
+        `/teams?managerId=${currentUserId}`
       );
       const result = Array.isArray(response.data)
         ? response.data

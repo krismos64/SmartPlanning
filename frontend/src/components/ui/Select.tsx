@@ -173,7 +173,7 @@ const Select: React.FC<SelectProps> = ({
         <label
           id={labelId}
           htmlFor={listboxId}
-          className="block text-sm font-medium text-[var(--text-secondary)] mb-1 dark:text-white"
+          className="block text-sm font-medium text-gray-300 mb-1"
         >
           {label}
         </label>
@@ -195,24 +195,21 @@ const Select: React.FC<SelectProps> = ({
           aria-disabled={disabled}
           className={`
             w-full px-3 py-2 
-            bg-[var(--background-primary)] dark:bg-gray-800
-            text-[var(--text-primary)] dark:text-white
-            border border-[var(--border)] dark:border-gray-700
+            bg-gray-900 hover:bg-gray-800
+            text-white
+            border border-gray-700
             rounded-lg
             flex justify-between items-center
             transition-colors duration-200
-            ${
-              !disabled &&
-              "hover:border-[var(--accent-primary)] dark:hover:border-indigo-400"
-            }
+            ${!disabled && "hover:border-indigo-500"}
             ${
               isOpen &&
               !disabled &&
-              "border-[var(--accent-primary)] dark:border-indigo-400 ring-2 ring-[var(--focus)] dark:ring-indigo-500/30 ring-opacity-50"
+              "border-indigo-500 ring-2 ring-indigo-500/30"
             }
             ${disabled && "opacity-60 cursor-not-allowed"}
             focus:outline-none
-            focus:ring-2 focus:ring-[var(--focus)] dark:focus:ring-indigo-500/30 focus:ring-opacity-50
+            focus:ring-2 focus:ring-indigo-500/30
           `}
           onClick={toggleDropdown}
           disabled={disabled}
@@ -226,7 +223,7 @@ const Select: React.FC<SelectProps> = ({
           <motion.span
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.2 }}
-            className="ml-2 flex items-center text-[var(--text-secondary)] dark:text-gray-300"
+            className="ml-2 flex items-center text-gray-300"
           >
             {icon || (
               <svg
@@ -248,75 +245,59 @@ const Select: React.FC<SelectProps> = ({
         {/* Liste déroulante */}
         <AnimatePresence>
           {isOpen && (
-            <motion.div
+            <motion.ul
+              role="listbox"
+              aria-labelledby={label ? labelId : undefined}
+              className="
+                absolute z-10
+                mt-1
+                w-full
+                max-h-60
+                overflow-auto
+                bg-gray-900
+                border border-gray-700
+                rounded-lg
+                shadow-lg
+                p-1
+              "
               initial="hidden"
               animate="visible"
               exit="hidden"
               variants={dropdownVariants}
-              className="absolute z-10 mt-1 w-full rounded-md shadow-lg"
             >
-              <ul
-                className="max-h-60 overflow-auto rounded-md py-1 text-base 
-                bg-[var(--background-primary)] dark:bg-gray-800
-                border border-[var(--border)] dark:border-gray-700
-                ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-                tabIndex={-1}
-                role="listbox"
-                aria-labelledby={labelId}
-              >
-                {options.map((option, index) => (
-                  <li
-                    key={option.value}
-                    id={`select-option-${index}`}
-                    className={`
-                      relative cursor-default select-none py-2 pl-3 pr-9
-                      ${
-                        activeIndex === index
-                          ? "bg-[var(--accent-primary-lighter)] dark:bg-indigo-600/20 text-[var(--accent-primary)] dark:text-indigo-200"
-                          : "text-[var(--text-primary)] dark:text-white"
-                      }
-                      ${
-                        option.value === value
-                          ? "bg-[var(--accent-primary-lighter)] dark:bg-indigo-500/20 text-[var(--accent-primary)] dark:text-indigo-200"
-                          : ""
-                      }
-                      hover:bg-[var(--accent-primary-lighter)] dark:hover:bg-indigo-600/30
-                      hover:text-[var(--accent-primary)] dark:hover:text-indigo-200
-                    `}
-                    role="option"
-                    aria-selected={option.value === value}
-                    onClick={() => handleSelect(option)}
-                    onMouseEnter={() => setActiveIndex(index)}
-                  >
-                    <span
-                      className={`block truncate ${
-                        option.value === value ? "font-medium" : "font-normal"
-                      }`}
-                    >
-                      {option.label}
-                    </span>
-
-                    {/* Indicateur de sélection */}
-                    {option.value === value && (
-                      <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-[var(--accent-primary)] dark:text-indigo-300">
-                        <svg
-                          className="h-5 w-5"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
+              {options.map((option, index) => (
+                <motion.li
+                  id={`select-option-${index}`}
+                  key={option.value}
+                  role="option"
+                  aria-selected={option.value === value}
+                  className={`
+                    px-3 py-2
+                    cursor-pointer
+                    rounded-md
+                    my-0.5
+                    ${
+                      option.value === value
+                        ? "bg-indigo-600 text-white"
+                        : "text-gray-200 hover:bg-gray-800"
+                    }
+                    ${
+                      index === activeIndex && option.value !== value
+                        ? "bg-gray-800"
+                        : ""
+                    }
+                    transition-colors
+                    duration-150
+                  `}
+                  onClick={() => handleSelect(option)}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  {option.label}
+                </motion.li>
+              ))}
+            </motion.ul>
           )}
         </AnimatePresence>
       </div>

@@ -153,7 +153,7 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await axiosInstance.post("/api/teams", {
+      const response = await axiosInstance.post("/teams", {
         name: newTeamName,
         companyId,
       });
@@ -188,12 +188,9 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await axiosInstance.patch(
-        `/api/teams/${editingTeam.id}`,
-        {
-          name: editingTeam.name,
-        }
-      );
+      const response = await axiosInstance.patch(`/teams/${editingTeam.id}`, {
+        name: editingTeam.name,
+      });
 
       if (response.data.success) {
         // Mettre à jour la liste des équipes avec l'équipe modifiée
@@ -227,7 +224,7 @@ const ManageTeamsModal: React.FC<ManageTeamsModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await axiosInstance.delete(`/api/teams/${teamToDelete}`);
+      const response = await axiosInstance.delete(`/teams/${teamToDelete}`);
 
       if (response.data.success) {
         // Mettre à jour la liste des équipes en retirant l'équipe supprimée

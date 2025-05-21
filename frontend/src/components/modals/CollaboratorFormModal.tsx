@@ -290,8 +290,8 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
         }
         className="max-w-2xl"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prénom */}
             <InputField
               label="Prénom"
@@ -299,7 +299,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
               value={formData.firstName || ""}
               onChange={handleInputChange}
               required
-              icon={<User size={18} className="text-[var(--accent-primary)]" />}
+              icon={<User size={18} className="text-indigo-400" />}
               error={formErrors.firstName}
             />
 
@@ -310,7 +310,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
               value={formData.lastName || ""}
               onChange={handleInputChange}
               required
-              icon={<User size={18} className="text-[var(--accent-primary)]" />}
+              icon={<User size={18} className="text-indigo-400" />}
               error={formErrors.lastName}
             />
           </div>
@@ -323,7 +323,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
             value={formData.email || ""}
             onChange={handleInputChange}
             required
-            icon={<Mail size={18} className="text-[var(--accent-primary)]" />}
+            icon={<Mail size={18} className="text-indigo-400" />}
             error={formErrors.email}
           />
 
@@ -342,7 +342,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
                 ? "Laisser vide pour conserver le mot de passe actuel"
                 : ""
             }
-            icon={<Lock size={18} className="text-[var(--accent-primary)]" />}
+            icon={<Lock size={18} className="text-indigo-400" />}
             error={formErrors.password}
             helperText={
               isEditMode
@@ -351,7 +351,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
             }
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Équipe */}
             <div>
               <Select
@@ -359,15 +359,10 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
                 options={teams}
                 value={formData.teamId || ""}
                 onChange={(value) => handleSelectChange("teamId", value)}
-                icon={
-                  <Building
-                    size={18}
-                    className="text-[var(--accent-primary)]"
-                  />
-                }
+                icon={<Building size={18} className="text-indigo-400" />}
               />
               {formErrors.teamId && (
-                <p className="mt-1 text-xs text-red-500">{formErrors.teamId}</p>
+                <p className="mt-1 text-xs text-red-400">{formErrors.teamId}</p>
               )}
             </div>
 
@@ -379,9 +374,7 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
               value={formData.contractHoursPerWeek?.toString() || ""}
               onChange={handleInputChange}
               required
-              icon={
-                <Clock size={18} className="text-[var(--accent-primary)]" />
-              }
+              icon={<Clock size={18} className="text-indigo-400" />}
               error={formErrors.contractHoursPerWeek}
               helperText="Entre 1 et 168 heures"
             />
@@ -399,16 +392,26 @@ const CollaboratorFormModal: React.FC<CollaboratorFormModalProps> = ({
               onChange={(value) => handleSelectChange("status", value)}
             />
             {formErrors.status && (
-              <p className="mt-1 text-xs text-red-500">{formErrors.status}</p>
+              <p className="mt-1 text-xs text-red-400">{formErrors.status}</p>
             )}
           </div>
 
           {/* Boutons d'action */}
-          <div className="flex justify-end space-x-3 mt-6">
-            <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 space-y-3 space-y-reverse sm:space-y-0 mt-6">
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              disabled={loading}
+              className="w-full sm:w-auto"
+            >
               Annuler
             </Button>
-            <Button type="submit" isLoading={loading} disabled={loading}>
+            <Button
+              type="submit"
+              isLoading={loading}
+              disabled={loading}
+              className="w-full sm:w-auto"
+            >
               {isEditMode ? "Mettre à jour" : "Ajouter"}
             </Button>
           </div>

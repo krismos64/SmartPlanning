@@ -2169,16 +2169,13 @@ const WeeklySchedulePage: React.FC = () => {
           title={
             isEditMode ? "Modifier le planning" : "Créer un nouveau planning"
           }
-          className="w-full max-w-[90%] max-h-[90vh]"
+          className="w-full max-w-[95%] max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-950 border border-indigo-500/20 backdrop-blur-xl"
         >
           <div className="px-8 py-6">
-            <div className="mb-8 p-5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800">
-              <div className="flex items-center gap-2">
-                <Calendar
-                  className="text-indigo-600 dark:text-indigo-400"
-                  size={20}
-                />
-                <span className="font-medium text-indigo-700 dark:text-indigo-300 text-lg">
+            <div className="mb-8 p-5 bg-indigo-900/30 rounded-xl border border-indigo-500/30 shadow-lg shadow-indigo-500/10">
+              <div className="flex items-center gap-3">
+                <Calendar className="text-indigo-400" size={24} />
+                <span className="font-medium text-indigo-300 text-xl bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   Planification pour: Semaine {weekNumber}, {year} (
                   {getWeekDateRange(year, weekNumber)})
                 </span>
@@ -2202,10 +2199,10 @@ const WeeklySchedulePage: React.FC = () => {
 
               {/* Grille d'horaires intégrée */}
               <div className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-5 pb-2 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl font-semibold text-gray-200 mb-5 pb-2 border-b border-gray-700/50 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   Horaires de la semaine
                 </h3>
-                <div className="space-y-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6 md:space-y-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {DAY_KEYS.map((day, dayIndex) => {
                     // Calcul de la date du jour en fonction de l'année et la semaine
                     const dayDate = weekDates[day];
@@ -2226,20 +2223,20 @@ const WeeklySchedulePage: React.FC = () => {
                     return (
                       <div
                         key={day}
-                        className="p-4 border border-[var(--border)] rounded-xl bg-[var(--background-secondary)] dark:bg-gray-800 transition-all hover:shadow-md"
+                        className="p-4 border border-indigo-500/30 rounded-xl bg-gray-800/50 transition-all hover:shadow-md hover:shadow-indigo-500/20 backdrop-blur-sm"
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                           <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                            <span className="font-semibold text-lg text-[var(--text-primary)] dark:text-white">
+                            <span className="font-semibold text-lg text-white">
                               {DAYS_OF_WEEK[dayIndex]}
                             </span>
-                            <span className="text-sm text-[var(--text-secondary)] dark:text-gray-300 font-medium">
+                            <span className="text-sm text-gray-300 font-medium">
                               {formattedDate}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                            <span className="text-sm font-medium text-emerald-400">
                               {formatDuration(dayTotalMinutes)}
                             </span>
                             <Button
@@ -2248,7 +2245,7 @@ const WeeklySchedulePage: React.FC = () => {
                               size="sm"
                               onClick={() => handleAddTimeSlot(day)}
                               icon={<Plus size={14} />}
-                              className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-800/40 text-indigo-600 dark:text-indigo-300 dark:border-indigo-800/50"
+                              className="bg-indigo-900/50 hover:bg-indigo-800/60 text-indigo-300 border-indigo-500/30 hover:border-indigo-400/50"
                             >
                               Ajouter
                             </Button>
@@ -2259,18 +2256,18 @@ const WeeklySchedulePage: React.FC = () => {
                         <div className="space-y-2">
                           {!scheduleData[day] ||
                           scheduleData[day].length === 0 ? (
-                            <p className="text-sm text-[var(--text-secondary)] italic">
+                            <p className="text-sm text-gray-400 italic">
                               Aucun créneau horaire défini
                             </p>
                           ) : (
                             scheduleData[day].map((slot, slotIndex) => (
                               <div
                                 key={slotIndex}
-                                className="flex flex-wrap items-center gap-2 p-2 bg-[var(--background-primary)] dark:bg-gray-700 rounded-lg"
+                                className="flex flex-wrap items-center gap-2 p-2 bg-gray-700/50 rounded-lg border border-indigo-500/20"
                               >
                                 <div className="flex flex-col md:flex-row w-full gap-2">
                                   <div className="flex flex-row items-center gap-2 flex-1">
-                                    <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300 w-10">
+                                    <label className="text-xs text-gray-300 w-10">
                                       Début
                                     </label>
                                     <select
@@ -2283,7 +2280,7 @@ const WeeklySchedulePage: React.FC = () => {
                                           e.target.value
                                         )
                                       }
-                                      className="flex-1 px-3 py-2 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                      className="flex-1 px-3 py-2 rounded border border-indigo-500/30 bg-gray-800 text-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                     >
                                       {TIME_OPTIONS.filter(
                                         (time) => time < slot.end
@@ -2296,7 +2293,7 @@ const WeeklySchedulePage: React.FC = () => {
                                   </div>
 
                                   <div className="flex flex-row items-center gap-2 flex-1">
-                                    <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300 w-10">
+                                    <label className="text-xs text-gray-300 w-10">
                                       Fin
                                     </label>
                                     <select
@@ -2309,7 +2306,7 @@ const WeeklySchedulePage: React.FC = () => {
                                           e.target.value
                                         )
                                       }
-                                      className="flex-1 px-3 py-2 rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                      className="flex-1 px-3 py-2 rounded border border-indigo-500/30 bg-gray-800 text-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                     >
                                       {TIME_OPTIONS.filter(
                                         (time) => time > slot.start
@@ -2322,7 +2319,7 @@ const WeeklySchedulePage: React.FC = () => {
                                   </div>
 
                                   <div className="flex items-center">
-                                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mr-2">
+                                    <span className="text-xs font-medium text-emerald-400 mr-2">
                                       {Math.round(
                                         (calculateDuration(
                                           slot.start,
@@ -2338,7 +2335,7 @@ const WeeklySchedulePage: React.FC = () => {
                                       type="button"
                                       variant="secondary"
                                       size="sm"
-                                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:border-red-900/50 p-2 rounded-full"
+                                      className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/30 border-red-500/30 p-2 rounded-full"
                                       onClick={() =>
                                         handleRemoveTimeSlot(day, slotIndex)
                                       }
@@ -2355,7 +2352,7 @@ const WeeklySchedulePage: React.FC = () => {
 
                         {/* Notes pour ce jour */}
                         <div className="mt-2">
-                          <label className="text-xs text-[var(--text-secondary)] dark:text-gray-300">
+                          <label className="text-xs text-gray-300">
                             Notes pour {DAYS_OF_WEEK[dayIndex]} (optionnel)
                           </label>
                           <textarea
@@ -2363,9 +2360,8 @@ const WeeklySchedulePage: React.FC = () => {
                             onChange={(e) =>
                               handleDailyNoteChange(day, e.target.value)
                             }
-                            className="mt-1 w-full px-3 py-1 text-sm rounded border border-[var(--border)] dark:border-gray-600 bg-[var(--input-background)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
-                            placeholder={`Notes spécifiques pour ${DAYS_OF_WEEK[dayIndex]}...`}
-                            rows={1}
+                            className="w-full mt-1 px-3 py-2 rounded border border-indigo-500/30 bg-gray-800/50 text-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                            placeholder={`Notes pour ${DAYS_OF_WEEK[dayIndex]}...`}
                           />
                         </div>
                       </div>
@@ -2374,51 +2370,25 @@ const WeeklySchedulePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Récapitulatif du temps total hebdomadaire et notes générales */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-xl shadow-sm lg:col-span-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <Clock
-                        size={24}
-                        className="text-indigo-600 dark:text-indigo-400"
-                      />
-                      <span className="font-semibold text-lg">
-                        Temps total hebdomadaire:
-                      </span>
-                    </div>
-                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {Math.round((totalWeeklyMinutes / 60) * 100) / 100}h
-                    </span>
-                  </div>
-                </div>
-
-                {/* Notes générales */}
-                <div className="lg:col-span-2 xl:col-span-3">
-                  <label
-                    htmlFor="notes"
-                    className="block text-base font-semibold text-gray-800 dark:text-white mb-2"
-                  >
-                    Notes générales (optionnel)
-                  </label>
-                  <textarea
-                    id="notes"
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-4 py-3 rounded-md border border-[var(--border)] dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] bg-[var(--background-primary)] dark:bg-gray-800 text-[var(--text-primary)] dark:text-white"
-                    placeholder="Informations complémentaires..."
-                  />
-                </div>
+              {/* Notes générales */}
+              <div className="mb-8">
+                <label className="block text-gray-200 mb-2">
+                  Notes générales (optionnel)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-indigo-500/30 bg-gray-800/50 text-gray-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent resize-none h-32"
+                  placeholder="Ajouter des notes générales sur ce planning..."
+                />
               </div>
 
-              {/* Boutons d'action */}
-              <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 mt-6 shadow-md rounded-b-lg z-10">
+              <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-gray-900/80 backdrop-blur-md border-t border-indigo-500/20 p-4 mt-6 shadow-lg rounded-b-lg z-10">
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={closeCreateModal}
-                  className="px-8 py-3 text-base dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
+                  className="px-8 py-3 text-base bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600"
                 >
                   Annuler
                 </Button>
@@ -2428,7 +2398,7 @@ const WeeklySchedulePage: React.FC = () => {
                   isLoading={creatingSchedule}
                   disabled={creatingSchedule || !selectedEmployeeId}
                   icon={isEditMode ? <Check size={20} /> : <Clock size={20} />}
-                  className="px-8 py-3 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
+                  className="px-8 py-3 text-base bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium shadow-lg shadow-indigo-600/20"
                 >
                   {isEditMode
                     ? "Mettre à jour le planning"

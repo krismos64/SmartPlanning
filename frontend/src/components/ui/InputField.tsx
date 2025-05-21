@@ -62,10 +62,10 @@ const InputField: React.FC<InputFieldProps> = ({
       {label && (
         <motion.label
           htmlFor={name}
-          className={`absolute transition-all duration-200 pointer-events-none dark:text-gray-300 ${
+          className={`absolute transition-all duration-200 pointer-events-none text-gray-300 ${
             isActive
-              ? "text-xs text-[var(--accent-primary)] top-1"
-              : "text-base text-[var(--text-secondary)] top-1/2 -translate-y-1/2"
+              ? "text-xs text-indigo-400 top-1"
+              : "text-base text-gray-400 top-1/2 -translate-y-1/2"
           }`}
           initial={false}
           animate={{
@@ -76,7 +76,7 @@ const InputField: React.FC<InputFieldProps> = ({
           transition={{ duration: 0.2 }}
         >
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-red-400 ml-1">*</span>}
         </motion.label>
       )}
 
@@ -101,14 +101,14 @@ const InputField: React.FC<InputFieldProps> = ({
           className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200
             ${
               disabled
-                ? "bg-[var(--background-tertiary)] cursor-not-allowed"
-                : "bg-[var(--background-secondary)] dark:bg-gray-800"
+                ? "bg-gray-800 cursor-not-allowed"
+                : "bg-gray-900 hover:bg-gray-800 focus:bg-gray-800"
             } 
-            text-[var(--text-primary)] dark:text-white placeholder-[var(--text-secondary)] dark:placeholder-gray-400
+            text-white placeholder-gray-400
             ${
               error
-                ? "border border-red-500 focus:ring-red-200"
-                : "border border-[var(--border)] dark:border-gray-600 focus:ring-[var(--accent-primary)]/30"
+                ? "border border-red-500 focus:ring-red-500/20"
+                : "border border-gray-700 focus:border-indigo-500 focus:ring-indigo-500/20"
             }
             focus:ring-4
             ${icon ? "pl-10" : "pl-3"}`}
@@ -120,7 +120,7 @@ const InputField: React.FC<InputFieldProps> = ({
 
       {error && (
         <motion.p
-          className="text-red-500 dark:text-red-400 text-xs mt-1"
+          className="text-red-400 text-xs mt-1"
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
@@ -131,9 +131,7 @@ const InputField: React.FC<InputFieldProps> = ({
       )}
 
       {helperText && !error && (
-        <p className="mt-1 text-xs text-[var(--text-secondary)] dark:text-gray-400">
-          {helperText}
-        </p>
+        <p className="mt-1 text-xs text-gray-400">{helperText}</p>
       )}
     </div>
   );

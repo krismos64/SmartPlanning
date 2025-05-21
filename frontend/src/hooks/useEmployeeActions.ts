@@ -68,7 +68,7 @@ const useEmployeeActions = () => {
 
     try {
       // Appel API pour créer un nouvel employé via axiosInstance
-      await axiosInstance.post("/api/employees", newEmployee);
+      await axiosInstance.post("/employees", newEmployee);
       // axiosInstance gère automatiquement les erreurs et l'authentification
     } catch (error: any) {
       // Formatage et propagation de l'erreur
@@ -99,10 +99,7 @@ const useEmployeeActions = () => {
       }
 
       // Appel API pour mettre à jour l'employé via axiosInstance
-      await axiosInstance.patch(
-        `/api/employees/${employeeId}`,
-        updatedEmployee
-      );
+      await axiosInstance.patch(`/employees/${employeeId}`, updatedEmployee);
       // axiosInstance gère automatiquement les erreurs et l'authentification
     } catch (error: any) {
       // Formatage et propagation de l'erreur
@@ -129,7 +126,7 @@ const useEmployeeActions = () => {
       }
 
       // Appel API pour supprimer l'employé via axiosInstance
-      await axiosInstance.delete(`/api/employees/${employeeId}`);
+      await axiosInstance.delete(`/employees/${employeeId}`);
       // axiosInstance gère automatiquement les erreurs et l'authentification
     } catch (error: any) {
       // Formatage et propagation de l'erreur

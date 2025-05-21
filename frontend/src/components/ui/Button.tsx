@@ -57,28 +57,28 @@ const Button: React.FC<ButtonProps> = ({
   // Mapping des variantes vers les classes CSS appropriées
   const variantClasses = {
     primary:
-      "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-dark)] focus:ring-[var(--accent-primary)]/40",
+      "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500/40 border border-indigo-500",
     secondary:
-      "bg-[var(--background-tertiary)] text-[var(--text-primary)] hover:bg-[var(--background-tertiary)]/80 focus:ring-[var(--background-tertiary)]/60",
+      "bg-gray-800 text-white hover:bg-gray-700 focus:ring-gray-700/60 border border-gray-700",
     danger:
-      "bg-[var(--error)] text-white hover:bg-[var(--error-dark)] focus:ring-[var(--error)]/40",
+      "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500/40 border border-red-500",
     ghost:
-      "bg-transparent text-[var(--text-primary)] hover:bg-[var(--background-secondary)] focus:ring-[var(--background-tertiary)]",
+      "bg-transparent text-gray-200 hover:bg-gray-800 hover:text-white focus:ring-gray-700/30",
     outline:
-      "bg-transparent border border-[var(--background-tertiary)] text-[var(--text-primary)] hover:bg-[var(--background-tertiary)] focus:ring-[var(--background-tertiary)]",
+      "bg-transparent border border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white focus:ring-gray-700/30",
   };
 
   // Mapping des tailles vers les classes CSS appropriées
   const sizeClasses = {
-    sm: "text-xs px-2.5 py-1.5 rounded",
+    sm: "text-xs px-2.5 py-1.5 rounded-md",
     md: "text-sm px-4 py-2 rounded-md",
-    lg: "text-base px-6 py-2.5 rounded-lg",
+    lg: "text-base px-6 py-2.5 rounded-md",
     xs: "text-xs px-2 py-1 rounded",
   };
 
   // Classes de base communes à tous les boutons
   const baseClasses =
-    "font-medium transition-colors focus:outline-none focus:ring-2 flex items-center justify-center gap-2";
+    "font-medium transition-colors duration-200 focus:outline-none focus:ring-2 flex items-center justify-center gap-2";
 
   // Classes pour gérer l'état désactivé
   const disabledClasses =
