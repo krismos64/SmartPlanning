@@ -7,7 +7,6 @@
  * Usage : ts-node src/scripts/create-admin-user.ts
  */
 
-import bcrypt from "bcrypt";
 import chalk from "chalk";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
@@ -54,22 +53,33 @@ async function createAdminUser(): Promise<void> {
       return;
     }
 
-    // Hacher le mot de passe
-    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
-
-    // Créer l'utilisateur admin
+    // Option 1: Laisser le hook pre('save') gérer le hashage
     const adminUser = new User({
       firstName: "Admin",
       lastName: "SmartPlanning",
       email: ADMIN_EMAIL,
-      password: hashedPassword,
+      password: ADMIN_PASSWORD, // Password brut, sera hashé par le hook pre('save')
       role: "admin",
       status: "active",
       isEmailVerified: true,
     });
 
-    // Sauvegarder l'utilisateur
+    // Sauvegarder l'utilisateur avec le hook de hashage
     await adminUser.save();
+
+    // Option 2 (alternative): Hasher manuellement et utiliser insertOne pour éviter le hook
+    // const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
+    // await User.collection.insertOne({
+    //   firstName: "Admin",
+    //   lastName: "SmartPlanning",
+    //   email: ADMIN_EMAIL,
+    //   password: hashedPassword,
+    //   role: "admin",
+    //   status: "active",
+    //   isEmailVerified: true,
+    //   createdAt: new Date(),
+    //   updatedAt: new Date()
+    // });
 
     console.log(
       chalk.green(

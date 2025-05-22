@@ -12,7 +12,8 @@
     "migrate": "ts-node src/scripts/migrate-from-test.ts",
     "create-admin": "ts-node src/scripts/create-admin-user.ts",
     "migrate:employees": "ts-node scripts/migrate-add-email.ts",
-    "assign-teams-to-manager": "ts-node scripts/assignTeamsToManager.ts"
+    "assign-teams-to-manager": "ts-node scripts/assignTeamsToManager.ts",
+    "reset-chris": "ts-node src/scripts/reset-password-chris.ts"
   },
   "dependencies": {
     "axios": "^1.8.4",

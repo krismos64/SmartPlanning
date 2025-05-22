@@ -15,6 +15,7 @@ import api, { updateUserProfile, uploadFile } from "../services/api";
 type PasswordForm = {
   currentPassword: string;
   newPassword: string;
+  confirmPassword: string;
 };
 
 const UserProfilePage = () => {
@@ -48,6 +49,7 @@ const UserProfilePage = () => {
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
     currentPassword: "",
     newPassword: "",
+    confirmPassword: "",
   });
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -161,6 +163,14 @@ const UserProfilePage = () => {
     setPasswordModified(true);
   };
 
+  // Validation du mot de passe selon normes RGPD
+  const validatePasswordRGPD = (password: string): boolean => {
+    // Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial
+    const regex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    return regex.test(password);
+  };
+
   // Gérer la sélection d'un fichier pour l'avatar
   const handleFileSelect = (file: File) => {
     console.log(
@@ -250,17 +260,35 @@ const UserProfilePage = () => {
   const handlePasswordSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    // Validation simple
-    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+    // Validation complète
+    if (
+      !passwordForm.currentPassword ||
+      !passwordForm.newPassword ||
+      !passwordForm.confirmPassword
+    ) {
       showErrorToast("Veuillez remplir tous les champs");
+      return;
+    }
+
+    // Vérifier que les deux mots de passe correspondent
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showErrorToast("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    // Vérifier la complexité du mot de passe
+    if (!validatePasswordRGPD(passwordForm.newPassword)) {
+      showErrorToast(
+        "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)"
+      );
       return;
     }
 
     try {
       setIsChangingPassword(true);
 
-      // Appel API pour changer le mot de passe
-      await api.put("/users/password", {
+      // Appel API pour changer le mot de passe (nouvelle route)
+      await api.put("/profile/password", {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
@@ -269,20 +297,38 @@ const UserProfilePage = () => {
       setPasswordForm({
         currentPassword: "",
         newPassword: "",
+        confirmPassword: "",
       });
       setPasswordModified(false);
 
-      showSuccessToast("Mot de passe modifié avec succès");
+      // Afficher le message de succès
+      showSuccessToast("Mot de passe mis à jour avec succès");
 
-      // Masquer la section après succès
-      setShowPasswordSection(false);
+      // Ajouter un délai avant de masquer la section pour permettre l'affichage du toast
+      setTimeout(() => {
+        setShowPasswordSection(false);
+      }, 300);
     } catch (error) {
       console.error("Erreur lors du changement de mot de passe:", error);
-      showErrorToast(
-        axios.isAxiosError(error) && error.response?.status === 401
-          ? "Mot de passe actuel incorrect"
-          : "Erreur lors du changement de mot de passe"
-      );
+
+      // Gestion des différents cas d'erreur
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          showErrorToast("Mot de passe actuel incorrect");
+        } else if (error.response?.status === 400) {
+          showErrorToast(
+            error.response.data.message ||
+              "Le nouveau mot de passe ne respecte pas les exigences de sécurité"
+          );
+        } else {
+          showErrorToast(
+            error.response?.data?.message ||
+              "Erreur lors de la mise à jour du mot de passe"
+          );
+        }
+      } else {
+        showErrorToast("Erreur lors de la mise à jour du mot de passe");
+      }
     } finally {
       setIsChangingPassword(false);
     }
@@ -608,7 +654,7 @@ const UserProfilePage = () => {
                       onChange={handlePasswordChange}
                       required
                       autoComplete="new-password"
-                      helperText="Votre nouveau mot de passe doit comporter au moins 6 caractères"
+                      helperText="Doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)"
                       className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
                     />
                     <button
@@ -627,6 +673,25 @@ const UserProfilePage = () => {
                         <Eye size={18} />
                       )}
                     </button>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
+                    Confirmer le mot de passe{" "}
+                    <span className="text-red-500">*</span>
+                  </p>
+                  <div className="relative">
+                    <InputField
+                      label="Confirmer le mot de passe"
+                      name="confirmPassword"
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={handlePasswordChange}
+                      required
+                      helperText="Veuillez confirmer votre nouveau mot de passe"
+                      className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
+                    />
                   </div>
                 </div>
 

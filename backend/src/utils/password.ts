@@ -65,3 +65,39 @@ export const isSecurePassword = (password: string): boolean => {
 
   return hasUppercase && hasLowercase && hasNumber;
 };
+
+/**
+ * Utilitaire de validation de mot de passe RGPD
+ *
+ * Fonctions pour vérifier qu'un mot de passe respecte les exigences de sécurité RGPD
+ */
+
+/**
+ * Vérifie la complexité d'un mot de passe selon les exigences RGPD
+ * Le mot de passe doit contenir au moins :
+ * - 8 caractères
+ * - Une lettre majuscule
+ * - Une lettre minuscule
+ * - Un chiffre
+ * - Un caractère spécial (@$!%*?&)
+ *
+ * @param password - Le mot de passe à valider
+ * @returns boolean - True si le mot de passe est conforme
+ */
+export const validatePasswordComplexity = (password: string): boolean => {
+  // Regex vérifiant la complexité du mot de passe
+  const regex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  return regex.test(password);
+};
+
+/**
+ * Message d'erreur formaté pour les exigences de mot de passe
+ */
+export const passwordRequirementsMessage =
+  "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).";
+
+export default {
+  validatePasswordComplexity,
+  passwordRequirementsMessage,
+};

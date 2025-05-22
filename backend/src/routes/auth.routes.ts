@@ -106,16 +106,46 @@ router.post("/register", async (req: Request, res: Response) => {
 router.post("/login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    console.log("🔐 Tentative de connexion pour:", email);
 
+    // Récupérer l'utilisateur avec son mot de passe
     const user = await User.findOne({ email }).select("+password");
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+
+    if (!user) {
+      console.warn("❌ Utilisateur non trouvé pour l'email :", email);
       return res
         .status(401)
         .json({ success: false, message: "Identifiants incorrects" });
     }
 
-    const token = generateToken((user as UserDocument).toObject());
+    console.log("✅ Utilisateur trouvé:", user._id.toString());
+    console.log("✅ Password hash récupéré :", user.password);
 
+    if (!user.password) {
+      console.error("❌ Champ 'password' manquant malgré .select('+password')");
+      return res.status(500).json({
+        success: false,
+        message: "Mot de passe non disponible. Contact support.",
+      });
+    }
+
+    // Vérifier le mot de passe
+    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    if (!isValidPassword) {
+      console.warn("❌ Mot de passe incorrect pour l'utilisateur :", email);
+      return res
+        .status(401)
+        .json({ success: false, message: "Identifiants incorrects" });
+    }
+
+    console.log("✅ Mot de passe vérifié avec succès pour:", email);
+
+    // Générer le token JWT
+    const token = generateToken((user as UserDocument).toObject());
+    console.log("✅ Token JWT généré avec succès");
+
+    // Répondre avec les informations de l'utilisateur
     res.status(200).json({
       success: true,
       token,
@@ -128,8 +158,10 @@ router.post("/login", async (req: Request, res: Response) => {
         photoUrl: user.photoUrl || undefined,
       },
     });
+
+    console.log("✅ Connexion réussie pour:", email);
   } catch (error) {
-    console.error("Erreur login:", error);
+    console.error("❌ Erreur login:", error);
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 });

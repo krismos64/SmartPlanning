@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import chalk from "chalk";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
@@ -28,11 +29,23 @@ async function resetAdminPassword(): Promise<void> {
       return;
     }
 
-    user.password = NEW_PASSWORD;
-    await user.save();
-    console.log(
-      chalk.green(`✅ Mot de passe de ${ADMIN_EMAIL} réinitialisé avec succès`)
+    // Option 1: Utiliser directement updateOne pour éviter le hook pre('save')
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { password: await bcrypt.hash(NEW_PASSWORD, 10) } }
     );
+
+    console.log(
+      chalk.blue(
+        `💡 Mot de passe hashé manuellement et mis à jour directement en base`
+      )
+    );
+
+    // Option 2 (commentée): Laisser le hook pre('save') gérer le hashage
+    // Risque potentiel de double hashage si le développeur n'est pas conscient du fonctionnement
+    //
+    // user.password = NEW_PASSWORD;
+    // await user.save();
   } catch (error) {
     console.error(
       chalk.red("❌ Erreur lors de la mise à jour du mot de passe :"),

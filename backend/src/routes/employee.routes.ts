@@ -206,14 +206,14 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     }
 
     // Créer un nouvel utilisateur
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Le mot de passe sera hashé automatiquement par le hook pre('save') du modèle User
     const newUser = await User.create(
       [
         {
           firstName,
           lastName,
           email,
-          password: hashedPassword,
+          password,
           role: "employee",
           status: "active",
           isEmailVerified: true, // Bypass car compte créé par un admin
@@ -332,15 +332,19 @@ router.patch(
 
       // Si un mot de passe est fourni et que l'employé a un userId, mettre à jour l'utilisateur
       if (password && employee.userId) {
-        // Hacher le nouveau mot de passe
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Mettre à jour le mot de passe de l'utilisateur
-        await User.findByIdAndUpdate(
-          employee.userId,
-          { password: hashedPassword },
+        // Méthode 1: Utiliser directement User.updateOne pour éviter le hook pre('save')
+        await User.updateOne(
+          { _id: employee.userId },
+          { $set: { password: await bcrypt.hash(password, 10) } },
           { session }
         );
+
+        // Méthode 2 (alternative): Récupérer l'utilisateur et utiliser save() (mais risque de double hashage)
+        // const user = await User.findById(employee.userId);
+        // if (user) {
+        //   user.password = password;
+        //   await user.save({ session });
+        // }
       }
 
       // Valider la transaction
