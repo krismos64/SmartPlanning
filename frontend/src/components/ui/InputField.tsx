@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import React, { ChangeEvent } from "react";
+import React, { ChangeEvent, FocusEvent } from "react";
 import { useTheme } from "../ThemeProvider";
 
 /**
@@ -34,6 +34,10 @@ export interface InputFieldProps {
   helperText?: string;
   /** Contrôler les styles du mode clair */
   lightMode?: boolean;
+  /** Événement quand le champ prend le focus */
+  onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
+  /** Événement quand le champ perd le focus */
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
 }
 
 /**
@@ -57,28 +61,29 @@ const InputField: React.FC<InputFieldProps> = ({
   autoComplete,
   helperText,
   lightMode = false,
+  onFocus,
+  onBlur,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
   const isActive = isFocused || value !== "";
   const { isDarkMode } = useTheme();
 
+  // Gestion du focus
+  const handleFocus = (e: FocusEvent<HTMLInputElement>) => {
+    setIsFocused(true);
+    if (onFocus) onFocus(e);
+  };
+
+  // Gestion de la perte du focus
+  const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
+    setIsFocused(false);
+    if (onBlur) onBlur(e);
+  };
+
   // Déterminer les styles en fonction du mode
   const getInputStyle = () => {
-    if (isDarkMode) {
-      // Mode sombre: fond sombre, texte clair
-      return {
-        backgroundColor: "#2D3748",
-        color: "white",
-        borderColor: error ? "#EF4444" : "#4A5568",
-      };
-    } else {
-      // Mode clair: fond clair, texte sombre
-      return {
-        backgroundColor: "white",
-        color: "#1A202C",
-        borderColor: error ? "#EF4444" : "#E2E8F0",
-      };
-    }
+    // Retourner un objet vide pour laisser les styles globaux prendre le dessus
+    return {};
   };
 
   // Appliquer le style
@@ -129,8 +134,8 @@ const InputField: React.FC<InputFieldProps> = ({
           disabled={disabled}
           required={required}
           placeholder={placeholder}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           style={inputStyle}
           data-theme-mode={isDarkMode ? "dark" : "light"}
           className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200

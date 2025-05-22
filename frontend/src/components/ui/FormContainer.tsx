@@ -8,9 +8,10 @@ interface FormContainerProps {
   title?: string;
   description?: string;
   className?: string;
+  wide?: boolean;
 }
 
-const Container = styled(motion.div)<{ isDarkMode?: boolean }>`
+const Container = styled(motion.div)<{ isDarkMode?: boolean; wide?: boolean }>`
   background-color: ${({ isDarkMode }) => (isDarkMode ? "#121829" : "#FFFFFF")};
   color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
   border-radius: 1rem;
@@ -21,7 +22,7 @@ const Container = styled(motion.div)<{ isDarkMode?: boolean }>`
   border: 1px solid ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
   padding: 2rem;
   width: 100%;
-  max-width: 28rem;
+  max-width: ${({ wide }) => (wide ? "56rem" : "28rem")};
   margin: 0 auto;
   overflow: hidden;
 
@@ -57,6 +58,7 @@ const FormContainer: React.FC<FormContainerProps> = ({
   title,
   description,
   className,
+  wide = false,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -64,6 +66,7 @@ const FormContainer: React.FC<FormContainerProps> = ({
     <Container
       isDarkMode={isDarkMode}
       className={className}
+      wide={wide}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}

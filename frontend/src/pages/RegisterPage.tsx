@@ -6,7 +6,7 @@
  * du design system SmartPlanning pour une expérience cohérente.
  */
 import { motion } from "framer-motion";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -17,6 +17,8 @@ import PageWrapper from "../components/layout/PageWrapper";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
+import Toast from "../components/ui/Toast";
+import { useToast } from "../hooks/useToast";
 
 const Form = styled.form`
   display: flex;
@@ -41,7 +43,7 @@ const FormRow = styled.div`
 
 const TermsContainer = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   margin-top: 0.5rem;
 `;
@@ -50,6 +52,7 @@ const TermsLabel = styled.label<{ isDarkMode?: boolean }>`
   font-size: 0.875rem;
   color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
   cursor: pointer;
+  line-height: 1.4;
 
   a {
     color: #4f46e5;
@@ -132,9 +135,16 @@ const ErrorMessage = styled.p`
   margin-top: 0.5rem;
 `;
 
+const HelperText = styled.p<{ isDarkMode?: boolean }>`
+  font-size: 0.75rem;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  margin-top: 0.25rem;
+`;
+
 const RegisterPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const { toast, showErrorToast, hideToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -153,7 +163,6 @@ const RegisterPage: React.FC = () => {
       [name]: type === "checkbox" ? checked : value,
     }));
 
-    // Clear error for this field when the user starts typing
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -185,6 +194,13 @@ const RegisterPage: React.FC = () => {
     } else if (formData.password.length < 8) {
       newErrors.password =
         "Le mot de passe doit contenir au moins 8 caractères";
+    } else if (
+      !/(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])/.test(
+        formData.password
+      )
+    ) {
+      newErrors.password =
+        "Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial";
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -210,13 +226,14 @@ const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Simuler un appel API
       await new Promise((resolve) => setTimeout(resolve, 1000));
       console.log("Registration submitted:", formData);
-      // Naviguer vers le dashboard après inscription
       navigate("/tableau-de-bord");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
+      showErrorToast(
+        error?.message || "Une erreur est survenue lors de l'inscription"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -224,8 +241,59 @@ const RegisterPage: React.FC = () => {
 
   const handleGoogleRegister = () => {
     console.log("Google registration clicked");
-    // Logique d'authentification Google
   };
+
+  useEffect(() => {
+    const styleId = "smartplanning-darkmode-input-override";
+    let styleElement = document.getElementById(
+      styleId
+    ) as HTMLStyleElement | null;
+
+    if (isDarkMode) {
+      if (!styleElement) {
+        styleElement = document.createElement("style");
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+      styleElement.textContent = `
+        /* Forcer le style des inputs en mode sombre */
+        #root input[type="text"],
+        #root input[type="email"],
+        #root input[type="password"] {
+          background-color: #1A2234 !important;
+          color: #F1F5F9 !important;
+          border: 1px solid #4A5568 !important;
+          -webkit-text-fill-color: #F1F5F9 !important; /* Pour Safari et Chrome autofill text */
+        }
+        /* Styles spécifiques pour l'auto-remplissage WebKit (Chrome, Safari) */
+        #root input[type="email"]:-webkit-autofill,
+        #root input[type="email"]:-webkit-autofill:hover,
+        #root input[type="email"]:-webkit-autofill:focus,
+        #root input[type="email"]:-webkit-autofill:active,
+        #root input[type="password"]:-webkit-autofill,
+        #root input[type="password"]:-webkit-autofill:hover,
+        #root input[type="password"]:-webkit-autofill:focus,
+        #root input[type="password"]:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #1A2234 inset !important; /* Fond pour l'autofill */
+          -webkit-text-fill-color: #F1F5F9 !important; /* Couleur du texte pour l'autofill */
+          border: 1px solid #4A5568 !important; /* S'assurer que la bordure est aussi overridée */
+        }
+        #root input::placeholder {
+          color: #94A3B8 !important;
+          opacity: 0.7 !important;
+        }
+      `;
+    } else {
+      if (styleElement) {
+        styleElement.remove();
+      }
+    }
+    return () => {
+      if (document.getElementById(styleId)) {
+        document.getElementById(styleId)?.remove();
+      }
+    };
+  }, [isDarkMode]);
 
   return (
     <>
@@ -239,10 +307,20 @@ const RegisterPage: React.FC = () => {
 
       <Header />
 
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.visible}
+        onClose={hideToast}
+        position="top-center"
+        duration={5000}
+      />
+
       <PageWrapper>
         <FormContainer
           title="Créer un compte SmartPlanning"
           description="Rejoignez-nous et découvrez une nouvelle façon de gérer vos plannings"
+          wide={true}
         >
           <Form onSubmit={handleSubmit}>
             <motion.div
@@ -260,6 +338,8 @@ const RegisterPage: React.FC = () => {
                     value={formData.firstName}
                     onChange={handleChange}
                     required
+                    className="register-field"
+                    helperText="Votre prénom sera utilisé pour personnaliser l'interface"
                   />
                   {errors.firstName && (
                     <ErrorMessage>{errors.firstName}</ErrorMessage>
@@ -275,6 +355,8 @@ const RegisterPage: React.FC = () => {
                     value={formData.lastName}
                     onChange={handleChange}
                     required
+                    className="register-field"
+                    helperText="Votre nom de famille tel qu'il apparaîtra dans l'application"
                   />
                   {errors.lastName && (
                     <ErrorMessage>{errors.lastName}</ErrorMessage>
@@ -297,6 +379,8 @@ const RegisterPage: React.FC = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  className="register-field"
+                  helperText="Votre adresse email sera utilisée pour vous connecter et pour la récupération de compte"
                 />
                 {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
               </FormGroup>
@@ -312,10 +396,12 @@ const RegisterPage: React.FC = () => {
                   type="password"
                   label="Mot de passe"
                   name="password"
-                  placeholder="********"
+                  placeholder="Minimum 8 caractères"
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  className="register-field"
+                  helperText="Au moins 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre et 1 caractère spécial (!@#$%^&*). Conforme au RGPD."
                 />
                 {errors.password && (
                   <ErrorMessage>{errors.password}</ErrorMessage>
@@ -333,10 +419,12 @@ const RegisterPage: React.FC = () => {
                   type="password"
                   label="Confirmer le mot de passe"
                   name="confirmPassword"
-                  placeholder="********"
+                  placeholder="Saisissez à nouveau votre mot de passe"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  className="register-field"
+                  helperText="Confirmez votre mot de passe pour renforcer la sécurité conformément au RGPD"
                 />
                 {errors.confirmPassword && (
                   <ErrorMessage>{errors.confirmPassword}</ErrorMessage>
@@ -356,6 +444,7 @@ const RegisterPage: React.FC = () => {
                   name="acceptTerms"
                   checked={formData.acceptTerms}
                   onChange={handleChange}
+                  style={{ marginTop: "3px" }}
                 />
                 <TermsLabel htmlFor="acceptTerms" isDarkMode={isDarkMode}>
                   J'accepte les{" "}
