@@ -15,6 +15,7 @@ const companySchema = new Schema<ICompany>(
       type: String,
       required: [true, "Le nom de l'entreprise est requis"],
       trim: true,
+      unique: true, // Garantir l'unicité du nom d'entreprise
     },
     logoUrl: {
       type: String,
@@ -26,5 +27,10 @@ const companySchema = new Schema<ICompany>(
   }
 );
 
+// Création d'un index sur le nom pour optimiser les recherches
+companySchema.index({ name: 1 });
+
 // Modèle Mongoose créé à partir du schéma
 export const Company = mongoose.model<ICompany>("Company", companySchema);
+
+export default Company;

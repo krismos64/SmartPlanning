@@ -233,8 +233,8 @@ const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("image", file);
 
-    // Faire la requête POST vers l'endpoint d'upload avec des configurations spécifiques
-    const response = await api.post("/upload/avatar", formData, {
+    // Faire la requête POST vers l'endpoint d'upload public (sans authentification)
+    const response = await api.post("/upload/public", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -534,16 +534,21 @@ const RegisterPage: React.FC = () => {
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
-        role: formData.role, // Toujours "directeur"
         companyName: formData.companyName,
         companyLogo: companyLogoUrl,
         profilePicture: profilePictureUrl,
         phone: formData.phone.trim() || undefined, // Ne pas envoyer si vide
       };
 
-      // Simuler un appel API pour l'inscription
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Registration submitted:", userData);
+      // Envoyer les données au backend
+      const response = await api.post("/auth/register", userData);
+
+      // Sauvegarder le token dans le localStorage
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+
+      console.log("Inscription réussie:", response.data);
 
       // Afficher un toast de succès
       showSuccessToast(
@@ -556,9 +561,18 @@ const RegisterPage: React.FC = () => {
       }, 1500);
     } catch (error: any) {
       console.error("Registration error:", error);
-      showErrorToast(
-        error?.message || "Une erreur est survenue lors de l'inscription"
-      );
+      // Afficher le message d'erreur du serveur si disponible
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        showErrorToast(error.response.data.message);
+      } else {
+        showErrorToast(
+          error?.message || "Une erreur est survenue lors de l'inscription"
+        );
+      }
     } finally {
       setIsLoading(false);
     }

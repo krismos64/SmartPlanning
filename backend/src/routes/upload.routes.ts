@@ -172,5 +172,91 @@ router.post("/avatar", authenticateToken, (req, res) => {
   });
 });
 
+/**
+ * Route POST pour uploader une image sans authentification (pour l'inscription)
+ * Endpoint: POST /api/upload/public
+ * Route publique, ne nécessite pas d'authentification
+ */
+// @ts-ignore - Ignorer l'erreur de compatibilité entre différentes versions des types Express
+router.post("/public", (req, res) => {
+  console.log("🔍 Requête d'upload public reçue");
+  console.log("🔍 Headers:", req.headers);
+  console.log("🔍 Body:", req.body);
+
+  // Utiliser Multer comme middleware pour traiter le fichier unique
+  upload.single("image")(req, res, async (err) => {
+    // Gérer les erreurs de Multer (taille, type de fichier, etc.)
+    if (err) {
+      console.error("❌ Erreur Multer:", err);
+      return res.status(400).json({
+        success: false,
+        message: `Erreur lors de l'upload du fichier: ${err.message}`,
+      });
+    }
+
+    // Vérifier la présence du fichier
+    if (!req.file) {
+      console.error("❌ Aucun fichier reçu");
+      console.log("🔍 Request après traitement par Multer:", req.body);
+      return res.status(400).json({
+        success: false,
+        message:
+          "Aucun fichier n'a été fourni ou le fichier n'est pas une image valide.",
+      });
+    }
+
+    console.log(
+      "✅ Fichier reçu (route publique):",
+      req.file.originalname,
+      req.file.mimetype,
+      req.file.size,
+      "bytes"
+    );
+
+    try {
+      // Récupérer le chemin du fichier temporaire
+      const tempFilePath = req.file.path;
+
+      try {
+        // Uploader l'image vers Cloudinary
+        const imageUrl = await uploadImageToCloudinary(tempFilePath);
+
+        // Supprimer le fichier temporaire après l'upload réussi
+        // Utilisation de unlinkSync pour s'assurer que le fichier est supprimé
+        fs.unlinkSync(tempFilePath);
+
+        // Envoyer la réponse avec l'URL de l'image
+        return res.status(200).json({
+          success: true,
+          imageUrl,
+        });
+      } catch (uploadError) {
+        // En cas d'erreur lors de l'upload vers Cloudinary
+        console.error("Erreur lors de l'upload vers Cloudinary:", uploadError);
+
+        // Supprimer le fichier temporaire en cas d'échec
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+
+        return res.status(500).json({
+          success: false,
+          message: "Erreur lors de l'upload vers Cloudinary",
+          error: (uploadError as Error).message,
+        });
+      }
+    } catch (error) {
+      // Gestion des erreurs générales
+      console.error("Erreur lors du traitement de l'upload:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Une erreur est survenue lors de l'upload de l'image",
+        error: (error as Error).message,
+      });
+    }
+  });
+});
+
 // Exporter le routeur
 export const uploadRoutes = router;

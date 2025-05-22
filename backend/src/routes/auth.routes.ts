@@ -3,11 +3,12 @@ import crypto from "crypto";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { generateToken } from "../config/passport";
-import EmployeeModel from "../models/Employee.model";
+import Company from "../models/Company.model";
 import User, { UserDocument } from "../models/User.model";
 import { sendPasswordResetEmail } from "../utils/email";
 import { sendTestEmail } from "../utils/emailTest";
 import {
+  isValidUrl,
   passwordRequirementsMessage,
   validatePasswordComplexity,
 } from "../utils/password";
@@ -37,72 +38,158 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
 
 /**
  * @route POST /api/auth/register
- * @desc Inscription d'un nouvel utilisateur
+ * @desc Inscription d'un directeur avec création d'entreprise
+ * @access Public
  */
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
-
-    if (!firstName || !lastName || !email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Champs requis manquants" });
-    }
-
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email invalide" });
-    }
-
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Mot de passe trop court" });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res
-        .status(409)
-        .json({ success: false, message: "Email déjà utilisé" });
-    }
-
-    const newUser = await User.create({
+    const {
       firstName,
       lastName,
       email,
       password,
-      role: "user",
-      isEmailVerified: true,
-    });
+      phone,
+      companyName,
+      profilePicture,
+      companyLogo,
+    } = req.body;
 
-    if (newUser.role === "employee" && newUser.companyId) {
-      await EmployeeModel.create({
-        userId: newUser._id,
-        companyId: newUser.companyId,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        status: "actif",
-        contractHoursPerWeek: 35,
+    // Validation des champs obligatoires
+    if (!firstName || !lastName || !email || !password || !companyName) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Champs requis manquants. Prénom, nom, email, mot de passe et nom d'entreprise sont obligatoires.",
       });
     }
 
+    // Validation de l'email
+    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Format d'email invalide" });
+    }
+
+    // Validation du mot de passe RGPD
+    if (!validatePasswordComplexity(password)) {
+      return res
+        .status(422)
+        .json({ success: false, message: passwordRequirementsMessage });
+    }
+
+    // Validation des URLs des images si présentes
+    if (profilePicture && !isValidUrl(profilePicture)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "URL de photo de profil invalide" });
+    }
+
+    if (companyLogo && !isValidUrl(companyLogo)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "URL de logo d'entreprise invalide" });
+    }
+
+    // Validation du numéro de téléphone si présent
+    if (phone) {
+      const phoneRegex = /^(\+\d{1,3}\s?)?(\d{9,15})$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({
+          success: false,
+          message: "Format de numéro de téléphone invalide",
+        });
+      }
+    }
+
+    // Vérification de l'unicité de l'email
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "Cette adresse email est déjà utilisée",
+      });
+    }
+
+    // Vérification de l'unicité du nom d'entreprise
+    const existingCompany = await Company.findOne({ name: companyName });
+    if (existingCompany) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
+      });
+    }
+
+    // Création de l'entreprise
+    const newCompany = await Company.create({
+      name: companyName,
+      logoUrl: companyLogo || null,
+    });
+
+    // Création de l'utilisateur directeur
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      email,
+      password, // Le hashage est géré par le middleware pre-save dans User.model.ts
+      phone,
+      photoUrl: profilePicture || undefined,
+      role: "directeur", // Rôle fixé en dur à "directeur"
+      companyId: newCompany._id,
+      isEmailVerified: true, // On considère l'email vérifié à l'inscription
+      status: "active",
+    });
+
+    // Génération du token JWT
+    const token = generateToken(newUser.toObject());
+
+    // Réponse avec les données minimales de l'utilisateur (sans mot de passe)
     res.status(201).json({
       success: true,
       message: "Inscription réussie",
+      token,
       user: {
         id: newUser._id,
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
         role: newUser.role,
+        companyId: newUser.companyId,
+        profilePicture: newUser.photoUrl || undefined,
+      },
+      company: {
+        id: newCompany._id,
+        name: newCompany.name,
+        logo: newCompany.logoUrl || undefined,
       },
     });
-  } catch (error) {
-    console.error("Erreur registre:", error);
-    res.status(500).json({ success: false, message: "Erreur serveur" });
+  } catch (error: any) {
+    console.error("Erreur lors de l'inscription:", error);
+
+    // Gestion des erreurs spécifiques de MongoDB
+    if (error.name === "MongoServerError" && error.code === 11000) {
+      // Gestion des violations de contrainte d'unicité
+      if (error.keyPattern?.name) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
+        });
+      }
+      if (error.keyPattern?.email) {
+        return res.status(409).json({
+          success: false,
+          message: "Cette adresse email est déjà utilisée",
+        });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Une erreur est survenue lors de l'inscription",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 });
 

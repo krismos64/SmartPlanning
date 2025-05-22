@@ -97,7 +97,22 @@ export const validatePasswordComplexity = (password: string): boolean => {
 export const passwordRequirementsMessage =
   "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).";
 
+/**
+ * Vérifie si une chaîne est une URL valide
+ * @param url - L'URL à valider
+ * @returns boolean - True si l'URL est valide
+ */
+export const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export default {
   validatePasswordComplexity,
   passwordRequirementsMessage,
+  isValidUrl,
 };
