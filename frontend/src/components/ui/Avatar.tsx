@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 interface AvatarProps {
   src?: string | null;
   alt?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
   fallbackClassName?: string;
 }
@@ -61,6 +61,7 @@ const Avatar: React.FC<AvatarProps> = ({
     md: "w-12 h-12 text-sm",
     lg: "w-16 h-16 text-base",
     xl: "w-24 h-24 text-lg",
+    "2xl": "w-32 h-32 text-xl",
   };
 
   const handleError = () => {

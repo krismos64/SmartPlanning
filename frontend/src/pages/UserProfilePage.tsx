@@ -330,23 +330,26 @@ const UserProfilePage = () => {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800 dark:text-white">
+    <div className="container mx-auto py-8 px-4 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-8 text-gray-800 dark:text-white bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
         Mon profil
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         {/* Carte d'information */}
-        <Card className="md:col-span-5 flex flex-col items-center">
-          <div className="mb-6 mt-4">
+        <Card className="md:col-span-5 flex flex-col items-center p-6 bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900">
+          <div className="mb-8 mt-4 relative group">
             <Avatar
               src={previewUrl}
-              size="xl"
-              className="border-4 border-white dark:border-gray-700 shadow-lg"
+              size="2xl"
+              className="border-4 border-white dark:border-gray-700 shadow-xl hover:shadow-indigo-300/50 dark:hover:shadow-indigo-700/30 transition-all duration-300"
             />
+            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              {user?.role && getRoleLabel(user.role)}
+            </div>
           </div>
 
-          <h2 className="text-xl font-semibold mb-2 text-center text-gray-800 dark:text-white">
+          <h2 className="text-2xl font-semibold mb-2 text-center text-gray-800 dark:text-white">
             {formData.firstName} {formData.lastName}
           </h2>
 
@@ -354,36 +357,55 @@ const UserProfilePage = () => {
             <Badge
               label={getRoleLabel(user?.role || "")}
               type={getRoleBadgeType(user?.role || "")}
+              className="text-sm px-3 py-1"
             />
           </div>
 
-          <div className="w-full border-t dark:border-gray-700 my-4 pt-4 text-sm">
-            <p className="mb-2 flex justify-between">
-              <span className="text-gray-500 dark:text-gray-400">Email:</span>
-              <span className="font-medium break-all">{formData.email}</span>
-            </p>
-
-            {companyName && (
-              <p className="mb-2 flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">
-                  Entreprise:
-                </span>
-                <span className="font-medium">{companyName}</span>
+          <div className="w-full my-6 text-sm space-y-4">
+            {/* Email avec design moderne */}
+            <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                <h3 className="text-indigo-600 dark:text-indigo-400 font-medium">
+                  Email
+                </h3>
+              </div>
+              <p className="ml-4 font-medium break-all text-gray-700 dark:text-gray-300">
+                {formData.email}
               </p>
+            </div>
+
+            {/* Entreprise avec design moderne */}
+            {companyName && (
+              <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-violet-500"></div>
+                  <h3 className="text-violet-600 dark:text-violet-400 font-medium">
+                    Entreprise
+                  </h3>
+                </div>
+                <p className="ml-4 font-medium text-gray-700 dark:text-gray-300">
+                  {companyName}
+                </p>
+              </div>
             )}
 
+            {/* Équipes avec design moderne */}
             {teams.length > 0 && (
-              <div className="mb-2">
-                <p className="text-gray-500 dark:text-gray-400 mb-1">
-                  Équipes:
-                </p>
-                <div className="flex flex-wrap gap-1 mt-1">
+              <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <h3 className="text-blue-600 dark:text-blue-400 font-medium">
+                    Équipes
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-2 ml-4">
                   {teams.map((team, index) => (
                     <Badge
                       key={index}
                       label={team}
                       type="info"
-                      className="text-xs"
+                      className="text-xs px-2 py-0.5 bg-blue-600 text-white"
                     />
                   ))}
                 </div>
@@ -394,8 +416,8 @@ const UserProfilePage = () => {
 
         {/* Formulaire de modification */}
         <div className="md:col-span-7">
-          <Card>
-            <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-white">
+          <Card className="bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900 p-6">
+            <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-white bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
               Informations personnelles
             </h2>
 
@@ -406,28 +428,36 @@ const UserProfilePage = () => {
                     <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
                       Prénom <span className="text-red-500">*</span>
                     </p>
-                    <InputField
-                      label="Prénom"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      required
-                      helperText="Votre prénom tel qu'il apparaîtra sur votre profil"
-                    />
+                    <div className="dark:text-white">
+                      <InputField
+                        label="Prénom"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        required
+                        helperText="Votre prénom tel qu'il apparaîtra sur votre profil"
+                        className="dark:text-white"
+                        lightMode={true}
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
                       Nom <span className="text-red-500">*</span>
                     </p>
-                    <InputField
-                      label="Nom"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      required
-                      helperText="Votre nom de famille tel qu'il apparaîtra sur votre profil"
-                    />
+                    <div className="dark:text-white">
+                      <InputField
+                        label="Nom"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        required
+                        helperText="Votre nom de famille tel qu'il apparaîtra sur votre profil"
+                        className="dark:text-white"
+                        lightMode={true}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -436,15 +466,19 @@ const UserProfilePage = () => {
                 <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
                   Email <span className="text-red-500">*</span>
                 </p>
-                <InputField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  helperText="Votre adresse email professionnelle, utilisée pour vous connecter"
-                />
+                <div className="dark:text-white">
+                  <InputField
+                    label="Email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                    helperText="Votre adresse email professionnelle, utilisée pour vous connecter"
+                    className="dark:text-white"
+                    lightMode={true}
+                  />
+                </div>
               </div>
 
               <div className="mb-6">
@@ -454,7 +488,11 @@ const UserProfilePage = () => {
 
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <Avatar src={previewUrl} size="lg" />
+                    <Avatar
+                      src={previewUrl}
+                      size="xl"
+                      className="border-2 border-indigo-200 dark:border-indigo-800"
+                    />
                     {isUploadingImage && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
                         <LoadingSpinner size="sm" className="text-white" />
@@ -474,11 +512,12 @@ const UserProfilePage = () => {
                           : "Changer la photo"
                       }
                       label=""
-                      className={isUploadingImage ? "opacity-70" : ""}
+                      className={`${isUploadingImage ? "opacity-70" : ""}`}
+                      hideNoFileText={true}
+                      buttonClassName="bg-green-500 hover:bg-green-600 text-white border-none"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Formats acceptés : JPG, PNG, GIF, WebP. Taille max. 2 Mo.
-                      La photo sera hébergée sur Cloudinary de façon sécurisée.
                     </p>
                   </div>
                 </div>
@@ -491,6 +530,7 @@ const UserProfilePage = () => {
                     variant="primary"
                     isLoading={isSaving}
                     disabled={isSaving}
+                    className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-md hover:shadow-lg transition-all duration-300"
                   >
                     Enregistrer les modifications
                   </Button>
@@ -500,9 +540,9 @@ const UserProfilePage = () => {
           </Card>
 
           {/* Carte pour le changement de mot de passe */}
-          <Card className="mt-6">
+          <Card className="mt-6 bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900 p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              <h2 className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
                 Sécurité
               </h2>
 
@@ -510,6 +550,7 @@ const UserProfilePage = () => {
                 variant="ghost"
                 icon={<Key size={16} />}
                 onClick={() => setShowPasswordSection(!showPasswordSection)}
+                className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30"
               >
                 {showPasswordSection ? "Annuler" : "Modifier le mot de passe"}
               </Button>
@@ -531,10 +572,11 @@ const UserProfilePage = () => {
                       required
                       autoComplete="current-password"
                       helperText="Entrez votre mot de passe actuel pour confirmer votre identité"
+                      className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                       onClick={() =>
                         setShowCurrentPassword(!showCurrentPassword)
                       }
@@ -567,10 +609,11 @@ const UserProfilePage = () => {
                       required
                       autoComplete="new-password"
                       helperText="Votre nouveau mot de passe doit comporter au moins 6 caractères"
+                      className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       aria-label={
                         showNewPassword
@@ -594,6 +637,7 @@ const UserProfilePage = () => {
                       variant="primary"
                       isLoading={isChangingPassword}
                       disabled={isChangingPassword}
+                      className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-md hover:shadow-lg transition-all duration-300"
                     >
                       Changer le mot de passe
                     </Button>
@@ -603,7 +647,7 @@ const UserProfilePage = () => {
             )}
 
             {!showPasswordSection && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400 backdrop-blur-sm p-3 rounded-lg bg-white/40 dark:bg-gray-800/40 border border-indigo-100 dark:border-indigo-900">
                 Vous pouvez modifier votre mot de passe en cliquant sur le
                 bouton ci-dessus.
               </p>

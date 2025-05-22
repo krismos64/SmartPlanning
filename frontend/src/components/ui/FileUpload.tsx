@@ -11,6 +11,8 @@ interface FileUploadProps {
   label?: string;
   buttonText?: string;
   error?: string;
+  hideNoFileText?: boolean;
+  buttonClassName?: string;
 }
 
 /**
@@ -25,6 +27,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   label = "Télécharger un fichier",
   buttonText = "Parcourir",
   error,
+  hideNoFileText = false,
+  buttonClassName = "cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-600",
 }) => {
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [fileError, setFileError] = useState<string>("");
@@ -114,14 +118,16 @@ const FileUpload: React.FC<FileUploadProps> = ({
           variant="secondary"
           icon={<Upload size={16} />}
           onClick={handleButtonClick}
-          className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-600"
+          className={buttonClassName}
         >
           {buttonText}
         </Button>
 
-        <div className="text-sm truncate max-w-xs">
-          {selectedFileName || "Aucun fichier sélectionné"}
-        </div>
+        {!hideNoFileText && (
+          <div className="text-sm truncate max-w-xs">
+            {selectedFileName || "Aucun fichier sélectionné"}
+          </div>
+        )}
       </div>
 
       {(fileError || error) && (

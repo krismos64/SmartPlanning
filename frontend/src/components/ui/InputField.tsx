@@ -31,6 +31,8 @@ export interface InputFieldProps {
   autoComplete?: string;
   /** Texte d'aide à afficher sous le champ */
   helperText?: string;
+  /** Contrôler les styles du mode clair */
+  lightMode?: boolean;
 }
 
 /**
@@ -53,6 +55,7 @@ const InputField: React.FC<InputFieldProps> = ({
   icon,
   autoComplete,
   helperText,
+  lightMode = false,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
   const isActive = isFocused || value !== "";
@@ -62,10 +65,16 @@ const InputField: React.FC<InputFieldProps> = ({
       {label && (
         <motion.label
           htmlFor={name}
-          className={`absolute transition-all duration-200 pointer-events-none text-gray-300 ${
+          className={`absolute transition-all duration-200 pointer-events-none ${
+            lightMode ? "text-gray-500" : "text-gray-300"
+          } ${
             isActive
-              ? "text-xs text-indigo-400 top-1"
-              : "text-base text-gray-400 top-1/2 -translate-y-1/2"
+              ? `text-xs ${
+                  lightMode ? "text-indigo-600" : "text-indigo-400"
+                } top-1`
+              : `text-base ${
+                  lightMode ? "text-gray-600" : "text-gray-400"
+                } top-1/2 -translate-y-1/2`
           }`}
           initial={false}
           animate={{
@@ -100,18 +109,27 @@ const InputField: React.FC<InputFieldProps> = ({
           onBlur={() => setIsFocused(false)}
           className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200
             ${
-              disabled
+              lightMode
+                ? disabled
+                  ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                  : "bg-white hover:bg-white focus:bg-white text-gray-900 dark:bg-gray-800 dark:hover:bg-gray-800 dark:focus:bg-gray-800 dark:text-white"
+                : disabled
                 ? "bg-gray-800 cursor-not-allowed"
-                : "bg-gray-900 hover:bg-gray-800 focus:bg-gray-800"
+                : "bg-gray-900 hover:bg-gray-800 focus:bg-gray-800 text-white"
             } 
-            text-white placeholder-gray-400
+            ${
+              lightMode ? "text-gray-900 dark:text-white" : "text-white"
+            } placeholder-gray-400
             ${
               error
                 ? "border border-red-500 focus:ring-red-500/20"
+                : lightMode
+                ? "border border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500/20"
                 : "border border-gray-700 focus:border-indigo-500 focus:ring-indigo-500/20"
             }
             focus:ring-4
-            ${icon ? "pl-10" : "pl-3"}`}
+            ${icon ? "pl-10" : "pl-3"}
+            ${className}`}
           autoComplete={autoComplete}
           aria-invalid={error ? "true" : "false"}
           aria-describedby={error ? `${name}-error` : undefined}
@@ -131,7 +149,13 @@ const InputField: React.FC<InputFieldProps> = ({
       )}
 
       {helperText && !error && (
-        <p className="mt-1 text-xs text-gray-400">{helperText}</p>
+        <p
+          className={`mt-1 text-xs ${
+            lightMode ? "text-gray-600" : "text-gray-400"
+          }`}
+        >
+          {helperText}
+        </p>
       )}
     </div>
   );
