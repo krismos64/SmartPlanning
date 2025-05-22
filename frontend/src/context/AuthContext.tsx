@@ -13,6 +13,8 @@ interface AuthContextType {
   loading: boolean;
   // Erreurs d'authentification
   error: string | null;
+  // Indique si l'utilisateur doit compléter son profil
+  shouldCompleteProfile: boolean;
   // Fonction pour connecter l'utilisateur
   login: (email: string, password: string) => Promise<void>;
   // Fonction pour déconnecter l'utilisateur
@@ -54,6 +56,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [shouldCompleteProfile, setShouldCompleteProfile] =
+    useState<boolean>(false);
 
   // Charger le token au démarrage
   useEffect(() => {
@@ -227,6 +231,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             photoUrl: updatedPhotoUrl,
           };
         });
+
+        // Vérifier si le profil utilisateur est incomplet
+        const isProfileIncomplete =
+          !userData.companyId ||
+          !userData.photoUrl ||
+          !userData.bio ||
+          !userData.firstName ||
+          !userData.lastName;
+
+        // Mettre à jour l'état shouldCompleteProfile
+        setShouldCompleteProfile(isProfileIncomplete);
       }
     } catch (error) {
       console.error(
@@ -245,6 +260,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     loading,
     error,
+    shouldCompleteProfile,
     login,
     logout,
     updateUser,

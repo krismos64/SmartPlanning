@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import passport from "passport";
 import { generateToken } from "../config/passport";
 import Company from "../models/Company.model";
 import User, { UserDocument } from "../models/User.model";
@@ -12,6 +13,20 @@ import {
   passwordRequirementsMessage,
   validatePasswordComplexity,
 } from "../utils/password";
+
+// Types personnalisés pour la requête Express avec utilisateur
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+    firstName: string;
+    lastName: string;
+    teamIds?: string[];
+    companyId?: string;
+    toObject?: () => any;
+  };
+}
 
 const router = express.Router();
 
@@ -516,5 +531,225 @@ router.post("/reset-password", async (req: Request, res: Response) => {
     });
   }
 });
+
+/**
+ * @route PATCH /api/users/me
+ * @desc Mise à jour du profil utilisateur après authentification OAuth
+ * @access Privé (nécessite token JWT)
+ */
+router.patch(
+  "/users/me",
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      // Accès à l'ID utilisateur depuis le token décodé
+      const userId = (req.user as any)?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      // Récupérer les données du corps de la requête
+      const { companyName, companyLogo, phone, profilePicture, bio } = req.body;
+
+      // Vérifier que l'utilisateur existe
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
+
+      // Créer un objet pour stocker les champs à mettre à jour
+      const updates: any = {};
+
+      // Si l'utilisateur n'a pas encore de companyId et veut créer une entreprise
+      if (!user.companyId && companyName) {
+        // Validation du nom d'entreprise
+        if (!companyName.trim()) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Le nom de l'entreprise est requis pour créer une entreprise",
+          });
+        }
+
+        // Vérification de l'unicité du nom d'entreprise
+        const existingCompany = await Company.findOne({ name: companyName });
+        if (existingCompany) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
+          });
+        }
+
+        // Validation de l'URL du logo si présente
+        if (
+          companyLogo &&
+          typeof companyLogo === "string" &&
+          !isValidUrl(companyLogo)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "URL du logo d'entreprise invalide",
+          });
+        }
+
+        // Création de la nouvelle entreprise
+        const newCompany = await Company.create({
+          name: companyName,
+          logoUrl: companyLogo || null,
+          plan: "free", // Plan par défaut
+        });
+
+        // Associer l'ID de l'entreprise à l'utilisateur
+        updates.companyId = newCompany._id;
+      }
+
+      // Mise à jour des autres champs si fournis
+      if (phone !== undefined) {
+        // Validation du numéro de téléphone si présent et non vide
+        if (phone && typeof phone === "string") {
+          const phoneRegex = /^(\+\d{1,3}\s?)?(\d{9,15})$/;
+          if (!phoneRegex.test(phone)) {
+            return res.status(400).json({
+              success: false,
+              message: "Format de numéro de téléphone invalide",
+            });
+          }
+          updates.phone = phone;
+        } else if (phone === "") {
+          // Permettre de supprimer le numéro de téléphone
+          updates.phone = undefined;
+        }
+      }
+
+      // Mise à jour de la photo de profil si fournie
+      if (profilePicture !== undefined) {
+        // Validation de l'URL de la photo si présente et non vide
+        if (
+          profilePicture &&
+          typeof profilePicture === "string" &&
+          !isValidUrl(profilePicture)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "URL de la photo de profil invalide",
+          });
+        }
+        updates.photoUrl = profilePicture || undefined;
+      }
+
+      // Mise à jour de la bio si fournie
+      if (bio !== undefined) {
+        updates.bio = bio;
+      }
+
+      // Si aucune mise à jour n'est nécessaire
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Aucune donnée valide fournie pour la mise à jour",
+        });
+      }
+
+      // Effectuer la mise à jour
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+
+      // Retourner la réponse avec l'utilisateur mis à jour
+      res.status(200).json({
+        success: true,
+        message: "Profil mis à jour",
+        data: updatedUser,
+      });
+    } catch (error: any) {
+      console.error("Erreur lors de la mise à jour du profil:", error);
+
+      // Gestion des erreurs spécifiques de MongoDB
+      if (error.name === "MongoServerError" && error.code === 11000) {
+        // Gestion des violations de contrainte d'unicité
+        if (error.keyPattern?.name) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
+          });
+        }
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Une erreur est survenue lors de la mise à jour du profil",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+  }
+);
+
+/**
+ * @route GET /api/auth/google
+ * @desc Initialise l'authentification via Google OAuth
+ * @access Public
+ */
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })
+);
+
+/**
+ * @route GET /api/auth/google/callback
+ * @desc Callback de l'authentification Google OAuth
+ * @access Public
+ */
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: `${
+      process.env.CLIENT_URL || "http://localhost:3000"
+    }/connexion?error=googleauth`,
+    session: false,
+  }),
+  (req: Request, res: Response) => {
+    try {
+      // L'utilisateur est authentifié à ce stade
+      if (!req.user) {
+        return res.redirect(
+          `${
+            process.env.CLIENT_URL || "http://localhost:3000"
+          }/connexion?error=usernotfound`
+        );
+      }
+
+      // Générer un token JWT pour l'utilisateur
+      const token = generateToken((req.user as UserDocument).toObject());
+
+      // Rediriger vers la page de callback OAuth du frontend avec le token JWT dans l'URL
+      res.redirect(
+        `${
+          process.env.CLIENT_URL || "http://localhost:3000"
+        }/oauth/callback?token=${token}`
+      );
+    } catch (error) {
+      console.error("Erreur lors de l'authentification Google OAuth:", error);
+      res.redirect(
+        `${
+          process.env.CLIENT_URL || "http://localhost:3000"
+        }/connexion?error=internal`
+      );
+    }
+  }
+);
 
 export default router;

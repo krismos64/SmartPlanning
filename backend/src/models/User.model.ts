@@ -47,6 +47,8 @@ export interface IUser {
   lastLogin?: Date;
   google?: GoogleProfile;
   photoUrl?: string;
+  bio?: string;
+  phone?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -185,6 +187,14 @@ const userSchema = new Schema<UserDocument>(
     google: {
       type: googleSchema,
       required: false,
+    },
+    bio: {
+      type: String,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
     },
   },
   {

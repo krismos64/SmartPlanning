@@ -1,9 +1,13 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+// Type pour les plans d'abonnement
+export type CompanyPlan = "free" | "standard" | "premium" | "enterprise";
+
 // Interface définissant la structure d'une entreprise
 export interface ICompany extends Document {
   name: string;
   logoUrl?: string;
+  plan: CompanyPlan;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +24,11 @@ const companySchema = new Schema<ICompany>(
     logoUrl: {
       type: String,
       default: null,
+    },
+    plan: {
+      type: String,
+      enum: ["free", "standard", "premium", "enterprise"],
+      default: "free",
     },
   },
   {

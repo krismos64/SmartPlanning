@@ -247,8 +247,9 @@ const LoginPage: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    console.log("Google login clicked");
-    // Logique d'authentification Google
+    // Rediriger vers l'URL d'authentification Google du backend
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (

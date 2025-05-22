@@ -579,7 +579,9 @@ const RegisterPage: React.FC = () => {
   };
 
   const handleGoogleRegister = () => {
-    console.log("Google registration clicked");
+    // Rediriger vers l'URL d'authentification Google du backend
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   useEffect(() => {

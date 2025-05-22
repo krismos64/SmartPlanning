@@ -1,11 +1,19 @@
-import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import React, { useEffect } from "react";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import IndexPage from "./pages/LandingPage";
 
 // Import des composants de pages
 import CollaboratorManagementPage from "./pages/CollaboratorManagementPage";
 import CompanyManagementPage from "./pages/CompanyManagementPage";
+import CompleteProfilePage from "./pages/CompleteProfilePage";
 import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
 import DatePickerDemoPage from "./pages/DatePickerDemoPage";
@@ -14,6 +22,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
 import LoginPage from "./pages/LoginPage";
 import ManagerPlanningValidationPage from "./pages/ManagerPlanningValidationPage";
+import OAuthCallback from "./pages/OAuthCallback";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -28,6 +37,42 @@ import WeeklySchedulePage from "./pages/WeeklySchedulePage";
 import AdminTeamViewer from "./pages/admin/AdminTeamViewer";
 // Import du layout avec sidebar
 import LayoutWithSidebar from "./components/layout/LayoutWithSidebar";
+
+/**
+ * Composant de vérification du profil pour la redirection conditionnelle
+ */
+const ProfileChecker: React.FC = () => {
+  const { user, isAuthenticated, shouldCompleteProfile, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Ne pas rediriger pendant le chargement
+    if (loading) return;
+
+    // Rediriger vers la page de complétion de profil si nécessaire
+    if (
+      isAuthenticated &&
+      shouldCompleteProfile &&
+      location.pathname !== "/complete-profile" &&
+      !location.pathname.startsWith("/connexion") &&
+      !location.pathname.startsWith("/inscription") &&
+      !location.pathname.startsWith("/unauthorized") &&
+      !location.pathname.startsWith("/forgot-password") &&
+      !location.pathname.startsWith("/reset-password")
+    ) {
+      navigate("/complete-profile", { replace: true });
+    }
+  }, [
+    isAuthenticated,
+    shouldCompleteProfile,
+    loading,
+    navigate,
+    location.pathname,
+  ]);
+
+  return null;
+};
 
 /**
  * Composant Page 404 simplifié pour les routes non trouvées
@@ -86,6 +131,7 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
+      <ProfileChecker />
       <Routes>
         {/* Route par défaut - Page d'accueil */}
         <Route path="/" element={<IndexPage />} />
@@ -96,6 +142,8 @@ const AppRouter: React.FC = () => {
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/complete-profile" element={<CompleteProfilePage />} />
+        <Route path="/oauth/callback" element={<OAuthCallback />} />
 
         {/* Route du tableau de bord pour utilisateurs connectés */}
         <Route path="/tableau-de-bord" element={<DashboardPage />} />
