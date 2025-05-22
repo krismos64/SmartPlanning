@@ -133,7 +133,7 @@ const Toast: React.FC<ToastProps> = ({
     "top-left": "top-4 left-4",
     "bottom-right": "bottom-4 right-4",
     "bottom-left": "bottom-4 left-4",
-    "top-center": "top-4 left-1/2 transform -translate-x-1/2",
+    "top-center": "top-24 left-1/2 transform -translate-x-1/2",
     "bottom-center": "bottom-4 left-1/2 transform -translate-x-1/2",
   };
 
@@ -203,6 +203,7 @@ const Toast: React.FC<ToastProps> = ({
           animate="visible"
           exit="exit"
           transition={{ duration: 0.2 }}
+          style={{ zIndex: 200 }}
         >
           <div
             className={`flex items-center p-4 ${toastConfig[type].bgColor} ${toastConfig[type].textColor} rounded-lg border ${toastConfig[type].borderColor} shadow-md`}

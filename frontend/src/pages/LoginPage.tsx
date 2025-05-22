@@ -6,7 +6,7 @@
  * du design system pour une expérience cohérente.
  */
 import { motion } from "framer-motion";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -17,7 +17,15 @@ import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
+import Toast from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../hooks/useToast";
+
+// Clé utilisée pour stocker l'email dans le localStorage
+const REMEMBER_EMAIL_KEY = "smartplanning_remembered_email";
+
+// Clé utilisée pour stocker l'état de la case "Se souvenir de moi"
+const REMEMBER_ME_KEY = "smartplanning_remember_me";
 
 const Form = styled.form`
   display: flex;
@@ -129,6 +137,7 @@ const LoginPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const auth = useContext(AuthContext);
+  const { toast, showErrorToast, hideToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -137,12 +146,40 @@ const LoginPage: React.FC = () => {
     rememberMe: false,
   });
 
+  // Récupérer l'email et l'état de "Se souvenir de moi" lors du chargement de la page
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
+    const rememberMeState = localStorage.getItem(REMEMBER_ME_KEY);
+
+    if (rememberedEmail && rememberMeState === "true") {
+      setFormData((prev) => ({
+        ...prev,
+        email: rememberedEmail,
+        rememberMe: true,
+      }));
+    }
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  // Fonction pour gérer la sauvegarde de l'email
+  const handleRememberMe = () => {
+    if (formData.rememberMe) {
+      // Si "Se souvenir de moi" est coché, sauvegarder l'email
+      localStorage.setItem(REMEMBER_EMAIL_KEY, formData.email);
+      localStorage.setItem(REMEMBER_ME_KEY, "true");
+    } else {
+      // Sinon, supprimer l'email sauvegardé
+      localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      localStorage.removeItem(REMEMBER_ME_KEY);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,8 +191,12 @@ const LoginPage: React.FC = () => {
       // Vérifier que auth n'est pas undefined
       if (!auth) {
         setError("Erreur de contexte d'authentification");
+        showErrorToast("Erreur de contexte d'authentification");
         return;
       }
+
+      // Gérer l'option "Se souvenir de moi" avant la connexion
+      handleRememberMe();
 
       // Passer les paramètres individuellement au lieu d'un objet
       await auth.login(formData.email, formData.password);
@@ -163,19 +204,45 @@ const LoginPage: React.FC = () => {
       navigate("/tableau-de-bord");
     } catch (error: any) {
       console.error("Login error:", error);
-      // Afficher le message d'erreur de l'API si disponible
-      if (error.response && error.response.data) {
-        setError(
-          error.response.data.message ||
-            "Erreur de connexion. Veuillez réessayer."
-        );
+
+      // Réinitialiser le mot de passe en cas d'échec
+      setFormData((prev) => ({
+        ...prev,
+        password: "",
+      }));
+
+      // Afficher le message d'erreur approprié
+      if (error.response) {
+        // Vérifier spécifiquement les erreurs 401
+        if (error.response.status === 401) {
+          const errorMessage =
+            "Identifiants incorrects. Vérifiez votre adresse email et votre mot de passe.";
+          setError(errorMessage);
+          showErrorToast(errorMessage);
+        } else {
+          // Pour les autres erreurs de réponse
+          const errorMessage =
+            error.response.data?.message ||
+            "Une erreur est survenue. Veuillez réessayer plus tard.";
+          setError(errorMessage);
+          showErrorToast(errorMessage);
+        }
       } else if (error.message) {
+        // Pour les erreurs avec un message
         setError(error.message);
+        showErrorToast(error.message);
       } else {
-        setError("Erreur de connexion. Veuillez réessayer.");
+        // Pour les erreurs sans détails
+        const errorMessage =
+          "Une erreur est survenue. Veuillez réessayer plus tard.";
+        setError(errorMessage);
+        showErrorToast(errorMessage);
       }
     } finally {
-      setIsLoading(false);
+      // Ajouter un petit délai avant de réactiver le bouton pour une meilleure UX
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
     }
   };
 
@@ -192,9 +259,27 @@ const LoginPage: React.FC = () => {
           name="description"
           content="Connectez-vous à votre compte SmartPlanning pour accéder à votre espace de gestion."
         />
+        <style>
+          {`
+            .login-field input {
+              background-color: ${isDarkMode ? "#2D3748" : "white"} !important;
+              color: ${isDarkMode ? "white" : "#1A202C"} !important;
+              border-color: ${isDarkMode ? "#4A5568" : "#E2E8F0"} !important;
+            }
+          `}
+        </style>
       </Helmet>
 
       <Header />
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.visible}
+        onClose={hideToast}
+        position="top-center"
+        duration={5000}
+      />
 
       <PageWrapper>
         <FormContainer
@@ -223,10 +308,11 @@ const LoginPage: React.FC = () => {
                   type="email"
                   label="Adresse email"
                   name="email"
-                  placeholder="votre.email@exemple.com"
+                  placeholder="Saisissez votre adresse email"
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  className="dark-input login-field"
                 />
               </FormGroup>
             </motion.div>
@@ -241,10 +327,11 @@ const LoginPage: React.FC = () => {
                   type="password"
                   label="Mot de passe"
                   name="password"
-                  placeholder="********"
+                  placeholder="Saisissez votre mot de passe"
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  className="dark-input login-field"
                 />
               </FormGroup>
             </motion.div>

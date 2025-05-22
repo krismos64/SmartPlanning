@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import React, { ChangeEvent } from "react";
+import { useTheme } from "../ThemeProvider";
 
 /**
  * Interface pour les propriétés du composant InputField
@@ -59,6 +60,29 @@ const InputField: React.FC<InputFieldProps> = ({
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
   const isActive = isFocused || value !== "";
+  const { isDarkMode } = useTheme();
+
+  // Déterminer les styles en fonction du mode
+  const getInputStyle = () => {
+    if (isDarkMode) {
+      // Mode sombre: fond sombre, texte clair
+      return {
+        backgroundColor: "#2D3748",
+        color: "white",
+        borderColor: error ? "#EF4444" : "#4A5568",
+      };
+    } else {
+      // Mode clair: fond clair, texte sombre
+      return {
+        backgroundColor: "white",
+        color: "#1A202C",
+        borderColor: error ? "#EF4444" : "#E2E8F0",
+      };
+    }
+  };
+
+  // Appliquer le style
+  const inputStyle = getInputStyle();
 
   return (
     <div className={`relative mb-4 ${className}`}>
@@ -66,14 +90,14 @@ const InputField: React.FC<InputFieldProps> = ({
         <motion.label
           htmlFor={name}
           className={`absolute transition-all duration-200 pointer-events-none ${
-            lightMode ? "text-gray-500" : "text-gray-300"
+            isDarkMode ? "text-gray-300" : "text-gray-600"
           } ${
             isActive
               ? `text-xs ${
-                  lightMode ? "text-indigo-600" : "text-indigo-400"
+                  isDarkMode ? "text-indigo-400" : "text-indigo-600"
                 } top-1`
               : `text-base ${
-                  lightMode ? "text-gray-600" : "text-gray-400"
+                  isDarkMode ? "text-gray-400" : "text-gray-600"
                 } top-1/2 -translate-y-1/2`
           }`}
           initial={false}
@@ -104,31 +128,17 @@ const InputField: React.FC<InputFieldProps> = ({
           onChange={onChange}
           disabled={disabled}
           required={required}
-          placeholder={isActive ? placeholder : ""}
+          placeholder={placeholder}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          style={inputStyle}
+          data-theme-mode={isDarkMode ? "dark" : "light"}
           className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200
-            ${
-              lightMode
-                ? disabled
-                  ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-                  : "bg-white hover:bg-white focus:bg-white text-gray-900 dark:bg-gray-800 dark:hover:bg-gray-800 dark:focus:bg-gray-800 dark:text-white"
-                : disabled
-                ? "bg-gray-800 cursor-not-allowed"
-                : "bg-gray-900 hover:bg-gray-800 focus:bg-gray-800 text-white"
-            } 
-            ${
-              lightMode ? "text-gray-900 dark:text-white" : "text-white"
-            } placeholder-gray-400
-            ${
-              error
-                ? "border border-red-500 focus:ring-red-500/20"
-                : lightMode
-                ? "border border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500/20"
-                : "border border-gray-700 focus:border-indigo-500 focus:ring-indigo-500/20"
-            }
-            focus:ring-4
+            ${disabled ? "opacity-70 cursor-not-allowed" : ""} 
+            placeholder-gray-400 dark:placeholder-gray-300
+            focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500
             ${icon ? "pl-10" : "pl-3"}
+            border
             ${className}`}
           autoComplete={autoComplete}
           aria-invalid={error ? "true" : "false"}
@@ -151,7 +161,7 @@ const InputField: React.FC<InputFieldProps> = ({
       {helperText && !error && (
         <p
           className={`mt-1 text-xs ${
-            lightMode ? "text-gray-600" : "text-gray-400"
+            isDarkMode ? "text-gray-400" : "text-gray-600"
           }`}
         >
           {helperText}

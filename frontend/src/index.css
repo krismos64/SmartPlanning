@@ -40,3 +40,59 @@
   font-display: swap;
   src: url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap");
 }
+
+/* Styles pour les champs de formulaire en mode sombre */
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="text"] {
+  background-color: #2d3748 !important; /* Légèrement plus clair que le fond */
+  color: white !important;
+  border-color: #4a5568 !important; /* Bordure légèrement plus claire */
+}
+
+/* Style spécifique pour les inputs avec la classe dark-input */
+.dark .dark-input input {
+  background-color: #2d3748 !important;
+  color: white !important;
+  border-color: #4a5568 !important;
+}
+
+/* Pour cibler directement l'élément avec la classe dark-input */
+.dark input.dark-input {
+  background-color: #2d3748 !important;
+  color: white !important;
+  border-color: #4a5568 !important;
+}
+
+/* Styles pour les champs en mode clair */
+input[type="email"],
+input[type="password"],
+input[type="text"],
+.dark-input input,
+input.dark-input {
+  background-color: white !important;
+  color: #1a202c !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Améliorer la visibilité des placeholders en mode sombre */
+.dark input::placeholder {
+  color: #a0aec0 !important; /* Couleur plus visible pour les placeholders */
+  opacity: 1 !important;
+}
+
+/* Placeholders en mode clair */
+input::placeholder {
+  color: #718096 !important; /* Gris moyen pour les placeholders en mode clair */
+  opacity: 1 !important;
+}
+
+/* Style pour les labels flottants en mode sombre */
+.dark label {
+  color: #a0aec0 !important;
+}
+
+/* Style pour les labels en mode clair */
+label {
+  color: #4a5568 !important;
+}
