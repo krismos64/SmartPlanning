@@ -14,11 +14,14 @@ import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
+import FileUpload from "../components/ui/FileUpload";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
 import Toast from "../components/ui/Toast";
 import { useToast } from "../hooks/useToast";
+import api from "../services/api";
 
 const Form = styled.form`
   display: flex;
@@ -141,11 +144,137 @@ const HelperText = styled.p<{ isDarkMode?: boolean }>`
   margin-top: 0.25rem;
 `;
 
+const AvatarContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+`;
+
+const AvatarPreviewContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+`;
+
+const AvatarUploadContainer = styled.div`
+  flex: 1;
+`;
+
+const ImagePreviewWrapper = styled.div<{ isDarkMode?: boolean }>`
+  position: relative;
+  width: 100%;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  border: 1px solid ${({ isDarkMode }) => (isDarkMode ? "#4A5568" : "#E2E8F0")};
+  background-color: ${({ isDarkMode }) => (isDarkMode ? "#1A2234" : "#F8FAFC")};
+`;
+
+const ImagePreview = styled.img`
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+`;
+
+const DeleteButton = styled.button<{ isDarkMode?: boolean }>`
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: ${({ isDarkMode }) =>
+    isDarkMode ? "rgba(26, 32, 44, 0.8)" : "rgba(255, 255, 255, 0.8)"};
+  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+  border: 1px solid ${({ isDarkMode }) => (isDarkMode ? "#4A5568" : "#E2E8F0")};
+  border-radius: 9999px;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: ${({ isDarkMode }) =>
+      isDarkMode ? "rgba(26, 32, 44, 1)" : "rgba(255, 255, 255, 1)"};
+  }
+`;
+
+const SectionTitle = styled.h3<{ isDarkMode?: boolean }>`
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+`;
+
+const Section = styled.div`
+  margin-bottom: 1.5rem;
+`;
+
+// Interface pour les erreurs du formulaire
+interface FormErrors {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+  acceptTerms?: string;
+  companyName?: string;
+  companyLogo?: string;
+  profilePicture?: string;
+  phone?: string;
+  role?: string;
+}
+
+// Fonction d'upload d'image adaptée pour cette page
+const uploadImage = async (file: File): Promise<string> => {
+  try {
+    // Créer un objet FormData pour envoyer le fichier
+    const formData = new FormData();
+    formData.append("image", file);
+
+    // Faire la requête POST vers l'endpoint d'upload avec des configurations spécifiques
+    const response = await api.post("/upload/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    // Vérifier que la réponse contient une URL d'image
+    if (response.data && response.data.success && response.data.imageUrl) {
+      return response.data.imageUrl;
+    } else {
+      throw new Error("Format de réponse invalide du serveur d'upload");
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'upload de l'image:", error);
+    throw new Error("Impossible d'uploader l'image. Veuillez réessayer.");
+  }
+};
+
 const RegisterPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
-  const { toast, showErrorToast, hideToast } = useToast();
+  const { toast, showErrorToast, showSuccessToast, hideToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingProfilePicture, setIsUploadingProfilePicture] =
+    useState(false);
+  const [isUploadingCompanyLogo, setIsUploadingCompanyLogo] = useState(false);
+
+  // État pour les fichiers sélectionnés
+  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(
+    null
+  );
+  const [companyLogoFile, setCompanyLogoFile] = useState<File | null>(null);
+
+  // États pour les URL de prévisualisation
+  const [profilePicturePreview, setProfilePicturePreview] = useState<
+    string | null
+  >(null);
+  const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(
+    null
+  );
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -153,8 +282,15 @@ const RegisterPage: React.FC = () => {
     password: "",
     confirmPassword: "",
     acceptTerms: false,
+    // Nouveaux champs
+    companyName: "",
+    companyLogo: "",
+    profilePicture: "",
+    phone: "",
+    role: "directeur", // Champ fixe comme demandé
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -163,18 +299,107 @@ const RegisterPage: React.FC = () => {
       [name]: type === "checkbox" ? checked : value,
     }));
 
-    if (errors[name]) {
+    if (errors[name as keyof FormErrors]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
-        delete newErrors[name];
+        delete newErrors[name as keyof FormErrors];
         return newErrors;
       });
     }
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+  // Gestion du fichier de photo de profil
+  const handleProfilePictureSelect = (file: File) => {
+    setProfilePictureFile(file);
 
+    if (errors.profilePicture) {
+      setErrors((prev) => ({
+        ...prev,
+        profilePicture: undefined,
+      }));
+    }
+  };
+
+  // Gestion du fichier de logo d'entreprise
+  const handleCompanyLogoSelect = (file: File) => {
+    setCompanyLogoFile(file);
+
+    if (errors.companyLogo) {
+      setErrors((prev) => ({
+        ...prev,
+        companyLogo: undefined,
+      }));
+    }
+  };
+
+  // Gestion de la prévisualisation de photo de profil
+  const handleProfilePicturePreview = (url: string | null) => {
+    setProfilePicturePreview(url);
+  };
+
+  // Gestion de la prévisualisation de logo d'entreprise
+  const handleCompanyLogoPreview = (url: string | null) => {
+    setCompanyLogoPreview(url);
+  };
+
+  // Suppression de la photo de profil
+  const handleDeleteProfilePicture = () => {
+    setProfilePictureFile(null);
+    setProfilePicturePreview(null);
+    setFormData((prev) => ({
+      ...prev,
+      profilePicture: "",
+    }));
+  };
+
+  // Suppression du logo d'entreprise
+  const handleDeleteCompanyLogo = () => {
+    setCompanyLogoFile(null);
+    setCompanyLogoPreview(null);
+    setFormData((prev) => ({
+      ...prev,
+      companyLogo: "",
+    }));
+  };
+
+  // Upload de la photo de profil vers Cloudinary
+  const uploadProfilePicture = async (): Promise<string | undefined> => {
+    if (!profilePictureFile) return undefined;
+
+    try {
+      setIsUploadingProfilePicture(true);
+      const photoUrl = await uploadImage(profilePictureFile);
+      setIsUploadingProfilePicture(false);
+      return photoUrl;
+    } catch (err) {
+      console.error("Erreur lors de l'upload de la photo de profil:", err);
+      showErrorToast("Impossible d'uploader la photo de profil");
+      setIsUploadingProfilePicture(false);
+      throw err;
+    }
+  };
+
+  // Upload du logo d'entreprise vers Cloudinary
+  const uploadCompanyLogo = async (): Promise<string | undefined> => {
+    if (!companyLogoFile) return undefined;
+
+    try {
+      setIsUploadingCompanyLogo(true);
+      const logoUrl = await uploadImage(companyLogoFile);
+      setIsUploadingCompanyLogo(false);
+      return logoUrl;
+    } catch (err) {
+      console.error("Erreur lors de l'upload du logo d'entreprise:", err);
+      showErrorToast("Impossible d'uploader le logo d'entreprise");
+      setIsUploadingCompanyLogo(false);
+      throw err;
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: FormErrors = {};
+
+    // Validation des champs existants
     if (!formData.firstName.trim()) {
       newErrors.firstName = "Le prénom est requis";
     }
@@ -212,6 +437,61 @@ const RegisterPage: React.FC = () => {
         "Vous devez accepter les conditions d'utilisation";
     }
 
+    // Validation des nouveaux champs
+    if (!formData.companyName.trim()) {
+      newErrors.companyName = "Le nom de l'entreprise est requis";
+    } else if (formData.companyName.trim().length < 2) {
+      newErrors.companyName =
+        "Le nom de l'entreprise doit contenir au moins 2 caractères";
+    }
+
+    // Validation des fichiers de photo de profil et logo d'entreprise
+    if (profilePictureFile) {
+      const maxSize = 3 * 1024 * 1024; // 3 MB
+      if (profilePictureFile.size > maxSize) {
+        newErrors.profilePicture =
+          "La taille de l'image ne doit pas dépasser 3 Mo";
+      }
+
+      const acceptedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!acceptedTypes.includes(profilePictureFile.type)) {
+        newErrors.profilePicture =
+          "Format d'image non pris en charge (JPEG, PNG, GIF, WebP uniquement)";
+      }
+    }
+
+    if (companyLogoFile) {
+      const maxSize = 3 * 1024 * 1024; // 3 MB
+      if (companyLogoFile.size > maxSize) {
+        newErrors.companyLogo = "La taille du logo ne doit pas dépasser 3 Mo";
+      }
+
+      const acceptedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!acceptedTypes.includes(companyLogoFile.type)) {
+        newErrors.companyLogo =
+          "Format d'image non pris en charge (JPEG, PNG, GIF, WebP uniquement)";
+      }
+    }
+
+    // Validation optionnelle du numéro de téléphone (si renseigné)
+    if (formData.phone.trim()) {
+      // Regex pour valider les numéros de téléphone français ou internationaux
+      const phoneRegex = /^(\+\d{1,3}\s?)?(\d{9,15})$/;
+      if (!phoneRegex.test(formData.phone.trim())) {
+        newErrors.phone = "Format de numéro de téléphone invalide";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -226,9 +506,54 @@ const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // Uploader les images si nécessaire
+      let profilePictureUrl = "";
+      let companyLogoUrl = "";
+
+      if (profilePictureFile) {
+        try {
+          profilePictureUrl = (await uploadProfilePicture()) || "";
+        } catch (error) {
+          setIsLoading(false);
+          return; // Arrêt si l'upload de la photo de profil échoue
+        }
+      }
+
+      if (companyLogoFile) {
+        try {
+          companyLogoUrl = (await uploadCompanyLogo()) || "";
+        } catch (error) {
+          setIsLoading(false);
+          return; // Arrêt si l'upload du logo d'entreprise échoue
+        }
+      }
+
+      // Préparer les données à envoyer
+      const userData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role, // Toujours "directeur"
+        companyName: formData.companyName,
+        companyLogo: companyLogoUrl,
+        profilePicture: profilePictureUrl,
+        phone: formData.phone.trim() || undefined, // Ne pas envoyer si vide
+      };
+
+      // Simuler un appel API pour l'inscription
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Registration submitted:", formData);
-      navigate("/tableau-de-bord");
+      console.log("Registration submitted:", userData);
+
+      // Afficher un toast de succès
+      showSuccessToast(
+        "Inscription réussie ! Redirection vers le tableau de bord..."
+      );
+
+      // Naviguer vers le dashboard après inscription
+      setTimeout(() => {
+        navigate("/tableau-de-bord");
+      }, 1500);
     } catch (error: any) {
       console.error("Registration error:", error);
       showErrorToast(
@@ -259,7 +584,8 @@ const RegisterPage: React.FC = () => {
         /* Forcer le style des inputs en mode sombre */
         #root input[type="text"],
         #root input[type="email"],
-        #root input[type="password"] {
+        #root input[type="password"],
+        #root input[type="tel"] {
           background-color: #1A2234 !important;
           color: #F1F5F9 !important;
           border: 1px solid #4A5568 !important;
@@ -323,156 +649,333 @@ const RegisterPage: React.FC = () => {
           wide={true}
         >
           <Form onSubmit={handleSubmit}>
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <FormRow>
+            {/* Section informations personnelles */}
+            <Section>
+              <SectionTitle isDarkMode={isDarkMode}>
+                Informations personnelles
+              </SectionTitle>
+
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <FormRow>
+                  <FormGroup>
+                    <InputField
+                      type="text"
+                      label="Prénom"
+                      name="firstName"
+                      placeholder="Votre prénom"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      required
+                      className="register-field"
+                      helperText="Votre prénom sera utilisé pour personnaliser l'interface"
+                    />
+                    {errors.firstName && (
+                      <ErrorMessage>{errors.firstName}</ErrorMessage>
+                    )}
+                  </FormGroup>
+
+                  <FormGroup>
+                    <InputField
+                      type="text"
+                      label="Nom"
+                      name="lastName"
+                      placeholder="Votre nom"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      required
+                      className="register-field"
+                      helperText="Votre nom de famille tel qu'il apparaîtra dans l'application"
+                    />
+                    {errors.lastName && (
+                      <ErrorMessage>{errors.lastName}</ErrorMessage>
+                    )}
+                  </FormGroup>
+                </FormRow>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                <FormRow>
+                  <FormGroup>
+                    <InputField
+                      type="email"
+                      label="Adresse email"
+                      name="email"
+                      placeholder="votre.email@exemple.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      className="register-field"
+                      helperText="Votre adresse email sera utilisée pour vous connecter et pour la récupération de compte"
+                    />
+                    {errors.email && (
+                      <ErrorMessage>{errors.email}</ErrorMessage>
+                    )}
+                  </FormGroup>
+
+                  <FormGroup>
+                    <InputField
+                      type="tel"
+                      label="Téléphone (facultatif)"
+                      name="phone"
+                      placeholder="Votre numéro de téléphone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="register-field"
+                      helperText="Format: +33 XXXXXXXXX ou 06XXXXXXXX"
+                    />
+                    {errors.phone && (
+                      <ErrorMessage>{errors.phone}</ErrorMessage>
+                    )}
+                  </FormGroup>
+                </FormRow>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+              >
+                <AvatarContainer>
+                  <label className="block text-sm font-medium mb-2">
+                    Photo de profil (facultatif)
+                  </label>
+
+                  <AvatarPreviewContainer>
+                    <Avatar
+                      src={profilePicturePreview}
+                      size="xl"
+                      className="border-2 border-indigo-200 dark:border-indigo-800"
+                    />
+
+                    <AvatarUploadContainer>
+                      <FileUpload
+                        onFileSelect={handleProfilePictureSelect}
+                        onPreviewChange={handleProfilePicturePreview}
+                        acceptedTypes="image/*"
+                        maxSizeMB={3}
+                        buttonText={
+                          isUploadingProfilePicture
+                            ? "Upload en cours..."
+                            : "Sélectionner une image"
+                        }
+                        label=""
+                        hideNoFileText={false}
+                      />
+                      <HelperText isDarkMode={isDarkMode}>
+                        Formats acceptés : JPG, PNG, GIF, WebP. Taille max. 3
+                        Mo.
+                      </HelperText>
+                    </AvatarUploadContainer>
+                  </AvatarPreviewContainer>
+
+                  {profilePicturePreview && (
+                    <div style={{ position: "relative", marginTop: "8px" }}>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={handleDeleteProfilePicture}
+                      >
+                        Supprimer l'image
+                      </Button>
+                    </div>
+                  )}
+
+                  {errors.profilePicture && (
+                    <ErrorMessage>{errors.profilePicture}</ErrorMessage>
+                  )}
+                </AvatarContainer>
+              </motion.div>
+            </Section>
+
+            {/* Section informations de l'entreprise */}
+            <Section>
+              <SectionTitle isDarkMode={isDarkMode}>
+                Informations de l'entreprise
+              </SectionTitle>
+
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.4 }}
+              >
                 <FormGroup>
                   <InputField
                     type="text"
-                    label="Prénom"
-                    name="firstName"
-                    placeholder="Votre prénom"
-                    value={formData.firstName}
+                    label="Nom de l'entreprise"
+                    name="companyName"
+                    placeholder="Nom de l'entreprise"
+                    value={formData.companyName}
                     onChange={handleChange}
                     required
                     className="register-field"
-                    helperText="Votre prénom sera utilisé pour personnaliser l'interface"
+                    helperText="Le nom de votre entreprise tel qu'il apparaîtra dans l'application"
                   />
-                  {errors.firstName && (
-                    <ErrorMessage>{errors.firstName}</ErrorMessage>
+                  {errors.companyName && (
+                    <ErrorMessage>{errors.companyName}</ErrorMessage>
                   )}
                 </FormGroup>
+              </motion.div>
 
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.5 }}
+              >
+                <AvatarContainer>
+                  <label className="block text-sm font-medium mb-2">
+                    Logo de l'entreprise (facultatif)
+                  </label>
+
+                  {companyLogoPreview ? (
+                    <ImagePreviewWrapper isDarkMode={isDarkMode}>
+                      <ImagePreview
+                        src={companyLogoPreview}
+                        alt="Logo de l'entreprise"
+                      />
+                      <DeleteButton
+                        isDarkMode={isDarkMode}
+                        onClick={handleDeleteCompanyLogo}
+                        type="button"
+                      >
+                        ✕
+                      </DeleteButton>
+                    </ImagePreviewWrapper>
+                  ) : null}
+
+                  <div style={{ marginTop: companyLogoPreview ? "1rem" : "0" }}>
+                    <FileUpload
+                      onFileSelect={handleCompanyLogoSelect}
+                      onPreviewChange={handleCompanyLogoPreview}
+                      acceptedTypes="image/*"
+                      maxSizeMB={3}
+                      buttonText={
+                        isUploadingCompanyLogo
+                          ? "Upload en cours..."
+                          : "Sélectionner un logo"
+                      }
+                      label=""
+                    />
+                    <HelperText isDarkMode={isDarkMode}>
+                      Formats acceptés : JPG, PNG, GIF, WebP. Taille max. 3 Mo.
+                    </HelperText>
+                  </div>
+
+                  {errors.companyLogo && (
+                    <ErrorMessage>{errors.companyLogo}</ErrorMessage>
+                  )}
+                </AvatarContainer>
+              </motion.div>
+            </Section>
+
+            {/* Section mot de passe */}
+            <Section>
+              <SectionTitle isDarkMode={isDarkMode}>Sécurité</SectionTitle>
+
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.6 }}
+              >
                 <FormGroup>
                   <InputField
-                    type="text"
-                    label="Nom"
-                    name="lastName"
-                    placeholder="Votre nom"
-                    value={formData.lastName}
+                    type="password"
+                    label="Mot de passe"
+                    name="password"
+                    placeholder="Minimum 8 caractères"
+                    value={formData.password}
                     onChange={handleChange}
                     required
                     className="register-field"
-                    helperText="Votre nom de famille tel qu'il apparaîtra dans l'application"
+                    helperText="Au moins 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre et 1 caractère spécial (!@#$%^&*). Conforme au RGPD."
                   />
-                  {errors.lastName && (
-                    <ErrorMessage>{errors.lastName}</ErrorMessage>
+                  {errors.password && (
+                    <ErrorMessage>{errors.password}</ErrorMessage>
                   )}
                 </FormGroup>
-              </FormRow>
-            </motion.div>
+              </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
-              <FormGroup>
-                <InputField
-                  type="email"
-                  label="Adresse email"
-                  name="email"
-                  placeholder="votre.email@exemple.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="register-field"
-                  helperText="Votre adresse email sera utilisée pour vous connecter et pour la récupération de compte"
-                />
-                {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
-              </FormGroup>
-            </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.7 }}
+              >
+                <FormGroup>
+                  <InputField
+                    type="password"
+                    label="Confirmer le mot de passe"
+                    name="confirmPassword"
+                    placeholder="Saisissez à nouveau votre mot de passe"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    className="register-field"
+                    helperText="Confirmez votre mot de passe pour renforcer la sécurité conformément au RGPD"
+                  />
+                  {errors.confirmPassword && (
+                    <ErrorMessage>{errors.confirmPassword}</ErrorMessage>
+                  )}
+                </FormGroup>
+              </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-            >
-              <FormGroup>
-                <InputField
-                  type="password"
-                  label="Mot de passe"
-                  name="password"
-                  placeholder="Minimum 8 caractères"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="register-field"
-                  helperText="Au moins 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre et 1 caractère spécial (!@#$%^&*). Conforme au RGPD."
-                />
-                {errors.password && (
-                  <ErrorMessage>{errors.password}</ErrorMessage>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.8 }}
+              >
+                <TermsContainer>
+                  <input
+                    type="checkbox"
+                    id="acceptTerms"
+                    name="acceptTerms"
+                    checked={formData.acceptTerms}
+                    onChange={handleChange}
+                    style={{ marginTop: "3px" }}
+                  />
+                  <TermsLabel htmlFor="acceptTerms" isDarkMode={isDarkMode}>
+                    J'accepte les{" "}
+                    <Link to="/mentions-legales">conditions d'utilisation</Link>{" "}
+                    et la{" "}
+                    <Link to="/politique-de-confidentialite">
+                      politique de confidentialité
+                    </Link>
+                  </TermsLabel>
+                </TermsContainer>
+                {errors.acceptTerms && (
+                  <ErrorMessage>{errors.acceptTerms}</ErrorMessage>
                 )}
-              </FormGroup>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-            >
-              <FormGroup>
-                <InputField
-                  type="password"
-                  label="Confirmer le mot de passe"
-                  name="confirmPassword"
-                  placeholder="Saisissez à nouveau votre mot de passe"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="register-field"
-                  helperText="Confirmez votre mot de passe pour renforcer la sécurité conformément au RGPD"
-                />
-                {errors.confirmPassword && (
-                  <ErrorMessage>{errors.confirmPassword}</ErrorMessage>
-                )}
-              </FormGroup>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.5 }}
-            >
-              <TermsContainer>
-                <input
-                  type="checkbox"
-                  id="acceptTerms"
-                  name="acceptTerms"
-                  checked={formData.acceptTerms}
-                  onChange={handleChange}
-                  style={{ marginTop: "3px" }}
-                />
-                <TermsLabel htmlFor="acceptTerms" isDarkMode={isDarkMode}>
-                  J'accepte les{" "}
-                  <Link to="/mentions-legales">conditions d'utilisation</Link>{" "}
-                  et la{" "}
-                  <Link to="/politique-de-confidentialite">
-                    politique de confidentialité
-                  </Link>
-                </TermsLabel>
-              </TermsContainer>
-              {errors.acceptTerms && (
-                <ErrorMessage>{errors.acceptTerms}</ErrorMessage>
-              )}
-            </motion.div>
+              </motion.div>
+            </Section>
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.6 }}
+              transition={{ duration: 0.3, delay: 0.9 }}
             >
               <StyledButton
                 type="submit"
                 variant="primary"
                 size="lg"
-                disabled={isLoading}
+                disabled={
+                  isLoading ||
+                  isUploadingProfilePicture ||
+                  isUploadingCompanyLogo
+                }
                 className="w-full"
               >
-                {isLoading ? "Inscription en cours..." : "S'inscrire"}
+                {isLoading ||
+                isUploadingProfilePicture ||
+                isUploadingCompanyLogo
+                  ? "Inscription en cours..."
+                  : "S'inscrire"}
               </StyledButton>
             </motion.div>
           </Form>
@@ -484,7 +987,7 @@ const RegisterPage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.7 }}
+            transition={{ duration: 0.3, delay: 1.0 }}
           >
             <GoogleButton
               type="button"
