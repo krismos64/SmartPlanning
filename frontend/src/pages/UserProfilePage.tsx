@@ -10,7 +10,7 @@ import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
-import api, { uploadFile } from "../services/api";
+import api, { updateUserProfile, uploadFile } from "../services/api";
 
 type PasswordForm = {
   currentPassword: string;
@@ -18,7 +18,7 @@ type PasswordForm = {
 };
 
 const UserProfilePage = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { showSuccessToast, showErrorToast, toast, hideToast } = useToast();
 
   // État pour les données utilisateur modifiables
@@ -163,6 +163,12 @@ const UserProfilePage = () => {
 
   // Gérer la sélection d'un fichier pour l'avatar
   const handleFileSelect = (file: File) => {
+    console.log(
+      "🔍 Fichier sélectionné dans UserProfilePage:",
+      file.name,
+      file.type,
+      file.size
+    );
     setSelectedFile(file);
     setIsFormModified(true);
   };
@@ -183,6 +189,13 @@ const UserProfilePage = () => {
           setIsUploadingImage(true);
           showSuccessToast("Upload de l'image en cours...");
 
+          // Vérifier que le fichier est valide avant d'essayer de l'uploader
+          if (!selectedFile.type.startsWith("image/")) {
+            throw new Error(
+              "Le fichier sélectionné n'est pas une image valide"
+            );
+          }
+
           photoUrlToSave = await uploadFile(selectedFile);
 
           // Indiquer que l'upload est terminé
@@ -198,8 +211,8 @@ const UserProfilePage = () => {
         }
       }
 
-      // Mise à jour du profil
-      const response = await api.put("/users/me", {
+      // Mise à jour du profil en utilisant la nouvelle fonction
+      const updatedUser = await updateUserProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -215,6 +228,10 @@ const UserProfilePage = () => {
       // Réinitialiser l'état du formulaire
       setIsFormModified(false);
       setSelectedFile(null);
+
+      // Mettre à jour l'utilisateur dans le contexte d'authentification
+      // pour que l'avatar dans l'en-tête soit rafraîchi
+      await refreshUser();
 
       showSuccessToast("Profil mis à jour avec succès");
     } catch (error) {

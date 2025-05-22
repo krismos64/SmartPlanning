@@ -32,9 +32,13 @@ export const uploadFile = async (file: File): Promise<string> => {
     // Ajouter le fichier sous la clé 'image' comme attendu par le backend
     formData.append("image", file);
 
-    // Faire la requête POST vers l'endpoint d'upload d'avatar
-    // Note: Pas besoin de définir le Content-Type ici car axios le détecte automatiquement pour FormData
-    const response = await api.post("/upload/avatar", formData);
+    // Faire la requête POST vers l'endpoint d'upload d'avatar avec des configurations spécifiques
+    // Définir explicitement le Content-Type à multipart/form-data
+    const response = await api.post("/upload/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
     // Vérifier que la réponse contient une URL d'image
     if (response.data && response.data.success && response.data.imageUrl) {
@@ -59,6 +63,39 @@ export const uploadFile = async (file: File): Promise<string> => {
     } else {
       // Autres types d'erreurs (réseau, etc.)
       throw new Error("Impossible d'uploader l'image. Veuillez réessayer.");
+    }
+  }
+};
+
+/**
+ * Service pour mettre à jour le profil de l'utilisateur
+ * @param userData - Les données du profil à mettre à jour
+ * @returns - Les données de l'utilisateur mises à jour
+ */
+export const updateUserProfile = async (userData: any) => {
+  try {
+    // Utiliser la nouvelle route dédiée au profil sans vérification de rôle
+    const response = await api.put("/profile/update", userData);
+
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        "Format de réponse invalide lors de la mise à jour du profil"
+      );
+    }
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du profil:", error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        `Échec de la mise à jour (${error.response.status}): ${
+          error.response.data.message || "Erreur inconnue"
+        }`
+      );
+    } else {
+      throw new Error(
+        "Impossible de mettre à jour le profil. Veuillez réessayer."
+      );
     }
   }
 };

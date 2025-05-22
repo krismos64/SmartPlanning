@@ -4,9 +4,10 @@ import {
   UploadApiResponse,
 } from "cloudinary";
 import dotenv from "dotenv";
+import path from "path";
 
 // Charger les variables d'environnement depuis le fichier .env
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Configuration de Cloudinary avec les variables d'environnement
 // Assurez-vous que CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, et CLOUDINARY_API_SECRET sont définis dans votre .env

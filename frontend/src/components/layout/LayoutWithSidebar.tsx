@@ -1,11 +1,10 @@
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
-import axiosInstance from "../../api/axiosInstance";
 import planningAnimation from "../../assets/animations/planning-animation.json";
-import { User } from "../../types/User";
+import { useAuth } from "../../hooks/useAuth";
 import { getEnvVar } from "../../utils/getEnv";
 import { useTheme } from "../ThemeProvider";
 import Avatar from "../ui/Avatar";
@@ -34,50 +33,9 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Effet pour récupérer les informations de l'utilisateur connecté
-  useEffect(() => {
-    const fetchUserData = async () => {
-      setIsLoading(true);
-      try {
-        // Récupération du token depuis le localStorage
-        const token = localStorage.getItem("token");
-
-        // Configuration de l'en-tête d'autorisation
-        if (token) {
-          axiosInstance.defaults.headers.common[
-            "Authorization"
-          ] = `Bearer ${token}`;
-        } else {
-          // Rediriger vers la page de connexion si pas de token
-          navigate("/login");
-          return;
-        }
-
-        // Appel à l'API pour récupérer les informations utilisateur
-        const response = await axiosInstance.get(`${API_URL}/auth/me`);
-
-        if (response.data.success) {
-          setCurrentUser(response.data.data);
-        } else {
-          throw new Error("Échec de la récupération des données utilisateur");
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération des données utilisateur:",
-          error
-        );
-        // En cas d'erreur, rediriger vers la page de connexion
-        navigate("/login");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [navigate]);
+  // Utiliser le hook useAuth pour accéder aux données utilisateur
+  const { user, isAuthenticated, loading } = useAuth();
 
   const handleNavigate = (route: string) => {
     setSidebarOpen(false);
@@ -96,16 +54,16 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
           isSidebarOpen ? "transform-none" : "-translate-x-full"
         }`}
       >
-        {!isLoading && currentUser && (
+        {!loading && user && (
           <SidebarMenu
             activeItem={activeItem}
             onNavigate={handleNavigate}
-            firstName={currentUser.firstName}
-            lastName={currentUser.lastName}
-            photoUrl={currentUser.photoUrl}
+            firstName={user.firstName}
+            lastName={user.lastName}
+            photoUrl={user.photoUrl}
             companyName="SmartTech Industries"
             companyLogoUrl="/src/assets/images/company-logo.png"
-            user={currentUser}
+            user={user}
           />
         )}
       </div>
@@ -185,28 +143,30 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                 {/* Partie droite du header */}
                 <div className="flex items-center space-x-4">
                   {/* Indicateur de statut animé */}
-                  <motion.div
-                    className="hidden sm:flex items-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
+                  {isAuthenticated && (
                     <motion.div
-                      className="w-2 h-2 rounded-full bg-emerald-500 mr-2"
-                      animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [1, 0.7, 1],
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        repeatType: "loop",
-                      }}
-                    ></motion.div>
-                    <span className="text-sm text-indigo-700 dark:text-indigo-300">
-                      Connecté
-                    </span>
-                  </motion.div>
+                      className="hidden sm:flex items-center"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      <motion.div
+                        className="w-2 h-2 rounded-full bg-emerald-500 mr-2"
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          opacity: [1, 0.7, 1],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          repeatType: "loop",
+                        }}
+                      ></motion.div>
+                      <span className="text-sm text-indigo-700 dark:text-indigo-300">
+                        Connecté
+                      </span>
+                    </motion.div>
+                  )}
 
                   {/* Theme switcher avec animations */}
                   <motion.div
@@ -218,7 +178,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                   </motion.div>
 
                   {/* Bouton de profil avec Avatar */}
-                  {currentUser && (
+                  {user && (
                     <motion.div
                       whileHover={{ scale: 1.05 }}
                       className="relative"
@@ -228,9 +188,9 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                         onClick={() => navigate("/mon-profil")}
                         className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 rounded-full px-4 py-2"
                       >
-                        <Avatar size="md" src={currentUser.photoUrl} />
+                        <Avatar size="md" src={user.photoUrl} />
                         <span className="hidden md:inline">
-                          {currentUser.firstName} {currentUser.lastName}
+                          {user.firstName} {user.lastName}
                         </span>
                       </Button>
                     </motion.div>

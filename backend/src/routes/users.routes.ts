@@ -15,6 +15,31 @@ import User, { UserRole } from "../models/User.model";
 const router = Router();
 
 /**
+ * @route POST /api/users/test-update
+ * @desc Route de test pour vérifier les permissions des utilisateurs
+ * @access Authentifié uniquement
+ */
+router.post(
+  "/test-update",
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      console.log("🔍 Test route accessed by user:", req.user);
+      return res.status(200).json({
+        success: true,
+        message: "Vous avez accès à cette route",
+      });
+    } catch (error) {
+      console.error("Erreur route test:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors du test",
+      });
+    }
+  }
+);
+
+/**
  * @route GET /api/users
  * @desc Liste tous les utilisateurs (sans mot de passe)
  * @access Admin only
@@ -22,7 +47,7 @@ const router = Router();
 router.get(
   "/",
   authMiddleware,
-  checkRole("admin"),
+  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const users = await User.find({}).select("-password");
@@ -51,7 +76,7 @@ interface CreateUserRequest {
 router.post(
   "/",
   authMiddleware,
-  checkRole("admin"),
+  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { email, firstName, lastName, role } =
@@ -118,7 +143,7 @@ interface UpdateUserRequest {
 router.put(
   "/:id",
   authMiddleware,
-  checkRole("admin"),
+  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -203,90 +228,6 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Erreur serveur lors de la récupération du profil",
-    });
-  }
-});
-
-/**
- * @route PUT /api/users/me
- * @desc Met à jour les informations personnelles de l'utilisateur connecté
- * @access Authentifié uniquement
- */
-router.put("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
-  try {
-    // Récupérer l'ID de l'utilisateur depuis le token
-    const userId = req.user?._id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Utilisateur non authentifié",
-      });
-    }
-
-    // Extraire uniquement les champs modifiables
-    const { firstName, lastName, email, photoUrl } = req.body;
-
-    // Vérifier si l'email existe déjà (sauf pour l'utilisateur actuel)
-    if (email) {
-      const existingUser = await User.findOne({
-        email,
-        _id: { $ne: userId },
-      });
-
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: "Cette adresse email est déjà utilisée par un autre compte",
-        });
-      }
-    }
-
-    // Mettre à jour les informations de l'utilisateur
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          ...(firstName !== undefined && { firstName }),
-          ...(lastName !== undefined && { lastName }),
-          ...(email !== undefined && { email }),
-          ...(photoUrl !== undefined && { photoUrl }),
-        },
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "Utilisateur non trouvé",
-      });
-    }
-
-    // Récupérer les données sans le mot de passe
-    const userData = updatedUser.toObject();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = userData;
-
-    return res.status(200).json({
-      success: true,
-      data: userWithoutPassword,
-    });
-  } catch (error: any) {
-    console.error("Erreur lors de la mise à jour du profil:", error);
-
-    // Gérer les erreurs de validation MongoDB
-    if (error.name === "ValidationError") {
-      return res.status(400).json({
-        success: false,
-        message: "Données de profil invalides",
-        errors: Object.values(error.errors).map((err: any) => err.message),
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Erreur serveur lors de la mise à jour du profil",
     });
   }
 });

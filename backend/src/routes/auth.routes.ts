@@ -125,6 +125,7 @@ router.post("/login", async (req: Request, res: Response) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        photoUrl: user.photoUrl || undefined,
       },
     });
   } catch (error) {
@@ -157,6 +158,7 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         status: user.status,
         companyId: user.companyId,
         teamIds: user.teamIds || [],
+        photoUrl: user.photoUrl || undefined,
       },
     });
   } catch (error) {

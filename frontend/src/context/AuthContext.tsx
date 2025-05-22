@@ -17,6 +17,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   // Fonction pour déconnecter l'utilisateur
   logout: () => Promise<void>;
+  // Fonction pour mettre à jour les données de l'utilisateur
+  updateUser: (userData: Partial<User>) => void;
+  // Fonction pour rafraîchir les données de l'utilisateur depuis le serveur
+  refreshUser: () => Promise<void>;
 }
 
 // URL de base de l'API
@@ -131,7 +135,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser({
           ...user,
           token,
-          userId: user._id, // Assurer la cohérence avec le format attendu par le backend
+          userId: user._id || user.id, // Assurer la cohérence avec le format attendu par le backend
+          photoUrl: user.photoUrl, // S'assurer que photoUrl est bien préservé
         });
         setIsAuthenticated(true);
       } else {
@@ -174,6 +179,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Fonction pour mettre à jour les données de l'utilisateur
+  const updateUser = (userData: Partial<User>) => {
+    if (!user) return;
+
+    // Mise à jour de l'utilisateur avec les nouvelles données
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        ...userData,
+      };
+    });
+  };
+
+  // Fonction pour rafraîchir les données de l'utilisateur depuis le serveur
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      setLoading(true);
+
+      // Configuration du token pour la requête
+      setAuthToken(token);
+
+      // Appel à l'API pour obtenir les données utilisateur à jour
+      const response = await axiosInstance.get(`${API_URL}/auth/me`);
+
+      if (response.data.success) {
+        // Mettre à jour l'utilisateur avec les données fraîches
+        const userData = response.data.data;
+
+        // S'assurer que photoUrl est bien défini, même si c'est undefined
+        setUser((prevUser) => {
+          // Si l'utilisateur a une photoUrl dans la réponse, l'utiliser
+          // Sinon, conserver la photoUrl précédente si elle existe
+          const updatedPhotoUrl =
+            userData.photoUrl !== undefined
+              ? userData.photoUrl
+              : prevUser?.photoUrl;
+
+          return {
+            ...userData,
+            token,
+            userId: userData._id,
+            photoUrl: updatedPhotoUrl,
+          };
+        });
+      }
+    } catch (error) {
+      console.error(
+        "Erreur lors du rafraîchissement des données utilisateur:",
+        error
+      );
+      // Ne pas déconnecter l'utilisateur en cas d'erreur de rafraîchissement
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Valeur du contexte
   const contextValue: AuthContextType = {
     user,
@@ -182,6 +247,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error,
     login,
     logout,
+    updateUser,
+    refreshUser,
   };
 
   return (

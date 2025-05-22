@@ -34,10 +34,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
    * Gère la sélection de fichier et valide le type et la taille
    */
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    console.log("🔍 Événement de changement de fichier détecté", e);
     const file = e.target.files?.[0];
+    console.log("🔍 Fichier sélectionné:", file);
     setFileError("");
 
     if (!file) {
+      console.log("⚠️ Aucun fichier sélectionné");
       setSelectedFileName("");
       onPreviewChange(null);
       return;

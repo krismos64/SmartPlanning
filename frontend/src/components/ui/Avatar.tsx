@@ -1,5 +1,5 @@
 import { User } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 interface AvatarProps {
   src?: string | null;
@@ -17,6 +17,44 @@ const Avatar: React.FC<AvatarProps> = ({
   fallbackClassName = "",
 }) => {
   const [hasError, setHasError] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+
+  // Vérifier et traiter l'URL de l'image
+  useEffect(() => {
+    // Réinitialiser l'état d'erreur si une nouvelle URL est fournie
+    setHasError(false);
+
+    if (src) {
+      // Accepter les URLs complètes (http, https) et les URLs data:image
+      if (
+        !src.startsWith("http://") &&
+        !src.startsWith("https://") &&
+        !src.startsWith("data:image/")
+      ) {
+        setHasError(true);
+        return;
+      }
+
+      // Vérifier si l'URL est accessible (sauf pour les data:image qui sont déjà chargées)
+      if (src.startsWith("data:image/")) {
+        setImageSrc(src);
+        setHasError(false);
+      } else {
+        // Pour les URLs http/https, vérifier qu'elles sont accessibles
+        const img = new Image();
+        img.onload = () => {
+          setImageSrc(src);
+          setHasError(false);
+        };
+        img.onerror = () => {
+          setHasError(true);
+        };
+        img.src = src;
+      }
+    } else {
+      setHasError(true);
+    }
+  }, [src]);
 
   const sizeClasses = {
     sm: "w-8 h-8 text-xs",
@@ -25,15 +63,17 @@ const Avatar: React.FC<AvatarProps> = ({
     xl: "w-24 h-24 text-lg",
   };
 
-  const handleError = () => setHasError(true);
+  const handleError = () => {
+    setHasError(true);
+  };
 
   return (
     <div
       className={`relative rounded-full overflow-hidden ${sizeClasses[size]} ${className}`}
     >
-      {!hasError && src ? (
+      {!hasError && imageSrc ? (
         <img
-          src={src}
+          src={imageSrc}
           alt={alt}
           className="w-full h-full object-cover"
           onError={handleError}
