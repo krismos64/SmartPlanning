@@ -10,6 +10,7 @@ import { adminCompaniesRouter } from "./routes/admin/companies.route";
 import adminEmployeesRoutes from "./routes/admin/employees";
 import adminUsersRoutes from "./routes/admin/users.route";
 import authRoutes from "./routes/auth.routes";
+import contactRoutes from "./routes/contact.routes";
 import employeeRoutes from "./routes/employee.routes";
 import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route";
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
@@ -71,6 +72,7 @@ app.use("/api/vacations", vacationRoutes);
 app.use("/api/weekly-schedules", weeklySchedulesRouter);
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/contact", contactRoutes);
 
 // Routes d'upload d'images utilisateur
 app.use("/api/upload", uploadRoutes);

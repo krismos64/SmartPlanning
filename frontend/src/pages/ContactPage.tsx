@@ -96,7 +96,7 @@ const ContactItemTitle = styled.h3`
   font-size: 1.125rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#334155" : "#334155")};
+  color: #334155;
 `;
 
 const ContactItemText = styled.p<{ isDarkMode?: boolean }>`
@@ -128,6 +128,19 @@ const ErrorMessage = styled.p`
   color: #ef4444;
   font-size: 0.875rem;
   margin-top: 0.5rem;
+`;
+
+const FormErrorMessage = styled(motion.div)<{ isDarkMode?: boolean }>`
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background-color: ${({ isDarkMode }) =>
+    isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#fee2e2"};
+  color: ${({ isDarkMode }) => (isDarkMode ? "#fca5a5" : "#dc2626")};
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 `;
 
 const ContactPage: React.FC = () => {
@@ -204,21 +217,44 @@ const ContactPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Simuler un appel API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Contact form submitted:", formData);
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        subject: "",
-        message: "",
-      });
-      setIsSuccess(true);
-      setTimeout(() => setIsSuccess(false), 5000);
+      // Appel à l'API de contact
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+        }/contact`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setFormData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          subject: "",
+          message: "",
+        });
+        setIsSuccess(true);
+        setTimeout(() => setIsSuccess(false), 5000);
+      } else {
+        console.error("Erreur envoi formulaire:", data.message);
+        setErrors({
+          form:
+            data.message ||
+            "Une erreur est survenue lors de l'envoi du message",
+        });
+      }
     } catch (error) {
       console.error("Contact form error:", error);
+      setErrors({ form: "Une erreur est survenue lors de l'envoi du message" });
     } finally {
       setIsLoading(false);
     }
@@ -250,6 +286,16 @@ const ContactPage: React.FC = () => {
               Votre message a été envoyé avec succès. Nous vous répondrons dans
               les plus brefs délais.
             </SuccessMessage>
+          )}
+
+          {errors.form && (
+            <FormErrorMessage
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              isDarkMode={isDarkMode}
+            >
+              {errors.form}
+            </FormErrorMessage>
           )}
 
           <Form onSubmit={handleSubmit}>
