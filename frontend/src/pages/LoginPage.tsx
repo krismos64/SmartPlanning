@@ -355,7 +355,7 @@ const LoginPage: React.FC = () => {
                   </CheckboxLabel>
                 </CheckboxContainer>
 
-                <ForgotPassword to="/reset-password" isDarkMode={isDarkMode}>
+                <ForgotPassword to="/forgot-password" isDarkMode={isDarkMode}>
                   Mot de passe oublié ?
                 </ForgotPassword>
               </RememberForgotRow>

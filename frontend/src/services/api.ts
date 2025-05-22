@@ -8,6 +8,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // Autoriser l'envoi des cookies avec les requêtes cross-origin
+  withCredentials: true,
 });
 
 // Intercepteur pour ajouter le token JWT aux requêtes
@@ -158,6 +160,50 @@ export const adminUserService = {
       await api.delete(`/admin/users/${id}`);
     } catch (error) {
       console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      throw error;
+    }
+  },
+};
+
+/**
+ * Service pour la gestion des mots de passe
+ */
+export const passwordService = {
+  /**
+   * Demander un lien de réinitialisation de mot de passe
+   * @param email - Email de l'utilisateur
+   * @returns Réponse du serveur
+   */
+  forgotPassword: async (email: string) => {
+    try {
+      const response = await api.post("/auth/forgot-password", { email });
+      return response.data;
+    } catch (error) {
+      console.error("Erreur lors de la demande de réinitialisation:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Réinitialiser le mot de passe avec un token
+   * @param email - Email de l'utilisateur
+   * @param token - Token de réinitialisation
+   * @param newPassword - Nouveau mot de passe
+   * @returns Réponse du serveur
+   */
+  resetPassword: async (email: string, token: string, newPassword: string) => {
+    try {
+      const response = await api.post("/auth/reset-password", {
+        email,
+        token,
+        newPassword,
+      });
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la réinitialisation du mot de passe:",
+        error
+      );
       throw error;
     }
   },

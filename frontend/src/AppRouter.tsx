@@ -10,11 +10,13 @@ import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
 import DatePickerDemoPage from "./pages/DatePickerDemoPage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
 import LoginPage from "./pages/LoginPage";
 import ManagerPlanningValidationPage from "./pages/ManagerPlanningValidationPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import RegisterPage from "./pages/RegisterPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import StatsPage from "./pages/StatsPage";
 import TermsOfUsePage from "./pages/TermsOfUsePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
@@ -92,6 +94,8 @@ const AppRouter: React.FC = () => {
         <Route path="/connexion" element={<LoginPage />} />
         <Route path="/inscription" element={<RegisterPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Route du tableau de bord pour utilisateurs connectés */}
         <Route path="/tableau-de-bord" element={<DashboardPage />} />
