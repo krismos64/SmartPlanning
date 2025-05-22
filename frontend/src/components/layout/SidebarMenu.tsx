@@ -239,41 +239,35 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         <div className="flex items-center space-x-3">
           <motion.div
             whileHover={{ scale: 1.05, rotate: 5 }}
-            className="w-10 h-10 flex-shrink-0"
+            className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-violet-500 to-indigo-600 dark:from-violet-400 dark:to-indigo-500 rounded-md flex items-center justify-center cursor-pointer"
+            onClick={() => (window.location.href = "/")}
           >
-            {companyData?.logoUrl ? (
-              <img
-                src={companyData.logoUrl}
-                alt={`${companyData.name} logo`}
-                className="w-full h-full object-contain rounded-md"
+            <Suspense
+              fallback={
+                <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900/50 rounded-md animate-pulse"></div>
+              }
+            >
+              <EnhancedLottie
+                animationData={planningAnimation}
+                loop={true}
+                style={{ width: "100%", height: "100%" }}
               />
-            ) : (
-              <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-violet-500 to-indigo-600 dark:from-violet-400 dark:to-indigo-500 rounded-md flex items-center justify-center">
-                <Suspense
-                  fallback={
-                    <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900/50 rounded-md animate-pulse"></div>
-                  }
-                >
-                  <EnhancedLottie
-                    animationData={planningAnimation}
-                    loop={true}
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                </Suspense>
-              </div>
-            )}
+            </Suspense>
           </motion.div>
           <div className="flex flex-col">
             <motion.span
-              className="text-sm font-bold text-violet-800 dark:text-violet-200"
+              className="text-sm font-bold text-violet-800 dark:text-violet-200 cursor-pointer"
               whileHover={{ scale: 1.03, x: 2 }}
               transition={{ type: "spring", stiffness: 300 }}
+              onClick={() => (window.location.href = "/")}
             >
-              {companyData?.name || companyName}
+              SmartPlanning
             </motion.span>
-            <span className="text-xs text-violet-600/70 dark:text-violet-300/70">
-              Espace entreprise
-            </span>
+            {companyData?.name && (
+              <span className="text-xs text-violet-600/70 dark:text-violet-300/70">
+                {companyData.name}
+              </span>
+            )}
           </div>
         </div>
       </div>

@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
-import React, { lazy, Suspense, useState } from "react";
+import { Building, Menu, X } from "lucide-react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { useAuth } from "../../hooks/useAuth";
 import { getEnvVar } from "../../utils/getEnv";
@@ -33,9 +34,62 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [companyData, setCompanyData] = useState<{
+    name: string;
+    logoUrl?: string;
+  } | null>(null);
 
   // Utiliser le hook useAuth pour accéder aux données utilisateur
   const { user, isAuthenticated, loading } = useAuth();
+
+  // Récupérer les informations de l'entreprise
+  useEffect(() => {
+    const fetchCompany = async () => {
+      if (!user?.companyId) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          axiosInstance.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${token}`;
+        }
+
+        const response = await axiosInstance.get(
+          `${API_URL}/admin/companies/${user.companyId}`
+        );
+
+        // Vérifier la structure de la réponse et extraire les données correctement
+        if (response.data) {
+          // Si la réponse a une propriété success et data, utiliser cette structure
+          if (response.data.success && response.data.data) {
+            setCompanyData({
+              name: response.data.data.name,
+              logoUrl: response.data.data.logoUrl,
+            });
+          }
+          // Sinon, vérifier si la réponse elle-même contient les données de l'entreprise
+          else if (response.data.name) {
+            setCompanyData({
+              name: response.data.name,
+              logoUrl: response.data.logoUrl,
+            });
+          }
+
+          console.log("Données entreprise récupérées:", response.data);
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération des infos entreprise:",
+          error
+        );
+      }
+    };
+
+    if (user && user.companyId) {
+      fetchCompany();
+    }
+  }, [user]);
 
   const handleNavigate = (route: string) => {
     setSidebarOpen(false);
@@ -61,8 +115,6 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
             firstName={user.firstName}
             lastName={user.lastName}
             photoUrl={user.photoUrl}
-            companyName="SmartTech Industries"
-            companyLogoUrl="/src/assets/images/company-logo.png"
             user={user}
           />
         )}
@@ -96,48 +148,39 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
                     {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
                   </motion.button>
 
-                  {/* Logo et animation */}
-                  <Link
-                    to="/"
-                    className="flex items-center"
-                    onClick={() =>
-                      window.scrollTo({ top: 0, behavior: "smooth" })
-                    }
-                  >
+                  {/* Logo et nom de l'entreprise */}
+                  <div className="flex items-center">
                     <motion.div
-                      className="w-10 h-10 mr-2"
+                      className="w-10 h-10 mr-2 flex items-center justify-center"
                       whileHover={{ rotate: 360 }}
                       transition={{ duration: 0.8, ease: "easeInOut" }}
                     >
-                      <Suspense
-                        fallback={
-                          <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-full"></div>
-                        }
-                      >
-                        <EnhancedLottie
-                          animationData={planningAnimation}
-                          loop={true}
-                          style={{ width: "100%", height: "100%" }}
+                      {companyData?.logoUrl &&
+                      companyData.logoUrl.trim() !== "" ? (
+                        <img
+                          src={companyData.logoUrl}
+                          alt={companyData.name}
+                          className="w-full h-full object-contain rounded-md"
                         />
-                      </Suspense>
+                      ) : (
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500 rounded-md flex items-center justify-center">
+                          <Building size={24} className="text-white" />
+                        </div>
+                      )}
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="flex flex-col"
                     >
                       <motion.span
                         className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-400 dark:to-blue-300"
                         whileHover={{ scale: 1.05 }}
                       >
-                        SmartPlanning
+                        {companyData?.name || "Entreprise"}
                       </motion.span>
-                      <span className="text-xs text-indigo-500/70 dark:text-indigo-300/70">
-                        Espace utilisateur
-                      </span>
                     </motion.div>
-                  </Link>
+                  </div>
                 </div>
 
                 {/* Partie droite du header */}
