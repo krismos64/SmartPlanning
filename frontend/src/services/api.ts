@@ -20,31 +20,46 @@ api.interceptors.request.use((config) => {
 });
 
 /**
- * Service d'upload de fichiers vers Cloudinary via notre backend
- * @param file - Le fichier à uploader
- * @returns - Une promesse avec l'URL du fichier uploadé
+ * Service d'upload d'images vers Cloudinary via notre backend
+ * @param file - Le fichier image à uploader
+ * @returns - Une promesse avec l'URL du fichier uploadé sur Cloudinary
  */
 export const uploadFile = async (file: File): Promise<string> => {
   try {
     // Créer un objet FormData pour envoyer le fichier
     const formData = new FormData();
-    formData.append("file", file);
 
-    // Définir le type de contenu comme multipart/form-data
-    const config = {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    };
+    // Ajouter le fichier sous la clé 'image' comme attendu par le backend
+    formData.append("image", file);
 
-    // Faire la requête POST vers l'endpoint d'upload
-    const response = await api.post("/upload", formData, config);
+    // Faire la requête POST vers l'endpoint d'upload d'avatar
+    // Note: Pas besoin de définir le Content-Type ici car axios le détecte automatiquement pour FormData
+    const response = await api.post("/upload/avatar", formData);
 
-    // Retourner l'URL du fichier uploadé
-    return response.data.url;
+    // Vérifier que la réponse contient une URL d'image
+    if (response.data && response.data.success && response.data.imageUrl) {
+      // Retourner uniquement l'URL de l'image uploadée
+      return response.data.imageUrl;
+    } else {
+      // Si la structure de la réponse n'est pas celle attendue
+      throw new Error("Format de réponse invalide du serveur d'upload");
+    }
   } catch (error) {
-    console.error("Erreur lors de l'upload du fichier:", error);
-    throw error;
+    // Loguer l'erreur dans la console pour le débogage
+    console.error("Erreur lors de l'upload de l'image:", error);
+
+    // Créer un message d'erreur plus descriptif selon le type d'erreur
+    if (axios.isAxiosError(error) && error.response) {
+      // Erreur avec une réponse du serveur (4xx, 5xx)
+      throw new Error(
+        `Échec de l'upload (${error.response.status}): ${
+          error.response.data.message || "Erreur inconnue"
+        }`
+      );
+    } else {
+      // Autres types d'erreurs (réseau, etc.)
+      throw new Error("Impossible d'uploader l'image. Veuillez réessayer.");
+    }
   }
 };
 

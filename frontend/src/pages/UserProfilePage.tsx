@@ -42,6 +42,7 @@ const UserProfilePage = () => {
   // État pour l'upload de photo
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // État pour le changement de mot de passe
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
@@ -65,7 +66,7 @@ const UserProfilePage = () => {
 
         // Charger les informations de l'utilisateur
         const userResponse = await api.get("/users/me");
-        const userData = userResponse.data.data;
+        const userData = userResponse.data.data || userResponse.data;
 
         // Initialiser le formulaire avec les données reçues
         setFormData({
@@ -80,8 +81,9 @@ const UserProfilePage = () => {
         // Récupérer les informations complémentaires (entreprise, équipes)
         if (userData.companyId) {
           try {
+            // Utiliser la route admin/companies pour récupérer les informations de l'entreprise
             const companyResponse = await api.get(
-              `/companies/${userData.companyId}`
+              `/admin/companies/${userData.companyId}`
             );
             setCompanyName(companyResponse.data.name || "");
           } catch (error) {
@@ -89,17 +91,47 @@ const UserProfilePage = () => {
               "Erreur lors de la récupération de l'entreprise:",
               error
             );
+            // Si l'accès à l'API échoue, au moins afficher l'ID de l'entreprise
+            setCompanyName(`ID: ${userData.companyId}`);
           }
         }
 
         if (userData.teamIds && userData.teamIds.length > 0) {
           try {
-            const teamsResponse = await api.get(
-              `/teams?ids=${userData.teamIds.join(",")}`
-            );
-            setTeams(teamsResponse.data.map((team: any) => team.name || ""));
+            // Récupérer les noms des équipes une par une
+            const teamNames = [];
+            for (const teamId of userData.teamIds) {
+              try {
+                const teamResponse = await api.get(`/teams/${teamId}`);
+                // Vérifier si la réponse contient les données de l'équipe
+                if (teamResponse.data && teamResponse.data.data) {
+                  teamNames.push(
+                    teamResponse.data.data.name ||
+                      `Équipe ${teamId.substr(0, 8)}...`
+                  );
+                } else if (teamResponse.data && teamResponse.data.name) {
+                  teamNames.push(teamResponse.data.name);
+                } else {
+                  teamNames.push(`Équipe ${teamId.substr(0, 8)}...`);
+                }
+              } catch (error) {
+                console.error(
+                  `Erreur lors de la récupération de l'équipe ${teamId}:`,
+                  error
+                );
+                // En cas d'erreur, afficher l'ID de l'équipe
+                teamNames.push(`Équipe ${teamId.substr(0, 8)}...`);
+              }
+            }
+            setTeams(teamNames);
           } catch (error) {
             console.error("Erreur lors de la récupération des équipes:", error);
+            // En cas d'erreur globale, afficher les IDs des équipes
+            setTeams(
+              userData.teamIds.map(
+                (id: string) => `Équipe ${id.substr(0, 8)}...`
+              )
+            );
           }
         }
       } catch (error) {
@@ -147,12 +179,22 @@ const UserProfilePage = () => {
 
       if (selectedFile) {
         try {
+          // Indiquer que l'upload de l'image est en cours
+          setIsUploadingImage(true);
+          showSuccessToast("Upload de l'image en cours...");
+
           photoUrlToSave = await uploadFile(selectedFile);
+
+          // Indiquer que l'upload est terminé
+          showSuccessToast("Image uploadée avec succès !");
         } catch (error) {
           console.error("Erreur lors de l'upload de l'image:", error);
           showErrorToast("Erreur lors de l'upload de l'image");
           setIsSaving(false);
+          setIsUploadingImage(false);
           return;
+        } finally {
+          setIsUploadingImage(false);
         }
       }
 
@@ -394,16 +436,34 @@ const UserProfilePage = () => {
                 </label>
 
                 <div className="flex items-center gap-4">
-                  <Avatar src={previewUrl} size="lg" />
+                  <div className="relative">
+                    <Avatar src={previewUrl} size="lg" />
+                    {isUploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                        <LoadingSpinner size="sm" className="text-white" />
+                      </div>
+                    )}
+                  </div>
 
-                  <FileUpload
-                    onFileSelect={handleFileSelect}
-                    onPreviewChange={setPreviewUrl}
-                    acceptedTypes="image/*"
-                    maxSizeMB={2}
-                    buttonText="Changer la photo"
-                    label="Photo de profil"
-                  />
+                  <div className="flex-1">
+                    <FileUpload
+                      onFileSelect={handleFileSelect}
+                      onPreviewChange={setPreviewUrl}
+                      acceptedTypes="image/*"
+                      maxSizeMB={2}
+                      buttonText={
+                        isUploadingImage
+                          ? "Upload en cours..."
+                          : "Changer la photo"
+                      }
+                      label=""
+                      className={isUploadingImage ? "opacity-70" : ""}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Formats acceptés : JPG, PNG, GIF, WebP. Taille max. 2 Mo.
+                      La photo sera hébergée sur Cloudinary de façon sécurisée.
+                    </p>
+                  </div>
                 </div>
               </div>
 

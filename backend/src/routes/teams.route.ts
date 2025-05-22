@@ -6,6 +6,7 @@
  * - de créer une équipe
  * - de mettre à jour une équipe
  * - de supprimer une équipe
+ * - de récupérer une équipe par ID
  */
 
 import express, { Response } from "express";
@@ -183,6 +184,51 @@ router.delete(
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la suppression de l'équipe",
+        error: (error as Error).message,
+      });
+    }
+  }
+);
+
+/**
+ * @route   GET /api/teams/:id
+ * @desc    Récupérer une équipe par son ID
+ * @access  Private
+ */
+router.get(
+  "/:id",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'équipe invalide",
+        });
+      }
+
+      const team = await TeamModel.findById(id)
+        .populate("managerIds", "firstName lastName email photoUrl")
+        .populate("employeeIds", "firstName lastName email photoUrl");
+
+      if (!team) {
+        return res.status(404).json({
+          success: false,
+          message: "Équipe non trouvée",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: team,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'équipe:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la récupération de l'équipe",
         error: (error as Error).message,
       });
     }

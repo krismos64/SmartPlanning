@@ -17,6 +17,8 @@ import incidentsRoutes from "./routes/incidents.route";
 import statsRoutes from "./routes/stats.routes";
 import tasksRoutes from "./routes/tasks.routes";
 import teamRoutes from "./routes/teams.route";
+import { uploadRoutes } from "./routes/upload.routes";
+import usersRoutes from "./routes/users.routes";
 import vacationRoutes from "./routes/vacations.routes";
 import weeklySchedulesRouter from "./routes/weeklySchedules.route";
 // Charger les variables d'environnement
@@ -57,10 +59,15 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/generated-schedules", generatedSchedulesRoutes);
 app.use("/api/incidents", incidentsRoutes);
 app.use("/api/teams", teamRoutes);
+app.use("/api/users", usersRoutes);
 app.use("/api/vacations", vacationRoutes);
 app.use("/api/weekly-schedules", weeklySchedulesRouter);
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/stats", statsRoutes);
+
+// Routes d'upload d'images utilisateur
+app.use("/api/upload", uploadRoutes);
+
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {
   res.json({ message: "SmartPlanning API" });

@@ -1,5 +1,5 @@
 import { Upload } from "lucide-react";
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useRef, useState } from "react";
 import Button from "./Button";
 
 interface FileUploadProps {
@@ -28,6 +28,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [fileError, setFileError] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * Gère la sélection de fichier et valide le type et la taille
@@ -82,6 +83,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  // Fonction pour déclencher le clic sur l'input file
+  const handleButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <div className={`w-full ${className}`}>
       {label && (
@@ -91,22 +99,22 @@ const FileUpload: React.FC<FileUploadProps> = ({
       <div className="flex items-center space-x-3">
         <input
           type="file"
-          id="file-upload"
+          ref={fileInputRef}
           className="hidden"
           accept={acceptedTypes}
           onChange={handleFileChange}
         />
 
-        <label htmlFor="file-upload">
-          <Button
-            type="button"
-            variant="secondary"
-            icon={<Upload size={16} />}
-            className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-600"
-          >
-            {buttonText}
-          </Button>
-        </label>
+        {/* Utiliser un bouton direct au lieu d'un label */}
+        <Button
+          type="button"
+          variant="secondary"
+          icon={<Upload size={16} />}
+          onClick={handleButtonClick}
+          className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-600"
+        >
+          {buttonText}
+        </Button>
 
         <div className="text-sm truncate max-w-xs">
           {selectedFileName || "Aucun fichier sélectionné"}
