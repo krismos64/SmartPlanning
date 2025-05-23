@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { isValidObjectId } from "mongoose";
 import { authenticateToken } from "../middlewares/auth.middleware";
+import checkRole from "../middlewares/checkRole.middleware";
 import EmployeeModel from "../models/Employee.model";
 import IncidentModel from "../models/Incident.model";
 
@@ -20,30 +21,11 @@ interface AuthRequest {
 
 const router = Router();
 
-// Middleware pour vérifier l'autorisation selon le rôle
-const checkRoleAccess = (roles: string[]) => {
-  return (req: any, res: any, next: any) => {
-    if (!req.user) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Non authentifié" });
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Accès non autorisé pour ce rôle" });
-    }
-
-    next();
-  };
-};
-
 // GET /api/incidents - Récupérer la liste des incidents
 router.get(
   "/",
   authenticateToken,
-  checkRoleAccess(["admin", "directeur", "manager"]),
+  checkRole(["admin", "directeur", "manager"]),
   async (req: any, res: any) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
@@ -110,7 +92,7 @@ router.get(
 router.post(
   "/",
   authenticateToken,
-  checkRoleAccess(["admin", "manager"]),
+  checkRole(["admin", "manager"]),
   async (req: any, res: any) => {
     try {
       const {
@@ -176,7 +158,7 @@ router.post(
 router.put(
   "/:id",
   authenticateToken,
-  checkRoleAccess(["admin", "manager"]),
+  checkRole(["admin", "manager"]),
   async (req: any, res: any) => {
     try {
       const { id } = req.params;
@@ -236,7 +218,7 @@ router.put(
 router.delete(
   "/:id",
   authenticateToken,
-  checkRoleAccess(["admin", "manager"]),
+  checkRole(["admin", "manager"]),
   async (req: any, res: any) => {
     try {
       const { id } = req.params;

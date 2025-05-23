@@ -12,13 +12,16 @@ const router = express.Router();
  * Route GET /api/employees
  * Liste tous les employés actifs:
  * - Pour un admin: tous les employés
+ * - Pour un directeur: tous les employés de son entreprise
  * - Pour un manager: seulement les employés de ses équipes
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     if (
       !req.user ||
-      (req.user.role !== "manager" && req.user.role !== "admin")
+      (req.user.role !== "manager" &&
+        req.user.role !== "admin" &&
+        req.user.role !== "directeur")
     ) {
       return res.status(403).json({ success: false, message: "Accès refusé" });
     }
@@ -31,7 +34,23 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         { status: "actif" },
         "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
       )
-        .populate("teamId", "name") // <<<<<< C'est la seule ligne à ajouter
+        .populate("teamId", "name")
+        .sort({ lastName: 1, firstName: 1 })
+        .lean();
+    } else if (req.user.role === "directeur") {
+      // Le directeur n'a accès qu'aux employés de son entreprise
+      if (!req.user.companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise manquant pour le directeur",
+        });
+      }
+
+      employees = await EmployeeModel.find(
+        { companyId: req.user.companyId, status: "actif" },
+        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
+      )
+        .populate("teamId", "name")
         .sort({ lastName: 1, firstName: 1 })
         .lean();
     } else {
@@ -46,6 +65,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         { teamId: { $in: teamIds }, status: "actif" },
         "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
       )
+        .populate("teamId", "name")
         .sort({ lastName: 1, firstName: 1 })
         .lean();
     }

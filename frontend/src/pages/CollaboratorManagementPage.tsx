@@ -176,6 +176,17 @@ const cardVariants = {
 };
 
 /**
+ * Fonction simple pour vérifier si une chaîne est un ObjectId MongoDB valide
+ * @param id Chaîne à vérifier
+ * @returns true si la chaîne semble être un ObjectId valide
+ */
+const isValidObjectId = (id?: string): boolean => {
+  if (!id) return false;
+  // Un ObjectId MongoDB est une chaîne hexadécimale de 24 caractères
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
+/**
  * Composant principal de la page de gestion des collaborateurs (multi-rôles)
  */
 const CollaboratorManagementPage: React.FC = () => {
@@ -277,7 +288,11 @@ const CollaboratorManagementPage: React.FC = () => {
       if (user.role === "manager") {
         // Le manager ne voit que ses équipes
         console.log("Récupération des équipes pour le manager:", user._id);
-      } else if (user.role === "directeur") {
+      } else if (
+        user.role === "directeur" &&
+        user.companyId &&
+        isValidObjectId(user.companyId)
+      ) {
         // Le directeur voit toutes les équipes de son entreprise
         url = `/teams/company/${user.companyId}`;
         console.log(
@@ -286,7 +301,7 @@ const CollaboratorManagementPage: React.FC = () => {
         );
       } else if (user.role === "admin") {
         // L'admin peut voir toutes les équipes, filtrer par entreprise si nécessaire
-        if (filters.companyId) {
+        if (filters.companyId && isValidObjectId(filters.companyId)) {
           url = `/teams/company/${filters.companyId}`;
         } else {
           url = "/teams/all";
@@ -854,7 +869,7 @@ const CollaboratorManagementPage: React.FC = () => {
   // Options de rôles pour le select
   const roleOptions = [
     { value: "", label: "Tous les rôles" },
-    { value: "employee", label: "Employé" },
+    { value: "employé", label: "Employé" },
     { value: "manager", label: "Manager" },
     { value: "directeur", label: "Directeur" },
   ];

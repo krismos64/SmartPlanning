@@ -196,6 +196,17 @@ const getIncidentTypeBadgeType = (
 };
 
 /**
+ * Fonction simple pour vérifier si une chaîne est un ObjectId MongoDB valide
+ * @param id Chaîne à vérifier
+ * @returns true si la chaîne semble être un ObjectId valide
+ */
+const isValidObjectId = (id?: string): boolean => {
+  if (!id) return false;
+  // Un ObjectId MongoDB est une chaîne hexadécimale de 24 caractères
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
+/**
  * Composant principal pour la page de suivi des incidents
  * Accessible uniquement aux managers
  */
@@ -337,27 +348,57 @@ const IncidentTrackingPage: React.FC = () => {
   // Fonction pour récupérer la liste des employés
   const fetchEmployees = useCallback(async () => {
     try {
+      const userRole = user?.role?.toLowerCase();
+      const companyId = user?.companyId;
+
+      console.log(
+        `[IncidentTrackingPage] User role: ${userRole}, companyId: ${companyId}`
+      );
+
+      let url = "/employees";
+
+      // Si directeur, utiliser la route par companyId qui est plus performante
+      if (userRole === "directeur" && companyId && isValidObjectId(companyId)) {
+        url = `/employees/company/${companyId}`;
+        console.log(`[IncidentTrackingPage] Utilisation de l'URL: ${url}`);
+      }
+
+      // Utilisation de l'API en fonction du rôle
       const response = await axiosInstance.get<{
         success: boolean;
         data: Employee[];
-      }>("/employees");
-      setEmployees(response.data.data);
+      }>(url);
 
-      // Définir l'employé par défaut si la liste n'est pas vide
-      if (response.data.data.length > 0) {
-        setFormData((prev) => ({
-          ...prev,
-          employeeId: response.data.data[0]._id,
-        }));
+      if (response.data.success) {
+        console.log(
+          `[IncidentTrackingPage] ${response.data.data.length} employés récupérés`
+        );
+        setEmployees(response.data.data);
+
+        // Définir l'employé par défaut si la liste n'est pas vide
+        if (response.data.data.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            employeeId: response.data.data[0]._id,
+          }));
+        }
+      } else {
+        console.error(
+          "[IncidentTrackingPage] Réponse API sans succès:",
+          response.data
+        );
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération des employés:", error);
+      console.error(
+        "[IncidentTrackingPage] Erreur lors de la récupération des employés:",
+        error
+      );
       setError(
         "Impossible de récupérer la liste des employés. Veuillez réessayer."
       );
       setShowErrorToast(true);
     }
-  }, []);
+  }, [user]);
 
   // Chargement initial des données
   useEffect(() => {

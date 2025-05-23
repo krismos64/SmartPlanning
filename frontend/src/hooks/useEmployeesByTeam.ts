@@ -1,6 +1,7 @@
 import axios from "axios"; // ✅ Importer axios de base pour isCancel
 import { useCallback, useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+import { useAuth } from "./useAuth";
 
 export interface Employee {
   _id: string;
@@ -20,10 +21,22 @@ interface ApiResponse {
   message?: string;
 }
 
+/**
+ * Fonction simple pour vérifier si une chaîne est un ObjectId MongoDB valide
+ * @param id Chaîne à vérifier
+ * @returns true si la chaîne semble être un ObjectId valide
+ */
+const isValidObjectId = (id?: string): boolean => {
+  if (!id) return false;
+  // Un ObjectId MongoDB est une chaîne hexadécimale de 24 caractères
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
 const useEmployeesByTeam = (teamId: string) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth(); // Récupérer l'utilisateur authentifié pour connaître son rôle
 
   /**
    * Fonction pour récupérer les employés depuis l'API
@@ -36,16 +49,32 @@ const useEmployeesByTeam = (teamId: string) => {
         setError(null);
 
         let url = "";
+        const userRole = user?.role?.toLowerCase();
+        const companyId = user?.companyId;
 
+        console.log(
+          `[useEmployeesByTeam] User role: ${userRole}, companyId: ${companyId}`
+        );
+
+        // Déterminer l'URL appropriée en fonction du contexte
         if (teamId) {
+          // Si on a un teamId spécifique, utiliser la route par équipe
           url = `/employees/team/${teamId}`;
           console.log(
             `[useEmployeesByTeam] Récupération des employés pour l'équipe: ${teamId}`
           );
-        } else {
-          url = `/employees`; // Liste globale pour toutes les équipes du manager
+        } else if (userRole === "directeur" && isValidObjectId(companyId)) {
+          // Si directeur, utiliser la route par companyId qui est plus performante
+          // Mais seulement si le companyId est valide
+          url = `/employees/company/${companyId}`;
           console.log(
-            `[useEmployeesByTeam] Récupération de tous les employés (aucune équipe spécifiée)`
+            `[useEmployeesByTeam] Directeur: récupération des employés pour l'entreprise: ${companyId}`
+          );
+        } else {
+          // Pour les autres cas (admin, manager, employé), utiliser la route générique
+          url = `/employees`;
+          console.log(
+            `[useEmployeesByTeam] Récupération des employés avec filtrage automatique par rôle: ${userRole}`
           );
         }
 
@@ -81,7 +110,7 @@ const useEmployeesByTeam = (teamId: string) => {
         setLoading(false);
       }
     },
-    [teamId]
+    [teamId, user]
   );
 
   /**
