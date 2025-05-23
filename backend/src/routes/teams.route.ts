@@ -7,11 +7,13 @@
  * - de mettre à jour une équipe
  * - de supprimer une équipe
  * - de récupérer une équipe par ID
+ * - de récupérer les équipes d'une entreprise (directeur/admin)
  */
 
 import express, { Response } from "express";
 import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
+import checkRole from "../middlewares/checkRole.middleware";
 import { TeamModel } from "../models/Team.model";
 
 const router = express.Router();
@@ -47,6 +49,73 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     });
   }
 });
+
+/**
+ * @route   GET /api/teams/company/:companyId
+ * @desc    Récupérer toutes les équipes d'une entreprise spécifique
+ * @access  Private - Directeur, Admin uniquement
+ */
+router.get(
+  "/company/:companyId",
+  authenticateToken,
+  checkRole(["directeur", "admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // 🔐 Vérification des paramètres
+      const { companyId } = req.params;
+      console.log(
+        `[GET /teams/company/:companyId] Recherche des équipes pour l'entreprise: ${companyId}`
+      );
+
+      // ✅ Validation de l'identifiant d'entreprise
+      if (!mongoose.Types.ObjectId.isValid(companyId)) {
+        console.log(
+          `[GET /teams/company/:companyId] ID d'entreprise invalide: ${companyId}`
+        );
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise invalide",
+        });
+      }
+
+      // 🔍 Restriction d'accès pour les directeurs (uniquement leur propre entreprise)
+      if (req.user.role === "directeur" && req.user.companyId !== companyId) {
+        console.log(
+          `[GET /teams/company/:companyId] Tentative d'accès non autorisé: le directeur (${req.user._id}) tente d'accéder à une autre entreprise (${companyId})`
+        );
+        return res.status(403).json({
+          success: false,
+          message:
+            "Vous n'êtes pas autorisé à accéder aux équipes de cette entreprise",
+        });
+      }
+
+      // 🧠 Récupération des équipes de l'entreprise
+      const teams = await TeamModel.find({ companyId })
+        .populate("managerIds", "firstName lastName email photoUrl")
+        .populate("employeeIds", "firstName lastName email photoUrl")
+        .lean();
+
+      console.log(
+        `[GET /teams/company/:companyId] ${teams.length} équipes trouvées pour l'entreprise ${companyId}`
+      );
+
+      // ✅ Retour des données
+      return res.status(200).json({
+        success: true,
+        data: teams,
+      });
+    } catch (error) {
+      // ⚠️ Gestion des erreurs
+      console.error("[GET /teams/company/:companyId] Erreur:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la récupération des équipes",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+);
 
 /**
  * @route   POST /api/teams

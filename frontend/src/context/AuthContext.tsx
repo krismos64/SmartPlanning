@@ -96,6 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ...userData,
             token,
             userId: userData._id, // Assurer la cohérence avec le format attendu par le backend
+            companyId: userData.companyId, // ✅ nécessaire pour filtrage multi-tenant (ex: collaborateurs, plannings)
           });
           setIsAuthenticated(true);
         } else {
@@ -141,6 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           token,
           userId: user._id || user.id, // Assurer la cohérence avec le format attendu par le backend
           photoUrl: user.photoUrl, // S'assurer que photoUrl est bien préservé
+          companyId: user.companyId, // ✅ nécessaire pour filtrage multi-tenant (ex: collaborateurs, plannings)
         });
         setIsAuthenticated(true);
       } else {
@@ -229,6 +231,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             token,
             userId: userData._id,
             photoUrl: updatedPhotoUrl,
+            companyId: userData.companyId, // ✅ nécessaire pour filtrage multi-tenant (ex: collaborateurs, plannings)
           };
         });
 

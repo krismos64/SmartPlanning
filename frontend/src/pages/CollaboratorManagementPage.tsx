@@ -1,15 +1,16 @@
 /**
- * CollaboratorManagementPage - Page de gestion des collaborateurs (version Manager)
+ * CollaboratorManagementPage - Page de gestion des collaborateurs (multi-rôles)
  *
- * Interface dédiée permettant à un manager de gérer ses équipes et leurs collaborateurs:
- * - Création/modification/suppression d'équipes
- * - Affichage des collaborateurs filtrés sur les équipes du manager connecté
- * - Création/édition/suppression de collaborateurs
+ * Interface dédiée permettant la gestion des équipes et collaborateurs avec accès adapté:
+ * - Manager: gestion de ses équipes et leurs collaborateurs
+ * - Directeur: gestion de tous les employés de son entreprise
+ * - Admin: gestion de tous les utilisateurs du système
  */
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Edit,
   FileDown,
+  Filter,
   Plus,
   Settings,
   Shield,
@@ -26,7 +27,7 @@ import { useAuth } from "../hooks/useAuth";
 import useEmployeeActions, {
   NewEmployeeData,
 } from "../hooks/useEmployeeActions";
-import useEmployeesByTeam, { Employee } from "../hooks/useEmployeesByTeam";
+import { Employee } from "../hooks/useEmployeesByTeam";
 
 // Composants de layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -60,9 +61,17 @@ interface Team {
   companyId: string;
 }
 
+// Interface pour représenter une entreprise
+interface Company {
+  _id: string;
+  name: string;
+}
+
 // Interface étendue pour l'employé (avec email)
 interface EmployeeWithEmail extends Employee {
   email?: string;
+  role?: string;
+  managerName?: string;
 }
 
 // Types pour les formulaires d'équipes
@@ -90,6 +99,12 @@ const collaboratorColumns = [
     className: "text-gray-800 dark:text-gray-200 font-medium",
   },
   {
+    key: "role",
+    label: "Rôle",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
     key: "status",
     label: "Statut",
     sortable: true,
@@ -98,6 +113,12 @@ const collaboratorColumns = [
   {
     key: "team",
     label: "Équipe",
+    sortable: true,
+    className: "text-gray-800 dark:text-gray-200 font-medium",
+  },
+  {
+    key: "manager",
+    label: "Manager",
     sortable: true,
     className: "text-gray-800 dark:text-gray-200 font-medium",
   },
@@ -114,6 +135,13 @@ const collaboratorColumns = [
     className: "text-gray-800 dark:text-gray-200 font-medium",
   },
 ];
+
+// Type de filtres disponibles
+interface FiltersState {
+  role: string;
+  teamId: string;
+  companyId: string;
+}
 
 // Éléments du fil d'ariane
 const breadcrumbItems = [
@@ -148,23 +176,39 @@ const cardVariants = {
 };
 
 /**
- * Composant principal de la page de gestion des collaborateurs (pour managers)
+ * Composant principal de la page de gestion des collaborateurs (multi-rôles)
  */
 const CollaboratorManagementPage: React.FC = () => {
   const { user } = useAuth();
 
-  // ID de l'équipe sélectionnée (utilisé pour useEmployeesByTeam)
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  // 🔒 États pour gérer les filtres selon le rôle de l'utilisateur
+  const [filters, setFilters] = useState<FiltersState>({
+    role: "",
+    teamId: "",
+    companyId: user?.companyId || "",
+  });
 
-  // États pour les équipes du manager
+  // États pour les équipes accessibles selon le rôle
   const [managerTeams, setManagerTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState<boolean>(false);
+
+  // ✅ État pour les entreprises (uniquement pour admin)
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState<boolean>(false);
+
+  // État pour stocker tous les employés (chargés selon le rôle)
+  const [allEmployees, setAllEmployees] = useState<EmployeeWithEmail[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState<boolean>(true);
+  const [employeesError, setEmployeesError] = useState<string | null>(null);
 
   // États pour les notifications
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [showErrorToast, setShowErrorToast] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+
+  // État pour le modal de filtres
+  const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
 
   // États pour le modal d'ajout/édition de collaborateurs
   const [collaboratorModalOpen, setCollaboratorModalOpen] =
@@ -198,13 +242,7 @@ const CollaboratorManagementPage: React.FC = () => {
   const [manageTeamsModalOpen, setManageTeamsModalOpen] =
     useState<boolean>(false);
 
-  // Hooks pour les employés et les actions sur les employés
-  const {
-    employees,
-    loading: employeesLoading,
-    error: employeesError,
-    refetchEmployees,
-  } = useEmployeesByTeam(selectedTeamId);
+  // Hooks pour les actions sur les employés
   const { deleteEmployee } = useEmployeeActions();
 
   /**
@@ -220,27 +258,48 @@ const CollaboratorManagementPage: React.FC = () => {
     }
   };
 
+  // ✅ Vérification si l'utilisateur a accès à cette page
+  const hasAccess = ["manager", "directeur", "admin"].includes(
+    user?.role || ""
+  );
+
   /**
-   * Récupération des équipes du manager connecté
+   * 🔒 Récupération des équipes selon le rôle de l'utilisateur
    */
-  const fetchManagerTeams = useCallback(async () => {
-    if (!user || user.role !== "manager") return;
+  const fetchTeams = useCallback(async () => {
+    if (!user) return;
 
     setTeamsLoading(true);
     try {
-      console.log("Récupération des équipes pour le manager:", user._id);
+      let url = "/teams";
 
-      // Appel à l'API pour récupérer les équipes du manager
-      const response = await axiosInstance.get(`/teams`);
+      // 👁️ Adaptation selon le rôle
+      if (user.role === "manager") {
+        // Le manager ne voit que ses équipes
+        console.log("Récupération des équipes pour le manager:", user._id);
+      } else if (user.role === "directeur") {
+        // Le directeur voit toutes les équipes de son entreprise
+        url = `/teams/company/${user.companyId}`;
+        console.log(
+          "Récupération des équipes pour l'entreprise:",
+          user.companyId
+        );
+      } else if (user.role === "admin") {
+        // L'admin peut voir toutes les équipes, filtrer par entreprise si nécessaire
+        if (filters.companyId) {
+          url = `/teams/company/${filters.companyId}`;
+        } else {
+          url = "/teams/all";
+        }
+        console.log("Récupération de toutes les équipes (admin)");
+      }
+
+      // Appel à l'API pour récupérer les équipes
+      const response = await axiosInstance.get(url);
       if (response.data && response.data.success) {
         const teams = response.data.data;
         setManagerTeams(teams);
         setTeamsToDisplay(teams);
-
-        // Sélectionner la première équipe seulement si aucune n'est sélectionnée
-        if (selectedTeamId === undefined && teams.length > 0) {
-          setSelectedTeamId(teams[0]._id);
-        }
       } else {
         throw new Error(
           response.data?.message || "Erreur lors de la récupération des équipes"
@@ -252,29 +311,143 @@ const CollaboratorManagementPage: React.FC = () => {
     } finally {
       setTeamsLoading(false);
     }
-  }, [user, selectedTeamId]);
+  }, [user, filters.companyId]);
 
   /**
-   * Chargement initial des équipes du manager
+   * ✅ Récupération des entreprises (uniquement pour admin)
    */
-  useEffect(() => {
-    if (user && user.role === "manager") {
-      fetchManagerTeams();
+  const fetchCompanies = useCallback(async () => {
+    if (!user || user.role !== "admin") return;
+
+    setCompaniesLoading(true);
+    try {
+      const response = await axiosInstance.get("/companies");
+      if (response.data && response.data.success) {
+        setCompanies(response.data.data);
+      } else {
+        throw new Error(
+          response.data?.message ||
+            "Erreur lors de la récupération des entreprises"
+        );
+      }
+    } catch (err) {
+      console.error("Erreur lors de la récupération des entreprises:", err);
+      showToast("Impossible de récupérer la liste des entreprises", "error");
+    } finally {
+      setCompaniesLoading(false);
     }
-  }, [fetchManagerTeams, user]);
+  }, [user]);
 
   /**
-   * Gestion des erreurs API
+   * 🔍 Récupération des employés selon le rôle et les filtres
+   */
+  const fetchEmployees = useCallback(async () => {
+    if (!user) return;
+
+    setEmployeesLoading(true);
+    setEmployeesError(null);
+
+    try {
+      let url = "/employees";
+      let params: Record<string, string> = {};
+
+      // ✅ Construction de l'URL selon le rôle et les filtres
+      if (user.role === "manager") {
+        // Manager : employés de ses équipes
+        if (filters.teamId) {
+          url = `/employees/team/${filters.teamId}`;
+        } else {
+          // Par défaut, tous les employés des équipes du manager
+          url = `/employees/manager/${user._id}`;
+        }
+      } else if (user.role === "directeur") {
+        // Directeur : tous les employés de son entreprise
+        url = `/employees/company/${user.companyId}`;
+        if (filters.teamId) {
+          params.teamId = filters.teamId;
+        }
+        if (filters.role) {
+          params.role = filters.role;
+        }
+      } else if (user.role === "admin") {
+        // Admin : tous les employés avec filtres optionnels
+        url = "/employees";
+        if (filters.companyId) {
+          params.companyId = filters.companyId;
+        }
+        if (filters.teamId) {
+          params.teamId = filters.teamId;
+        }
+        if (filters.role) {
+          params.role = filters.role;
+        }
+        params.all = "true"; // Paramètre pour récupérer tous les employés
+      }
+
+      console.log(`[fetchEmployees] Appel API: ${url}`, params);
+
+      const response = await axiosInstance.get(url, { params });
+
+      if (response.data && response.data.success) {
+        setAllEmployees(response.data.data);
+      } else {
+        throw new Error(
+          response.data?.message ||
+            "Erreur lors de la récupération des employés"
+        );
+      }
+    } catch (err) {
+      console.error("Erreur lors de la récupération des employés:", err);
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setEmployeesError(message);
+      showToast(message, "error");
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, [user, filters]);
+
+  /**
+   * Fonction exposée pour permettre le rafraîchissement manuel des données
+   */
+  const refetchEmployees = useCallback(async (): Promise<void> => {
+    await fetchEmployees();
+  }, [fetchEmployees]);
+
+  /**
+   * Chargement initial des données au montage du composant
    */
   useEffect(() => {
-    if (employeesError) showToast(employeesError, "error");
+    if (user && hasAccess) {
+      fetchTeams();
+      if (user.role === "admin") {
+        fetchCompanies();
+      }
+      fetchEmployees();
+    }
+  }, [user, hasAccess, fetchTeams, fetchCompanies, fetchEmployees]);
 
-    // Nettoyage lors du démontage
-    return () => {
-      setShowSuccessToast(false);
-      setShowErrorToast(false);
-    };
-  }, [employeesError]);
+  /**
+   * Mise à jour des données lorsque les filtres changent
+   */
+  useEffect(() => {
+    if (user && hasAccess) {
+      fetchEmployees();
+      // Si le filtre d'entreprise change pour un admin, recharger aussi les équipes
+      if (user.role === "admin" && filters.companyId) {
+        fetchTeams();
+      }
+    }
+  }, [filters, user, hasAccess, fetchEmployees, fetchTeams]);
+
+  /**
+   * 🔧 Application des filtres
+   */
+  const handleFilterChange = (
+    filterName: keyof FiltersState,
+    value: string
+  ) => {
+    setFilters((prev) => ({ ...prev, [filterName]: value }));
+  };
 
   /**
    * Création d'une nouvelle équipe
@@ -286,7 +459,7 @@ const CollaboratorManagementPage: React.FC = () => {
       const response = await axiosInstance.post("/teams", teamFormData);
 
       if (response.data && response.data.success) {
-        await fetchManagerTeams();
+        await fetchTeams();
         setTeamModalOpen(false);
         resetTeamForm();
         showToast("Équipe créée avec succès", "success");
@@ -317,7 +490,7 @@ const CollaboratorManagementPage: React.FC = () => {
       );
 
       if (response.data && response.data.success) {
-        await fetchManagerTeams();
+        await fetchTeams();
         setTeamModalOpen(false);
         resetTeamForm();
         showToast("Équipe mise à jour avec succès", "success");
@@ -346,11 +519,11 @@ const CollaboratorManagementPage: React.FC = () => {
 
       if (response.data && response.data.success) {
         // Si l'équipe supprimée est celle qui est sélectionnée, réinitialiser la sélection
-        if (teamToDelete === selectedTeamId) {
-          setSelectedTeamId("");
+        if (teamToDelete === filters.teamId) {
+          handleFilterChange("teamId", "");
         }
 
-        await fetchManagerTeams();
+        await fetchTeams();
         setDeleteTeamModalOpen(false);
         showToast("Équipe supprimée avec succès", "success");
       } else {
@@ -371,12 +544,12 @@ const CollaboratorManagementPage: React.FC = () => {
    * Transformer les employés pour l'affichage dans le tableau
    */
   const displayedEmployees = useMemo(() => {
-    if (!employees || !employees.length) {
+    if (!allEmployees || !allEmployees.length) {
       return [];
     }
 
     // Transformer les employés pour l'affichage
-    return employees.map((employee) => {
+    return allEmployees.map((employee) => {
       // Trouver l'équipe associée
       const team = managerTeams.find((t) => t._id === employee.teamId);
 
@@ -389,9 +562,11 @@ const CollaboratorManagementPage: React.FC = () => {
         lastName: employee.lastName,
         fullName: `${employee.firstName} ${employee.lastName}`,
         rawEmail: employeeWithEmail.email || "Email non défini",
+        rawRole: employeeWithEmail.role || "employé",
         teamName: team ? team.name : "Non assignée",
         rawStatus: employee.status,
         rawContractHours: employee.contractHoursPerWeek || 35,
+        managerName: employeeWithEmail.managerName || "Non assigné",
         name: (
           <span className="font-medium text-gray-800 dark:text-gray-100">
             {`${employee.firstName} ${employee.lastName}`}
@@ -400,6 +575,17 @@ const CollaboratorManagementPage: React.FC = () => {
         email: (
           <span className="text-gray-600 dark:text-gray-300">
             {employeeWithEmail.email || "Email non défini"}
+          </span>
+        ),
+        role: (
+          <span className="text-gray-700 dark:text-gray-200 font-medium">
+            {employeeWithEmail.role === "admin"
+              ? "Admin"
+              : employeeWithEmail.role === "directeur"
+              ? "Directeur"
+              : employeeWithEmail.role === "manager"
+              ? "Manager"
+              : "Employé"}
           </span>
         ),
         status: (
@@ -411,6 +597,11 @@ const CollaboratorManagementPage: React.FC = () => {
         team: (
           <span className="text-gray-700 dark:text-gray-200">
             {team ? team.name : "Non assignée"}
+          </span>
+        ),
+        manager: (
+          <span className="text-gray-700 dark:text-gray-200">
+            {employeeWithEmail.managerName || "Non assigné"}
           </span>
         ),
         contractHours: (
@@ -458,7 +649,20 @@ const CollaboratorManagementPage: React.FC = () => {
         ),
       };
     });
-  }, [employees, managerTeams]);
+  }, [allEmployees, managerTeams]);
+
+  /**
+   * Gestion interne des erreurs de chargement
+   */
+  useEffect(() => {
+    if (employeesError) showToast(employeesError, "error");
+
+    // Nettoyage lors du démontage
+    return () => {
+      setShowSuccessToast(false);
+      setShowErrorToast(false);
+    };
+  }, [employeesError]);
 
   /**
    * Ouvrir le modal pour créer un nouveau collaborateur
@@ -609,17 +813,51 @@ const CollaboratorManagementPage: React.FC = () => {
   };
 
   /**
-   * Gestion du changement de sélection d'équipe
+   * Gestion du changement de sélection d'équipe (filtre)
    */
   const handleTeamSelection = (teamId: string) => {
-    setSelectedTeamId(teamId);
+    handleFilterChange("teamId", teamId);
   };
 
-  // Options d'équipes pour le select (uniquement les équipes du manager)
-  const teamOptions = managerTeams.map((team) => ({
-    value: team._id,
-    label: team.name,
-  }));
+  /**
+   * Gestion du changement de sélection d'entreprise (filtre)
+   */
+  const handleCompanySelection = (companyId: string) => {
+    handleFilterChange("companyId", companyId);
+    // Réinitialiser le filtre d'équipe si on change d'entreprise
+    handleFilterChange("teamId", "");
+  };
+
+  /**
+   * Gestion du changement de sélection de rôle (filtre)
+   */
+  const handleRoleSelection = (role: string) => {
+    handleFilterChange("role", role);
+  };
+
+  // Options d'équipes pour le select
+  const teamOptions = useMemo(() => {
+    return managerTeams.map((team) => ({
+      value: team._id,
+      label: team.name,
+    }));
+  }, [managerTeams]);
+
+  // Options d'entreprises pour le select (admin uniquement)
+  const companyOptions = useMemo(() => {
+    return companies.map((company) => ({
+      value: company._id,
+      label: company.name,
+    }));
+  }, [companies]);
+
+  // Options de rôles pour le select
+  const roleOptions = [
+    { value: "", label: "Tous les rôles" },
+    { value: "employee", label: "Employé" },
+    { value: "manager", label: "Manager" },
+    { value: "directeur", label: "Directeur" },
+  ];
 
   /**
    * Rendu d'une carte d'employé pour la version mobile/tablette
@@ -647,20 +885,29 @@ const CollaboratorManagementPage: React.FC = () => {
             />
           </div>
 
-          {/* Email */}
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            {employee.rawEmail}
+          {/* Email et rôle */}
+          <div className="text-sm text-gray-600 dark:text-gray-300 flex justify-between">
+            <span>{employee.rawEmail}</span>
+            <span className="font-medium">{employee.rawRole || "Employé"}</span>
           </div>
 
-          {/* Équipe et heures */}
+          {/* Équipe et manager */}
           <div className="flex justify-between items-center text-sm">
             <div className="text-gray-700 dark:text-gray-300">
               <span className="font-medium">Équipe:</span> {employee.teamName}
             </div>
-            <div className="text-gray-700 dark:text-gray-300">
-              <span className="font-medium">Heures:</span>{" "}
-              {employee.rawContractHours}h
-            </div>
+            {employee.managerName && (
+              <div className="text-gray-700 dark:text-gray-300">
+                <span className="font-medium">Manager:</span>{" "}
+                {employee.managerName}
+              </div>
+            )}
+          </div>
+
+          {/* Heures contractuelles */}
+          <div className="text-gray-700 dark:text-gray-300 text-sm">
+            <span className="font-medium">Heures:</span>{" "}
+            {employee.rawContractHours}h
           </div>
 
           {/* Actions */}
@@ -698,8 +945,8 @@ const CollaboratorManagementPage: React.FC = () => {
     );
   };
 
-  // Vérifier si l'utilisateur est bien un manager
-  if (user && user.role !== "manager") {
+  // Vérifier si l'utilisateur a accès à cette page (multi-rôles)
+  if (user && !hasAccess) {
     return (
       <LayoutWithSidebar activeItem="collaborateurs">
         <PageWrapper>
@@ -716,7 +963,8 @@ const CollaboratorManagementPage: React.FC = () => {
                 Accès non autorisé
               </h3>
               <p className="text-gray-500 dark:text-gray-400">
-                Cette page est réservée aux managers.
+                Cette page est réservée aux managers, directeurs et
+                administrateurs.
               </p>
             </motion.div>
           </SectionCard>
@@ -740,13 +988,19 @@ const CollaboratorManagementPage: React.FC = () => {
         >
           <SectionTitle
             title="Gestion des collaborateurs"
-            subtitle="Gérez les équipes et les collaborateurs"
+            subtitle={
+              user?.role === "admin"
+                ? "Gérez tous les utilisateurs du système"
+                : user?.role === "directeur"
+                ? "Gérez les employés et managers de votre entreprise"
+                : "Gérez les équipes et les collaborateurs"
+            }
             icon={
               <Users className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
             }
           />
 
-          {/* Bouton d'ajout de collaborateur */}
+          {/* Boutons d'actions */}
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="primary"
@@ -762,29 +1016,66 @@ const CollaboratorManagementPage: React.FC = () => {
               onClick={() => setManageTeamsModalOpen(true)}
               className="dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
             >
-              Gérer mes équipes
+              {user?.role === "manager"
+                ? "Gérer mes équipes"
+                : "Gérer les équipes"}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Filter size={16} />}
+              onClick={() => setFilterModalOpen(true)}
+              className="dark:bg-gray-700 dark:text-white dark:hover:bg-indigo-800/50 dark:border-gray-600"
+            >
+              Filtres
             </Button>
           </div>
         </motion.div>
 
-        {/* Sélecteur d'équipe avec styles améliorés pour le mode sombre */}
+        {/* Filtres rapides */}
         <motion.div
-          className="mb-6"
+          className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
+          {/* Filtre par équipe */}
           <Select
-            label="Équipe"
+            label="Filtrer par équipe"
             options={[
               { value: "", label: "Toutes les équipes" },
               ...teamOptions,
             ]}
-            value={selectedTeamId}
+            value={filters.teamId}
             onChange={handleTeamSelection}
             disabled={teamsLoading || managerTeams.length === 0}
-            className="dark:text-white" // Style adapté pour le mode sombre
+            className="dark:text-white"
           />
+
+          {/* Filtre par rôle (visible pour directeur et admin) */}
+          {(user?.role === "directeur" || user?.role === "admin") && (
+            <Select
+              label="Filtrer par rôle"
+              options={roleOptions}
+              value={filters.role}
+              onChange={handleRoleSelection}
+              className="dark:text-white"
+            />
+          )}
+
+          {/* Filtre par entreprise (uniquement pour admin) */}
+          {user?.role === "admin" && (
+            <Select
+              label="Filtrer par entreprise"
+              options={[
+                { value: "", label: "Toutes les entreprises" },
+                ...companyOptions,
+              ]}
+              value={filters.companyId}
+              onChange={handleCompanySelection}
+              disabled={companiesLoading}
+              className="dark:text-white"
+            />
+          )}
         </motion.div>
 
         {/* Contenu principal */}
@@ -794,11 +1085,11 @@ const CollaboratorManagementPage: React.FC = () => {
           transition={{ duration: 0.4, delay: 0.2 }}
         >
           <SectionCard className="dark:bg-gray-800/60 dark:border-gray-700">
-            {teamsLoading ? (
+            {teamsLoading || employeesLoading ? (
               <div className="flex justify-center items-center p-8">
                 <LoadingSpinner size="lg" />
               </div>
-            ) : managerTeams.length === 0 ? (
+            ) : user?.role === "manager" && managerTeams.length === 0 ? (
               <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
@@ -820,16 +1111,12 @@ const CollaboratorManagementPage: React.FC = () => {
                     variant="primary"
                     icon={<Plus size={16} />}
                     onClick={handleOpenTeamModal}
-                    aria-label="Ajouter un nouveau collaborateur"
+                    aria-label="Ajouter une nouvelle équipe"
                   >
-                    Ajouter un collaborateur
+                    Créer une équipe
                   </Button>
                 </motion.div>
               </Card>
-            ) : employeesLoading ? (
-              <div className="flex justify-center items-center p-8">
-                <LoadingSpinner size="lg" />
-              </div>
             ) : displayedEmployees.length === 0 ? (
               <Card className="p-8 text-center dark:bg-gray-800 dark:border-gray-700">
                 <motion.div
@@ -845,9 +1132,13 @@ const CollaboratorManagementPage: React.FC = () => {
                     Aucun collaborateur trouvé
                   </h3>
                   <p className="text-gray-500 dark:text-gray-300 mb-4">
-                    {selectedTeamId
+                    {filters.teamId
                       ? "Cette équipe ne contient pas encore de collaborateurs."
-                      : "Vous n'avez pas encore de collaborateurs dans vos équipes."}
+                      : user?.role === "manager"
+                      ? "Vous n'avez pas encore de collaborateurs dans vos équipes."
+                      : user?.role === "directeur"
+                      ? "Aucun collaborateur trouvé dans votre entreprise avec ces filtres."
+                      : "Aucun collaborateur trouvé avec ces filtres."}
                   </p>
                   <Button
                     variant="primary"
@@ -873,7 +1164,7 @@ const CollaboratorManagementPage: React.FC = () => {
                           variant="secondary"
                           onClick={() => {
                             // Préparer les données pour l'export en PDF en utilisant les données originales des employés
-                            const employeesForExport = employees.map(
+                            const employeesForExport = allEmployees.map(
                               (employee) => {
                                 const team = managerTeams.find(
                                   (t) => t._id === employee.teamId
@@ -887,6 +1178,7 @@ const CollaboratorManagementPage: React.FC = () => {
                                   contractHoursPerWeek:
                                     employee.contractHoursPerWeek,
                                   companyId: employee.companyId,
+                                  role: employee.role || "employé",
                                   team: team
                                     ? {
                                         _id: team._id,
@@ -927,7 +1219,7 @@ const CollaboratorManagementPage: React.FC = () => {
                           variant="secondary"
                           onClick={() => {
                             // Préparer les données pour l'export en PDF en utilisant les données originales des employés
-                            const employeesForExport = employees.map(
+                            const employeesForExport = allEmployees.map(
                               (employee) => {
                                 const team = managerTeams.find(
                                   (t) => t._id === employee.teamId
@@ -941,6 +1233,7 @@ const CollaboratorManagementPage: React.FC = () => {
                                   contractHoursPerWeek:
                                     employee.contractHoursPerWeek,
                                   companyId: employee.companyId,
+                                  role: employee.role || "employé",
                                   team: team
                                     ? {
                                         _id: team._id,
@@ -988,6 +1281,93 @@ const CollaboratorManagementPage: React.FC = () => {
           isVisible={showErrorToast}
           onClose={closeErrorToast}
         />
+
+        {/* Modal de filtres avancés */}
+        <AnimatePresence>
+          {filterModalOpen && (
+            <Modal
+              isOpen={filterModalOpen}
+              onClose={() => setFilterModalOpen(false)}
+              title="Filtres avancés"
+            >
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                variants={modalVariants}
+                className="space-y-4"
+              >
+                {/* Filtre par équipe */}
+                <div>
+                  <Select
+                    label="Équipe"
+                    options={[
+                      { value: "", label: "Toutes les équipes" },
+                      ...teamOptions,
+                    ]}
+                    value={filters.teamId}
+                    onChange={handleTeamSelection}
+                    disabled={teamsLoading || managerTeams.length === 0}
+                    className="dark:text-white"
+                  />
+                </div>
+
+                {/* Filtre par rôle (visible pour directeur et admin) */}
+                {(user?.role === "directeur" || user?.role === "admin") && (
+                  <div>
+                    <Select
+                      label="Rôle"
+                      options={roleOptions}
+                      value={filters.role}
+                      onChange={handleRoleSelection}
+                      className="dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {/* Filtre par entreprise (uniquement pour admin) */}
+                {user?.role === "admin" && (
+                  <div>
+                    <Select
+                      label="Entreprise"
+                      options={[
+                        { value: "", label: "Toutes les entreprises" },
+                        ...companyOptions,
+                      ]}
+                      value={filters.companyId}
+                      onChange={handleCompanySelection}
+                      disabled={companiesLoading}
+                      className="dark:text-white"
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      // Réinitialiser tous les filtres
+                      setFilters({
+                        role: "",
+                        teamId: "",
+                        companyId:
+                          user?.role === "admin" ? "" : user?.companyId || "",
+                      });
+                    }}
+                  >
+                    Réinitialiser
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setFilterModalOpen(false)}
+                  >
+                    Appliquer
+                  </Button>
+                </div>
+              </motion.div>
+            </Modal>
+          )}
+        </AnimatePresence>
 
         {/* Modal de confirmation de suppression d'équipe */}
         <AnimatePresence>
@@ -1082,13 +1462,13 @@ const CollaboratorManagementPage: React.FC = () => {
             setManagerTeams(updatedTeams);
             setTeamsToDisplay(updatedTeams);
 
-            // ✅ Corrigé : respecter la sélection "Toutes les équipes" (selectedTeamId === "")
+            // Vérifier si l'équipe sélectionnée existe toujours
             const selectedExists = updatedTeams.some(
-              (t) => t._id === selectedTeamId
+              (t) => t._id === filters.teamId
             );
 
-            if (selectedTeamId !== "" && !selectedExists) {
-              setSelectedTeamId(updatedTeams[0]?._id || "");
+            if (filters.teamId !== "" && !selectedExists) {
+              handleFilterChange("teamId", "");
             }
           }}
         />

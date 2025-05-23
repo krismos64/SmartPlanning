@@ -1,8 +1,7 @@
 import express, { Request, Response } from "express";
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
-import EmployeeModel from "../models/Employee.model";
 import { TeamModel } from "../models/Team.model";
 import WeeklyScheduleModel from "../models/WeeklySchedule.model";
 
@@ -167,170 +166,189 @@ router.post(
 
 /**
  * Route GET /api/weekly-schedules/week/:year/:weekNumber
- * Récupère tous les plannings validés pour une année et une semaine précises
- * Inclut les informations des employés via populate
+ * Récupère les plannings hebdomadaires validés (status: "approved") pour une semaine et une année données
+ * Sécurisé avec multitenant: filtre uniquement les employés de l'entreprise de l'utilisateur connecté
+ * Accessible uniquement aux utilisateurs authentifiés avec roles directeur, manager ou employé
  */
-router.get("/week/:year/:weekNumber", async (req: Request, res: Response) => {
-  try {
-    const { year, weekNumber } = req.params;
-    const { teamId, employeeId } = req.query;
+router.get(
+  "/week/:year/:weekNumber",
+  authenticateToken,
+  checkRole(["directeur", "manager", "employé"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { year, weekNumber } = req.params;
+      const { teamId, employeeId } = req.query;
 
-    console.log("GET /weekly-schedules/week/:year/:weekNumber - Paramètres:", {
-      year,
-      weekNumber,
-      teamId,
-      employeeId,
-    });
+      // Validation de l'authentification et récupération de companyId
+      if (!req.user || !req.user.companyId) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié ou companyId manquant",
+        });
+      }
 
-    const yearNumber = parseInt(year, 10);
-    const weekNumberValue = parseInt(weekNumber, 10);
+      const userCompanyId = req.user.companyId;
+      const userId = req.user.userId || req.user._id || req.user.id;
 
-    if (
-      isNaN(yearNumber) ||
-      isNaN(weekNumberValue) ||
-      yearNumber < 2020 ||
-      yearNumber > 2050 ||
-      weekNumberValue < 1 ||
-      weekNumberValue > 53
-    ) {
-      return res.status(400).json({
+      // Logs pour déboguer
+      console.log("Recherche de plannings hebdomadaires:", {
+        userId,
+        companyId: userCompanyId,
+        year,
+        weekNumber,
+        teamId: teamId || "non spécifié",
+        employeeId: employeeId || "non spécifié",
+      });
+
+      const yearNumber = parseInt(year, 10);
+      const weekNumberValue = parseInt(weekNumber, 10);
+
+      if (
+        isNaN(yearNumber) ||
+        isNaN(weekNumberValue) ||
+        yearNumber < 2020 ||
+        yearNumber > 2050 ||
+        weekNumberValue < 1 ||
+        weekNumberValue > 53
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Paramètres invalides. L'année doit être entre 2020 et 2050, et la semaine entre 1 et 53.",
+        });
+      }
+
+      // Utilisation d'une agrégation MongoDB pour joindre les collections et filtrer par companyId de l'employé
+      const aggregationPipeline: any[] = [
+        // Première étape: correspondre aux plannings de la semaine et de l'année spécifiées
+        {
+          $match: {
+            year: yearNumber,
+            weekNumber: weekNumberValue,
+            status: "approved",
+          },
+        },
+        // Deuxième étape: joindre avec la collection des employés
+        {
+          $lookup: {
+            from: "employees", // Nom de la collection dans MongoDB
+            localField: "employeeId",
+            foreignField: "_id",
+            as: "employeeData",
+          },
+        },
+        // Troisième étape: déstructurer le tableau employeeData (résultat du lookup)
+        {
+          $unwind: "$employeeData",
+        },
+        // Quatrième étape: filtrer uniquement les employés de l'entreprise de l'utilisateur connecté
+        {
+          $match: {
+            "employeeData.companyId":
+              mongoose.Types.ObjectId.createFromHexString(userCompanyId),
+          },
+        },
+      ];
+
+      // Ajouter un filtre par employé spécifique si fourni
+      if (employeeId) {
+        (aggregationPipeline[0].$match as any).employeeId =
+          mongoose.Types.ObjectId.createFromHexString(employeeId as string);
+        console.log("Filtrage par employé spécifique:", employeeId);
+      }
+
+      // Ajouter un filtre par équipe si fourni
+      if (teamId) {
+        try {
+          console.log("Filtrage par équipe:", teamId);
+
+          // Vérifier d'abord si l'équipe existe et appartient à la même entreprise
+          const team = await TeamModel.findOne({
+            _id: teamId,
+            companyId: userCompanyId,
+          }).lean();
+
+          if (!team) {
+            console.log(
+              `Équipe non trouvée ou n'appartient pas à l'entreprise: ${teamId}`
+            );
+            return res.status(200).json({
+              success: true,
+              data: [],
+              count: 0,
+              message: "Équipe introuvable ou non autorisée",
+            });
+          }
+
+          console.log(`Équipe trouvée: ${team.name}`);
+
+          // Modification de l'agrégation pour filtrer par équipe
+          aggregationPipeline.splice(3, 0, {
+            $match: {
+              "employeeData.teamId":
+                mongoose.Types.ObjectId.createFromHexString(teamId as string),
+            },
+          } as any);
+        } catch (err) {
+          console.error("Erreur lors de la vérification de l'équipe:", err);
+          return res.status(500).json({
+            success: false,
+            message: "Erreur lors de la vérification de l'équipe",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      // Ajouter une étape pour projeter les données dans le format souhaité
+      aggregationPipeline.push({
+        $project: {
+          _id: 1,
+          employeeId: "$employeeData._id",
+          employeeName: {
+            $concat: ["$employeeData.firstName", " ", "$employeeData.lastName"],
+          },
+          year: 1,
+          weekNumber: 1,
+          scheduleData: 1,
+          dailyNotes: 1,
+          notes: 1,
+          dailyDates: 1,
+          totalWeeklyMinutes: 1,
+          status: 1,
+          updatedBy: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      } as any);
+
+      console.log(
+        "Exécution de l'agrégation MongoDB:",
+        JSON.stringify(aggregationPipeline, null, 2)
+      );
+
+      const schedules = await WeeklyScheduleModel.aggregate(
+        aggregationPipeline
+      );
+
+      console.log(
+        `${schedules.length} plannings trouvés après filtrage par entreprise`
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: schedules,
+        count: schedules.length,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération des plannings:", error);
+      return res.status(500).json({
         success: false,
-        message:
-          "Paramètres invalides. L'année doit être entre 2020 et 2050, et la semaine entre 1 et 53.",
+        message: "Erreur serveur lors de la récupération des plannings",
+        error: error instanceof Error ? error.message : String(error),
       });
     }
-
-    // Construire le filtre de recherche de base
-    const filter: any = {
-      year: yearNumber,
-      weekNumber: weekNumberValue,
-      status: "approved",
-    };
-
-    // Si on filtre par employé
-    if (employeeId) {
-      filter.employeeId = employeeId;
-      console.log("Filtrage par employé:", employeeId);
-    }
-
-    // Si on filtre par équipe, on doit d'abord récupérer les employés de cette équipe
-    let employeesToFilter: string[] = [];
-    if (teamId) {
-      try {
-        console.log("Récupération des employés pour l'équipe:", teamId);
-
-        // Vérifier d'abord si l'équipe existe
-        const team = await TeamModel.findById(teamId).lean();
-        if (!team) {
-          console.log(`Équipe non trouvée avec ID: ${teamId}`);
-          return res.status(200).json({
-            success: true,
-            data: [],
-            count: 0,
-            message: "Équipe introuvable",
-          });
-        }
-
-        console.log(`Équipe trouvée: ${team.name}`);
-
-        // Récupérer les employés via le champ teamId sur l'employé
-        const employeesByTeamId = await EmployeeModel.find({ teamId: teamId })
-          .select("_id firstName lastName")
-          .lean();
-
-        console.log(`Employés trouvés via teamId: ${employeesByTeamId.length}`);
-
-        // Récupérer les employés listés directement dans l'équipe
-        let employeesByTeamList: any[] = [];
-        if (team.employeeIds && team.employeeIds.length > 0) {
-          employeesByTeamList = await EmployeeModel.find({
-            _id: { $in: team.employeeIds },
-          })
-            .select("_id firstName lastName")
-            .lean();
-
-          console.log(
-            `Employés trouvés via employeeIds: ${employeesByTeamList.length}`
-          );
-        }
-
-        // Fusionner les listes sans doublons
-        const allEmployeeIds = new Set<string>();
-
-        // Ajouter les employés trouvés par teamId
-        for (const emp of employeesByTeamId) {
-          allEmployeeIds.add(emp._id.toString());
-        }
-
-        // Ajouter les employés trouvés par la liste d'employeeIds
-        for (const emp of employeesByTeamList) {
-          allEmployeeIds.add(emp._id.toString());
-        }
-
-        employeesToFilter = Array.from(allEmployeeIds);
-        console.log(
-          `Total d'employés uniques trouvés: ${employeesToFilter.length}`
-        );
-
-        if (employeesToFilter.length > 0) {
-          filter.employeeId = { $in: employeesToFilter };
-          console.log(`Filtre appliqué: ${employeesToFilter.length} employés`);
-        } else {
-          console.log(
-            "Aucun employé trouvé pour cette équipe, aucun résultat ne sera retourné"
-          );
-          return res.status(200).json({
-            success: true,
-            data: [],
-            count: 0,
-            message: "Aucun employé trouvé dans cette équipe",
-          });
-        }
-      } catch (err) {
-        console.error(
-          "Erreur lors de la récupération des employés par équipe:",
-          err
-        );
-      }
-    }
-
-    console.log(
-      "Filtre final pour WeeklyScheduleModel.find():",
-      JSON.stringify(filter, null, 2)
-    );
-
-    const schedules = await WeeklyScheduleModel.find(filter)
-      .populate("employeeId", "firstName lastName")
-      .lean();
-
-    console.log(`${schedules.length} plannings trouvés`);
-
-    const formattedSchedules = schedules.map((schedule: any) => ({
-      ...schedule,
-      employeeName: schedule.employeeId
-        ? `${(schedule.employeeId as any).firstName} ${
-            (schedule.employeeId as any).lastName
-          }`
-        : "Employé inconnu",
-      employeeId: schedule.employeeId
-        ? (schedule.employeeId as any)._id
-        : schedule.employeeId,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      data: formattedSchedules,
-      count: formattedSchedules.length,
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération des plannings:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Erreur serveur lors de la récupération des plannings",
-      error: error instanceof Error ? error.message : String(error),
-    });
   }
-});
+);
 
 /**
  * Route PUT /api/weekly-schedules/:id
