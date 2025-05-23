@@ -17,6 +17,7 @@ import CompleteProfilePage from "./pages/CompleteProfilePage";
 import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
 import DatePickerDemoPage from "./pages/DatePickerDemoPage";
+import DirectorUserManagementPage from "./pages/DirectorUserManagementPage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
@@ -70,6 +71,27 @@ const ProfileChecker: React.FC = () => {
     navigate,
     location.pathname,
   ]);
+
+  return null;
+};
+
+/**
+ * Composant pour rediriger les directeurs de /employees vers /director/users
+ */
+const DirectorRedirect: React.FC = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Ne pas rediriger pendant le chargement
+    if (loading) return;
+
+    // Rediriger uniquement les directeurs qui accèdent à /employees
+    if (user?.role === "directeur" && location.pathname === "/employees") {
+      navigate("/director/users", { replace: true });
+    }
+  }, [user, loading, navigate, location.pathname]);
 
   return null;
 };
@@ -132,6 +154,7 @@ const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
       <ProfileChecker />
+      <DirectorRedirect />
       <Routes>
         {/* Route par défaut - Page d'accueil */}
         <Route path="/" element={<IndexPage />} />
@@ -186,6 +209,46 @@ const AppRouter: React.FC = () => {
         />
         <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
+
+        {/* Route pour la gestion des utilisateurs par un directeur */}
+        <Route
+          path="/director/users"
+          element={
+            <RoleProtectedRoute
+              element={
+                <LayoutWithSidebar
+                  activeItem="collaborateurs"
+                  pageTitle="Gestion des collaborateurs"
+                >
+                  <DirectorUserManagementPage />
+                </LayoutWithSidebar>
+              }
+              allowedRoles={["directeur"]}
+            />
+          }
+        />
+
+        {/* Route pour la gestion des utilisateurs par un admin */}
+        <Route
+          path="/admin/users"
+          element={
+            <RoleProtectedRoute
+              element={<UserManagementPage />}
+              allowedRoles={["admin"]}
+            />
+          }
+        />
+
+        {/* Route pour les employés (vue manager) - avec redirection pour les directeurs gérée par DirectorRedirect */}
+        <Route
+          path="/employees"
+          element={
+            <RoleProtectedRoute
+              element={<CollaboratorManagementPage />}
+              allowedRoles={["manager"]}
+            />
+          }
+        />
 
         {/* Route pour le profil utilisateur */}
         <Route

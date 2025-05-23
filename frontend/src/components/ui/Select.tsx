@@ -195,21 +195,25 @@ const Select: React.FC<SelectProps> = ({
           aria-disabled={disabled}
           className={`
             w-full px-3 py-2 
-            bg-gray-900 hover:bg-gray-800
-            text-white
-            border border-gray-700
+            bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800
+            text-gray-800 dark:text-white
+            border border-gray-300 dark:border-gray-700
             rounded-lg
             flex justify-between items-center
             transition-colors duration-200
-            ${!disabled && "hover:border-indigo-500"}
+            ${
+              !disabled &&
+              "hover:border-indigo-500 dark:hover:border-indigo-500"
+            }
             ${
               isOpen &&
               !disabled &&
-              "border-indigo-500 ring-2 ring-indigo-500/30"
+              "border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/30"
             }
             ${disabled && "opacity-60 cursor-not-allowed"}
             focus:outline-none
             focus:ring-2 focus:ring-indigo-500/30
+            ${className}
           `}
           onClick={toggleDropdown}
           disabled={disabled}
@@ -248,55 +252,62 @@ const Select: React.FC<SelectProps> = ({
             <motion.ul
               role="listbox"
               aria-labelledby={label ? labelId : undefined}
-              className="
-                absolute z-10
-                mt-1
-                w-full
-                max-h-60
-                overflow-auto
-                bg-gray-900
-                border border-gray-700
-                rounded-lg
-                shadow-lg
-                p-1
-              "
+              variants={dropdownVariants}
               initial="hidden"
               animate="visible"
               exit="hidden"
-              variants={dropdownVariants}
+              className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
             >
-              {options.map((option, index) => (
-                <motion.li
-                  id={`select-option-${index}`}
-                  key={option.value}
-                  role="option"
-                  aria-selected={option.value === value}
-                  className={`
-                    px-3 py-2
-                    cursor-pointer
-                    rounded-md
-                    my-0.5
-                    ${
-                      option.value === value
-                        ? "bg-indigo-600 text-white"
-                        : "text-gray-200 hover:bg-gray-800"
-                    }
-                    ${
-                      index === activeIndex && option.value !== value
-                        ? "bg-gray-800"
-                        : ""
-                    }
-                    transition-colors
-                    duration-150
-                  `}
-                  onClick={() => handleSelect(option)}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                >
-                  {option.label}
-                </motion.li>
-              ))}
+              {options.length === 0 ? (
+                <li className="text-gray-500 dark:text-gray-400 px-4 py-2 text-sm">
+                  Aucune option disponible
+                </li>
+              ) : (
+                options.map((option, index) => (
+                  <li
+                    key={option.value}
+                    id={`select-option-${index}`}
+                    role="option"
+                    aria-selected={value === option.value}
+                    className={`
+                      cursor-pointer select-none relative py-2 pl-3 pr-9
+                      ${
+                        value === option.value
+                          ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-100"
+                          : "text-gray-900 dark:text-gray-100"
+                      }
+                      ${
+                        activeIndex === index
+                          ? "bg-indigo-50 dark:bg-indigo-800"
+                          : ""
+                      }
+                      hover:bg-indigo-50 dark:hover:bg-indigo-800
+                    `}
+                    onClick={() => handleSelect(option)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                  >
+                    <span className="block truncate font-medium">
+                      {option.label}
+                    </span>
+                    {value === option.value && (
+                      <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600 dark:text-indigo-400">
+                        <svg
+                          className="h-5 w-5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                    )}
+                  </li>
+                ))
+              )}
             </motion.ul>
           )}
         </AnimatePresence>

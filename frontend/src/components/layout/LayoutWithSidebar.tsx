@@ -91,6 +91,22 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
     }
   }, [user]);
 
+  // Fonction pour déterminer la route des collaborateurs selon le rôle de l'utilisateur
+  const getCollaborateursRoute = () => {
+    if (!user) return "";
+
+    switch (user.role) {
+      case "directeur":
+        return "/director/users";
+      case "manager":
+        return "/employees";
+      case "admin":
+        return "/admin/users";
+      default:
+        return "";
+    }
+  };
+
   const handleNavigate = (route: string) => {
     setSidebarOpen(false);
     navigate(route);

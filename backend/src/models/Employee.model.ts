@@ -40,6 +40,7 @@ export interface IEmployee {
   preferences?: EmployeePreferences;
   createdAt?: Date;
   updatedAt?: Date;
+  role?: string;
 }
 
 /**
@@ -176,6 +177,11 @@ const employeeSchema = new Schema<EmployeeDocument, EmployeeModel>(
       required: true,
       default: EmployeeStatus.ACTIF,
       index: true,
+    },
+    role: {
+      type: String,
+      enum: ["employee", "manager", "directeur"],
+      default: "employee",
     },
     contractHoursPerWeek: {
       type: Number,

@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
-import React, { ChangeEvent, FocusEvent } from "react";
+import React, { ChangeEvent, FocusEvent, InputHTMLAttributes } from "react";
 import { useTheme } from "../ThemeProvider";
 
 /**
  * Interface pour les propriétés du composant InputField
  */
-export interface InputFieldProps {
+interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Libellé du champ */
   label?: string;
   /** Nom du champ (attribut name) */
@@ -38,6 +38,7 @@ export interface InputFieldProps {
   onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
   /** Événement quand le champ perd le focus */
   onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  containerClassName?: string;
 }
 
 /**
@@ -63,6 +64,8 @@ const InputField: React.FC<InputFieldProps> = ({
   lightMode = false,
   onFocus,
   onBlur,
+  containerClassName = "",
+  ...props
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
   const isActive = isFocused || value !== "";
@@ -90,7 +93,7 @@ const InputField: React.FC<InputFieldProps> = ({
   const inputStyle = getInputStyle();
 
   return (
-    <div className={`relative mb-4 ${className}`}>
+    <div className={`relative mb-4 ${containerClassName}`}>
       {label && (
         <motion.label
           htmlFor={name}
@@ -144,10 +147,12 @@ const InputField: React.FC<InputFieldProps> = ({
             focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500
             ${icon ? "pl-10" : "pl-3"}
             border
+            ${error ? "border-red-500 dark:border-red-500" : ""}
             ${className}`}
           autoComplete={autoComplete}
           aria-invalid={error ? "true" : "false"}
           aria-describedby={error ? `${name}-error` : undefined}
+          {...props}
         />
       </div>
 

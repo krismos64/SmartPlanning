@@ -102,7 +102,10 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         const allEmployees = await mongoose
           .model("Employee")
           .find(alternativeQuery)
-          .select("_id firstName lastName role teamId")
+          .select(
+            "_id firstName lastName email role teamId photoUrl userId status"
+          )
+          .populate("teamId", "name")
           .sort({ lastName: 1 });
 
         // Filtrer pour ne pas inclure les managers/directeurs, mais inclure tous les employés standards
@@ -124,6 +127,12 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
             _id: emp._id,
             firstName: emp.firstName,
             lastName: emp.lastName,
+            email: emp.email || "",
+            role: emp.role || "employee",
+            teamId: emp.teamId,
+            photoUrl: emp.photoUrl || "",
+            userId: emp.userId || null,
+            status: emp.status || "actif",
           })),
         });
       } else {
@@ -145,6 +154,11 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
             _id: user._id,
             firstName: user.firstName || "Utilisateur",
             lastName: user.lastName || "Actuel",
+            email: user.email || "",
+            role: user.role || "employee",
+            teamId: null,
+            photoUrl: user.photoUrl || "",
+            status: "actif",
           },
         ],
       });
@@ -154,7 +168,8 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const employees = await mongoose
       .model("Employee")
       .find(query)
-      .select("_id firstName lastName")
+      .select("_id firstName lastName email role teamId photoUrl userId status")
+      .populate("teamId", "name")
       .sort({ lastName: 1 });
 
     // Filtrer pour exclure l'utilisateur actuel (ne pas afficher le manager dans sa propre liste)
@@ -176,6 +191,11 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
             _id: user._id,
             firstName: user.firstName || "Utilisateur",
             lastName: user.lastName || "Actuel",
+            email: user.email || "",
+            role: user.role || "employee",
+            teamId: null,
+            photoUrl: user.photoUrl || "",
+            status: "actif",
           },
         ],
       });

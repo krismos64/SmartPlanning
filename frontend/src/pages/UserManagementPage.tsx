@@ -15,16 +15,20 @@ import api, {
 
 import {
   Building,
-  Edit,
   Plus,
-  Trash,
   Trash2,
   User,
   UserCheck,
   Users,
   X,
 } from "lucide-react";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import axiosInstance from "../api/axiosInstance";
 import { AuthContext } from "../context/AuthContext";
 
@@ -36,10 +40,10 @@ import SectionTitle from "../components/layout/SectionTitle";
 
 // Composants UI
 import Avatar from "../components/ui/Avatar";
-import Badge from "../components/ui/Badge";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
 import FileUpload from "../components/ui/FileUpload";
+import FilterBar from "../components/ui/FilterBar";
 import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Modal from "../components/ui/Modal";
@@ -142,6 +146,9 @@ const UserManagementPage: React.FC = () => {
     status: "",
     companyId: "",
   });
+
+  // État pour la recherche
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // États pour les notifications
   const [success, setSuccess] = useState<string>("");
@@ -533,334 +540,34 @@ const UserManagementPage: React.FC = () => {
     fetchUsers();
   }, [fetchUsers]);
 
-  /**
-   * Filtrage des utilisateurs avec useMemo pour l'optimisation
-   */
-  const filteredUsers = React.useMemo(() => {
-    console.log("🔎 DÉBUT GÉNÉRATION TABLEAU DES UTILISATEURS");
-    console.log(
-      `👥 ${users.length} utilisateurs, 📚 ${teams.length} équipes, 👤 ${employees.length} employés`
-    );
+  // Filtrer les utilisateurs en fonction de la recherche et des filtres
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      // Filtre de recherche (nom ou email)
+      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+      const matchesSearch =
+        searchQuery === "" ||
+        fullName.includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Fonction utilitaire pour obtenir les équipes d'un utilisateur
-    const getUserTeams = (user: UserType): string[] => {
-      const result: string[] = [];
-      const userId = String(user._id);
+      // Filtre par rôle
+      const matchesRole = filters.role === "" || user.role === filters.role;
 
-      // Pour les administrateurs et directeurs, ne pas afficher d'équipes
-      if (user.role === "admin" || user.role === "directeur") {
-        return [];
-      }
+      // Filtre par statut
+      const matchesStatus =
+        filters.status === "" || user.status === filters.status;
 
-      // 1. Pour les managers - vérifier les équipes qu'ils gèrent
-      if (user.role === "manager") {
-        console.log(
-          `🔍 RECHERCHE DES ÉQUIPES GÉRÉES PAR ${user.firstName} (ID: ${userId})`
-        );
+      // Filtre par entreprise
+      const matchesCompany =
+        filters.companyId === "" || user.companyId === filters.companyId;
 
-        // Vérification des données des équipes
-        console.log(
-          `📋 DONNÉES TEAMS DISPONIBLES:`,
-          JSON.stringify(teams.slice(0, 2), null, 2)
-        );
+      return matchesSearch && matchesRole && matchesStatus && matchesCompany;
+    });
+  }, [users, searchQuery, filters]);
 
-        // Trouver toutes les équipes où l'utilisateur est référencé comme manager
-        const managerTeams = teams.filter((team) => {
-          if (!team.managerIds || !Array.isArray(team.managerIds)) {
-            console.log(
-              `⚠️ ÉQUIPE ${team.name}: managerIds non valide`,
-              team.managerIds
-            );
-            return false;
-          }
-
-          // Vérification détaillée des managerIds
-          console.log(
-            `🔍 ÉQUIPE ${team.name}: vérification des ${team.managerIds.length} managers`
-          );
-          console.log(
-            `   Manager IDs:`,
-            JSON.stringify(team.managerIds, null, 2)
-          );
-
-          const isManager = team.managerIds.some((managerId: any) => {
-            // Si managerId est un objet avec _id
-            if (
-              typeof managerId === "object" &&
-              managerId !== null &&
-              managerId._id
-            ) {
-              const match = String(managerId._id) === userId;
-              if (match)
-                console.log(
-                  `✅ MATCH TROUVÉ: managerId est un objet avec _id=${managerId._id}`
-                );
-              return match;
-            }
-
-            // Si managerId est une chaîne
-            const match = String(managerId) === userId;
-            if (match)
-              console.log(
-                `✅ MATCH TROUVÉ: managerId est une chaîne: ${managerId}`
-              );
-            return match;
-          });
-
-          if (isManager) {
-            console.log(
-              `✅ ${user.firstName} EST MANAGER DE L'ÉQUIPE: ${team.name}`
-            );
-          }
-
-          return isManager;
-        });
-
-        console.log(
-          `📊 TROUVÉ ${managerTeams.length} ÉQUIPES GÉRÉES PAR ${user.firstName}`
-        );
-
-        managerTeams.forEach((team) => {
-          if (!result.includes(team.name)) {
-            console.log(`✅ ÉQUIPE MANAGÉE AJOUTÉE: ${team.name}`);
-            result.push(team.name);
-          }
-        });
-      }
-
-      // 2. Pour les employés - rechercher via la collection des employés
-      if (user.role === "employee") {
-        // Trouver les employés liés à cet utilisateur
-        const matchingEmployees = employees.filter((emp) => {
-          if (!emp.userId) return false;
-          return String(emp.userId) === userId;
-        });
-
-        // 2.1 D'abord vérifier si l'employé a des équipes pré-associées (du backend)
-        matchingEmployees.forEach((emp) => {
-          if (emp.teams && Array.isArray(emp.teams) && emp.teams.length > 0) {
-            emp.teams.forEach((team: any) => {
-              if (team.name && !result.includes(team.name)) {
-                console.log(`✅ ÉQUIPE PRÉ-ASSOCIÉE: ${team.name}`);
-                result.push(team.name);
-              }
-            });
-          }
-        });
-
-        // 2.2 Sinon, chercher via teamId
-        if (result.length === 0) {
-          matchingEmployees.forEach((emp) => {
-            if (emp.teamId) {
-              const teamId = String(emp.teamId);
-              const team = teams.find((t) => String(t._id) === teamId);
-
-              if (team) {
-                console.log(`✅ ÉQUIPE TROUVÉE VIA TEAMID: ${team.name}`);
-                if (!result.includes(team.name)) {
-                  result.push(team.name);
-                }
-              }
-            }
-          });
-        }
-      }
-
-      // 3. Dernier recours - chercher dans les employeeIds des équipes
-      if (result.length === 0 && user.role === "employee") {
-        console.log(
-          `🔄 MÉTHODE ALTERNATIVE: Recherche dans les employeeIds des équipes`
-        );
-
-        const employeeTeams = teams.filter((team) => {
-          if (!Array.isArray(team.employeeIds)) return false;
-
-          return team.employeeIds.some((empId) => {
-            // Cas 1: L'ID utilisateur est directement dans employeeIds (rare)
-            if (String(empId) === userId) return true;
-
-            // Cas 2: Chercher les employés liés à cet ID d'employé
-            const matchingEmployee = employees.find(
-              (emp) =>
-                String(emp._id) === String(empId) &&
-                String(emp.userId) === userId
-            );
-
-            return !!matchingEmployee;
-          });
-        });
-
-        employeeTeams.forEach((team) => {
-          if (!result.includes(team.name)) {
-            console.log(`✅ ÉQUIPE TROUVÉE VIA EMPLOYEEIDS: ${team.name}`);
-            result.push(team.name);
-          }
-        });
-      }
-
-      // Résumé des équipes trouvées
-      console.log(
-        `📋 ÉQUIPES FINALES POUR ${user.firstName}: ${
-          result.length > 0 ? result.join(", ") : "Aucune"
-        }`
-      );
-
-      return result;
-    };
-
-    // Filtre et map des utilisateurs
-    return users
-      .filter((user) => {
-        const roleMatch = !filters.role || user.role === filters.role;
-        const statusMatch = !filters.status || user.status === filters.status;
-        const companyMatch =
-          !filters.companyId || user.companyId === filters.companyId;
-
-        // Sécurité supplémentaire: ne pas afficher user_id dans les résultats
-        if (user._id === "user_id") return false;
-
-        return roleMatch && statusMatch && companyMatch;
-      })
-      .map((user) => {
-        const creationDate = new Date(
-          user.createdAt || Date.now()
-        ).toLocaleDateString("fr-FR");
-        const companyName =
-          companies.find((c) => c._id === user.companyId)?.name || "-";
-
-        // Récupérer les équipes de l'utilisateur
-        const userTeams = getUserTeams(user);
-
-        return {
-          id: user._id,
-          name: (
-            <div className="flex items-center">
-              <Avatar
-                src={user.photoUrl}
-                alt={`${user.firstName} ${user.lastName}`}
-                size="sm"
-                className="mr-2"
-              >
-                {/* Le composant Avatar n'utilise pas de fallback prop, 
-                  on laisse le composant gérer son propre fallback  */}
-              </Avatar>
-              <div className="ml-3">
-                <p className="font-medium">{`${user.firstName} ${user.lastName}`}</p>
-              </div>
-            </div>
-          ),
-          email: user.email,
-          company: companyName,
-          role: (
-            <Badge
-              type={
-                user.role === "admin"
-                  ? "info"
-                  : user.role === "directeur"
-                  ? "info"
-                  : user.role === "manager"
-                  ? "success"
-                  : "warning"
-              }
-              label={
-                user.role === "admin"
-                  ? "Administrateur"
-                  : user.role === "directeur"
-                  ? "Directeur"
-                  : user.role === "manager"
-                  ? "Manager"
-                  : "Employé"
-              }
-            />
-          ),
-          teams: (
-            <span className="text-gray-700 dark:text-gray-300">
-              {user.role === "admin" || user.role === "directeur" ? (
-                <div className="flex items-center">
-                  <span className="text-gray-500 dark:text-gray-400 text-sm italic">
-                    Aucune équipe
-                  </span>
-                </div>
-              ) : userTeams.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {userTeams.map((teamName, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200"
-                    >
-                      {teamName}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col">
-                  <span className="text-red-500 text-sm">Aucune équipe</span>
-                  {(user.role === "employee" || user.role === "manager") && (
-                    <button
-                      className="text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline mt-1"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      Assigner à une équipe
-                    </button>
-                  )}
-                </div>
-              )}
-            </span>
-          ),
-          status: (
-            <div
-              className="cursor-pointer"
-              onClick={() => handleToggleStatus(user._id, user.status)}
-            >
-              <Badge
-                type={user.status === "active" ? "success" : "error"}
-                label={user.status === "active" ? "Actif" : "Inactif"}
-              />
-            </div>
-          ),
-          createdAt: creationDate,
-          actions: (
-            <div className="flex space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEditUser(user)}
-                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Éditer l'utilisateur"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleOpenDeleteModal(user._id)}
-                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Supprimer l'utilisateur"
-              >
-                <Trash className="h-4 w-4 text-red-500" />
-              </Button>
-            </div>
-          ),
-        };
-      });
-  }, [
-    users,
-    filters.role,
-    filters.status,
-    filters.companyId,
-    companies,
-    teams,
-    employees,
-  ]);
-
-  /**
-   * Gestion du changement des filtres
-   */
+  // Gestion du changement des filtres
   const handleFilterChange = (filterName: string, value: string) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [filterName]: value,
-    }));
+    setFilters((prev) => ({ ...prev, [filterName]: value }));
   };
 
   /**
@@ -1475,6 +1182,34 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  // Configuration des filtres pour le composant FilterBar
+  const filterConfig = {
+    role: {
+      label: "Rôle",
+      value: filters.role,
+      options: roleOptions,
+      onChange: (value: string) => handleFilterChange("role", value),
+    },
+    status: {
+      label: "Statut",
+      value: filters.status,
+      options: statusOptions,
+      onChange: (value: string) => handleFilterChange("status", value),
+    },
+    company: {
+      label: "Entreprise",
+      value: filters.companyId,
+      options: [
+        { value: "", label: "Toutes les entreprises" },
+        ...companies.map((company) => ({
+          value: company._id,
+          label: company.name,
+        })),
+      ],
+      onChange: (value: string) => handleFilterChange("companyId", value),
+    },
+  };
+
   return (
     <LayoutWithSidebar
       activeItem="users"
@@ -1586,6 +1321,16 @@ const UserManagementPage: React.FC = () => {
             </div>
           </div>
         </SectionCard>
+
+        {/* Barre de filtres et recherche */}
+        <div className="mb-6">
+          <FilterBar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Rechercher par nom ou email..."
+            filters={filterConfig}
+          />
+        </div>
 
         {/* Tableau des utilisateurs */}
         <SectionCard className="relative z-10 mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm">

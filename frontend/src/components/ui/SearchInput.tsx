@@ -4,212 +4,110 @@
  * Permet aux utilisateurs d'effectuer des recherches avec debounce optionnel,
  * indicateur de chargement et adaptation au thème clair/sombre.
  */
-import { AnimatePresence, motion } from "framer-motion";
-import React, { useEffect, useRef } from "react";
+import { Search, X } from "lucide-react";
+import React, { useState } from "react";
 
 /**
  * Interface pour les propriétés du composant SearchInput
  */
-export interface SearchInputProps {
-  /** Valeur actuelle du champ de recherche */
-  value: string;
-  /** Callback appelé lors du changement de valeur */
-  onChange: (value: string) => void;
-  /** Texte de placeholder */
+interface SearchInputProps {
   placeholder?: string;
-  /** Classes CSS additionnelles */
+  value: string;
+  onChange: (value: string) => void;
+  onClear?: () => void;
   className?: string;
-  /** Affiche un indicateur de chargement si true */
-  isLoading?: boolean;
-  /** Délai de debounce en ms (pas de debounce si non défini) */
-  debounceDelay?: number;
-  /** Focus automatique à l'affichage */
   autoFocus?: boolean;
+  debounceTime?: number;
+  modern?: boolean;
 }
 
 /**
- * Composant SearchInput
+ * Composant de champ de recherche réutilisable
  *
- * Champ de recherche avec icône de loupe, bouton de réinitialisation,
- * indicateur de chargement et debounce optionnel.
+ * Inclut une icône de recherche, un champ de saisie et un bouton pour effacer la recherche
+ * Supporte le debounce pour éviter trop d'appels lors de la saisie rapide
+ * Supporte un mode moderne avec un design plus futuriste
  */
 const SearchInput: React.FC<SearchInputProps> = ({
+  placeholder = "Rechercher...",
   value,
   onChange,
-  placeholder = "Rechercher...",
+  onClear,
   className = "",
-  isLoading = false,
-  debounceDelay,
   autoFocus = false,
+  debounceTime = 300,
+  modern = false,
 }) => {
-  // Référence vers l'élément input pour focus et interactions clavier
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [localValue, setLocalValue] = useState<string>(value);
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
 
-  // Référence pour le timer de debounce
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Gestion de la saisie avec debounce
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
 
-  // Référence pour stocker la dernière valeur non debouncée
-  const lastValueRef = useRef<string>(value);
+    // Effacer le timeout précédent s'il existe
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
 
-  // Gestion du changement avec debounce optionnel
-  const handleChange = (newValue: string) => {
-    // Mettre à jour la référence de la dernière valeur
-    lastValueRef.current = newValue;
-
-    // Si le debounce est activé
-    if (debounceDelay && debounceDelay > 0) {
-      // Annuler le timer précédent s'il existe
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      // Déclencher le callback après le délai de debounce
-      debounceTimerRef.current = setTimeout(() => {
-        onChange(lastValueRef.current);
-      }, debounceDelay);
-    } else {
-      // Sans debounce, appeler le callback immédiatement
+    // Créer un nouveau timeout pour le debounce
+    const timeout = setTimeout(() => {
       onChange(newValue);
-    }
+    }, debounceTime);
+
+    setDebounceTimeout(timeout);
   };
 
-  // Fonction pour effacer le champ de recherche
+  // Effacer la recherche
   const handleClear = () => {
-    // Appeler le callback avec une chaîne vide
+    setLocalValue("");
     onChange("");
-    // Donner le focus à l'input
-    inputRef.current?.focus();
+    if (onClear) onClear();
   };
 
-  // Gestion des touches clavier (Échap pour effacer)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Escape" && value) {
-      handleClear();
-    }
-  };
-
-  // Nettoyage du timer de debounce au démontage
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
+  // Classes pour le style moderne ou classique
+  const inputClasses = modern
+    ? `w-full py-2.5 bg-transparent text-gray-800 dark:text-gray-200 
+       border-none focus:ring-0 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500
+       transition-all duration-200`
+    : `w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-700 rounded-md 
+       bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 
+       focus:ring-2 focus:ring-indigo-500/30 dark:focus:ring-indigo-500/40 focus:border-indigo-500 dark:focus:border-indigo-500
+       transition-colors duration-200`;
 
   return (
-    <motion.div
-      className={`relative w-full ${className}`}
-      role="search"
-      aria-label="Champ de recherche"
-      initial={{ opacity: 0.9, y: -5 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      {/* Icône de recherche (loupe) */}
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-[var(--text-tertiary)]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-      </div>
+    <div className={`relative ${className}`}>
+      {!modern && (
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search size={18} className="text-gray-500 dark:text-gray-400" />
+        </div>
+      )}
 
-      {/* Champ de recherche */}
       <input
-        ref={inputRef}
         type="text"
-        className="w-full pl-10 pr-10 py-2 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)]/40 transition-shadow"
+        value={localValue}
+        onChange={handleInputChange}
         placeholder={placeholder}
-        value={value}
-        onChange={(e) => handleChange(e.target.value)}
-        onKeyDown={handleKeyDown}
         autoFocus={autoFocus}
-        aria-label={placeholder}
-        aria-busy={isLoading}
+        className={inputClasses}
       />
 
-      {/* Bouton de réinitialisation ou spinner de chargement */}
-      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-        <AnimatePresence mode="wait">
-          {value &&
-            (isLoading ? (
-              /* Spinner de chargement */
-              <motion.div
-                key="spinner"
-                className="h-5 w-5 text-[var(--text-tertiary)]"
-                initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
-                animate={{ opacity: 1, scale: 1, rotate: 360 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{
-                  duration: 0.2,
-                  rotate: { repeat: Infinity, duration: 1, ease: "linear" },
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              </motion.div>
-            ) : (
-              /* Bouton de réinitialisation (croix) */
-              <motion.button
-                key="clear-button"
-                type="button"
-                className="h-5 w-5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] focus:outline-none focus:text-[var(--text-primary)]"
-                onClick={handleClear}
-                aria-label="Effacer la recherche"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.15 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </motion.button>
-            ))}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+      {localValue && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+        >
+          <X
+            size={16}
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+          />
+        </button>
+      )}
+    </div>
   );
 };
 
