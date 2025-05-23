@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import mongoose from "mongoose";
 import auth from "../../middlewares/auth.middleware";
 import checkRole from "../../middlewares/checkRole.middleware";
 import EmployeeModel from "../../models/Employee.model";
@@ -11,7 +12,10 @@ const router = express.Router();
 type UserRole = "admin" | "manager" | "employee" | string;
 
 // Middleware de synchronisation User -> Employee
-const syncUserToEmployee = async (userId: string): Promise<void> => {
+const syncUserToEmployee = async (
+  userId: string,
+  teamId?: string
+): Promise<void> => {
   try {
     // Vérifier si l'utilisateur existe
     const user = await User.findById(userId);
@@ -33,12 +37,25 @@ const syncUserToEmployee = async (userId: string): Promise<void> => {
       status: user.status === "active" ? "actif" : "inactif",
       userId: user._id,
       contractHoursPerWeek: 35,
-      teamId: null,
+      teamId: teamId || null,
       source: "auto",
     });
 
     // Sauvegarder l'employee
-    await newEmployee.save();
+    const savedEmployee = await newEmployee.save();
+
+    // Si un teamId est fourni, ajouter l'employé à l'équipe
+    if (teamId && mongoose.Types.ObjectId.isValid(teamId)) {
+      const TeamModel = mongoose.model("Team");
+      await TeamModel.findByIdAndUpdate(
+        teamId,
+        { $addToSet: { employeeIds: savedEmployee._id } },
+        { new: true }
+      );
+      console.log(
+        `✅ Employé ${user.firstName} ${user.lastName} ajouté à l'équipe ${teamId}`
+      );
+    }
 
     console.log(
       `✅ Employee créé automatiquement pour le user ${user.firstName} ${user.lastName} (ID: ${user._id})`
@@ -70,6 +87,7 @@ router.post(
         password,
         photoUrl,
         companyId,
+        teamId,
       } = req.body;
 
       // Vérification des champs requis
@@ -88,6 +106,32 @@ router.post(
           success: false,
           message: "Cet email est déjà utilisé",
         });
+      }
+
+      // Si un teamId est fourni pour un employé, vérifier qu'il est valide
+      if (teamId && role === "employee") {
+        if (!mongoose.Types.ObjectId.isValid(teamId)) {
+          return res.status(400).json({
+            success: false,
+            message: "L'identifiant d'équipe n'est pas valide",
+          });
+        }
+
+        // Vérifier que l'équipe existe et appartient à la même entreprise
+        const TeamModel = mongoose.model("Team");
+        const team = await TeamModel.findById(teamId);
+        if (!team) {
+          return res.status(400).json({
+            success: false,
+            message: "L'équipe spécifiée n'existe pas",
+          });
+        }
+        if (team.companyId.toString() !== companyId) {
+          return res.status(400).json({
+            success: false,
+            message: "L'équipe n'appartient pas à l'entreprise spécifiée",
+          });
+        }
       }
 
       // Créer le nouvel utilisateur
@@ -117,16 +161,13 @@ router.post(
       // Sauvegarder l'utilisateur
       const savedUser = await newUser.save();
 
-      // Si l'utilisateur a le rôle "employee", créer automatiquement un employee associé
+      // Si l'utilisateur a le rôle "employee", créer automatiquement un employee associé avec l'équipe
       if (role.toString() === "employee") {
-        await syncUserToEmployee(savedUser._id.toString());
+        await syncUserToEmployee(savedUser._id.toString(), teamId);
       }
 
-      // Retourner l'utilisateur créé (sans le mot de passe)
-      const userResponse = savedUser.toObject() as any;
-      if ("password" in userResponse) {
-        delete userResponse.password;
-      }
+      // Retourner la réponse sans le mot de passe
+      const { password: _, ...userResponse } = savedUser.toObject();
 
       return res.status(201).json({
         success: true,

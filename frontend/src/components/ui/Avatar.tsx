@@ -7,6 +7,7 @@ interface AvatarProps {
   size?: "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
   fallbackClassName?: string;
+  fallback?: string;
 }
 
 const Avatar: React.FC<AvatarProps> = ({
@@ -15,6 +16,7 @@ const Avatar: React.FC<AvatarProps> = ({
   size = "md",
   className = "",
   fallbackClassName = "",
+  fallback,
 }) => {
   const [hasError, setHasError] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -83,7 +85,11 @@ const Avatar: React.FC<AvatarProps> = ({
         <div
           className={`flex items-center justify-center bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 w-full h-full ${fallbackClassName}`}
         >
-          <User />
+          {fallback ? (
+            <span className="font-medium">{fallback}</span>
+          ) : (
+            <User />
+          )}
         </div>
       )}
     </div>

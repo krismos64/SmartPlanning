@@ -124,10 +124,19 @@ export const adminUserService = {
   // Créer un nouvel utilisateur
   createUser: async (userData: any) => {
     try {
+      console.log("API createUser - Données envoyées:", userData);
       const response = await api.post("/admin/users", userData);
+      console.log("API createUser - Réponse reçue:", response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la création de l'utilisateur:", error);
+      if (error.response) {
+        console.error("Détails de l'erreur:", {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+        });
+      }
       throw error;
     }
   },

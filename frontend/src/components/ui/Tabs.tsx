@@ -195,7 +195,7 @@ const Tabs: React.FC<TabsProps> = ({
 
       {/* Contenu des onglets */}
       <div className="mt-4">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync">
           {tabs.map(
             (_, index) =>
               activeTabIndex === index && (

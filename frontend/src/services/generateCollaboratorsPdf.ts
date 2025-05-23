@@ -19,14 +19,12 @@ interface EmployeeWithEmail {
   firstName: string;
   lastName: string;
   email?: string;
+  role?: string;
   status: string;
   teamId?: string;
   companyId?: string;
   contractHoursPerWeek?: number;
-  team?: {
-    _id: string;
-    name: string;
-  };
+  teamName?: string;
 }
 
 /**
@@ -73,8 +71,15 @@ export const generateCollaboratorsPdf = (
     // Email (ou "Non spécifié" si vide)
     employee.email || "Non spécifié",
 
+    // Rôle
+    employee.role === "admin"
+      ? "Admin"
+      : employee.role === "manager"
+      ? "Manager"
+      : "Employé",
+
     // Équipe (nom de l'équipe ou "Non assignée")
-    employee.team?.name || "Non assignée",
+    employee.teamName || "Non assignée",
 
     // Statut ("Actif" ou "Inactif")
     employee.status === "actif" ? "Actif" : "Inactif",
@@ -86,7 +91,14 @@ export const generateCollaboratorsPdf = (
   ]);
 
   // Définition des entêtes de colonnes
-  const headers = ["Nom", "Email", "Équipe", "Statut", "Heures/semaine"];
+  const headers = [
+    "Nom",
+    "Email",
+    "Rôle",
+    "Équipe",
+    "Statut",
+    "Heures/semaine",
+  ];
 
   // Génération du tableau
   autoTable(doc, {
@@ -108,11 +120,12 @@ export const generateCollaboratorsPdf = (
     },
     // Largeurs de colonnes personnalisées
     columnStyles: {
-      0: { cellWidth: 50 }, // Nom
-      1: { cellWidth: 70 }, // Email
-      2: { cellWidth: 50 }, // Équipe
-      3: { cellWidth: 30 }, // Statut
-      4: { cellWidth: 40 }, // Heures/semaine
+      0: { cellWidth: 45 }, // Nom
+      1: { cellWidth: 60 }, // Email
+      2: { cellWidth: 25 }, // Rôle
+      3: { cellWidth: 40 }, // Équipe
+      4: { cellWidth: 25 }, // Statut
+      5: { cellWidth: 40 }, // Heures/semaine
     },
   });
 

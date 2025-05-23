@@ -63,8 +63,8 @@ const useFetchCompanyUsers = (
       // Choisir le bon endpoint selon le rôle
       const endpoint =
         role === "employee"
-          ? `/api/admin/employees?companyId=${companyId}`
-          : `/api/admin/users?role=${role}&companyId=${companyId}`;
+          ? `/admin/employees?companyId=${companyId}`
+          : `/admin/users?role=${role}&companyId=${companyId}`;
 
       // Effectuer la requête
       const response = await axiosInstance.get(endpoint);

@@ -22,6 +22,7 @@ import SectionTitle from "../components/layout/SectionTitle";
 import Badge from "../components/ui/Badge";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
+import FileUpload from "../components/ui/FileUpload";
 import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Modal from "../components/ui/Modal";
@@ -33,8 +34,13 @@ interface Company {
   _id: string;
   name: string;
   logoUrl?: string;
+  plan?: string;
+  subscription?: {
+    status?: string;
+    currentPeriodEnd?: string;
+  };
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 interface CompanyFormData {
@@ -46,6 +52,32 @@ interface CompanyFormErrors {
   name?: string;
   logoUrl?: string;
 }
+
+// Fonction d'upload d'image vers Cloudinary
+const uploadImage = async (file: File): Promise<string> => {
+  try {
+    // Créer un objet FormData pour envoyer le fichier
+    const formData = new FormData();
+    formData.append("image", file);
+
+    // Faire la requête POST vers l'endpoint d'upload
+    const response = await axiosInstance.post("/upload/public", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    // Vérifier que la réponse contient une URL d'image
+    if (response.data && response.data.success && response.data.imageUrl) {
+      return response.data.imageUrl;
+    } else {
+      throw new Error("Format de réponse invalide du serveur d'upload");
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'upload de l'image:", error);
+    throw new Error("Impossible d'uploader l'image. Veuillez réessayer.");
+  }
+};
 
 // Définition des colonnes du tableau
 const companyColumns = [
@@ -91,20 +123,36 @@ const CompanyManagementPage: React.FC = () => {
   const [deleteCompanyId, setDeleteCompanyId] = useState<string>("");
   const [deletingCompany, setDeletingCompany] = useState<boolean>(false);
 
+  // États pour la gestion de l'upload d'image
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
+
   /**
    * Récupération des entreprises depuis l'API
    */
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get("/api/admin/companies");
-      const data = Array.isArray(response.data) ? response.data : [];
+      const response = await axiosInstance.get("/admin/companies");
       console.log("Données entreprises récupérées :", response.data);
-      setCompanies(data);
+
+      // Extraire le tableau d'entreprises de la réponse
+      if (
+        response.data &&
+        response.data.success &&
+        Array.isArray(response.data.data)
+      ) {
+        setCompanies(response.data.data);
+      } else {
+        console.error("Format de réponse inattendu:", response.data);
+        setCompanies([]);
+      }
     } catch (err) {
       console.error("Erreur lors de la récupération des entreprises:", err);
       setError("Impossible de récupérer la liste des entreprises.");
       setShowErrorToast(true);
+      setCompanies([]);
     } finally {
       setLoading(false);
     }
@@ -121,7 +169,7 @@ const CompanyManagementPage: React.FC = () => {
    * Effet pour formater les données des entreprises pour le tableau
    */
   useEffect(() => {
-    if (companies.length === 0) {
+    if (!companies || companies.length === 0) {
       setTableData([]);
       return;
     }
@@ -140,13 +188,15 @@ const CompanyManagementPage: React.FC = () => {
         ) : (
           <span className="text-gray-400">-</span>
         ),
-        createdAt: new Date(company.createdAt).toLocaleDateString("fr-FR", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        createdAt: company.createdAt
+          ? new Date(company.createdAt).toLocaleDateString("fr-FR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-",
         actions: (
           <div className="flex space-x-2">
             <Button
@@ -184,6 +234,9 @@ const CompanyManagementPage: React.FC = () => {
     });
 
     setTableData(formattedCompanies);
+
+    // Log pour vérifier si les données sont correctement formatées
+    console.log("Données formatées pour le tableau:", formattedCompanies);
   }, [companies]);
 
   /**
@@ -261,6 +314,13 @@ const CompanyManagementPage: React.FC = () => {
     setFormErrors({});
     setIsEditMode(false);
     setSelectedCompany(null);
+
+    // Réinitialiser les états du logo
+    if (logoPreview) {
+      URL.revokeObjectURL(logoPreview);
+    }
+    setLogoFile(null);
+    setLogoPreview(null);
   };
 
   /**
@@ -280,6 +340,14 @@ const CompanyManagementPage: React.FC = () => {
       name: company.name,
       logoUrl: company.logoUrl || "",
     });
+
+    // Réinitialiser les états du logo mais définir la prévisualisation si une URL existe
+    if (logoPreview) {
+      URL.revokeObjectURL(logoPreview);
+    }
+    setLogoFile(null);
+    setLogoPreview(company.logoUrl || null);
+
     setIsEditMode(true);
     setModalOpen(true);
   };
@@ -296,6 +364,11 @@ const CompanyManagementPage: React.FC = () => {
    * Fermeture des modals
    */
   const handleCloseModal = () => {
+    // Libérer les ressources de prévisualisation
+    if (logoPreview && logoPreview !== formData.logoUrl) {
+      URL.revokeObjectURL(logoPreview);
+    }
+
     setModalOpen(false);
     resetForm();
   };
@@ -303,6 +376,66 @@ const CompanyManagementPage: React.FC = () => {
   const handleCloseDeleteModal = () => {
     setDeleteModalOpen(false);
     setDeleteCompanyId("");
+  };
+
+  /**
+   * Gestion de la sélection d'un fichier image pour le logo
+   */
+  const handleLogoSelect = (file: File) => {
+    setLogoFile(file);
+
+    // Créer une URL de prévisualisation
+    const previewUrl = URL.createObjectURL(file);
+    setLogoPreview(previewUrl);
+
+    // Effacer les erreurs liées au logo s'il y en a
+    if (formErrors.logoUrl) {
+      setFormErrors((prev) => ({
+        ...prev,
+        logoUrl: undefined,
+      }));
+    }
+  };
+
+  /**
+   * Suppression du logo sélectionné
+   */
+  const handleDeleteLogo = () => {
+    // Libérer l'URL de prévisualisation pour éviter les fuites de mémoire
+    if (logoPreview) {
+      URL.revokeObjectURL(logoPreview);
+    }
+
+    setLogoFile(null);
+    setLogoPreview(null);
+
+    // Si on est en mode édition, conserver l'URL existante
+    if (!isEditMode) {
+      setFormData((prev) => ({
+        ...prev,
+        logoUrl: "",
+      }));
+    }
+  };
+
+  /**
+   * Upload du logo vers Cloudinary
+   */
+  const uploadLogo = async (): Promise<string | undefined> => {
+    if (!logoFile) return formData.logoUrl; // Retourner l'URL existante si pas de nouveau fichier
+
+    try {
+      setIsUploadingLogo(true);
+      const url = await uploadImage(logoFile);
+      setIsUploadingLogo(false);
+      return url;
+    } catch (err) {
+      console.error("Erreur lors de l'upload du logo:", err);
+      setError("Impossible d'uploader le logo. Veuillez réessayer.");
+      setShowErrorToast(true);
+      setIsUploadingLogo(false);
+      throw err;
+    }
   };
 
   /**
@@ -316,17 +449,48 @@ const CompanyManagementPage: React.FC = () => {
 
     setLoading(true);
     try {
+      // Uploader le logo si un nouveau fichier est sélectionné
+      let logoUrl = formData.logoUrl;
+      if (logoFile) {
+        try {
+          logoUrl = (await uploadLogo()) || "";
+        } catch (err) {
+          // L'erreur est déjà gérée dans uploadLogo
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Préparer les données avec l'URL du logo
+      const companyData = {
+        name: formData.name,
+        logoUrl,
+      };
+
       if (isEditMode && selectedCompany) {
         // Mise à jour d'une entreprise existante
-        await axiosInstance.put(
-          `/api/admin/companies/${selectedCompany._id}`,
-          formData
+        const response = await axiosInstance.put(
+          `/admin/companies/${selectedCompany._id}`,
+          companyData
         );
-        setSuccess("Entreprise mise à jour avec succès !");
+
+        if (response.data && response.data.success) {
+          setSuccess("Entreprise mise à jour avec succès !");
+        } else {
+          throw new Error("La mise à jour a échoué");
+        }
       } else {
         // Création d'une nouvelle entreprise
-        await axiosInstance.post("/api/admin/companies", formData);
-        setSuccess("Entreprise créée avec succès !");
+        const response = await axiosInstance.post(
+          "/admin/companies",
+          companyData
+        );
+
+        if (response.data && response.data.success) {
+          setSuccess("Entreprise créée avec succès !");
+        } else {
+          throw new Error("La création a échoué");
+        }
       }
 
       // Rafraîchir la liste des entreprises
@@ -359,13 +523,20 @@ const CompanyManagementPage: React.FC = () => {
 
     setDeletingCompany(true);
     try {
-      await axiosInstance.delete(`/api/admin/companies/${deleteCompanyId}`);
-      setSuccess("Entreprise supprimée avec succès !");
-      setShowSuccessToast(true);
+      const response = await axiosInstance.delete(
+        `/admin/companies/${deleteCompanyId}`
+      );
 
-      // Rafraîchir la liste des entreprises
-      await fetchCompanies();
-      handleCloseDeleteModal();
+      if (response.data && response.data.success) {
+        setSuccess("Entreprise supprimée avec succès !");
+        setShowSuccessToast(true);
+
+        // Rafraîchir la liste des entreprises
+        await fetchCompanies();
+        handleCloseDeleteModal();
+      } else {
+        throw new Error("La suppression a échoué");
+      }
     } catch (err) {
       console.error("Erreur lors de la suppression de l'entreprise:", err);
       setError("Erreur lors de la suppression de l'entreprise");
@@ -405,24 +576,114 @@ const CompanyManagementPage: React.FC = () => {
               <LoadingSpinner size="lg" />
             </div>
           ) : (
-            <Table
-              columns={companyColumns}
-              data={tableData}
-              pagination={true}
-              rowsPerPage={10}
-              emptyState={{
-                title: "Aucune entreprise trouvée",
-                description:
-                  "Il n'y a actuellement aucune entreprise enregistrée dans le système.",
-                icon: (
-                  <Building
-                    size={48}
-                    className="text-gray-300 dark:text-gray-600"
-                  />
-                ),
-              }}
-              className="text-gray-900 dark:text-gray-100 [&_thead]:bg-gray-100 [&_thead]:dark:bg-gray-800 [&_thead_th]:text-gray-700 [&_thead_th]:dark:text-sky-300 [&_td]:text-gray-900 [&_td]:dark:text-gray-100"
-            />
+            <>
+              {/* Affichage desktop - Tableau */}
+              <div className="hidden md:block">
+                <Table
+                  columns={companyColumns}
+                  data={tableData}
+                  pagination={true}
+                  rowsPerPage={10}
+                  emptyState={{
+                    title: "Aucune entreprise trouvée",
+                    description:
+                      "Il n'y a actuellement aucune entreprise enregistrée dans le système.",
+                    icon: (
+                      <Building
+                        size={48}
+                        className="text-gray-300 dark:text-gray-600"
+                      />
+                    ),
+                  }}
+                  className="text-gray-900 dark:text-gray-100 [&_thead]:bg-gray-100 [&_thead]:dark:bg-gray-800 [&_thead_th]:text-gray-700 [&_thead_th]:dark:text-sky-300 [&_td]:text-gray-900 [&_td]:dark:text-gray-100"
+                />
+              </div>
+
+              {/* Affichage mobile - Cards */}
+              <div className="md:hidden space-y-4">
+                {companies.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Building
+                      size={48}
+                      className="mx-auto text-gray-300 dark:text-gray-600 mb-4"
+                    />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      Aucune entreprise trouvée
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Il n'y a actuellement aucune entreprise enregistrée dans
+                      le système.
+                    </p>
+                  </div>
+                ) : (
+                  companies.map((company) => (
+                    <div
+                      key={company._id}
+                      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm"
+                    >
+                      {/* En-tête de la card */}
+                      <div className="flex items-start space-x-3 mb-3">
+                        {company.logoUrl ? (
+                          <img
+                            src={company.logoUrl}
+                            alt={`Logo de ${company.name}`}
+                            className="w-12 h-12 object-contain rounded-lg border border-gray-200 dark:border-gray-600 p-1"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <Building size={20} className="text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
+                            {company.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Créée le{" "}
+                            {new Date(company.createdAt).toLocaleDateString(
+                              "fr-FR"
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Edit size={16} />}
+                          onClick={() => handleEditCompany(company)}
+                          className="flex-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-200 dark:border-blue-800"
+                        >
+                          Éditer
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Building size={16} />}
+                          onClick={() =>
+                            (window.location.href = `/admin/entreprises/${company._id}/equipes`)
+                          }
+                          className="flex-1 text-indigo-600 hover:text-indigo-800 dark:text-sky-400 dark:hover:text-sky-300 border border-indigo-200 dark:border-indigo-800"
+                        >
+                          Équipes
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Trash2 size={16} />}
+                          onClick={() => handleOpenDeleteModal(company._id)}
+                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 border border-red-200 dark:border-red-800"
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
           )}
         </SectionCard>
 
@@ -452,6 +713,60 @@ const CompanyManagementPage: React.FC = () => {
               }
             />
 
+            {/* Upload du logo d'entreprise */}
+            <div className="space-y-2">
+              <FileUpload
+                label="Logo de l'entreprise"
+                onFileSelect={handleLogoSelect}
+                onPreviewChange={(url) => {}}
+                acceptedTypes="image/*"
+                maxSizeMB={5}
+                buttonText="Choisir un logo"
+                error={formErrors.logoUrl}
+                buttonClassName="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:hover:bg-indigo-800/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+              />
+
+              {/* Prévisualisation du logo */}
+              {(logoPreview || formData.logoUrl) && (
+                <div className="mt-4">
+                  <div className="flex flex-col items-center p-4 border border-gray-200 dark:border-gray-700 rounded-md">
+                    {isUploadingLogo ? (
+                      <div className="flex flex-col items-center justify-center h-32">
+                        <LoadingSpinner size="md" />
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                          Upload en cours...
+                        </p>
+                      </div>
+                    ) : (
+                      <img
+                        src={logoPreview || formData.logoUrl}
+                        alt="Aperçu du logo"
+                        className="h-32 object-contain mb-3"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                          setFormErrors({
+                            ...formErrors,
+                            logoUrl:
+                              "Impossible de charger l'image depuis cette URL",
+                          });
+                        }}
+                      />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDeleteLogo}
+                      icon={<Trash2 size={16} />}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      disabled={isUploadingLogo}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <InputField
               label="URL du logo (facultatif)"
               name="logoUrl"
@@ -462,22 +777,25 @@ const CompanyManagementPage: React.FC = () => {
               placeholder="https://exemple.com/logo.png"
             />
 
-            {formData.logoUrl && isValidUrl(formData.logoUrl) && (
-              <div className="flex justify-center">
-                <img
-                  src={formData.logoUrl}
-                  alt="Aperçu du logo"
-                  className="h-24 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                    setFormErrors({
-                      ...formErrors,
-                      logoUrl: "Impossible de charger l'image depuis cette URL",
-                    });
-                  }}
-                />
-              </div>
-            )}
+            {formData.logoUrl &&
+              isValidUrl(formData.logoUrl) &&
+              !logoPreview && (
+                <div className="flex justify-center">
+                  <img
+                    src={formData.logoUrl}
+                    alt="Aperçu du logo"
+                    className="h-24 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                      setFormErrors({
+                        ...formErrors,
+                        logoUrl:
+                          "Impossible de charger l'image depuis cette URL",
+                      });
+                    }}
+                  />
+                </div>
+              )}
 
             <div className="flex justify-end space-x-3 pt-4">
               <Button
@@ -490,7 +808,8 @@ const CompanyManagementPage: React.FC = () => {
               <Button
                 variant="primary"
                 onClick={handleSaveCompany}
-                isLoading={loading}
+                isLoading={loading || isUploadingLogo}
+                disabled={loading || isUploadingLogo}
                 className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
               >
                 {isEditMode ? "Enregistrer" : "Créer"}

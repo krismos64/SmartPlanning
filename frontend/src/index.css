@@ -44,30 +44,47 @@
 /* Styles pour les champs de formulaire en mode sombre */
 .dark input[type="email"],
 .dark input[type="password"],
-.dark input[type="text"] {
-  background-color: #2d3748 !important; /* Légèrement plus clair que le fond */
+.dark input[type="text"],
+.dark textarea,
+.dark input[type="email"].dark-input,
+.dark input[type="password"].dark-input,
+.dark input[type="text"].dark-input,
+.dark #root input[type="email"],
+.dark #root input[type="password"],
+.dark #root input[type="text"],
+.dark #root textarea {
+  background-color: #1a2234 !important; /* Fond plus sombre */
   color: white !important;
   border-color: #4a5568 !important; /* Bordure légèrement plus claire */
+  -webkit-text-fill-color: white !important; /* Pour Safari et Chrome autofill */
+  caret-color: white !important;
 }
 
 /* Style spécifique pour les inputs avec la classe dark-input */
-.dark .dark-input input {
-  background-color: #2d3748 !important;
+.dark .dark-input input,
+.dark #root .dark-input input {
+  background-color: #1a2234 !important;
   color: white !important;
   border-color: #4a5568 !important;
+  -webkit-text-fill-color: white !important;
+  caret-color: white !important;
 }
 
 /* Pour cibler directement l'élément avec la classe dark-input */
-.dark input.dark-input {
-  background-color: #2d3748 !important;
+.dark input.dark-input,
+.dark #root input.dark-input {
+  background-color: #1a2234 !important;
   color: white !important;
   border-color: #4a5568 !important;
+  -webkit-text-fill-color: white !important;
+  caret-color: white !important;
 }
 
 /* Styles pour les champs en mode clair */
 input[type="email"],
 input[type="password"],
 input[type="text"],
+textarea,
 .dark-input input,
 input.dark-input {
   background-color: white !important;
@@ -95,4 +112,23 @@ input::placeholder {
 /* Style pour les labels en mode clair */
 label {
   color: #4a5568 !important;
+}
+
+/* Styles pour l'auto-remplissage en mode sombre */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill:active,
+.dark #root input:-webkit-autofill,
+.dark #root input:-webkit-autofill:hover,
+.dark #root input:-webkit-autofill:focus,
+.dark #root input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #1a2234 inset !important;
+  -webkit-text-fill-color: white !important;
+  caret-color: white !important;
+  border-color: #4a5568 !important;
 }

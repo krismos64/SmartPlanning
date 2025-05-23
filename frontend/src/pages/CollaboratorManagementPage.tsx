@@ -8,9 +8,9 @@
  */
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Edit,
   FileDown,
   Filter,
+  Pencil,
   Plus,
   Settings,
   Shield,
@@ -68,12 +68,25 @@ interface Company {
   name: string;
 }
 
+// Interface pour l'équipe populée (quand teamId est un objet)
+interface PopulatedTeam {
+  _id: string;
+  name: string;
+  managerIds: string[];
+}
+
 // Interface étendue pour l'employé (avec email)
-interface EmployeeWithEmail extends Employee {
+interface EmployeeWithEmail extends Omit<Employee, "teamId"> {
   email?: string;
   role?: string;
   managerName?: string;
+  teamId?: string | PopulatedTeam;
 }
+
+// Type pour les données reçues de l'API avec teamId populé
+type ApiEmployeeWithPopulatedTeam = Omit<Employee, "teamId"> & {
+  teamId?: PopulatedTeam;
+};
 
 // Types pour les formulaires d'équipes
 interface TeamFormData {
@@ -114,12 +127,6 @@ const collaboratorColumns = [
   {
     key: "team",
     label: "Équipe",
-    sortable: true,
-    className: "text-gray-800 dark:text-gray-200 font-medium",
-  },
-  {
-    key: "manager",
-    label: "Manager",
     sortable: true,
     className: "text-gray-800 dark:text-gray-200 font-medium",
   },
@@ -284,6 +291,16 @@ const CollaboratorManagementPage: React.FC = () => {
   const fetchTeams = useCallback(async () => {
     if (!user) return;
 
+    // ⚠️ Vérification critique: s'assurer que l'ID utilisateur est disponible pour les managers
+    if (user.role === "manager" && !user._id && !user.userId) {
+      console.error("❌ ID utilisateur manquant pour manager:", user);
+      showToast(
+        "Erreur: ID utilisateur non disponible. Reconnectez-vous.",
+        "error"
+      );
+      return;
+    }
+
     setTeamsLoading(true);
     try {
       let url = "/teams";
@@ -291,7 +308,8 @@ const CollaboratorManagementPage: React.FC = () => {
       // 👁️ Adaptation selon le rôle
       if (user.role === "manager") {
         // Le manager ne voit que ses équipes
-        console.log("Récupération des équipes pour le manager:", user._id);
+        const managerId = user._id || user.userId;
+        console.log("Récupération des équipes pour le manager:", managerId);
       } else if (
         user.role === "directeur" &&
         user.companyId &&
@@ -363,6 +381,16 @@ const CollaboratorManagementPage: React.FC = () => {
   const fetchEmployees = useCallback(async () => {
     if (!user) return;
 
+    // ⚠️ Vérification critique: s'assurer que l'ID utilisateur est disponible
+    if (!user._id && !user.userId) {
+      console.error("❌ ID utilisateur manquant:", user);
+      showToast(
+        "Erreur: ID utilisateur non disponible. Reconnectez-vous.",
+        "error"
+      );
+      return;
+    }
+
     setEmployeesLoading(true);
     setEmployeesError(null);
 
@@ -372,12 +400,12 @@ const CollaboratorManagementPage: React.FC = () => {
 
       // ✅ Construction de l'URL selon le rôle et les filtres
       if (user.role === "manager") {
-        // Manager : employés de ses équipes
+        // Manager : utiliser la route générale /employees qui gère automatiquement les équipes du manager
         if (filters.teamId) {
           url = `/employees/team/${filters.teamId}`;
         } else {
-          // Par défaut, tous les employés des équipes du manager
-          url = `/employees/manager/${user._id}`;
+          // La route /employees gère automatiquement les employés des équipes du manager
+          url = "/employees";
         }
       } else if (user.role === "directeur") {
         // Directeur : tous les employés de son entreprise
@@ -408,6 +436,21 @@ const CollaboratorManagementPage: React.FC = () => {
       const response = await axiosInstance.get(url, { params });
 
       if (response.data && response.data.success) {
+        console.log("📦 Données reçues de l'API:", response.data.data);
+        console.log("📊 Nombre d'employés:", response.data.data?.length || 0);
+
+        // Log détaillé du premier employé pour débugger
+        if (response.data.data && response.data.data.length > 0) {
+          console.log(
+            "🔍 Structure du premier employé:",
+            response.data.data[0]
+          );
+          console.log(
+            "🔍 Clés disponibles:",
+            Object.keys(response.data.data[0])
+          );
+        }
+
         setAllEmployees(response.data.data);
       } else {
         throw new Error(
@@ -458,35 +501,149 @@ const CollaboratorManagementPage: React.FC = () => {
     }
   }, [filters, user, hasAccess, fetchEmployees, fetchTeams]);
 
+  /**
+   * Transformer les employés pour l'affichage dans le tableau
+   */
+  const displayedEmployees = useMemo(() => {
+    if (!allEmployees || !allEmployees.length) {
+      return [];
+    }
+
+    console.log(
+      "🚀 Transformation des employés pour l'affichage:",
+      allEmployees.length
+    );
+
+    // Transformer les employés pour l'affichage
+    return allEmployees.map((employee) => {
+      console.log("🔄 Transformation employé:", employee);
+
+      // Trouver l'équipe associée
+      let teamName = "Non assignée";
+      if (employee.teamId) {
+        if (typeof employee.teamId === "object" && employee.teamId.name) {
+          // Si teamId est populé avec l'objet team
+          teamName = employee.teamId.name;
+        } else {
+          // Si teamId est juste un string, chercher dans managerTeams
+          const team = managerTeams.find((t) => t._id === employee.teamId);
+          if (team) {
+            teamName = team.name;
+          }
+        }
+      }
+
+      // Mapping sécurisé des données
+      const mappedEmployee = {
+        _id: employee._id,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        rawEmail: employee.email || "Email non défini",
+        rawRole: employee.role || "employee",
+        teamName: teamName,
+        teamId: employee.teamId, // Ajouter teamId pour les filtres
+        companyId: employee.companyId, // Ajouter companyId pour les filtres
+        rawStatus: employee.status,
+        rawContractHours: employee.contractHoursPerWeek || 35,
+        managerName: employee.managerName || "Non assigné",
+
+        // Elements JSX pour l'affichage dans le tableau
+        name: (
+          <span className="font-medium">
+            {employee.firstName} {employee.lastName}
+          </span>
+        ),
+        email: (
+          <span className="text-sm text-gray-500">
+            {employee.email || "Email non défini"}
+          </span>
+        ),
+        role: (
+          <Badge
+            label={
+              employee.role === "admin"
+                ? "Admin"
+                : employee.role === "manager"
+                ? "Manager"
+                : "Employé"
+            }
+            type={
+              employee.role === "admin"
+                ? "error"
+                : employee.role === "manager"
+                ? "info"
+                : "warning"
+            }
+          />
+        ),
+        team: <span className="text-sm">{teamName}</span>,
+        status: (
+          <Badge
+            label={employee.status === "actif" ? "Actif" : "Inactif"}
+            type={employee.status === "actif" ? "success" : "warning"}
+          />
+        ),
+        contractHours: (
+          <span className="text-sm">
+            {employee.contractHoursPerWeek || 35}h
+          </span>
+        ),
+        actions: (
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenEditCollaborator(employee)}
+              title="Modifier"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenDeleteEmployeeModal(employee._id)}
+              title="Supprimer"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+          </div>
+        ),
+      };
+
+      console.log("✅ Employé transformé:", mappedEmployee);
+      return mappedEmployee;
+    });
+  }, [allEmployees, managerTeams]);
+
   // Filtrer les employés en fonction de la recherche et des filtres
   const filteredEmployees = useMemo(() => {
-    return allEmployees.filter((employee) => {
+    return displayedEmployees.filter((employee) => {
       // Filtre de recherche (nom ou email)
-      const fullName =
-        `${employee.firstName} ${employee.lastName}`.toLowerCase();
+      const fullName = employee.fullName.toLowerCase();
       const matchesSearch =
         searchQuery === "" ||
         fullName.includes(searchQuery.toLowerCase()) ||
-        (employee.email?.toLowerCase() || "").includes(
-          searchQuery.toLowerCase()
-        );
+        employee.rawEmail.toLowerCase().includes(searchQuery.toLowerCase());
 
       // Filtre par rôle
-      const matchesRole = filters.role === "" || employee.role === filters.role;
+      const matchesRole =
+        filters.role === "" || employee.rawRole === filters.role;
 
       // Filtre par équipe
       const matchesTeam =
-        filters.teamId === "" || employee.teamId === filters.teamId;
+        filters.teamId === "" ||
+        (typeof employee.teamId === "string"
+          ? employee.teamId === filters.teamId
+          : employee.teamId?._id === filters.teamId);
 
       // Filtre par entreprise (pour les admins)
       const matchesCompany =
-        filters.companyId === "" ||
-        !filters.companyId ||
-        employee.companyId === filters.companyId;
+        filters.companyId === "" || employee.companyId === filters.companyId;
 
       return matchesSearch && matchesRole && matchesTeam && matchesCompany;
     });
-  }, [allEmployees, searchQuery, filters]);
+  }, [displayedEmployees, searchQuery, filters]);
 
   /**
    * Gestion du changement des filtres
@@ -588,117 +745,6 @@ const CollaboratorManagementPage: React.FC = () => {
       );
     }
   };
-
-  /**
-   * Transformer les employés pour l'affichage dans le tableau
-   */
-  const displayedEmployees = useMemo(() => {
-    if (!allEmployees || !allEmployees.length) {
-      return [];
-    }
-
-    // Transformer les employés pour l'affichage
-    return allEmployees.map((employee) => {
-      // Trouver l'équipe associée
-      const team = managerTeams.find((t) => t._id === employee.teamId);
-
-      // Considérer l'employé avec potentiellement un email
-      const employeeWithEmail = employee as EmployeeWithEmail;
-
-      return {
-        _id: employee._id,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        fullName: `${employee.firstName} ${employee.lastName}`,
-        rawEmail: employeeWithEmail.email || "Email non défini",
-        rawRole: employeeWithEmail.role || "employé",
-        teamName: team ? team.name : "Non assignée",
-        rawStatus: employee.status,
-        rawContractHours: employee.contractHoursPerWeek || 35,
-        managerName: employeeWithEmail.managerName || "Non assigné",
-        name: (
-          <span className="font-medium text-gray-800 dark:text-gray-100">
-            {`${employee.firstName} ${employee.lastName}`}
-          </span>
-        ),
-        email: (
-          <span className="text-gray-600 dark:text-gray-300">
-            {employeeWithEmail.email || "Email non défini"}
-          </span>
-        ),
-        role: (
-          <span className="text-gray-700 dark:text-gray-200 font-medium">
-            {employeeWithEmail.role === "admin"
-              ? "Admin"
-              : employeeWithEmail.role === "directeur"
-              ? "Directeur"
-              : employeeWithEmail.role === "manager"
-              ? "Manager"
-              : "Employé"}
-          </span>
-        ),
-        status: (
-          <Badge
-            type={employee.status === "actif" ? "success" : "warning"}
-            label={employee.status === "actif" ? "Actif" : "Inactif"}
-          />
-        ),
-        team: (
-          <span className="text-gray-700 dark:text-gray-200">
-            {team ? team.name : "Non assignée"}
-          </span>
-        ),
-        manager: (
-          <span className="text-gray-700 dark:text-gray-200">
-            {employeeWithEmail.managerName || "Non assigné"}
-          </span>
-        ),
-        contractHours: (
-          <span className="text-gray-700 dark:text-gray-200">
-            {(employee.contractHoursPerWeek || 35) + "h"}
-          </span>
-        ),
-        actions: (
-          <motion.div
-            className="flex space-x-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={
-                <Edit
-                  size={16}
-                  className="text-indigo-600 dark:text-indigo-400"
-                />
-              }
-              onClick={() =>
-                handleOpenEditCollaborator(employee as EmployeeWithEmail)
-              }
-              aria-label="Modifier ce collaborateur"
-              className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
-            >
-              {""}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={
-                <Trash2 size={16} className="text-red-500 dark:text-red-400" />
-              }
-              onClick={() => handleOpenDeleteEmployeeModal(employee._id)}
-              aria-label="Supprimer ce collaborateur"
-              className="hover:bg-red-50 dark:hover:bg-red-900/20"
-            >
-              {""}
-            </Button>
-          </motion.div>
-        ),
-      };
-    });
-  }, [allEmployees, managerTeams]);
 
   /**
    * Gestion interne des erreurs de chargement
@@ -965,7 +1011,7 @@ const CollaboratorManagementPage: React.FC = () => {
               variant="ghost"
               size="sm"
               icon={
-                <Edit
+                <Pencil
                   size={16}
                   className="text-indigo-600 dark:text-indigo-400"
                 />
@@ -1193,28 +1239,25 @@ const CollaboratorManagementPage: React.FC = () => {
                         <Button
                           variant="secondary"
                           onClick={() => {
-                            // Préparer les données pour l'export en PDF en utilisant les données originales des employés
+                            // Créer des données pour l'export en utilisant les données brutes
                             const employeesForExport = filteredEmployees.map(
-                              (employee) => {
-                                const team = managerTeams.find(
-                                  (t) => t._id === employee.teamId
-                                );
-                                return {
-                                  firstName: employee.firstName,
-                                  lastName: employee.lastName,
-                                  email: employee.email,
-                                  status: employee.status,
-                                  contractHoursPerWeek: employee.contractHours,
-                                  companyId: employee.companyId,
-                                  role: employee.role || "employé",
-                                  team: team
-                                    ? {
-                                        name: team.name,
-                                        id: team._id,
-                                      }
-                                    : null,
-                                };
-                              }
+                              (employee) => ({
+                                _id: employee._id,
+                                firstName: employee.firstName,
+                                lastName: employee.lastName,
+                                email: employee.rawEmail,
+                                role: employee.rawRole,
+                                status: employee.rawStatus as
+                                  | "actif"
+                                  | "inactif",
+                                teamId:
+                                  typeof employee.teamId === "string"
+                                    ? employee.teamId
+                                    : employee.teamId?._id,
+                                companyId: employee.companyId,
+                                contractHoursPerWeek: employee.rawContractHours,
+                                teamName: employee.teamName,
+                              })
                             );
 
                             generateCollaboratorsPdf(employeesForExport);
@@ -1246,28 +1289,25 @@ const CollaboratorManagementPage: React.FC = () => {
                         <Button
                           variant="secondary"
                           onClick={() => {
-                            // Préparer les données pour l'export en PDF en utilisant les données originales des employés
+                            // Créer des données pour l'export en utilisant les données brutes
                             const employeesForExport = filteredEmployees.map(
-                              (employee) => {
-                                const team = managerTeams.find(
-                                  (t) => t._id === employee.teamId
-                                );
-                                return {
-                                  firstName: employee.firstName,
-                                  lastName: employee.lastName,
-                                  email: employee.email,
-                                  status: employee.status,
-                                  contractHoursPerWeek: employee.contractHours,
-                                  companyId: employee.companyId,
-                                  role: employee.role || "employé",
-                                  team: team
-                                    ? {
-                                        name: team.name,
-                                        id: team._id,
-                                      }
-                                    : null,
-                                };
-                              }
+                              (employee) => ({
+                                _id: employee._id,
+                                firstName: employee.firstName,
+                                lastName: employee.lastName,
+                                email: employee.rawEmail,
+                                role: employee.rawRole,
+                                status: employee.rawStatus as
+                                  | "actif"
+                                  | "inactif",
+                                teamId:
+                                  typeof employee.teamId === "string"
+                                    ? employee.teamId
+                                    : employee.teamId?._id,
+                                companyId: employee.companyId,
+                                contractHoursPerWeek: employee.rawContractHours,
+                                teamName: employee.teamName,
+                              })
                             );
 
                             generateCollaboratorsPdf(employeesForExport);

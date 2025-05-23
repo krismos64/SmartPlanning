@@ -77,7 +77,7 @@ const useDeleteAdminTeam = (
       try {
         // La suppression retourne généralement un 204 No Content
         await axiosInstance.delete<DeleteAdminTeamResponse>(
-          `/api/admin/teams/${id}`
+          `/admin/teams/${id}`
         );
 
         if (showToast) {

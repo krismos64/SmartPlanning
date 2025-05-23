@@ -1537,155 +1537,9 @@ const WeeklySchedulePage: React.FC = () => {
         );
         if (employeeSchedule) {
           try {
-            // 1. Récupérer toutes les équipes pour avoir une liste complète
-            const teamsResponse = await api.get("/teams");
-            const allTeams = teamsResponse.data.success
-              ? teamsResponse.data.data
-              : [];
-
-            // 2. Récupérer tous les employés pour avoir leurs informations complètes
-            const employeesResponse = await api.get("/employees");
-            const allEmployees = employeesResponse.data.success
-              ? employeesResponse.data.data
-              : [];
-
-            // 3. Créer un mapping des équipes par ID
-            const teamsMap = allTeams.reduce(
-              (map: Record<string, any>, team: any) => {
-                map[team._id] = team;
-                return map;
-              },
-              {} as Record<string, any>
-            );
-
-            // 4. Trouver l'employé dans la liste
-            const employee = allEmployees.find(
-              (e: any) => e._id === employeeId
-            );
-
-            // 5. Enrichir le planning avec les informations d'équipe
-            let enrichedSchedule = { ...employeeSchedule };
-
-            if (employee) {
-              // Si on a trouvé l'employé, récupérer son équipe
-              const teamId = employee.teamId;
-
-              if (teamId && teamsMap[teamId]) {
-                // Si l'équipe existe dans notre mapping
-                const team = teamsMap[teamId];
-                enrichedSchedule.teamId = teamId;
-                enrichedSchedule.teamName = team.name;
-
-                // Récupérer le manager si disponible
-                if (team.managerIds && team.managerIds.length > 0) {
-                  // Si le manager est un objet avec firstName et lastName
-                  if (
-                    typeof team.managerIds[0] === "object" &&
-                    team.managerIds[0].firstName
-                  ) {
-                    const manager = team.managerIds[0];
-                    enrichedSchedule.managerName = `${manager.firstName} ${manager.lastName}`;
-                  } else {
-                    // Sinon, chercher le manager dans la liste des employés
-                    const managerId =
-                      team.managerIds[0]._id || team.managerIds[0];
-                    const manager = allEmployees.find(
-                      (e: any) => e._id === managerId
-                    );
-                    if (manager) {
-                      enrichedSchedule.managerName = `${manager.firstName} ${manager.lastName}`;
-                    }
-                  }
-                }
-
-                console.log(
-                  `Équipe trouvée pour ${employee.firstName} ${employee.lastName}: ${team.name}`
-                );
-              } else if (teamId) {
-                // Si l'équipe n'est pas dans notre mapping, essayer de la récupérer directement
-                try {
-                  const teamResponse = await api.get(`/teams/${teamId}`);
-                  if (teamResponse.data.success && teamResponse.data.data) {
-                    const team = teamResponse.data.data;
-                    enrichedSchedule.teamId = teamId;
-                    enrichedSchedule.teamName = team.name;
-
-                    // Récupérer le manager si disponible
-                    if (team.managerIds && team.managerIds.length > 0) {
-                      // Si le manager est un objet avec firstName et lastName
-                      if (
-                        typeof team.managerIds[0] === "object" &&
-                        team.managerIds[0].firstName
-                      ) {
-                        const manager = team.managerIds[0];
-                        enrichedSchedule.managerName = `${manager.firstName} ${manager.lastName}`;
-                      } else {
-                        // Sinon, chercher le manager par ID
-                        const managerId =
-                          team.managerIds[0]._id || team.managerIds[0];
-                        const managerResponse = await api.get(
-                          `/employees/${managerId}`
-                        );
-                        if (
-                          managerResponse.data.success &&
-                          managerResponse.data.data
-                        ) {
-                          const manager = managerResponse.data.data;
-                          enrichedSchedule.managerName = `${manager.firstName} ${manager.lastName}`;
-                        }
-                      }
-                    }
-                  }
-                } catch (error) {
-                  console.warn(
-                    `Impossible de récupérer l'équipe ${teamId} pour ${employee.firstName} ${employee.lastName}:`,
-                    error
-                  );
-                }
-              } else {
-                // Si aucun teamId n'est trouvé, rechercher dans les équipes si l'employé est membre
-                const employeeTeam = allTeams.find(
-                  (team: any) =>
-                    team.employeeIds &&
-                    team.employeeIds.some(
-                      (emp: any) => emp._id === employee._id
-                    )
-                );
-
-                if (employeeTeam) {
-                  enrichedSchedule.teamId = employeeTeam._id;
-                  enrichedSchedule.teamName = employeeTeam.name;
-
-                  // Récupérer le manager si disponible
-                  if (
-                    employeeTeam.managerIds &&
-                    employeeTeam.managerIds.length > 0
-                  ) {
-                    // Si le manager est un objet avec firstName et lastName
-                    if (
-                      typeof employeeTeam.managerIds[0] === "object" &&
-                      employeeTeam.managerIds[0].firstName
-                    ) {
-                      const manager = employeeTeam.managerIds[0];
-                      enrichedSchedule.managerName = `${manager.firstName} ${manager.lastName}`;
-                    } else {
-                      // Sinon, chercher le manager dans la liste des employés
-                      const managerId =
-                        employeeTeam.managerIds[0]._id ||
-                        employeeTeam.managerIds[0];
-                      const manager = allEmployees.find(
-                        (e: any) => e._id === managerId
-                      );
-                      if (manager) {
-                        enrichedSchedule.managerName = `${manager.firstName} ${manager.lastName}`;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-
-            generateSchedulePDF(enrichedSchedule);
+            // L'API retourne maintenant directement les informations d'équipe et de manager
+            // Plus besoin d'enrichissement complexe
+            generateSchedulePDF(employeeSchedule);
             setSuccess("Le PDF a été généré avec succès pour cet employé");
           } catch (error) {
             handleApiError(error, "génération du PDF");
@@ -1728,170 +1582,12 @@ const WeeklySchedulePage: React.FC = () => {
           try {
             setLoading(true);
 
-            // 1. Récupérer d'abord toutes les équipes pour avoir une liste complète
-            const teamsResponse = await api.get("/teams");
-            const allTeams = teamsResponse.data.success
-              ? teamsResponse.data.data
-              : [];
+            // Plus besoin d'enrichissement complexe car l'API retourne maintenant
+            // les informations d'équipe et de manager directement
+            console.log("Plannings à exporter:", schedules);
 
-            console.log("Équipes récupérées:", allTeams);
-
-            // 2. Récupérer tous les employés pour avoir leurs informations complètes, y compris l'équipe
-            const employeesResponse = await api.get("/employees");
-            const allEmployees = employeesResponse.data.success
-              ? employeesResponse.data.data
-              : [];
-
-            console.log("Employés récupérés:", allEmployees);
-
-            // 3. Créer un mapping des employés par ID pour un accès facile
-            const employeesMap = allEmployees.reduce(
-              (map: Record<string, any>, emp: any) => {
-                map[emp._id] = emp;
-                return map;
-              },
-              {} as Record<string, any>
-            );
-
-            // 4. Créer un mapping des équipes par ID pour un accès facile
-            const teamsMap = allTeams.reduce(
-              (map: Record<string, any>, team: any) => {
-                map[team._id] = team;
-                return map;
-              },
-              {} as Record<string, any>
-            );
-
-            // 5. Enrichir les plannings avec les informations d'équipe correctes
-            const completedSchedules = await Promise.all(
-              schedules.map(async (schedule) => {
-                // Récupérer l'employé correspondant au planning
-                const employee = employeesMap[schedule.employeeId];
-
-                if (employee) {
-                  // Si l'employé a été trouvé dans notre mapping
-                  let teamId = employee.teamId;
-                  let teamName = "Non assigné";
-
-                  // Si l'employé a une équipe attribuée
-                  if (teamId && teamsMap[teamId]) {
-                    // Si l'équipe existe dans notre mapping
-                    teamName = teamsMap[teamId].name;
-                    console.log(
-                      `Équipe trouvée pour ${employee.firstName} ${employee.lastName}: ${teamName}`
-                    );
-                  } else if (teamId) {
-                    // Si l'équipe n'est pas dans notre mapping, essayer de la récupérer directement
-                    try {
-                      const teamResponse = await api.get(`/teams/${teamId}`);
-                      if (teamResponse.data.success && teamResponse.data.data) {
-                        teamName = teamResponse.data.data.name;
-                        console.log(
-                          `Équipe récupérée par API pour ${employee.firstName} ${employee.lastName}: ${teamName}`
-                        );
-                      }
-                    } catch (error) {
-                      console.warn(
-                        `Impossible de récupérer l'équipe ${teamId} pour ${employee.firstName} ${employee.lastName}:`,
-                        error
-                      );
-                    }
-                  } else {
-                    // Si aucun teamId n'est trouvé, rechercher dans les équipes si l'employé est membre
-                    const employeeTeam = allTeams.find(
-                      (team: any) =>
-                        team.employeeIds &&
-                        team.employeeIds.some(
-                          (emp: any) => emp._id === employee._id
-                        )
-                    );
-
-                    if (employeeTeam) {
-                      teamId = employeeTeam._id;
-                      teamName = employeeTeam.name;
-                      console.log(
-                        `Équipe trouvée par association pour ${employee.firstName} ${employee.lastName}: ${teamName}`
-                      );
-                    }
-                  }
-
-                  // Enrichir le planning avec les informations d'équipe
-                  return {
-                    ...schedule,
-                    teamId,
-                    teamName,
-                    employeeFullName: `${employee.firstName} ${employee.lastName}`,
-                  };
-                }
-
-                // Si nous n'avons pas trouvé l'employé dans notre mapping, faire une requête directe
-                try {
-                  const employeeResponse = await api.get(
-                    `/employees/${schedule.employeeId}`
-                  );
-                  const employee = employeeResponse.data.success
-                    ? employeeResponse.data.data
-                    : null;
-
-                  if (employee) {
-                    let teamId = employee.teamId;
-                    let teamName = "Non assigné";
-
-                    if (teamId) {
-                      // Vérifier d'abord dans notre mapping d'équipes
-                      if (teamsMap[teamId]) {
-                        teamName = teamsMap[teamId].name;
-                      } else {
-                        // Sinon, faire une requête dédiée
-                        try {
-                          const teamResponse = await api.get(
-                            `/teams/${teamId}`
-                          );
-                          if (
-                            teamResponse.data.success &&
-                            teamResponse.data.data
-                          ) {
-                            teamName = teamResponse.data.data.name;
-                          }
-                        } catch (error) {
-                          console.warn(
-                            `Impossible de récupérer l'équipe ${teamId} pour ${schedule.employeeName}:`,
-                            error
-                          );
-                        }
-                      }
-                    }
-
-                    return {
-                      ...schedule,
-                      teamId,
-                      teamName,
-                      employeeFullName: `${employee.firstName} ${employee.lastName}`,
-                    };
-                  }
-                } catch (error) {
-                  console.warn(
-                    `Erreur lors de la récupération des informations pour ${schedule.employeeName}:`,
-                    error
-                  );
-                }
-
-                // Si toutes les tentatives ont échoué, retourner le planning tel quel
-                return schedule;
-              })
-            );
-
-            // Log pour vérifier que les équipes sont bien attribuées
-            console.log(
-              "Plannings enrichis:",
-              completedSchedules.map((s) => ({
-                employeeName: s.employeeName,
-                teamName: s.teamName,
-              }))
-            );
-
-            // 6. Trier les plannings par équipe puis par nom d'employé
-            const sortedSchedules = completedSchedules.sort((a, b) => {
+            // Trier les plannings par équipe puis par nom d'employé
+            const sortedSchedules = schedules.sort((a, b) => {
               // D'abord par équipe
               const teamA = a.teamName || "ZZZ"; // "ZZZ" pour que "Non assigné" apparaisse à la fin
               const teamB = b.teamName || "ZZZ";
@@ -1905,12 +1601,12 @@ const WeeklySchedulePage: React.FC = () => {
               return teamComparison;
             });
 
-            // 7. Générer le PDF avec les plannings triés par équipe
+            // Vérifier si des données d'équipe sont présentes
             const hasTeamData = sortedSchedules.some(
               (s) => s.teamName && s.teamName !== "Non assigné"
             );
 
-            // Appeler la fonction avec les plannings triés et un paramètre qui indique si des données d'équipe sont présentes
+            // Générer le PDF avec les plannings triés par équipe
             generateTeamSchedulePDF(
               sortedSchedules,
               "Tous les employés",

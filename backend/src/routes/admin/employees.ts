@@ -132,10 +132,24 @@ router.get(
         });
       }
 
-      // Récupérer les employés de l'entreprise
+      // Récupérer les employés de l'entreprise avec tous les champs nécessaires
       const employees = await EmployeeModel.find({
         companyId: companyId as string,
-      }).lean();
+      })
+        .select({
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          status: 1,
+          userId: 1,
+          teamId: 1,
+          companyId: 1,
+          contractHoursPerWeek: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+        .lean();
 
       // Récupérer toutes les équipes de l'entreprise
       const TeamModel = mongoose.model("Team");
@@ -145,14 +159,18 @@ router.get(
 
       // Associer les équipes aux employés
       const employeesWithTeams = employees.map((employee) => {
-        // Trouver les équipes où cet employé est référencé
-        const employeeTeams = teams.filter((team) => {
-          if (!team.employeeIds || !Array.isArray(team.employeeIds))
-            return false;
-          return team.employeeIds.some(
-            (id) => String(id) === String(employee._id)
+        // Utiliser le teamId de l'employé pour trouver son équipe
+        let employeeTeams: Array<{ _id: any; name: string }> = [];
+
+        if (employee.teamId) {
+          const team = teams.find(
+            (t) => String(t._id) === String(employee.teamId)
           );
-        });
+
+          if (team) {
+            employeeTeams = [{ _id: team._id, name: team.name }];
+          }
+        }
 
         // Ajouter la liste des équipes à l'employé
         return {
@@ -178,6 +196,68 @@ router.get(
         success: false,
         message:
           "Erreur serveur lors de la récupération des employés avec équipes",
+      });
+    }
+  }
+);
+
+/**
+ * @route   GET /api/admin/employees/team/:teamId
+ * @desc    Récupère tous les employés d'une équipe spécifique
+ * @access  Admin uniquement
+ */
+router.get(
+  "/team/:teamId",
+  authenticateToken,
+  requireRole(["admin"]),
+  async (req: Request, res: Response) => {
+    try {
+      const { teamId } = req.params;
+
+      // Vérifier que l'ID d'équipe est un ObjectId valide
+      if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'équipe invalide",
+        });
+      }
+
+      // Récupérer l'équipe pour vérifier son existence
+      const TeamModel = mongoose.model("Team");
+      const team = await TeamModel.findById(teamId);
+      if (!team) {
+        return res.status(404).json({
+          success: false,
+          message: "Équipe introuvable",
+        });
+      }
+
+      // Récupérer les employés de l'équipe
+      const employees = await EmployeeModel.find({ teamId })
+        .select({
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          status: 1,
+          userId: 1,
+          teamId: 1,
+          companyId: 1,
+          contractHoursPerWeek: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        data: employees,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération des employés:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la récupération des employés",
       });
     }
   }

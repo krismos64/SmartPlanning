@@ -55,9 +55,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
           ] = `Bearer ${token}`;
         }
 
-        const response = await axiosInstance.get(
-          `${API_URL}/admin/companies/${user.companyId}`
-        );
+        const response = await axiosInstance.get(`${API_URL}/companies/me`);
 
         // Vérifier la structure de la réponse et extraire les données correctement
         if (response.data) {

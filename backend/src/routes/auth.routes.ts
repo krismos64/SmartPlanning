@@ -259,11 +259,12 @@ router.post("/login", async (req: Request, res: Response) => {
       success: true,
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        companyId: user.companyId,
         photoUrl: user.photoUrl || undefined,
       },
     });

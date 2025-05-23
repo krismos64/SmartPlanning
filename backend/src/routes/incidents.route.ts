@@ -30,8 +30,10 @@ router.get(
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const skip = req.query.skip ? parseInt(req.query.skip as string) : 0;
+      const companyFilter = req.query.companyId;
+      const teamFilter = req.query.teamId;
 
-      let query = {};
+      let query: any = {};
 
       // Filtrer selon le rôle de l'utilisateur
       if (req.user) {
@@ -56,11 +58,37 @@ router.get(
           const employeeIds = teamEmployees.map((emp) => emp._id);
           query = { employeeId: { $in: employeeIds } };
         }
-        // Admin voit tout, pas besoin de filtrer
+        // Admin voit tout, et peut filtrer par companyId ou teamId
+        else if (req.user.role === "admin") {
+          if (companyFilter && isValidObjectId(companyFilter)) {
+            const companyEmployees = await EmployeeModel.find(
+              { companyId: companyFilter },
+              "_id"
+            );
+            const employeeIds = companyEmployees.map((emp) => emp._id);
+            query.employeeId = { $in: employeeIds };
+          }
+
+          if (teamFilter && isValidObjectId(teamFilter)) {
+            const teamEmployees = await EmployeeModel.find(
+              { teamId: teamFilter },
+              "_id"
+            );
+            const teamEmployeeIds = teamEmployees.map((emp) => emp._id);
+            // Si on a déjà filtré par companyId, on fait l'intersection des deux ensembles
+            if (query.employeeId) {
+              query.employeeId.$in = query.employeeId.$in.filter((id: any) =>
+                teamEmployeeIds.some((teamId: any) => teamId.equals(id))
+              );
+            } else {
+              query.employeeId = { $in: teamEmployeeIds };
+            }
+          }
+        }
       }
 
       const incidents = await IncidentModel.find(query)
-        .populate("employeeId", "firstName lastName email")
+        .populate("employeeId", "firstName lastName email companyId teamId")
         .populate("reportedBy", "firstName lastName email")
         .sort({ createdAt: -1 })
         .skip(skip)

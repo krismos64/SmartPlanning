@@ -52,7 +52,7 @@ const PageWrapper: React.FC<PageWrapperProps> = ({ children, className }) => {
 
   return (
     <Container $isDarkMode={isDarkMode} className={className}>
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <motion.div
           key="page-content"
           initial={{ opacity: 0, y: 20 }}

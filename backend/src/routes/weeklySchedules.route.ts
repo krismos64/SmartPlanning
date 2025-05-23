@@ -300,26 +300,71 @@ router.get(
       }
 
       // Ajouter une étape pour projeter les données dans le format souhaité
-      aggregationPipeline.push({
-        $project: {
-          _id: 1,
-          employeeId: "$employeeData._id",
-          employeeName: {
-            $concat: ["$employeeData.firstName", " ", "$employeeData.lastName"],
+      aggregationPipeline.push(
+        // Joindre avec la collection des équipes
+        {
+          $lookup: {
+            from: "teams",
+            localField: "employeeData.teamId",
+            foreignField: "_id",
+            as: "teamData",
           },
-          year: 1,
-          weekNumber: 1,
-          scheduleData: 1,
-          dailyNotes: 1,
-          notes: 1,
-          dailyDates: 1,
-          totalWeeklyMinutes: 1,
-          status: 1,
-          updatedBy: 1,
-          createdAt: 1,
-          updatedAt: 1,
         },
-      } as any);
+        // Joindre avec la collection des employés pour les managers
+        {
+          $lookup: {
+            from: "employees",
+            localField: "teamData.managerIds",
+            foreignField: "_id",
+            as: "managerData",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            employeeId: "$employeeData._id",
+            employeeName: {
+              $concat: [
+                "$employeeData.firstName",
+                " ",
+                "$employeeData.lastName",
+              ],
+            },
+            teamId: "$employeeData.teamId",
+            teamName: {
+              $cond: {
+                if: { $gt: [{ $size: "$teamData" }, 0] },
+                then: { $arrayElemAt: ["$teamData.name", 0] },
+                else: null,
+              },
+            },
+            managerName: {
+              $cond: {
+                if: { $gt: [{ $size: "$managerData" }, 0] },
+                then: {
+                  $concat: [
+                    { $arrayElemAt: ["$managerData.firstName", 0] },
+                    " ",
+                    { $arrayElemAt: ["$managerData.lastName", 0] },
+                  ],
+                },
+                else: null,
+              },
+            },
+            year: 1,
+            weekNumber: 1,
+            scheduleData: 1,
+            dailyNotes: 1,
+            notes: 1,
+            dailyDates: 1,
+            totalWeeklyMinutes: 1,
+            status: 1,
+            updatedBy: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        } as any
+      );
 
       console.log(
         "Exécution de l'agrégation MongoDB:",
@@ -595,6 +640,233 @@ router.delete(
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la suppression du planning",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+);
+
+/**
+ * Route GET /api/weekly-schedules/admin/all
+ * Récupère tous les plannings pour l'admin avec filtres par entreprise, équipe et employé
+ * Accessible uniquement aux administrateurs
+ */
+router.get(
+  "/admin/all",
+  authenticateToken,
+  checkRole(["admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const {
+        companyId,
+        teamId,
+        employeeId,
+        year,
+        weekNumber,
+        search,
+        page = 1,
+        limit = 20,
+      } = req.query;
+
+      console.log("Admin - Récupération des plannings avec filtres:", {
+        companyId: companyId || "tous",
+        teamId: teamId || "tous",
+        employeeId: employeeId || "tous",
+        year: year || "toutes",
+        weekNumber: weekNumber || "toutes",
+        search: search || "aucune",
+        page,
+        limit,
+      });
+
+      // Construction du pipeline d'agrégation
+      const matchStage: any = {
+        status: "approved", // Seulement les plannings approuvés
+      };
+
+      // Filtre par année si spécifié
+      if (year) {
+        const yearNumber = parseInt(year as string, 10);
+        if (!isNaN(yearNumber)) {
+          matchStage.year = yearNumber;
+        }
+      }
+
+      // Filtre par semaine si spécifié
+      if (weekNumber) {
+        const weekNum = parseInt(weekNumber as string, 10);
+        if (!isNaN(weekNum)) {
+          matchStage.weekNumber = weekNum;
+        }
+      }
+
+      // Filtre par employé si spécifié
+      if (employeeId && isValidObjectId(employeeId as string)) {
+        matchStage.employeeId = new mongoose.Types.ObjectId(
+          employeeId as string
+        );
+      }
+
+      const aggregationPipeline: any[] = [
+        { $match: matchStage },
+
+        // Jointure avec les employés
+        {
+          $lookup: {
+            from: "employees",
+            localField: "employeeId",
+            foreignField: "_id",
+            as: "employee",
+          },
+        },
+        { $unwind: "$employee" },
+
+        // Jointure avec les équipes
+        {
+          $lookup: {
+            from: "teams",
+            localField: "employee.teamId",
+            foreignField: "_id",
+            as: "team",
+          },
+        },
+
+        // Jointure avec les entreprises
+        {
+          $lookup: {
+            from: "companies",
+            localField: "employee.companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+
+        // Jointure avec l'utilisateur qui a mis à jour
+        {
+          $lookup: {
+            from: "users",
+            localField: "updatedBy",
+            foreignField: "_id",
+            as: "updatedByUser",
+          },
+        },
+      ];
+
+      // Filtrage par entreprise
+      if (companyId && isValidObjectId(companyId as string)) {
+        aggregationPipeline.push({
+          $match: {
+            "employee.companyId": new mongoose.Types.ObjectId(
+              companyId as string
+            ),
+          },
+        });
+      }
+
+      // Filtrage par équipe
+      if (teamId && isValidObjectId(teamId as string)) {
+        aggregationPipeline.push({
+          $match: {
+            "employee.teamId": new mongoose.Types.ObjectId(teamId as string),
+          },
+        });
+      }
+
+      // Projection finale
+      aggregationPipeline.push({
+        $project: {
+          _id: 1,
+          year: 1,
+          weekNumber: 1,
+          scheduleData: 1,
+          dailyNotes: 1,
+          dailyDates: 1,
+          totalWeeklyMinutes: 1,
+          notes: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          employeeId: "$employee._id",
+          employeeName: {
+            $concat: ["$employee.firstName", " ", "$employee.lastName"],
+          },
+          employeeEmail: "$employee.email",
+          teamId: { $arrayElemAt: ["$team._id", 0] },
+          teamName: { $arrayElemAt: ["$team.name", 0] },
+          companyId: { $arrayElemAt: ["$company._id", 0] },
+          companyName: { $arrayElemAt: ["$company.name", 0] },
+          updatedByName: {
+            $concat: [
+              { $arrayElemAt: ["$updatedByUser.firstName", 0] },
+              " ",
+              { $arrayElemAt: ["$updatedByUser.lastName", 0] },
+            ],
+          },
+        },
+      });
+
+      // Filtrage par recherche textuelle si spécifié
+      if (search && typeof search === "string" && search.trim()) {
+        const searchRegex = new RegExp(search.trim(), "i");
+        aggregationPipeline.push({
+          $match: {
+            $or: [
+              { employeeName: searchRegex },
+              { employeeEmail: searchRegex },
+              { companyName: searchRegex },
+              { teamName: searchRegex },
+            ],
+          },
+        });
+      }
+
+      // Tri par date de mise à jour décroissante
+      aggregationPipeline.push({
+        $sort: { updatedAt: -1 },
+      });
+
+      // Pagination
+      const pageNum = parseInt(page as string, 10) || 1;
+      const limitNum = parseInt(limit as string, 10) || 20;
+      const skip = (pageNum - 1) * limitNum;
+
+      // Compter le total pour la pagination
+      const countPipeline = [...aggregationPipeline, { $count: "total" }];
+      const countResult = await WeeklyScheduleModel.aggregate(countPipeline);
+      const total = countResult.length > 0 ? countResult[0].total : 0;
+
+      // Ajouter la pagination à l'agrégation principale
+      aggregationPipeline.push({ $skip: skip }, { $limit: limitNum });
+
+      console.log(
+        "Exécution de l'agrégation pour admin:",
+        JSON.stringify(aggregationPipeline, null, 2)
+      );
+
+      const schedules = await WeeklyScheduleModel.aggregate(
+        aggregationPipeline
+      );
+
+      console.log(`${schedules.length} plannings trouvés sur ${total} total`);
+
+      return res.status(200).json({
+        success: true,
+        data: schedules,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des plannings admin:",
+        error
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la récupération des plannings",
         error: error instanceof Error ? error.message : String(error),
       });
     }

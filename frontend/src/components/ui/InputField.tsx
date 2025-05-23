@@ -32,8 +32,6 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   autoComplete?: string;
   /** Texte d'aide à afficher sous le champ */
   helperText?: string;
-  /** Contrôler les styles du mode clair */
-  lightMode?: boolean;
   /** Événement quand le champ prend le focus */
   onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
   /** Événement quand le champ perd le focus */
@@ -61,7 +59,6 @@ const InputField: React.FC<InputFieldProps> = ({
   icon,
   autoComplete,
   helperText,
-  lightMode = false,
   onFocus,
   onBlur,
   containerClassName = "",
@@ -83,14 +80,16 @@ const InputField: React.FC<InputFieldProps> = ({
     if (onBlur) onBlur(e);
   };
 
-  // Déterminer les styles en fonction du mode
-  const getInputStyle = () => {
-    // Retourner un objet vide pour laisser les styles globaux prendre le dessus
-    return {};
-  };
-
-  // Appliquer le style
-  const inputStyle = getInputStyle();
+  // Style inline pour le mode sombre
+  const darkModeStyle = isDarkMode
+    ? {
+        backgroundColor: "#1A2234",
+        color: "white",
+        borderColor: "#4a5568",
+        WebkitTextFillColor: "white",
+        caretColor: "white",
+      }
+    : {};
 
   return (
     <div className={`relative mb-4 ${containerClassName}`}>
@@ -139,8 +138,8 @@ const InputField: React.FC<InputFieldProps> = ({
           placeholder={placeholder}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          style={inputStyle}
           data-theme-mode={isDarkMode ? "dark" : "light"}
+          style={darkModeStyle}
           className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200
             ${disabled ? "opacity-70 cursor-not-allowed" : ""} 
             placeholder-gray-400 dark:placeholder-gray-300

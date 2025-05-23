@@ -88,7 +88,7 @@ const useUpdateAdminTeam = (
 
       try {
         const response = await axiosInstance.patch<UpdateAdminTeamResponse>(
-          `/api/admin/teams/${id}`,
+          `/admin/teams/${id}`,
           data
         );
 

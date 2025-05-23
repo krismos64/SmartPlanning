@@ -194,7 +194,7 @@ const Toast: React.FC<ToastProps> = ({
   }, [isVisible, duration, onClose]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="sync">
       {isVisible && (
         <motion.div
           className={`fixed z-50 ${positionClasses[position]} max-w-sm ${className}`}

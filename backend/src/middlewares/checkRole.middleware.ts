@@ -28,18 +28,13 @@ const checkRole = (roles: string | string[]) => {
     try {
       // Vérifier si l'utilisateur est attaché à la requête
       if (!req.user) {
-        console.log("[checkRole] Aucun utilisateur authentifié trouvé");
-        res.status(401).json({
-          message: "Utilisateur non authentifié",
-        });
-        return;
+        return res
+          .status(401)
+          .json({ success: false, message: "Non authentifié" });
       }
 
       // Si "*" est spécifié, autoriser tous les utilisateurs authentifiés
       if (allowAnyAuthenticatedUser) {
-        console.log(
-          "[checkRole] Autorisation accordée à tous les utilisateurs authentifiés"
-        );
         next();
         return;
       }
@@ -47,29 +42,17 @@ const checkRole = (roles: string | string[]) => {
       // Normaliser le rôle de l'utilisateur en minuscules
       const userRole = req.user.role?.toLowerCase();
 
-      console.log(
-        `[checkRole] Rôle utilisateur: "${req.user.role}" (normalisé: "${userRole}")`
-      );
-      console.log(
-        `[checkRole] Rôles autorisés: ${JSON.stringify(
-          roleArray
-        )} (normalisés: ${JSON.stringify(normalizedRoles)})`
-      );
-
       // Vérifier si l'utilisateur a un rôle défini
       if (!userRole) {
-        console.log("[checkRole] L'utilisateur n'a pas de rôle défini");
         res.status(403).json({
-          message: "Accès interdit – rôle non défini",
+          success: false,
+          message: "Rôle non défini",
         });
         return;
       }
 
       // Vérifier si l'utilisateur a l'un des rôles requis
       if (!normalizedRoles.includes(userRole)) {
-        console.log(
-          `[checkRole] Rôle "${userRole}" non autorisé pour cette route`
-        );
         res.status(403).json({
           message: "Accès interdit – rôle insuffisant",
         });
@@ -77,12 +60,8 @@ const checkRole = (roles: string | string[]) => {
       }
 
       // Si l'utilisateur a un rôle autorisé, passer au middleware suivant
-      console.log(
-        `[checkRole] Accès autorisé pour l'utilisateur avec le rôle "${userRole}"`
-      );
       next();
     } catch (error) {
-      console.error("Erreur lors de la vérification du rôle:", error);
       res.status(500).json({
         message: "Erreur serveur lors de la vérification des autorisations",
       });

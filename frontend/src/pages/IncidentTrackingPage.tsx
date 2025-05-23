@@ -54,6 +54,8 @@ interface Incident {
     _id: string;
     firstName: string;
     lastName: string;
+    companyId?: string;
+    teamId?: string;
   };
   type: "retard" | "absence" | "oubli badge" | "litige" | "autre";
   description?: string;
@@ -72,6 +74,19 @@ interface Employee {
   _id: string;
   firstName: string;
   lastName: string;
+}
+
+// Types pour les entreprises
+interface Company {
+  _id: string;
+  name: string;
+}
+
+// Types pour les équipes
+interface Team {
+  _id: string;
+  name: string;
+  companyId: string;
 }
 
 // Types pour le formulaire d'ajout d'incident
@@ -228,6 +243,8 @@ const IncidentTrackingPage: React.FC = () => {
   // États pour gérer les incidents et l'UI
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -262,6 +279,11 @@ const IncidentTrackingPage: React.FC = () => {
     description: "",
     date: new Date().toISOString().split("T")[0],
   });
+
+  // États pour les filtres d'admin
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [filteredTeams, setFilteredTeams] = useState<Team[]>([]);
 
   // Fonction pour trier les incidents
   const sortIncidents = useCallback(
@@ -317,10 +339,28 @@ const IncidentTrackingPage: React.FC = () => {
     setError(null);
 
     try {
+      let url = "/incidents";
+      const params = new URLSearchParams();
+
+      // Ajouter les filtres pour l'admin
+      if (user?.role === "admin") {
+        if (selectedCompanyId) {
+          params.append("companyId", selectedCompanyId);
+        }
+        if (selectedTeamId) {
+          params.append("teamId", selectedTeamId);
+        }
+      }
+
+      // Ajouter les paramètres à l'URL si nécessaire
+      if (params.toString()) {
+        url = `${url}?${params.toString()}`;
+      }
+
       const response = await axiosInstance.get<{
         success: boolean;
         data: Incident[];
-      }>("/incidents");
+      }>(url);
 
       // Tri des incidents par date (les plus récents en premier)
       const receivedIncidents = response.data.data;
@@ -343,7 +383,7 @@ const IncidentTrackingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.role, selectedCompanyId, selectedTeamId]);
 
   // Fonction pour récupérer la liste des employés
   const fetchEmployees = useCallback(async () => {
@@ -400,11 +440,95 @@ const IncidentTrackingPage: React.FC = () => {
     }
   }, [user]);
 
+  // Fonction pour récupérer les entreprises (pour admin uniquement)
+  const fetchCompanies = useCallback(async () => {
+    if (user?.role !== "admin") return;
+
+    try {
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Company[];
+      }>("/admin/companies");
+
+      if (response.data.success) {
+        setCompanies(response.data.data);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des entreprises:", error);
+      // En cas d'erreur, initialiser avec un tableau vide pour éviter les problèmes d'affichage
+      setCompanies([]);
+    }
+  }, [user?.role]);
+
+  // Fonction pour récupérer les équipes
+  const fetchTeams = useCallback(async () => {
+    if (user?.role !== "admin") return;
+
+    try {
+      // Utiliser la bonne URL pour récupérer les équipes
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Team[];
+      }>("/admin/teams");
+
+      if (response.data.success) {
+        setTeams(response.data.data);
+
+        // Filtrer les équipes en fonction de l'entreprise sélectionnée
+        if (selectedCompanyId) {
+          setFilteredTeams(
+            response.data.data.filter(
+              (team) => team.companyId === selectedCompanyId
+            )
+          );
+        } else {
+          setFilteredTeams(response.data.data);
+        }
+      } else {
+        console.error("Réponse API sans succès:", response.data);
+        setTeams([]);
+        setFilteredTeams([]);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des équipes:", error);
+      // En cas d'erreur, initialiser avec un tableau vide pour éviter les problèmes d'affichage
+      setTeams([]);
+      setFilteredTeams([]);
+    }
+  }, [user?.role, selectedCompanyId]);
+
+  // Effet pour filtrer les équipes quand l'entreprise change
+  useEffect(() => {
+    if (selectedCompanyId) {
+      setFilteredTeams(
+        teams.filter((team) => team.companyId === selectedCompanyId)
+      );
+      // Réinitialiser l'équipe sélectionnée si elle n'appartient pas à l'entreprise
+      if (selectedTeamId) {
+        const teamBelongsToCompany = teams.some(
+          (team) =>
+            team._id === selectedTeamId && team.companyId === selectedCompanyId
+        );
+        if (!teamBelongsToCompany) {
+          setSelectedTeamId("");
+        }
+      }
+    } else {
+      setFilteredTeams(teams);
+    }
+  }, [selectedCompanyId, teams, selectedTeamId]);
+
   // Chargement initial des données
   useEffect(() => {
     fetchIncidents();
     fetchEmployees();
-  }, [fetchIncidents, fetchEmployees]);
+
+    // Charger les entreprises et équipes pour l'admin
+    if (user?.role === "admin") {
+      fetchCompanies();
+      fetchTeams();
+    }
+  }, [fetchIncidents, fetchEmployees, fetchCompanies, fetchTeams, user?.role]);
 
   // Gestionnaire pour mettre à jour le formulaire
   const handleInputChange = (name: string, value: string) => {
@@ -623,6 +747,12 @@ const IncidentTrackingPage: React.FC = () => {
 
   // Fonction pour rendre une carte d'incident responsive pour mobile
   const renderIncidentCard = (incident: Incident) => {
+    // Vérifier si employeeId et reportedBy sont définis pour éviter les erreurs
+    const employeeFirstName = incident.employeeId?.firstName || "Inconnu";
+    const employeeLastName = incident.employeeId?.lastName || "Inconnu";
+    const reportedByFirstName = incident.reportedBy?.firstName || "Inconnu";
+    const reportedByLastName = incident.reportedBy?.lastName || "Inconnu";
+
     return (
       <motion.div
         key={incident._id}
@@ -639,11 +769,11 @@ const IncidentTrackingPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Avatar
                 src={null}
-                alt={`${incident.employeeId.firstName} ${incident.employeeId.lastName}`}
+                alt={`${employeeFirstName} ${employeeLastName}`}
                 size="sm"
               />
               <h3 className="font-bold text-gray-800 dark:text-white">
-                {incident.employeeId.firstName} {incident.employeeId.lastName}
+                {employeeFirstName} {employeeLastName}
               </h3>
             </div>
             <Badge
@@ -673,8 +803,7 @@ const IncidentTrackingPage: React.FC = () => {
           <div className="text-xs text-[var(--text-tertiary)] dark:text-gray-400 flex items-center gap-1">
             <User size={12} />
             <span>
-              Signalé par: {incident.reportedBy.firstName}{" "}
-              {incident.reportedBy.lastName}
+              Signalé par: {reportedByFirstName} {reportedByLastName}
             </span>
           </div>
 
@@ -711,6 +840,242 @@ const IncidentTrackingPage: React.FC = () => {
     );
   };
 
+  // Gestionnaire pour le changement d'entreprise
+  const handleCompanyChange = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    setSelectedTeamId("");
+  };
+
+  // Gestionnaire pour le changement d'équipe
+  const handleTeamChange = (teamId: string) => {
+    setSelectedTeamId(teamId);
+  };
+
+  // Modal de détails d'incident
+  const renderDetailsModal = () => {
+    if (!selectedIncident) return null;
+
+    // Vérifier si employeeId et reportedBy sont définis pour éviter les erreurs
+    const employeeFirstName =
+      selectedIncident.employeeId?.firstName || "Inconnu";
+    const employeeLastName = selectedIncident.employeeId?.lastName || "Inconnu";
+    const reportedByFirstName =
+      selectedIncident.reportedBy?.firstName || "Inconnu";
+    const reportedByLastName =
+      selectedIncident.reportedBy?.lastName || "Inconnu";
+
+    return (
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title="Détails de l'incident"
+      >
+        <div className="p-6 dark:bg-gray-800">
+          <Card className="mb-6 dark:bg-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
+                  Employé concerné
+                </h3>
+                <div className="mt-2 flex items-center">
+                  <Avatar
+                    src={null}
+                    alt={`${employeeFirstName} ${employeeLastName}`}
+                    size="sm"
+                    className="mr-2"
+                  />
+                  <p className="text-[var(--text-primary)] dark:text-gray-200">
+                    {employeeFirstName} {employeeLastName}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
+                  Type d'incident
+                </h3>
+                <div className="mt-2">
+                  <Badge
+                    type={getIncidentTypeBadgeType(selectedIncident.type)}
+                    label={translateIncidentType(selectedIncident.type)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
+                  Date de l'incident
+                </h3>
+                <div className="mt-2 flex items-center gap-2">
+                  <Calendar
+                    size={16}
+                    className="text-[var(--text-secondary)] dark:text-gray-300"
+                  />
+                  <p className="text-[var(--text-primary)] dark:text-gray-200">
+                    {formatDate(selectedIncident.date)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
+                  Statut
+                </h3>
+                <div className="mt-2">
+                  <Badge
+                    type={getStatusBadgeType(selectedIncident.status)}
+                    label={translateStatus(selectedIncident.status)}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="mb-6 dark:bg-gray-700">
+            <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300 mb-2">
+              Description
+            </h3>
+            <p className="text-[var(--text-primary)] dark:text-gray-200 whitespace-pre-wrap">
+              {selectedIncident.description ||
+                "Aucune description fournie pour cet incident."}
+            </p>
+          </Card>
+
+          <Card className="mb-6 dark:bg-gray-700">
+            <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300 mb-2">
+              Informations complémentaires
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)] dark:text-gray-400">
+                  Signalé par
+                </p>
+                <div className="mt-1 flex items-center">
+                  <Avatar
+                    src={null}
+                    alt={`${reportedByFirstName} ${reportedByLastName}`}
+                    size="sm"
+                    className="mr-2"
+                  />
+                  <p className="text-sm text-[var(--text-primary)] dark:text-gray-200">
+                    {reportedByFirstName} {reportedByLastName}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)] dark:text-gray-400">
+                  Date de signalement
+                </p>
+                <p className="text-sm text-[var(--text-primary)] dark:text-gray-200 mt-1">
+                  {formatDate(selectedIncident.createdAt)}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDetailsModal(false)}
+              className="dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Fermer
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowDetailsModal(false);
+                openEditModal(selectedIncident);
+              }}
+              icon={<Pencil size={16} />}
+              className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            >
+              Modifier
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
+
+  // Modal d'édition d'incident
+  const renderEditModal = () => {
+    if (!selectedIncident) return null;
+
+    // Vérifier si employeeId est défini pour éviter les erreurs
+    const employeeFirstName =
+      selectedIncident.employeeId?.firstName || "Inconnu";
+    const employeeLastName = selectedIncident.employeeId?.lastName || "Inconnu";
+
+    return (
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Modifier l'incident"
+      >
+        <div className="p-6 dark:bg-gray-800">
+          <form onSubmit={updateIncident} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[var(--text-primary)] dark:text-gray-200">
+                Employé concerné
+              </label>
+              <div className="flex items-center gap-2 mb-4">
+                <Avatar
+                  src={null}
+                  alt={`${employeeFirstName} ${employeeLastName}`}
+                  size="sm"
+                />
+                <span className="text-[var(--text-primary)] dark:text-gray-200">
+                  {employeeFirstName} {employeeLastName}
+                </span>
+              </div>
+
+              <Select
+                label="Statut"
+                options={statusOptions}
+                value={editData.status}
+                onChange={(value) => handleEditChange("status", value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[var(--text-primary)] dark:text-gray-200">
+                Description (optionnelle)
+              </label>
+              <textarea
+                value={editData.description}
+                onChange={(e) =>
+                  handleEditChange("description", e.target.value)
+                }
+                placeholder="Détails supplémentaires concernant l'incident..."
+                rows={3}
+                className="w-full px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] dark:bg-gray-700 dark:text-gray-200 placeholder-[var(--text-secondary)] dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowEditModal(false)}
+                className="dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={submitting}
+                className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:text-white"
+              >
+                Enregistrer les modifications
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+    );
+  };
+
   // Contenu principal à rendre
   const renderContent = () => (
     <PageWrapper>
@@ -728,211 +1093,11 @@ const IncidentTrackingPage: React.FC = () => {
         onClose={closeSuccessToast}
       />
 
-      {/* Modal d'édition d'incident */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title="Modifier l'incident"
-      >
-        {selectedIncident && (
-          <div className="p-6 dark:bg-gray-800">
-            <form onSubmit={updateIncident} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-[var(--text-primary)] dark:text-gray-200">
-                  Employé concerné
-                </label>
-                <div className="flex items-center gap-2 mb-4">
-                  <Avatar
-                    src={null}
-                    alt={`${selectedIncident.employeeId.firstName} ${selectedIncident.employeeId.lastName}`}
-                    size="sm"
-                  />
-                  <span className="text-[var(--text-primary)] dark:text-gray-200">
-                    {selectedIncident.employeeId.firstName}{" "}
-                    {selectedIncident.employeeId.lastName}
-                  </span>
-                </div>
-
-                <Select
-                  label="Statut"
-                  options={statusOptions}
-                  value={editData.status}
-                  onChange={(value) => handleEditChange("status", value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1 text-[var(--text-primary)] dark:text-gray-200">
-                  Description (optionnelle)
-                </label>
-                <textarea
-                  value={editData.description}
-                  onChange={(e) =>
-                    handleEditChange("description", e.target.value)
-                  }
-                  placeholder="Détails supplémentaires concernant l'incident..."
-                  rows={3}
-                  className="w-full px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] dark:bg-gray-700 dark:text-gray-200 placeholder-[var(--text-secondary)] dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowEditModal(false)}
-                  className="dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  isLoading={submitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:text-white"
-                >
-                  Enregistrer les modifications
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
-      </Modal>
-
       {/* Modal de détails d'incident */}
-      <Modal
-        isOpen={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        title="Détails de l'incident"
-      >
-        {selectedIncident && (
-          <div className="p-6 dark:bg-gray-800">
-            <Card className="mb-6 dark:bg-gray-700">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
-                    Employé concerné
-                  </h3>
-                  <div className="mt-2 flex items-center">
-                    <Avatar
-                      src={null}
-                      alt={`${selectedIncident.employeeId.firstName} ${selectedIncident.employeeId.lastName}`}
-                      size="sm"
-                      className="mr-2"
-                    />
-                    <p className="text-[var(--text-primary)] dark:text-gray-200">
-                      {selectedIncident.employeeId.firstName}{" "}
-                      {selectedIncident.employeeId.lastName}
-                    </p>
-                  </div>
-                </div>
+      {renderDetailsModal()}
 
-                <div>
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
-                    Type d'incident
-                  </h3>
-                  <div className="mt-2">
-                    <Badge
-                      type={getIncidentTypeBadgeType(selectedIncident.type)}
-                      label={translateIncidentType(selectedIncident.type)}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
-                    Date de l'incident
-                  </h3>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Calendar
-                      size={16}
-                      className="text-[var(--text-secondary)] dark:text-gray-300"
-                    />
-                    <p className="text-[var(--text-primary)] dark:text-gray-200">
-                      {formatDate(selectedIncident.date)}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300">
-                    Statut
-                  </h3>
-                  <div className="mt-2">
-                    <Badge
-                      type={getStatusBadgeType(selectedIncident.status)}
-                      label={translateStatus(selectedIncident.status)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="mb-6 dark:bg-gray-700">
-              <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300 mb-2">
-                Description
-              </h3>
-              <p className="text-[var(--text-primary)] dark:text-gray-200 whitespace-pre-wrap">
-                {selectedIncident.description ||
-                  "Aucune description fournie pour cet incident."}
-              </p>
-            </Card>
-
-            <Card className="mb-6 dark:bg-gray-700">
-              <h3 className="text-sm font-medium text-[var(--text-secondary)] dark:text-gray-300 mb-2">
-                Informations complémentaires
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-[var(--text-tertiary)] dark:text-gray-400">
-                    Signalé par
-                  </p>
-                  <div className="mt-1 flex items-center">
-                    <Avatar
-                      src={null}
-                      alt={`${selectedIncident.reportedBy.firstName} ${selectedIncident.reportedBy.lastName}`}
-                      size="sm"
-                      className="mr-2"
-                    />
-                    <p className="text-sm text-[var(--text-primary)] dark:text-gray-200">
-                      {selectedIncident.reportedBy.firstName}{" "}
-                      {selectedIncident.reportedBy.lastName}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--text-tertiary)] dark:text-gray-400">
-                    Date de signalement
-                  </p>
-                  <p className="text-sm text-[var(--text-primary)] dark:text-gray-200 mt-1">
-                    {formatDate(selectedIncident.createdAt)}
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setShowDetailsModal(false)}
-                className="dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                Fermer
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  openEditModal(selectedIncident);
-                }}
-                icon={<Pencil size={16} />}
-                className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-              >
-                Modifier
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {/* Modal d'édition d'incident */}
+      {renderEditModal()}
 
       {/* En-tête avec fil d'ariane */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
@@ -946,6 +1111,52 @@ const IncidentTrackingPage: React.FC = () => {
         icon={<Shield size={24} />}
         className="mb-8"
       />
+
+      {/* Filtres pour admin */}
+      {user?.role === "admin" && (
+        <SectionCard title="Filtres">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Entreprise
+              </label>
+              <Select
+                options={[
+                  { value: "", label: "Toutes les entreprises" },
+                  ...companies.map((company) => ({
+                    value: company._id,
+                    label: company.name,
+                  })),
+                ]}
+                value={selectedCompanyId}
+                onChange={(value) => handleCompanyChange(value)}
+                placeholder="Sélectionner une entreprise"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Équipe
+              </label>
+              <Select
+                options={[
+                  { value: "", label: "Toutes les équipes" },
+                  ...filteredTeams.map((team) => ({
+                    value: team._id,
+                    label: team.name,
+                  })),
+                ]}
+                value={selectedTeamId}
+                onChange={(value) => handleTeamChange(value)}
+                placeholder="Sélectionner une équipe"
+                disabled={!selectedCompanyId}
+              />
+            </div>
+          </div>
+          <Button variant="primary" size="sm" onClick={fetchIncidents}>
+            Appliquer les filtres
+          </Button>
+        </SectionCard>
+      )}
 
       {/* Bouton d'ajout d'incident et formulaire */}
       <SectionCard
@@ -1127,83 +1338,93 @@ const IncidentTrackingPage: React.FC = () => {
                     { key: "description", label: "Description" },
                     { key: "actions", label: "Actions", className: "w-32" },
                   ]}
-                  data={getSortedIncidents().map((incident) => ({
-                    employee: (
-                      <div className="flex items-center gap-2">
-                        <Avatar
-                          src={null}
-                          alt={`${incident.employeeId.firstName} ${incident.employeeId.lastName}`}
-                          size="sm"
-                        />
-                        <span className="font-medium dark:text-white">
-                          {incident.employeeId.firstName}{" "}
-                          {incident.employeeId.lastName}
-                        </span>
-                      </div>
-                    ),
-                    type: (
-                      <Badge
-                        type={getIncidentTypeBadgeType(incident.type)}
-                        label={translateIncidentType(incident.type)}
-                      />
-                    ),
-                    date: (
-                      <div className="flex items-center gap-1.5 text-[var(--text-secondary)] dark:text-gray-300">
-                        <Calendar size={14} />
-                        <span>{formatDate(incident.date)}</span>
-                      </div>
-                    ),
-                    status: (
-                      <Badge
-                        type={getStatusBadgeType(incident.status)}
-                        label={translateStatus(incident.status)}
-                      />
-                    ),
-                    description: (
-                      <div>
-                        <div className="text-sm max-w-xs truncate dark:text-gray-300">
-                          {incident.description || "—"}
-                        </div>
-                        <div className="text-xs text-[var(--text-tertiary)] dark:text-gray-400 mt-1 flex items-center gap-1">
-                          <User size={12} />
-                          <span>
-                            {incident.reportedBy.firstName}{" "}
-                            {incident.reportedBy.lastName}
+                  data={getSortedIncidents().map((incident) => {
+                    // Vérifier si employeeId et reportedBy sont définis pour éviter les erreurs
+                    const employeeFirstName =
+                      incident.employeeId?.firstName || "Inconnu";
+                    const employeeLastName =
+                      incident.employeeId?.lastName || "Inconnu";
+                    const reportedByFirstName =
+                      incident.reportedBy?.firstName || "Inconnu";
+                    const reportedByLastName =
+                      incident.reportedBy?.lastName || "Inconnu";
+
+                    return {
+                      employee: (
+                        <div className="flex items-center gap-2">
+                          <Avatar
+                            src={null}
+                            alt={`${employeeFirstName} ${employeeLastName}`}
+                            size="sm"
+                          />
+                          <span className="font-medium dark:text-white">
+                            {employeeFirstName} {employeeLastName}
                           </span>
                         </div>
-                      </div>
-                    ),
-                    employeeId: incident.employeeId,
-                    actions: (
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => viewIncidentDetails(incident)}
-                          icon={<Eye size={16} />}
-                        >
-                          Détails
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditModal(incident)}
-                          icon={<Pencil size={16} />}
-                        >
-                          Éditer
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteIncident(incident._id)}
-                          icon={<Trash2 size={16} />}
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          Supprimer
-                        </Button>
-                      </div>
-                    ),
-                  }))}
+                      ),
+                      type: (
+                        <Badge
+                          type={getIncidentTypeBadgeType(incident.type)}
+                          label={translateIncidentType(incident.type)}
+                        />
+                      ),
+                      date: (
+                        <div className="flex items-center gap-1.5 text-[var(--text-secondary)] dark:text-gray-300">
+                          <Calendar size={14} />
+                          <span>{formatDate(incident.date)}</span>
+                        </div>
+                      ),
+                      status: (
+                        <Badge
+                          type={getStatusBadgeType(incident.status)}
+                          label={translateStatus(incident.status)}
+                        />
+                      ),
+                      description: (
+                        <div>
+                          <div className="text-sm max-w-xs truncate dark:text-gray-300">
+                            {incident.description || "—"}
+                          </div>
+                          <div className="text-xs text-[var(--text-tertiary)] dark:text-gray-400 mt-1 flex items-center gap-1">
+                            <User size={12} />
+                            <span>
+                              {reportedByFirstName} {reportedByLastName}
+                            </span>
+                          </div>
+                        </div>
+                      ),
+                      employeeId: incident.employeeId,
+                      actions: (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => viewIncidentDetails(incident)}
+                            icon={<Eye size={16} />}
+                          >
+                            Détails
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(incident)}
+                            icon={<Pencil size={16} />}
+                          >
+                            Éditer
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteIncident(incident._id)}
+                            icon={<Trash2 size={16} />}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            Supprimer
+                          </Button>
+                        </div>
+                      ),
+                    };
+                  })}
                   emptyState={{
                     title: "Aucun incident",
                     description:

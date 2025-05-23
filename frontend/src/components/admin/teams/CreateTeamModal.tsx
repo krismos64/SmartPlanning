@@ -12,6 +12,11 @@ interface Employee {
   name: string;
 }
 
+interface Company {
+  _id: string;
+  name: string;
+}
+
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,6 +24,7 @@ interface CreateTeamModalProps {
   companyId: string;
   availableManagers: Manager[];
   availableEmployees: Employee[];
+  availableCompanies?: Company[];
 }
 
 const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
@@ -28,10 +34,12 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
   companyId,
   availableManagers,
   availableEmployees,
+  availableCompanies = [],
 }) => {
   const [teamName, setTeamName] = useState<string>("");
   const [selectedManagers, setSelectedManagers] = useState<string[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(companyId);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -41,9 +49,10 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
       setTeamName("");
       setSelectedManagers([]);
       setSelectedEmployees([]);
+      setSelectedCompanyId(companyId);
       setErrorMessage(null);
     }
-  }, [isOpen]);
+  }, [isOpen, companyId]);
 
   const handleManagerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedOptions = Array.from(e.target.selectedOptions).map(
@@ -59,9 +68,18 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
     setSelectedEmployees(selectedOptions);
   };
 
+  const handleCompanyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCompanyId(e.target.value);
+  };
+
   const validateForm = (): boolean => {
     if (!teamName.trim()) {
       setErrorMessage("Le nom de l'équipe est requis");
+      return false;
+    }
+
+    if (!selectedCompanyId) {
+      setErrorMessage("Veuillez sélectionner une entreprise");
       return false;
     }
 
@@ -90,13 +108,13 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
 
     try {
       const payload = {
-        companyId,
+        companyId: selectedCompanyId,
         name: teamName.trim(),
         managerIds: selectedManagers,
         employeeIds: selectedEmployees,
       };
 
-      await axiosInstance.post("/api/admin/teams", payload);
+      await axiosInstance.post("/admin/teams", payload);
       onTeamCreated();
       onClose();
     } catch (error) {
@@ -212,6 +230,31 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
                   required
                 />
               </div>
+
+              {availableCompanies && availableCompanies.length > 0 && (
+                <div className="mb-4">
+                  <label
+                    htmlFor="company"
+                    className="block mb-2 text-sm font-medium text-gray-200"
+                  >
+                    Entreprise*
+                  </label>
+                  <select
+                    id="company"
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-white"
+                    value={selectedCompanyId}
+                    onChange={handleCompanyChange}
+                    required
+                  >
+                    <option value="">-- Sélectionner une entreprise --</option>
+                    {availableCompanies.map((company) => (
+                      <option key={company._id} value={company._id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="mb-4">
                 <label

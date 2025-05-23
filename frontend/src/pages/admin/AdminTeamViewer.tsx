@@ -93,6 +93,9 @@ interface UpdateTeamInput {
 interface Company {
   _id: string;
   name: string;
+  logoUrl?: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 // Type pour le formulaire
@@ -182,6 +185,10 @@ const AdminTeamViewer: React.FC = () => {
   // Nouvel état pour le modal de détails
   const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
 
+  // Fonction pour récupérer toutes les entreprises (pour l'admin)
+  const [allCompanies, setAllCompanies] = useState<Company[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState<boolean>(false);
+
   // Vérification de sécurité - rediriger si pas admin
   useEffect(() => {
     if (user && user.role !== "admin") {
@@ -196,7 +203,7 @@ const AdminTeamViewer: React.FC = () => {
         if (!companyId) return;
 
         const response = await axiosInstance.get(
-          `/api/admin/companies/${companyId}`
+          `/admin/companies/${companyId}`
         );
         setCompany(response.data.data);
       } catch (error) {
@@ -254,37 +261,74 @@ const AdminTeamViewer: React.FC = () => {
   const tableData = useMemo(() => {
     if (!teams) return [];
 
-    return teams.map((team: TeamAPITeam) => ({
-      _id: team._id,
-      name: team.name,
-      manager: team.managerIds?.[0]
+    console.log("Teams data pour le tableau:", teams);
+
+    return teams.map((team: TeamAPITeam) => {
+      console.log(
+        "Processing team:",
+        team.name,
+        "with managers:",
+        team.managerIds
+      );
+
+      // Vérifier si le manager existe et a des données valides
+      const hasValidManager =
+        team.managerIds &&
+        Array.isArray(team.managerIds) &&
+        team.managerIds.length > 0 &&
+        team.managerIds[0] &&
+        team.managerIds[0].firstName &&
+        team.managerIds[0].lastName;
+
+      console.log(
+        "Has valid manager:",
+        hasValidManager,
+        "for team:",
+        team.name
+      );
+
+      // Créer le nom du manager avec une vérification robuste
+      const managerName = hasValidManager
         ? `${team.managerIds[0].firstName} ${team.managerIds[0].lastName}`
-        : "Non défini",
-      email: team.managerIds?.[0]?.email || "-",
+        : "Non défini";
 
-      createdAt: new Date(team.createdAt).toLocaleDateString(),
-      actions: (
-        <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Users size={16} />}
-            onClick={() => handleOpenDetailModal(team)}
-            aria-label="Voir détails"
-            children=""
-          />
+      // Créer l'email du manager avec une vérification robuste
+      const managerEmail =
+        hasValidManager && team.managerIds[0].email
+          ? team.managerIds[0].email
+          : "-";
 
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Trash2 size={16} className="text-red-500" />}
-            onClick={() => handleOpenDeleteModal(team)}
-            aria-label="Supprimer"
-            children=""
-          />
-        </div>
-      ),
-    }));
+      console.log("Manager name:", managerName, "Manager email:", managerEmail);
+
+      return {
+        _id: team._id,
+        name: team.name,
+        manager: managerName,
+        email: managerEmail,
+        createdAt: new Date(team.createdAt).toLocaleDateString(),
+        actions: (
+          <div className="flex space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Users size={16} />}
+              onClick={() => handleOpenDetailModal(team)}
+              aria-label="Voir détails"
+              children=""
+            />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 size={16} className="text-red-500" />}
+              onClick={() => handleOpenDeleteModal(team)}
+              aria-label="Supprimer"
+              children=""
+            />
+          </div>
+        ),
+      };
+    });
   }, [teams]);
 
   /**
@@ -297,6 +341,36 @@ const AdminTeamViewer: React.FC = () => {
     { key: "createdAt", label: "Date de création", sortable: true },
     { key: "actions", label: "Actions", sortable: false },
   ];
+
+  // Récupérer toutes les entreprises pour l'admin
+  useEffect(() => {
+    const fetchAllCompanies = async () => {
+      if (user?.role !== "admin") return;
+
+      try {
+        setLoadingCompanies(true);
+        const response = await axiosInstance.get("/admin/companies");
+
+        if (response.data && Array.isArray(response.data.data)) {
+          setAllCompanies(response.data.data);
+        } else if (Array.isArray(response.data)) {
+          setAllCompanies(response.data);
+        } else {
+          console.error(
+            "Format de réponse inattendu pour les entreprises:",
+            response.data
+          );
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des entreprises:", error);
+        showToast("Impossible de charger la liste des entreprises", "error");
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+
+    fetchAllCompanies();
+  }, [user?.role]);
 
   /**
    * Ouvrir le modal d'ajout d'équipe
@@ -556,6 +630,94 @@ const AdminTeamViewer: React.FC = () => {
         </div>
 
         {/* Contenu principal */}
+        {/* En-tête futuriste de l'entreprise */}
+        {company && (
+          <motion.div
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 p-6 mb-6 shadow-2xl"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            {/* Effet de particules en arrière-plan */}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 via-purple-600/20 to-blue-600/20">
+              <div className="absolute top-4 right-4 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-4 left-4 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
+            </div>
+
+            {/* Contenu de l'en-tête */}
+            <div className="relative z-10 flex items-center space-x-6">
+              {/* Logo de l'entreprise */}
+              {company.logoUrl ? (
+                <motion.div
+                  className="flex-shrink-0"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                >
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-white/20 rounded-2xl blur-xl"></div>
+                    <img
+                      src={company.logoUrl}
+                      alt={`Logo de ${company.name}`}
+                      className="relative w-20 h-20 object-contain rounded-2xl bg-white/10 backdrop-blur-sm p-3 border border-white/20"
+                    />
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  className="flex-shrink-0 w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 flex items-center justify-center"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                >
+                  <div className="text-white text-2xl font-bold">
+                    {company.name.charAt(0).toUpperCase()}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Informations de l'entreprise */}
+              <motion.div
+                className="flex-1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+              >
+                <h2 className="text-3xl font-bold text-white mb-2 tracking-wide">
+                  {company.name}
+                </h2>
+                <div className="flex items-center space-x-4 text-white/80">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">Équipes actives</span>
+                  </div>
+                  {teams && (
+                    <div className="flex items-center space-x-2">
+                      <Users size={16} className="text-white/60" />
+                      <span className="text-sm font-medium">
+                        {teams.length} équipe{teams.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Décoration géométrique */}
+              <motion.div
+                className="hidden lg:block"
+                initial={{ rotate: 0, scale: 0 }}
+                animate={{ rotate: 360, scale: 1 }}
+                transition={{ delay: 0.4, duration: 1, type: "spring" }}
+              >
+                <div className="w-16 h-16 border-2 border-white/20 rounded-lg transform rotate-45 relative">
+                  <div className="absolute inset-2 border border-white/30 rounded-md"></div>
+                  <div className="absolute inset-4 bg-white/10 rounded-sm"></div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+
         <SectionCard>
           {isLoadingTeams ? (
             <div className="flex justify-center items-center p-8">
@@ -584,7 +746,101 @@ const AdminTeamViewer: React.FC = () => {
               </Button>
             </Card>
           ) : (
-            <Table columns={columns} data={tableData} />
+            <>
+              {/* Affichage desktop - Tableau */}
+              <div className="hidden md:block">
+                <Table columns={columns} data={tableData} />
+              </div>
+
+              {/* Affichage mobile - Cards */}
+              <div className="md:hidden space-y-4">
+                {teams?.map((team) => {
+                  // Vérifier si le manager existe et a des données valides
+                  const hasValidManager =
+                    team.managerIds &&
+                    Array.isArray(team.managerIds) &&
+                    team.managerIds.length > 0 &&
+                    team.managerIds[0] &&
+                    team.managerIds[0].firstName &&
+                    team.managerIds[0].lastName;
+
+                  const managerName = hasValidManager
+                    ? `${team.managerIds[0].firstName} ${team.managerIds[0].lastName}`
+                    : "Non défini";
+
+                  const managerEmail =
+                    hasValidManager && team.managerIds[0].email
+                      ? team.managerIds[0].email
+                      : "-";
+
+                  return (
+                    <div
+                      key={team._id}
+                      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm"
+                    >
+                      {/* En-tête de la card */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
+                            {team.name}
+                          </h3>
+                          <div className="mt-1 space-y-1">
+                            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                              <Users size={14} className="mr-1 flex-shrink-0" />
+                              <span className="truncate">
+                                Manager: {managerName}
+                              </span>
+                            </div>
+                            {managerEmail && managerEmail !== "-" && (
+                              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                <span className="mr-1">@</span>
+                                <span className="truncate">{managerEmail}</span>
+                              </div>
+                            )}
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              Créée le{" "}
+                              {new Date(team.createdAt).toLocaleDateString(
+                                "fr-FR"
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-3 flex-shrink-0">
+                          <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+                            <Users
+                              size={20}
+                              className="text-indigo-600 dark:text-indigo-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Users size={16} />}
+                          onClick={() => handleOpenDetailModal(team)}
+                          className="flex-1 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        >
+                          Détails
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={<Trash2 size={16} />}
+                          onClick={() => handleOpenDeleteModal(team)}
+                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 border border-red-200 dark:border-red-800"
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </SectionCard>
 
@@ -602,6 +858,7 @@ const AdminTeamViewer: React.FC = () => {
             _id: employee._id,
             name: `${employee.firstName} ${employee.lastName}`,
           }))}
+          availableCompanies={allCompanies}
         />
 
         {/* Modal d'édition d'équipe */}

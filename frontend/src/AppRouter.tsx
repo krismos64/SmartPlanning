@@ -35,6 +35,7 @@ import UserProfilePage from "./pages/UserProfilePage";
 import VacationsPage from "./pages/VacationsPage";
 import WeeklySchedulePage from "./pages/WeeklySchedulePage";
 // Import des composants d'administration
+import AdminPlanningPage from "./pages/admin/AdminPlanningPage";
 import AdminTeamViewer from "./pages/admin/AdminTeamViewer";
 // Import du layout avec sidebar
 import LayoutWithSidebar from "./components/layout/LayoutWithSidebar";
@@ -180,7 +181,7 @@ const AppRouter: React.FC = () => {
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
 
-        {/* Nouvelle route pour les incidents avec protection par rôle */}
+        {/* Route pour les incidents avec protection par rôle */}
         <Route
           path="/incidents"
           element={
@@ -264,6 +265,15 @@ const AppRouter: React.FC = () => {
         <Route
           path="/admin/entreprises/:id/equipes"
           element={<AdminTeamViewer />}
+        />
+        <Route
+          path="/admin/plannings"
+          element={
+            <RoleProtectedRoute
+              element={<AdminPlanningPage />}
+              allowedRoles={["admin"]}
+            />
+          }
         />
 
         {/* Pages légales et utilitaires */}

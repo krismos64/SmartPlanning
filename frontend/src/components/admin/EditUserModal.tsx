@@ -86,10 +86,42 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     const fetchCompanies = async () => {
       setCompanyLoading(true);
       try {
-        const response = await axiosInstance.get("/api/admin/companies");
-        setCompanies(response.data || []);
+        const response = await axiosInstance.get("/admin/companies");
+        console.log("Données entreprises récupérées:", response.data);
+
+        // Extraire correctement le tableau d'entreprises
+        let companiesData;
+        if (
+          response.data &&
+          response.data.success &&
+          Array.isArray(response.data.data)
+        ) {
+          companiesData = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          companiesData = response.data;
+        } else if (response.data && typeof response.data === "object") {
+          // Chercher n'importe quelle propriété contenant un tableau
+          for (const key in response.data) {
+            if (Array.isArray(response.data[key])) {
+              companiesData = response.data[key];
+              break;
+            }
+          }
+        }
+
+        // S'assurer que companiesData est un tableau
+        if (!Array.isArray(companiesData)) {
+          console.error(
+            "Format de données entreprises invalide:",
+            response.data
+          );
+          setCompanies([]);
+        } else {
+          setCompanies(companiesData);
+        }
       } catch (err) {
         console.error("Erreur lors du chargement des entreprises:", err);
+        setCompanies([]);
       } finally {
         setCompanyLoading(false);
       }
@@ -103,17 +135,61 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   // Chargement des équipes disponibles lorsque l'entreprise est sélectionnée
   useEffect(() => {
     const fetchTeams = async () => {
-      if (!formData.companyId) return;
+      if (!formData.companyId) {
+        setTeams([]);
+        return;
+      }
 
       setTeamsLoading(true);
       try {
         const response = await axiosInstance.get(
-          `/api/admin/teams?companyId=${formData.companyId}`
+          `/admin/teams?companyId=${formData.companyId}`
         );
-        const teamData = response.data.data || response.data.teams || [];
-        setTeams(teamData);
+        console.log("Données équipes récupérées:", response.data);
+
+        // Extraire correctement le tableau d'équipes
+        let teamsData;
+        if (
+          response.data &&
+          response.data.data &&
+          Array.isArray(response.data.data)
+        ) {
+          teamsData = response.data.data;
+        } else if (
+          response.data &&
+          response.data.teams &&
+          Array.isArray(response.data.teams)
+        ) {
+          teamsData = response.data.teams;
+        } else if (Array.isArray(response.data)) {
+          teamsData = response.data;
+        } else if (response.data && typeof response.data === "object") {
+          // Chercher n'importe quelle propriété contenant un tableau
+          for (const key in response.data) {
+            if (Array.isArray(response.data[key])) {
+              teamsData = response.data[key];
+              break;
+            }
+          }
+        }
+
+        // S'assurer que teamsData est un tableau
+        if (!Array.isArray(teamsData)) {
+          console.error("Format de données équipes invalide:", response.data);
+          setTeams([]);
+        } else {
+          // Formater les données pour s'assurer que tous les champs nécessaires sont présents
+          const formattedTeams = teamsData.map((team) => ({
+            ...team,
+            _id: String(team._id || ""),
+            name: team.name || "Équipe sans nom",
+            managerIds: Array.isArray(team.managerIds) ? team.managerIds : [],
+          }));
+          setTeams(formattedTeams);
+        }
       } catch (err) {
         console.error("Erreur lors du chargement des équipes:", err);
+        setTeams([]);
       } finally {
         setTeamsLoading(false);
       }
@@ -138,7 +214,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           if (user.role === "employee") {
             // Obtenir les détails de l'employé par son userId
             const response = await axiosInstance.get(
-              `/api/admin/employees/withteams?companyId=${companyId}`
+              `/admin/employees/withteams?companyId=${companyId}`
             );
             const employeesData = response.data.data || [];
 
@@ -162,7 +238,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           // Pour les managers: récupérer les équipes qu'ils gèrent
           else if (user.role === "manager") {
             const teamsResponse = await axiosInstance.get(
-              `/api/admin/teams?companyId=${companyId}`
+              `/admin/teams?companyId=${companyId}`
             );
             const allTeams = teamsResponse.data.data || [];
 
@@ -460,7 +536,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
           if (formData.role === "employee") {
             // Chercher l'employé correspondant à cet utilisateur
             const empResponse = await axiosInstance.get(
-              `/api/admin/employees/withteams?companyId=${formData.companyId}`
+              `/admin/employees/withteams?companyId=${formData.companyId}`
             );
             const employeesData = empResponse.data.data || [];
             const matchingEmployee = employeesData.find(
@@ -471,7 +547,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
             if (matchingEmployee) {
               // Mettre à jour l'employé avec le nouveau teamId
               await axiosInstance.patch(
-                `/api/admin/employees/${matchingEmployee._id}`,
+                `/admin/employees/${matchingEmployee._id}`,
                 {
                   teamId: formData.teamId,
                 }
@@ -479,7 +555,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
 
               // Si l'employé n'est pas déjà dans les employeeIds de l'équipe, l'ajouter
               const teamResponse = await axiosInstance.get(
-                `/api/admin/teams/${formData.teamId}`
+                `/admin/teams/${formData.teamId}`
               );
               const teamData = teamResponse.data.data || teamResponse.data;
 
@@ -490,7 +566,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               ) {
                 // Ajouter l'employé à l'équipe
                 await axiosInstance.patch(
-                  `/api/admin/teams/${formData.teamId}/employees`,
+                  `/admin/teams/${formData.teamId}/employees`,
                   {
                     employeeId: matchingEmployee._id,
                     action: "add",
@@ -518,7 +594,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               // Si l'équipe sélectionnée est valide
               if (teamId) {
                 const teamResponse = await axiosInstance.get(
-                  `/api/admin/teams/${teamId}`
+                  `/admin/teams/${teamId}`
                 );
                 const teamData = teamResponse.data.data || teamResponse.data;
 
@@ -546,7 +622,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                     );
 
                     // Ajouter le manager à l'équipe
-                    await axiosInstance.patch(`/api/admin/teams/${teamId}`, {
+                    await axiosInstance.patch(`/admin/teams/${teamId}`, {
                       managerIds: [...managerIdsToSend, user._id],
                     });
                     console.log(`✅ Manager ajouté à l'équipe ${teamId}`);
@@ -572,18 +648,22 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   };
 
   // Transformer les entreprises en options pour le select
-  const companyOptions = companies.map((company) => ({
-    value: company._id,
-    label: company.name,
-  }));
+  const companyOptions = Array.isArray(companies)
+    ? companies.map((company) => ({
+        value: company._id,
+        label: company.name,
+      }))
+    : [];
 
   // Transformer les équipes en options pour le select
   const teamOptions = [
     { value: "", label: "-- Sélectionner une équipe --" },
-    ...teams.map((team) => ({
-      value: team._id,
-      label: team.name,
-    })),
+    ...(Array.isArray(teams)
+      ? teams.map((team) => ({
+          value: team._id,
+          label: team.name,
+        }))
+      : []),
   ];
 
   // Animation de la modale avec Framer Motion
@@ -712,10 +792,15 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               {formData.role === "manager" ? (
                 <SelectMulti
                   label="Équipes gérées"
-                  options={teams.map((team) => ({
-                    value: team._id,
-                    label: team.name,
-                  }))}
+                  options={
+                    Array.isArray(teams)
+                      ? teams.map((team) => ({
+                          value: team._id,
+                          label: team.name,
+                          key: `team-${team._id}`,
+                        }))
+                      : []
+                  }
                   value={formData.teamIds || []}
                   onChange={handleTeamMultiChange}
                   placeholder="Sélectionner une ou plusieurs équipes..."

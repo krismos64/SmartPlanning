@@ -407,7 +407,7 @@ const Table: React.FC<TableProps> = ({
 
               {/* Corps du tableau avec texte plus clair en mode dark */}
               <tbody>
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="sync">
                   {getPaginatedData().map((row, rowIndex) => (
                     <motion.tr
                       key={rowIndex}

@@ -81,7 +81,7 @@ const useCreateAdminTeam = (
 
       try {
         const response = await axiosInstance.post<CreateAdminTeamResponse>(
-          "/api/admin/teams",
+          "/admin/teams",
           data
         );
 

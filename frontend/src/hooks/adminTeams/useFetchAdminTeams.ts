@@ -12,13 +12,26 @@ import axiosInstance from "../../api/axiosInstance";
 export interface AdminTeam {
   _id: string;
   name: string;
-  managerId: {
+  managerIds: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     email: string;
-  };
-  companyId: string;
+  }>;
+  employeeIds: Array<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  }>;
+  companyId:
+    | {
+        _id: string;
+        name: string;
+      }
+    | string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -71,7 +84,7 @@ const useFetchAdminTeams = (companyId: string): UseFetchAdminTeamsReturn => {
 
     try {
       const response = await axiosInstance.get<AdminTeamsApiResponse>(
-        `/api/admin/teams?companyId=${companyId}`
+        `/admin/teams?companyId=${companyId}`
       );
 
       setTeams(response.data.data);

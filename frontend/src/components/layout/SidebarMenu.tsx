@@ -1,3 +1,4 @@
+import axios from "axios";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -12,7 +13,6 @@ import {
   Users,
 } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import axiosInstance from "../../api/axiosInstance";
 
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { useAuth } from "../../hooks/useAuth";
@@ -93,6 +93,13 @@ const companyManagementMenuItem = {
   route: "/gestion-des-entreprises",
 };
 
+const adminPlanningMenuItem = {
+  id: "admin-plannings",
+  label: "Gestion des plannings",
+  icon: Calendar,
+  route: "/admin/plannings",
+};
+
 const incidentsMenuItem = {
   id: "incidents",
   label: "Incidents employés",
@@ -123,14 +130,13 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
       try {
         const token = localStorage.getItem("token");
-        if (token) {
-          axiosInstance.defaults.headers.common[
-            "Authorization"
-          ] = `Bearer ${token}`;
-        }
-
-        const response = await axiosInstance.get(
-          `${getEnvVar("VITE_API_URL")}/admin/companies/${user.companyId}`
+        const response = await axios.get(
+          `${getEnvVar("VITE_API_URL")}/companies/me`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
 
         if (response.data.success) {
@@ -153,6 +159,11 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   const dynamicMenuItems = useMemo(() => {
     let items = [...menuItems];
 
+    // Pour les admins, retirer le lien "Plannings" normal
+    if (user?.role === "admin") {
+      items = items.filter((item) => item.id !== "plannings");
+    }
+
     // Ajouter l'entrée "Collaborateurs" avec la route appropriée selon le rôle
     if (user?.role === "directeur") {
       // Pour les directeurs, rediriger vers /director/users
@@ -172,18 +183,15 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       items.splice(1, 0, managerCollaborateurs);
     }
 
-    // Pour les admins, on gère séparément
+    // Pour les admins, on gère séparément - SUPPRESSION du lien Collaborateurs
     if (user?.role === "admin") {
-      // Ajouter l'entrée admin pour les collaborateurs
-      const adminCollaborateurs = {
-        ...collaborateursMenuItem,
-        route: "/admin/users",
-      };
-      // Insérer après le dashboard (index 0)
-      items.splice(1, 0, adminCollaborateurs);
-
-      // Ajouter les autres items spécifiques aux admins
-      items.push(adminMenuItem, companyManagementMenuItem);
+      // Les admins ont directement "Gestion des utilisateurs" au lieu de "Collaborateurs"
+      // Ajouter les items spécifiques aux admins
+      items.push(
+        adminMenuItem,
+        companyManagementMenuItem,
+        adminPlanningMenuItem
+      );
     }
 
     // Ajouter "Incidents employés" après les demandes de congés

@@ -79,11 +79,10 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json({ success: true, data: formattedEmployees });
   } catch (error) {
-    console.error("Erreur récupération employés:", error);
+    console.error("Erreur lors de la récupération des employés:", error);
     return res.status(500).json({
       success: false,
-      message: "Erreur serveur",
-      error: error instanceof Error ? error.message : String(error),
+      message: "Erreur serveur lors de la récupération des employés",
     });
   }
 });
@@ -97,92 +96,37 @@ router.get(
   authenticateToken,
   async (req: Request, res: Response) => {
     const { teamId } = req.params;
-    console.log(
-      `[GET /employees/team/:teamId] Recherche des employés pour l'équipe: ${teamId}`
-    );
 
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
-      console.log(
-        `[GET /employees/team/:teamId] ID d'équipe invalide: ${teamId}`
-      );
       return res
         .status(400)
         .json({ success: false, message: "Identifiant d'équipe invalide" });
     }
 
     try {
-      // Vérifier si l'équipe existe d'abord
-      const team = await TeamModel.findById(teamId).lean();
+      // Récupérer l'équipe pour vérifier son existence
+      const team = await TeamModel.findById(teamId);
       if (!team) {
-        console.log(
-          `[GET /employees/team/:teamId] Équipe non trouvée avec ID: ${teamId}`
-        );
         return res.status(404).json({
           success: false,
           message: "Équipe introuvable",
         });
       }
 
-      console.log(`[GET /employees/team/:teamId] Équipe trouvée: ${team.name}`);
-      console.log(
-        `[GET /employees/team/:teamId] Employés dans l'équipe:`,
-        team.employeeIds ? team.employeeIds.length : 0
-      );
-
-      // D'abord, rechercher les employés qui ont cette équipe comme teamId
-      const employeesByTeamId = await EmployeeModel.find({ teamId })
-        .sort({ lastName: 1, firstName: 1 })
+      // Utiliser la méthode statique pour récupérer les employés de l'équipe
+      const employees = await EmployeeModel.find({ teamId })
+        .populate("userId", "email")
         .lean();
 
-      console.log(
-        `[GET /employees/team/:teamId] Employés trouvés via teamId: ${employeesByTeamId.length}`
-      );
-
-      // Ensuite, rechercher les employés qui sont listés dans employeeIds de l'équipe
-      let employeesByTeamList: any[] = [];
-      if (team.employeeIds && team.employeeIds.length > 0) {
-        employeesByTeamList = await EmployeeModel.find({
-          _id: { $in: team.employeeIds },
-        })
-          .sort({ lastName: 1, firstName: 1 })
-          .lean();
-
-        console.log(
-          `[GET /employees/team/:teamId] Employés trouvés via employeeIds: ${employeesByTeamList.length}`
-        );
-      }
-
-      // Fusionner les deux listes sans doublons
-      const allEmployeeIds = new Set();
-      const allEmployees = [];
-
-      // Ajouter les employés trouvés par teamId
-      for (const emp of employeesByTeamId) {
-        if (!allEmployeeIds.has(emp._id.toString())) {
-          allEmployeeIds.add(emp._id.toString());
-          allEmployees.push(emp);
-        }
-      }
-
-      // Ajouter les employés trouvés par la liste d'employeeIds
-      for (const emp of employeesByTeamList) {
-        if (!allEmployeeIds.has(emp._id.toString())) {
-          allEmployeeIds.add(emp._id.toString());
-          allEmployees.push(emp);
-        }
-      }
-
-      console.log(
-        `[GET /employees/team/:teamId] Total d'employés uniques trouvés: ${allEmployees.length}`
-      );
-
-      return res.status(200).json({ success: true, data: allEmployees });
+      return res.status(200).json({
+        success: true,
+        data: employees,
+      });
     } catch (error) {
-      console.error("[GET /employees/team/:teamId] Erreur:", error);
+      console.error("Erreur lors de la récupération des employés:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur",
-        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -324,10 +268,6 @@ router.post(
   authenticateToken,
   checkRole(["directeur"]),
   async (req: AuthRequest, res: Response) => {
-    console.log(
-      "[POST /employees/create] Début de la création d'un employé ou manager"
-    );
-
     // Extraction des champs de la requête
     const {
       firstName,
@@ -340,30 +280,26 @@ router.post(
       status = "actif",
     } = req.body;
 
-    // Validation des champs obligatoires
+    // Vérification des champs obligatoires
     if (!firstName || !lastName || !email || !role) {
-      console.log("[POST /employees/create] Champs obligatoires manquants");
       return res.status(400).json({
         success: false,
-        message:
-          "Champs obligatoires manquants: firstName, lastName, email et role sont requis",
+        message: "Tous les champs obligatoires doivent être fournis",
       });
     }
 
-    // Validation du rôle (uniquement employé ou manager)
-    if (role !== "employee" && role !== "manager" && role !== "employé") {
-      console.log(`[POST /employees/create] Rôle invalide: ${role}`);
+    // Validation du rôle
+    const validRoles = ["employee", "manager", "directeur"];
+    if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: "Le rôle doit être 'employee' ou 'manager'",
+        message:
+          "Rôle invalide. Valeurs acceptées : employee, manager, directeur",
       });
     }
 
     // Vérification que le directeur a bien un companyId
     if (!req.user?.companyId) {
-      console.log(
-        "[POST /employees/create] CompanyId manquant pour le directeur"
-      );
       return res.status(400).json({
         success: false,
         message: "ID d'entreprise manquant pour le directeur",
@@ -372,21 +308,17 @@ router.post(
 
     // Pour un manager, teamId est obligatoire
     if (role === "manager" && !teamId) {
-      console.log(
-        "[POST /employees/create] TeamId manquant pour la création d'un manager"
-      );
       return res.status(400).json({
         success: false,
         message: "L'ID d'équipe est obligatoire pour créer un manager",
       });
     }
 
-    // Validation de teamId si fourni
+    // Validation de l'ID d'équipe si fourni
     if (teamId && !mongoose.Types.ObjectId.isValid(teamId)) {
-      console.log(`[POST /employees/create] ID d'équipe invalide: ${teamId}`);
       return res.status(400).json({
         success: false,
-        message: "ID d'équipe invalide",
+        message: "L'identifiant d'équipe n'est pas valide",
       });
     }
 
@@ -396,12 +328,8 @@ router.post(
 
     try {
       // Vérifier si l'email existe déjà
-      console.log(
-        `[POST /employees/create] Vérification de l'unicité de l'email: ${email}`
-      );
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
-        console.log(`[POST /employees/create] Email déjà utilisé: ${email}`);
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({
@@ -412,13 +340,9 @@ router.post(
 
       // Si teamId est fourni, vérifier que l'équipe existe et appartient à la même entreprise
       if (teamId) {
-        console.log(
-          `[POST /employees/create] Vérification de l'équipe: ${teamId}`
-        );
         const team = await TeamModel.findById(teamId).lean();
 
         if (!team) {
-          console.log(`[POST /employees/create] Équipe non trouvée: ${teamId}`);
           await session.abortTransaction();
           session.endSession();
           return res.status(404).json({
@@ -429,9 +353,6 @@ router.post(
 
         // Vérifier que l'équipe appartient à la même entreprise que le directeur
         if (team.companyId.toString() !== req.user.companyId.toString()) {
-          console.log(
-            `[POST /employees/create] Tentative d'accès inter-entreprise: équipe ${teamId} (entreprise ${team.companyId}) vs directeur (entreprise ${req.user.companyId})`
-          );
           await session.abortTransaction();
           session.endSession();
           return res.status(403).json({
@@ -445,27 +366,21 @@ router.post(
       // Générer un mot de passe temporaire aléatoire
       const tempPassword = Math.random().toString(36).slice(-8);
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
-      console.log(
-        `[POST /employees/create] Mot de passe temporaire généré et hashé`
-      );
 
       // Normaliser le rôle pour la base de données
       const normalizedRole = role === "employé" ? "employee" : role;
 
       // Créer un nouvel utilisateur
-      console.log(
-        `[POST /employees/create] Création d'un utilisateur avec le rôle: ${normalizedRole}`
-      );
       const newUser = await User.create(
         [
           {
             firstName,
             lastName,
             email,
-            password: hashedPassword, // Utiliser le mot de passe déjà hashé
-            role: normalizedRole, // Utiliser le rôle normalisé (employee ou manager)
+            password: hashedPassword,
+            role: normalizedRole,
             status: "active",
-            isEmailVerified: true, // Bypass car compte créé par un directeur
+            isEmailVerified: true,
             companyId: req.user.companyId,
           },
         ],
@@ -481,15 +396,12 @@ router.post(
           role: newUser[0].role,
           isEmailVerified: newUser[0].isEmailVerified,
         },
-        tempPassword, // Inclure le mot de passe temporaire en clair dans la réponse
+        tempPassword,
       };
 
       // Traitement spécifique selon le rôle
       if (normalizedRole === "employee") {
         // Pour un employé, créer une entrée dans EmployeeModel
-        console.log(
-          `[POST /employees/create] Création d'un employé dans EmployeeModel`
-        );
         const newEmployee = await EmployeeModel.create(
           [
             {
@@ -520,9 +432,6 @@ router.post(
         };
       } else if (normalizedRole === "manager") {
         // Pour un manager, créer une entrée dans EmployeeModel ET l'ajouter à la liste des managers de l'équipe
-        console.log(
-          `[POST /employees/create] Création d'un manager dans EmployeeModel et ajout à l'équipe: ${teamId}`
-        );
 
         // Créer l'entrée dans EmployeeModel
         const newEmployee = await EmployeeModel.create(
@@ -564,10 +473,9 @@ router.post(
         response.team = updatedTeam;
       }
 
-      // Valider la transaction
+      // Valider et committer la transaction
       await session.commitTransaction();
       session.endSession();
-      console.log("[POST /employees/create] Transaction validée avec succès");
 
       return res.status(201).json({
         success: true,

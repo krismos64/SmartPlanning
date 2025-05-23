@@ -1,6 +1,7 @@
 import axios from "axios";
 import { Eye, EyeOff, Key } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { useTheme } from "../components/ThemeProvider";
 import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
@@ -21,6 +22,7 @@ type PasswordForm = {
 const UserProfilePage = () => {
   const { user, refreshUser } = useAuth();
   const { showSuccessToast, showErrorToast, toast, hideToast } = useToast();
+  const { isDarkMode } = useTheme();
 
   // État pour les données utilisateur modifiables
   const [formData, setFormData] = useState({
@@ -60,6 +62,55 @@ const UserProfilePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // Injecter un style global pour forcer les inputs en mode sombre
+  useEffect(() => {
+    const styleId = "dark-mode-inputs-style";
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+
+    if (isDarkMode) {
+      if (!styleElement) {
+        styleElement = document.createElement("style");
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+      styleElement.textContent = `
+        /* Forcer le style des inputs en mode sombre */
+        .dark input[type="text"],
+        .dark input[type="email"],
+        .dark input[type="password"],
+        .dark input[type="tel"],
+        .dark textarea {
+          background-color: #1A2234 !important;
+          color: white !important;
+          border-color: #4a5568 !important;
+          -webkit-text-fill-color: white !important;
+          caret-color: white !important;
+        }
+        
+        /* Styles spécifiques pour l'auto-remplissage WebKit (Chrome, Safari) */
+        .dark input:-webkit-autofill,
+        .dark input:-webkit-autofill:hover,
+        .dark input:-webkit-autofill:focus,
+        .dark input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #1A2234 inset !important;
+          -webkit-text-fill-color: white !important;
+          caret-color: white !important;
+          border-color: #4a5568 !important;
+        }
+      `;
+    } else {
+      if (styleElement) {
+        styleElement.remove();
+      }
+    }
+
+    return () => {
+      if (document.getElementById(styleId)) {
+        document.getElementById(styleId)?.remove();
+      }
+    };
+  }, [isDarkMode]);
+
   // Charger les données du profil utilisateur
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -83,11 +134,13 @@ const UserProfilePage = () => {
         // Récupérer les informations complémentaires (entreprise, équipes)
         if (userData.companyId) {
           try {
-            // Utiliser la route admin/companies pour récupérer les informations de l'entreprise
-            const companyResponse = await api.get(
-              `/admin/companies/${userData.companyId}`
-            );
-            setCompanyName(companyResponse.data.name || "");
+            // Utiliser la route companies/me pour récupérer les informations de l'entreprise
+            const companyResponse = await api.get(`/companies/me`);
+            if (companyResponse.data.success) {
+              setCompanyName(companyResponse.data.data.name || "");
+            } else {
+              setCompanyName(companyResponse.data.name || "");
+            }
           } catch (error) {
             console.error(
               "Erreur lors de la récupération de l'entreprise:",
@@ -483,7 +536,6 @@ const UserProfilePage = () => {
                         required
                         helperText="Votre prénom tel qu'il apparaîtra sur votre profil"
                         className="dark:text-white"
-                        lightMode={true}
                       />
                     </div>
                   </div>
@@ -501,7 +553,6 @@ const UserProfilePage = () => {
                         required
                         helperText="Votre nom de famille tel qu'il apparaîtra sur votre profil"
                         className="dark:text-white"
-                        lightMode={true}
                       />
                     </div>
                   </div>
@@ -522,7 +573,6 @@ const UserProfilePage = () => {
                     required
                     helperText="Votre adresse email professionnelle, utilisée pour vous connecter"
                     className="dark:text-white"
-                    lightMode={true}
                   />
                 </div>
               </div>

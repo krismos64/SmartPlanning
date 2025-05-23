@@ -23,144 +23,99 @@ const router = Router();
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    // 🔐 Vérification de l'authentification
-    if (!req.user || !req.user._id) {
-      console.log("[GET /employees] Utilisateur non authentifié");
-      return res.status(401).json({
-        success: false,
-        message: "Utilisateur non authentifié",
-      });
+    if (
+      !req.user ||
+      (req.user.role !== "manager" &&
+        req.user.role !== "admin" &&
+        req.user.role !== "directeur")
+    ) {
+      return res.status(403).json({ success: false, message: "Accès refusé" });
     }
 
-    // 📋 Log de débogage détaillé
-    console.log("----- DÉBUT DÉBOGAGE GET /EMPLOYEES -----");
-    console.log(
-      "[GET /employees] Utilisateur authentifié:",
-      JSON.stringify(req.user, null, 2)
-    );
-    console.log(`[GET /employees] Rôle original: "${req.user.role}"`);
+    const role = req.user.role.toLowerCase();
+    let employees;
 
-    // 🔄 Normalisation du rôle pour éviter les problèmes de casse
-    const role = req.user.role?.toLowerCase();
-    console.log(`[GET /employees] Rôle normalisé = "${role}"`);
-
-    let employees = [];
-
-    // 🎯 Filtrage par rôle
-    switch (role) {
-      case "admin":
-        // Admin voit tous les employés
-        console.log("[GET /employees] Filtrage pour admin: tous les employés");
-        employees = await EmployeeModel.find({})
-          .populate("userId", "email")
-          .populate("teamId", "name")
-          .lean();
-        break;
-
-      case "directeur":
-        // Directeur voit tous les employés de son entreprise
-        if (!req.user.companyId) {
-          console.log(
-            "[GET /employees] ERREUR: CompanyId manquant pour le directeur"
-          );
-          return res.status(400).json({
-            success: false,
-            message: "CompanyId manquant pour le directeur",
-          });
-        }
-
-        console.log(
-          `[GET /employees] Filtrage pour directeur: employés de l'entreprise ${req.user.companyId}`
-        );
-        employees = await EmployeeModel.find({ companyId: req.user.companyId })
-          .populate("userId", "email")
-          .populate("teamId", "name")
-          .lean();
-        break;
-
-      case "manager":
-        // Manager voit tous les employés des équipes qu'il gère
-        // D'abord, récupérer les équipes gérées par le manager
-        console.log(
-          `[GET /employees] Filtrage pour manager: employés des équipes gérées par ${req.user._id}`
-        );
-        const managedTeams = await TeamModel.find(
-          { managerIds: req.user._id },
-          "_id"
-        );
-        const teamIds = managedTeams.map((team) => team._id);
-
-        if (teamIds.length === 0) {
-          console.log(
-            "[GET /employees] Le manager ne gère aucune équipe, retournant un tableau vide"
-          );
-          return res.status(200).json({
-            success: true,
-            data: [],
-          });
-        }
-
-        employees = await EmployeeModel.find({ teamId: { $in: teamIds } })
-          .populate("userId", "email")
-          .populate("teamId", "name")
-          .lean();
-        break;
-
-      case "employé":
-      case "employée":
-      case "employe":
-      case "employee":
-        // Employé voit uniquement lui-même
-        console.log(
-          `[GET /employees] Filtrage pour employé: uniquement lui-même (${req.user._id})`
-        );
-
-        // Chercher d'abord par userId qui référence l'utilisateur connecté
-        let employee = await EmployeeModel.findOne({ userId: req.user._id })
-          .populate("userId", "email")
-          .populate("teamId", "name")
-          .lean();
-
-        // Si non trouvé, essayer avec _id (si l'employé est directement connecté avec son ID d'employé)
-        if (!employee) {
-          employee = await EmployeeModel.findById(req.user._id)
-            .populate("userId", "email")
-            .populate("teamId", "name")
-            .lean();
-        }
-
-        employees = employee ? [employee] : [];
-        break;
-
-      default:
-        // Rôle non reconnu
-        console.log(
-          `[GET /employees] ERREUR: Rôle non reconnu ou non autorisé: ${role} (original: ${req.user.role})`
-        );
-        return res.status(403).json({
+    if (role === "admin") {
+      employees = await EmployeeModel.find(
+        { status: "actif" },
+        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
+      )
+        .populate("teamId", "name")
+        .sort({ lastName: 1, firstName: 1 })
+        .lean();
+    } else if (role === "directeur") {
+      // Le directeur n'a accès qu'aux employés de son entreprise
+      if (!req.user.companyId) {
+        return res.status(400).json({
           success: false,
-          message: "Rôle non autorisé",
+          message: "ID d'entreprise manquant pour le directeur",
         });
+      }
+
+      employees = await EmployeeModel.find(
+        { companyId: req.user.companyId, status: "actif" },
+        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
+      )
+        .populate("teamId", "name")
+        .sort({ lastName: 1, firstName: 1 })
+        .lean();
+    } else {
+      // Le manager n'a accès qu'aux employés de ses équipes
+      const managerTeams = await TeamModel.find(
+        { managerIds: req.user._id },
+        "_id name"
+      ).lean();
+
+      console.log("🔍 Manager ID:", req.user._id);
+      console.log("🔍 Équipes trouvées pour le manager:", managerTeams);
+
+      const teamIds = managerTeams.map((team) => team._id);
+      console.log("🔍 IDs des équipes:", teamIds);
+
+      employees = await EmployeeModel.find(
+        { teamId: { $in: teamIds }, status: "actif" },
+        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId role"
+      )
+        .populate("teamId", "name managerIds")
+        .populate("userId", "email role")
+        .sort({ lastName: 1, firstName: 1 })
+        .lean();
+
+      console.log(
+        "🔍 Employés trouvés avant enrichissement:",
+        employees.length
+      );
+
+      // Enrichir les données avec l'email depuis userId et le nom du manager
+      employees = employees.map((emp: any) => {
+        const team = managerTeams.find(
+          (t) => t._id.toString() === emp.teamId?._id?.toString()
+        );
+        return {
+          ...emp,
+          email: emp.email || emp.userId?.email,
+          role: emp.role || emp.userId?.role || "employee",
+          teamName: emp.teamId?.name,
+          managerName: "Manager", // Pour l'instant, on peut améliorer cela plus tard
+        };
+      });
+
+      console.log("🔍 Employés après enrichissement:", employees.length);
+      console.log("🔍 Premier employé:", employees[0]);
     }
 
-    // 📊 Log du résultat
-    console.log(
-      `[GET /employees] ${employees.length} employés trouvés pour le rôle ${role}`
-    );
-    console.log("----- FIN DÉBOGAGE GET /EMPLOYEES -----");
+    // Conversion du champ userId en string pour assurer la cohérence dans la réponse API
+    const formattedEmployees = employees.map((emp) => ({
+      ...emp,
+      userId: emp.userId?.toString() || null,
+    }));
 
-    // ✅ Retour des données
-    return res.status(200).json({
-      success: true,
-      data: employees,
-    });
+    return res.status(200).json({ success: true, data: formattedEmployees });
   } catch (error) {
-    // ⚠️ Gestion des erreurs
-    console.error("[GET /employees] Erreur:", error);
+    console.error("Erreur lors de la récupération des employés:", error);
     return res.status(500).json({
       success: false,
       message: "Erreur serveur lors de la récupération des employés",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 });
@@ -173,15 +128,9 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 router.get("/team/:teamId", async (req: Request, res: Response) => {
   try {
     const { teamId } = req.params;
-    console.log(
-      `[GET /employees/team/:teamId] Recherche des employés pour l'équipe: ${teamId}`
-    );
 
     // Vérifier que l'ID d'équipe est un ObjectId valide
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
-      console.log(
-        `[GET /employees/team/:teamId] ID d'équipe invalide: ${teamId}`
-      );
       return res.status(400).json({
         success: false,
         message: "ID d'équipe invalide",
@@ -191,36 +140,26 @@ router.get("/team/:teamId", async (req: Request, res: Response) => {
     // Récupérer l'équipe pour vérifier son existence
     const team = await TeamModel.findById(teamId);
     if (!team) {
-      console.log(
-        `[GET /employees/team/:teamId] Équipe non trouvée: ${teamId}`
-      );
       return res.status(404).json({
         success: false,
         message: "Équipe introuvable",
       });
     }
 
-    console.log(`[GET /employees/team/:teamId] Équipe trouvée: ${team.name}`);
-
     // Utiliser la méthode statique pour récupérer les employés de l'équipe
     const employees = await EmployeeModel.find({ teamId })
       .populate("userId", "email")
       .lean();
-
-    console.log(
-      `[GET /employees/team/:teamId] ${employees.length} employés trouvés`
-    );
 
     return res.status(200).json({
       success: true,
       data: employees,
     });
   } catch (error) {
-    console.error("[GET /employees/team/:teamId] Erreur:", error);
+    console.error("Erreur lors de la récupération des employés:", error);
     return res.status(500).json({
       success: false,
       message: "Erreur serveur lors de la récupération des employés",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 });
@@ -236,31 +175,21 @@ router.get(
   checkRole(["directeur", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
-      // 🔐 Vérification des paramètres
       const { companyId } = req.params;
-      console.log(
-        `[GET /employees/company/:companyId] Recherche des employés pour l'entreprise: ${companyId}`
-      );
 
-      // ✅ Validation de l'identifiant d'entreprise
+      // Validation de l'identifiant d'entreprise
       if (!mongoose.Types.ObjectId.isValid(companyId)) {
-        console.log(
-          `[GET /employees/company/:companyId] ID d'entreprise invalide: ${companyId}`
-        );
         return res.status(400).json({
           success: false,
           message: "ID d'entreprise invalide",
         });
       }
 
-      // 🔄 Normalisation du rôle pour la vérification
+      // Normalisation du rôle pour la vérification
       const role = req.user.role?.toLowerCase();
 
-      // 🔍 Restriction d'accès pour les directeurs (uniquement leur propre entreprise)
+      // Restriction d'accès pour les directeurs (uniquement leur propre entreprise)
       if (role === "directeur" && req.user.companyId !== companyId) {
-        console.log(
-          `[GET /employees/company/:companyId] Tentative d'accès non autorisé: le directeur (${req.user._id}) tente d'accéder à une autre entreprise (${companyId})`
-        );
         return res.status(403).json({
           success: false,
           message:
@@ -268,29 +197,21 @@ router.get(
         });
       }
 
-      // 🧠 Récupération des employés de l'entreprise
-      // Utiliser la méthode statique pour récupérer les employés de l'entreprise
+      // Récupération des employés de l'entreprise
       const employees = await EmployeeModel.find({ companyId })
         .populate("userId", "email")
         .populate("teamId", "name")
         .lean();
 
-      console.log(
-        `[GET /employees/company/:companyId] ${employees.length} employés trouvés pour l'entreprise ${companyId}`
-      );
-
-      // ✅ Retour des données
       return res.status(200).json({
         success: true,
         data: employees,
       });
     } catch (error) {
-      // ⚠️ Gestion des erreurs
-      console.error("[GET /employees/company/:companyId] Erreur:", error);
+      console.error("Erreur lors de la récupération des employés:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la récupération des employés",
-        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
