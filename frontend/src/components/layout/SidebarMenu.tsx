@@ -301,7 +301,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
               className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-500 dark:from-violet-400 dark:to-indigo-300"
               whileHover={{ scale: 1.05 }}
             >
-              {companyData?.name || companyName}
+              Smartplanning
             </motion.span>
           </motion.div>
         </div>

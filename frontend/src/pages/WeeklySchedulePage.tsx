@@ -849,31 +849,29 @@ const WeeklySchedulePage: React.FC = () => {
   };
 
   /**
-   * Ouvre la modal de génération de PDF
+   * Ouvre la modal de génération de PDF ou génère directement le PDF
    */
-  const openPdfModal = (employeeId?: string, teamId?: string) => {
+  const openPdfModal = async (employeeId?: string, teamId?: string) => {
     if (employeeId) {
-      setSelectedEmployeeId(employeeId);
-      // Définir le type par défaut sur "employee" quand un employé est sélectionné
-      setGenerationType("employee");
+      // Génération automatique du PDF pour un employé spécifique
+      await handleGeneratePdf("employee", undefined, employeeId);
     } else if (teamId) {
-      setSelectedTeam(teamId);
-      // Définir le type par défaut sur "team" quand une équipe est sélectionnée
-      setGenerationType("team");
+      // Génération automatique du PDF pour une équipe spécifique
+      await handleGeneratePdf("team", teamId, undefined);
     } else {
-      // Si aucun ID n'est fourni, c'est une génération globale
+      // Si aucun ID n'est fourni, c'est une génération globale - ouvrir la modal
       setGenerationType("all");
+
+      // Log de débogage pour vérifier les valeurs à transmettre
+      console.log("Ouverture du modal PDF avec les paramètres:", {
+        year,
+        weekNumber,
+        selectedEmployeeId,
+        selectedTeam,
+      });
+
+      setIsPdfModalOpen(true);
     }
-
-    // Log de débogage pour vérifier les valeurs à transmettre
-    console.log("Ouverture du modal PDF avec les paramètres:", {
-      year,
-      weekNumber,
-      selectedEmployeeId: employeeId || selectedEmployeeId,
-      selectedTeamId: teamId || selectedTeam,
-    });
-
-    setIsPdfModalOpen(true);
   };
 
   /**
@@ -974,7 +972,7 @@ const WeeklySchedulePage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => openPdfModal("team", team._id)} // Utiliser la fonction openPdfModal
+                onClick={() => openPdfModal(undefined, team._id)} // Corriger l'appel : employeeId=undefined, teamId=team._id
                 className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
                 title="Générer le PDF pour toute l'équipe" // Ajout du titre explicatif
               >
@@ -1358,7 +1356,7 @@ const WeeklySchedulePage: React.FC = () => {
             variant="secondary"
             onClick={goToPreviousWeek}
             icon={<ChevronLeft size={16} />}
-            className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-700"
           >
             Sem. préc.
           </Button>
@@ -1366,7 +1364,7 @@ const WeeklySchedulePage: React.FC = () => {
             size="sm"
             variant="secondary"
             onClick={goToCurrentWeek}
-            className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-700"
           >
             Aujourd'hui
           </Button>
@@ -1375,7 +1373,7 @@ const WeeklySchedulePage: React.FC = () => {
             variant="secondary"
             onClick={goToNextWeek}
             icon={<ChevronRight size={16} />}
-            className="flex flex-row-reverse items-center gap-2 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="flex flex-row-reverse items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-700"
           >
             Sem. suiv.
           </Button>
@@ -1402,8 +1400,8 @@ const WeeklySchedulePage: React.FC = () => {
               icon={<Users size={16} />}
               className={
                 viewMode === "team"
-                  ? "bg-indigo-600 dark:bg-indigo-600 dark:text-white"
-                  : "dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  ? "bg-blue-500 hover:bg-blue-600 text-white shadow-md dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-700"
+                  : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:border-gray-600"
               }
             >
               Par équipe
@@ -1415,8 +1413,8 @@ const WeeklySchedulePage: React.FC = () => {
               icon={<User size={16} />}
               className={
                 viewMode === "employee"
-                  ? "bg-indigo-600 dark:bg-indigo-600 dark:text-white"
-                  : "dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  ? "bg-blue-500 hover:bg-blue-600 text-white shadow-md dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-700"
+                  : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:border-gray-600"
               }
             >
               Par employé
@@ -1541,6 +1539,7 @@ const WeeklySchedulePage: React.FC = () => {
             // Plus besoin d'enrichissement complexe
             generateSchedulePDF(employeeSchedule);
             setSuccess("Le PDF a été généré avec succès pour cet employé");
+            setShowSuccessToast(true);
           } catch (error) {
             handleApiError(error, "génération du PDF");
           }
@@ -1567,6 +1566,7 @@ const WeeklySchedulePage: React.FC = () => {
               false
             );
             setSuccess("Le PDF a été généré avec succès pour cette équipe");
+            setShowSuccessToast(true);
           } else {
             setError("Aucun planning trouvé pour cette équipe");
             setShowErrorToast(true);
@@ -1617,6 +1617,7 @@ const WeeklySchedulePage: React.FC = () => {
             setSuccess(
               "Le PDF a été généré avec succès pour tous les plannings"
             );
+            setShowSuccessToast(true);
           } catch (error) {
             console.error("Erreur lors de la génération du PDF global:", error);
             setError("Une erreur est survenue lors de la génération du PDF");
@@ -1629,8 +1630,6 @@ const WeeklySchedulePage: React.FC = () => {
           setShowErrorToast(true);
         }
       }
-
-      setShowSuccessToast(true);
     } catch (error) {
       console.error("Erreur lors de la génération du PDF:", error);
       setError("Une erreur est survenue lors de la génération du PDF");
@@ -1688,7 +1687,7 @@ const WeeklySchedulePage: React.FC = () => {
             <Button
               onClick={() => navigate("/validation-plannings")}
               variant="primary"
-              className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:brightness-110 transition-all duration-300"
+              className="w-full md:w-auto px-6 py-3 bg-slate-600 hover:bg-slate-700 dark:bg-gradient-to-r dark:from-indigo-500 dark:via-purple-500 dark:to-pink-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:brightness-110 dark:hover:brightness-110 transition-all duration-300"
               icon={<Brain size={18} />}
             >
               Valider les plannings générés par l'IA
@@ -1704,7 +1703,7 @@ const WeeklySchedulePage: React.FC = () => {
             <Button
               onClick={openCreateModal}
               variant="secondary"
-              className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
+              className="w-full md:w-auto px-6 py-3 bg-slate-500 hover:bg-slate-600 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
               icon={<Plus size={18} />}
               title="Créer un nouveau planning hebdomadaire" // Ajout du titre explicatif
             >
@@ -1721,7 +1720,7 @@ const WeeklySchedulePage: React.FC = () => {
             <Button
               onClick={() => openPdfModal()} // Utiliser openPdfModal sans arguments pour la génération globale
               variant="secondary"
-              className="w-full md:w-auto px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
+              className="w-full md:w-auto px-6 py-3 bg-slate-500 hover:bg-slate-600 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
               icon={<FileDown size={18} />}
               title="Générer le PDF de tous les plannings affichés" // Ajout du titre explicatif
             >
@@ -1737,10 +1736,10 @@ const WeeklySchedulePage: React.FC = () => {
           transition={{ duration: 0.5 }}
           className="mb-6"
         >
-          <SectionCard className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950 rounded-2xl border-none shadow-md">
+          <SectionCard className="bg-gradient-to-r from-slate-50 to-gray-100 dark:from-slate-800 dark:to-indigo-950 rounded-2xl border-none shadow-md">
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="flex items-center gap-3 mb-3 md:mb-0">
-                <Calendar className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+                <Calendar className="w-10 h-10 text-slate-600 dark:text-indigo-400" />
                 <div>
                   <h2 className="text-xl font-bold text-gray-800 dark:text-white">
                     Semaine {weekNumber}, {year}
@@ -1754,7 +1753,7 @@ const WeeklySchedulePage: React.FC = () => {
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Plannings créés
                 </span>
-                <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                <span className="text-xl font-bold text-slate-600 dark:text-indigo-400">
                   {schedules.length}
                 </span>
               </div>
@@ -1868,14 +1867,14 @@ const WeeklySchedulePage: React.FC = () => {
           className="w-full max-w-full sm:max-w-[95%] md:max-w-[90%] lg:max-w-[95%] xl:max-w-[98%] 2xl:max-w-[1800px] max-h-[90vh] bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-950 border border-gray-200 dark:border-indigo-500/20 backdrop-blur-xl shadow-xl"
         >
           <div className="px-8 py-6">
-            <div className="mb-8 p-5 bg-blue-50 dark:bg-indigo-900/30 rounded-xl border border-blue-200 dark:border-indigo-500/30 shadow-sm dark:shadow-lg dark:shadow-indigo-500/10">
+            <div className="mb-8 p-5 bg-slate-50 dark:bg-indigo-900/30 rounded-xl border border-slate-200 dark:border-indigo-500/30 shadow-sm dark:shadow-lg dark:shadow-indigo-500/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Calendar
-                    className="text-blue-600 dark:text-indigo-400"
+                    className="text-slate-600 dark:text-indigo-400"
                     size={24}
                   />
-                  <span className="font-medium text-blue-700 dark:text-indigo-300 text-xl bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  <span className="font-medium text-slate-700 dark:text-indigo-300 text-xl bg-gradient-to-r from-slate-600 to-gray-700 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
                     Planification pour: Semaine {weekNumber}, {year} (
                     {getWeekDateRange(year, weekNumber)})
                   </span>
@@ -1917,7 +1916,7 @@ const WeeklySchedulePage: React.FC = () => {
 
               {/* Grille d'horaires intégrée */}
               <div className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-5 pb-2 border-b border-gray-300 dark:border-gray-700/50 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-5 pb-2 border-b border-gray-300 dark:border-gray-700/50 bg-gradient-to-r from-slate-600 to-gray-700 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
                   Horaires de la semaine
                 </h3>
 
@@ -1944,7 +1943,7 @@ const WeeklySchedulePage: React.FC = () => {
                       return (
                         <div
                           key={day}
-                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-gray-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
+                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-slate-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
                         >
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                             <div className="flex items-center gap-2 mb-2 sm:mb-0">
@@ -1966,7 +1965,7 @@ const WeeklySchedulePage: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleAddTimeSlot(day)}
                                 icon={<Plus size={14} />}
-                                className="!bg-blue-600 hover:!bg-blue-700 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 !text-white dark:!text-indigo-300 !border-blue-600 dark:!border-indigo-500/30 hover:!border-blue-700 dark:hover:!border-indigo-400/50"
+                                className="bg-slate-500 hover:bg-slate-600 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 text-white dark:!text-indigo-300 border-slate-500 dark:!border-indigo-500/30 hover:border-slate-600 dark:hover:!border-indigo-400/50"
                               >
                                 Ajouter
                               </Button>
@@ -2001,7 +2000,7 @@ const WeeklySchedulePage: React.FC = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500 focus:border-transparent"
                                       >
                                         {TIME_OPTIONS.filter(
                                           (time) => time < slot.end
@@ -2027,7 +2026,7 @@ const WeeklySchedulePage: React.FC = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500 focus:border-transparent"
                                       >
                                         {TIME_OPTIONS.filter(
                                           (time) => time > slot.start
@@ -2083,7 +2082,7 @@ const WeeklySchedulePage: React.FC = () => {
                               onChange={(e) =>
                                 handleDailyNoteChange(day, e.target.value)
                               }
-                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
                               placeholder={`Notes pour ${DAYS_OF_WEEK[dayIndex]}...`}
                             />
                           </div>
@@ -2117,7 +2116,7 @@ const WeeklySchedulePage: React.FC = () => {
                       return (
                         <div
                           key={day}
-                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-gray-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
+                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-slate-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
                         >
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                             <div className="flex items-center gap-2 mb-2 sm:mb-0">
@@ -2139,7 +2138,7 @@ const WeeklySchedulePage: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleAddTimeSlot(day)}
                                 icon={<Plus size={14} />}
-                                className="!bg-blue-600 hover:!bg-blue-700 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 !text-white dark:!text-indigo-300 !border-blue-600 dark:!border-indigo-500/30 hover:!border-blue-700 dark:hover:!border-indigo-400/50"
+                                className="bg-slate-500 hover:bg-slate-600 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 text-white dark:!text-indigo-300 border-slate-500 dark:!border-indigo-500/30 hover:border-slate-600 dark:hover:!border-indigo-400/50"
                               >
                                 Ajouter
                               </Button>
@@ -2174,7 +2173,7 @@ const WeeklySchedulePage: React.FC = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500 focus:border-transparent"
                                       >
                                         {TIME_OPTIONS.filter(
                                           (time) => time < slot.end
@@ -2200,7 +2199,7 @@ const WeeklySchedulePage: React.FC = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500 focus:border-transparent"
                                       >
                                         {TIME_OPTIONS.filter(
                                           (time) => time > slot.start
@@ -2256,7 +2255,7 @@ const WeeklySchedulePage: React.FC = () => {
                               onChange={(e) =>
                                 handleDailyNoteChange(day, e.target.value)
                               }
-                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
                               placeholder={`Notes pour ${DAYS_OF_WEEK[dayIndex]}...`}
                             />
                           </div>
@@ -2288,7 +2287,7 @@ const WeeklySchedulePage: React.FC = () => {
                       return (
                         <div
                           key={day}
-                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-gray-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
+                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-slate-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
                         >
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                             <div className="flex items-center gap-2 mb-2 sm:mb-0">
@@ -2310,7 +2309,7 @@ const WeeklySchedulePage: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleAddTimeSlot(day)}
                                 icon={<Plus size={14} />}
-                                className="!bg-blue-600 hover:bg-blue-700 dark:bg-indigo-900/50 dark:hover:bg-indigo-800/60 text-white dark:text-indigo-300 border-blue-600 dark:border-indigo-500/30 hover:border-blue-700 dark:hover:border-indigo-400/50"
+                                className="bg-slate-500 hover:bg-slate-600 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 text-white dark:!text-indigo-300 border-slate-500 dark:!border-indigo-500/30 hover:border-slate-600 dark:hover:!border-indigo-400/50"
                               >
                                 Ajouter
                               </Button>
@@ -2345,7 +2344,7 @@ const WeeklySchedulePage: React.FC = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500 focus:border-transparent"
                                       >
                                         {TIME_OPTIONS.filter(
                                           (time) => time < slot.end
@@ -2371,7 +2370,7 @@ const WeeklySchedulePage: React.FC = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500 focus:border-transparent"
                                       >
                                         {TIME_OPTIONS.filter(
                                           (time) => time > slot.start
@@ -2428,7 +2427,7 @@ const WeeklySchedulePage: React.FC = () => {
                               onChange={(e) =>
                                 handleDailyNoteChange(day, e.target.value)
                               }
-                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
                               placeholder={`Notes pour ${DAYS_OF_WEEK[actualDayIndex]}...`}
                             />
                           </div>
@@ -2447,7 +2446,7 @@ const WeeklySchedulePage: React.FC = () => {
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-32"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-slate-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-32"
                   placeholder="Ajouter des notes générales sur ce planning..."
                 />
               </div>
@@ -2457,7 +2456,7 @@ const WeeklySchedulePage: React.FC = () => {
                   type="button"
                   variant="secondary"
                   onClick={closeCreateModal}
-                  className="px-8 py-3 text-base bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white dark:text-white border border-red-600 dark:border-red-700"
+                  className="px-8 py-3 text-base bg-gray-500 hover:bg-gray-600 dark:bg-red-700 dark:hover:bg-red-800 text-white dark:text-white border border-gray-500 dark:border-red-700"
                 >
                   Annuler
                 </Button>
@@ -2467,7 +2466,7 @@ const WeeklySchedulePage: React.FC = () => {
                   isLoading={creatingSchedule}
                   disabled={creatingSchedule || !selectedEmployeeId}
                   icon={isEditMode ? <Check size={20} /> : <Clock size={20} />}
-                  className="px-8 py-3 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-indigo-600 dark:to-purple-600 dark:hover:from-indigo-700 dark:hover:to-purple-700 text-white font-medium shadow-lg shadow-blue-600/20 dark:shadow-indigo-600/20"
+                  className="px-8 py-3 text-base bg-slate-600 hover:bg-slate-700 dark:bg-gradient-to-r dark:from-indigo-600 dark:to-purple-600 dark:hover:from-indigo-700 dark:hover:to-purple-700 text-white font-medium shadow-lg shadow-slate-600/20 dark:shadow-indigo-600/20"
                 >
                   {isEditMode
                     ? "Mettre à jour le planning"

@@ -91,7 +91,7 @@ const getWeekDateRange = (
 };
 
 /**
- * Fonction pour générer un PDF pour un planning individuel
+ * Fonction pour générer un PDF pour un planning individuel - Version minimaliste optimisée
  */
 export const generateSchedulePDF = async (
   schedule: Schedule,
@@ -100,10 +100,7 @@ export const generateSchedulePDF = async (
   // Récupérer le nom d'équipe depuis les données du planning
   const teamName = schedule.teamName || "Non assigné";
 
-  // Récupérer le nom du manager depuis les données du planning
-  const managerName = schedule.managerName || "Non assigné";
-
-  // Initialiser le document PDF - Tous les PDFs sont maintenant en paysage
+  // Initialiser le document PDF en paysage pour optimiser l'espace
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
@@ -112,7 +109,7 @@ export const generateSchedulePDF = async (
 
   // Variables pour le document
   const now = new Date();
-  const formattedDate = format(now, "dd MMMM yyyy", { locale: fr });
+  const formattedDate = format(now, "dd/MM/yyyy", { locale: fr });
   const formattedTime = format(now, "HH:mm", { locale: fr });
 
   // Obtenir les dates de début et de fin de la semaine
@@ -120,84 +117,60 @@ export const generateSchedulePDF = async (
     schedule.year,
     schedule.weekNumber
   );
-  const formattedWeekStart = format(weekStart, "dd MMM", { locale: fr });
-  const formattedWeekEnd = format(weekEnd, "dd MMM yyyy", { locale: fr });
+  const formattedWeekStart = format(weekStart, "dd MMMM", { locale: fr });
+  const formattedWeekEnd = format(weekEnd, "dd MMMM yyyy", { locale: fr });
 
-  // En-tête
+  // === EN-TÊTE MINIMALISTE ===
+  // Titre principal avec couleur professionnelle discrète
   doc.setFontSize(18);
-  doc.setTextColor(44, 62, 80); // Bleu foncé
-  doc.text(companyName, 149, 15, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(45, 55, 72); // Bleu-gris professionnel
+  doc.text("PLANNING HEBDOMADAIRE", 15, 15);
 
-  doc.setFontSize(14);
-  doc.text(
-    `Planning Hebdomadaire - Semaine ${schedule.weekNumber}, ${schedule.year}`,
-    149,
-    25,
-    { align: "center" }
-  );
+  // Ligne de séparation avec couleur discrète
+  doc.setDrawColor(74, 85, 104); // Bleu-gris moyen
+  doc.setLineWidth(0.5);
+  doc.line(15, 20, 282, 20);
 
-  // Ajouter les dates exactes de la semaine
-  doc.setFontSize(12);
-  doc.text(`Du ${formattedWeekStart} au ${formattedWeekEnd}`, 149, 32, {
-    align: "center",
-  });
-
-  // Créer un bloc d'informations stylisé pour les informations de l'employé
+  // === INFORMATIONS EMPLOYÉ (Une ligne compacte) ===
+  const infoY = 28;
   const totalHours = Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
 
-  // Dessiner un fond de couleur claire pour le bloc d'informations
-  doc.setFillColor(240, 245, 255); // Bleu très clair
-  doc.roundedRect(12, 36, 275, 25, 3, 3, "F");
-  doc.setDrawColor(41, 128, 185); // Bordure bleue
-  doc.setLineWidth(0.5);
-  doc.roundedRect(12, 36, 275, 25, 3, 3, "S");
-
-  // Diviser l'espace en deux colonnes
-  const colWidth = 275 / 2;
-
-  // Information sur l'employé (colonne gauche)
-  doc.setFontSize(11);
-  doc.setTextColor(44, 62, 80); // Bleu foncé
-
-  // Ligne 1, colonne 1: Employé
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Employé:", 20, 44);
-  doc.setFont("helvetica", "normal");
-  doc.text(schedule.employeeName, 60, 44);
+  doc.setTextColor(45, 55, 72);
+  doc.text(`${schedule.employeeName}`, 15, infoY);
 
-  // Ligne 2, colonne 1: Équipe
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(75, 85, 99); // Gris professionnel
+  doc.text(`| ${teamName}`, 80, infoY);
+  doc.text(`| Semaine ${schedule.weekNumber}, ${schedule.year}`, 140, infoY);
+  doc.text(`| Du ${formattedWeekStart} au ${formattedWeekEnd}`, 200, infoY);
+
+  // Total hebdomadaire avec couleur accent discrète
   doc.setFont("helvetica", "bold");
-  doc.text("Équipe:", 20, 52);
-  doc.setFont("helvetica", "normal");
-  doc.text(teamName, 60, 52);
+  doc.setTextColor(16, 185, 129); // Vert emeraude discret
+  doc.text(`Total: ${totalHours}h`, 282, infoY, { align: "right" });
 
-  // Ligne 1, colonne 2: Total hebdomadaire
-  doc.setFont("helvetica", "bold");
-  doc.text("Total hebdomadaire:", 150, 44);
-  doc.setFont("helvetica", "normal");
-  doc.text(`${totalHours}h`, 220, 44);
-
-  // Ligne 2, colonne 2: Responsable
-  doc.setFont("helvetica", "bold");
-  doc.text("Responsable:", 150, 52);
-  doc.setFont("helvetica", "normal");
-  doc.text(managerName, 220, 52);
-
-  // Tableau des horaires - Optimisé pour tenir sur une page
+  // === TABLEAU PRINCIPAL OPTIMISÉ ===
   const tableData: Array<any[]> = [];
 
-  // En-têtes du tableau - version compacte pour tenir sur une page
+  // Calculer les dates exactes pour chaque jour
   DAY_KEYS.forEach((day, index) => {
     const dayName = DAYS_OF_WEEK[index];
     const daySlots = schedule.scheduleData[day] || [];
 
-    // Simplifier pour gagner de la place - une ligne par jour
+    // Calculer la date exacte du jour
+    const dayDate = addDays(weekStart, index);
+    const formattedDayDate = format(dayDate, "dd MMM yyyy", { locale: fr });
+
+    // Formatage des créneaux (condensé)
     const slots =
       daySlots.length > 0
         ? daySlots
             .map((slot) => {
               const [start, end] = slot.split("-");
-              return `${formatHourDisplay(start)} - ${formatHourDisplay(end)}`;
+              return `${start}-${end}`;
             })
             .join(", ")
         : "Repos";
@@ -208,69 +181,84 @@ export const generateSchedulePDF = async (
       return total + calculateDuration(start, end);
     }, 0);
 
-    const dayTotalFormatted = formatDuration(dayTotalMinutes);
+    const dayTotalFormatted =
+      dayTotalMinutes > 0 ? formatDuration(dayTotalMinutes) : "-";
 
-    // Une seule ligne par jour avec tous les créneaux
+    // Notes quotidiennes (condensées)
+    const dayNotes = schedule.dailyNotes?.[day] || "";
+    const truncatedNotes =
+      dayNotes.length > 60 ? dayNotes.substring(0, 57) + "..." : dayNotes;
+
     tableData.push([
-      dayName,
+      `${dayName}\n${formattedDayDate}`,
       slots,
       dayTotalFormatted,
-      schedule.dailyNotes?.[day] || "",
+      truncatedNotes || "-",
     ]);
   });
 
-  // Générer le tableau avec autoTable - optimisé pour le paysage et une seule page
+  // Tableau principal avec largeur étendue et polices plus grandes
   autoTable(doc, {
-    head: [["Jour", "Horaires", "Durée", "Notes"]],
+    head: [["JOUR", "HORAIRES", "DURÉE", "NOTES"]],
     body: tableData,
-    startY: 70, // Décaler le tableau vers le bas pour laisser de la place aux nouvelles infos
+    startY: 38, // Retour à la position normale
+    margin: { left: 10, right: 10 }, // Marges réduites pour plus d'espace
+    tableWidth: 277, // Largeur étendue (était 267mm)
     styles: {
-      fontSize: 10,
-      cellPadding: 3,
-      lineColor: [44, 62, 80],
-      lineWidth: 0.1,
-      overflow: "ellipsize",
-      halign: "center",
+      fontSize: 10, // Police augmentée (était 9)
+      cellPadding: 4, // Padding légèrement augmenté
+      lineColor: [148, 163, 184], // Gris-bleu discret
+      lineWidth: 0.3,
       font: "helvetica",
+      textColor: [30, 41, 59], // Bleu-gris foncé
     },
     headStyles: {
-      fillColor: [41, 128, 185],
-      textColor: 255,
+      fillColor: [226, 232, 240], // Gris-bleu très clair
+      textColor: [45, 55, 72], // Bleu-gris professionnel
       fontStyle: "bold",
+      fontSize: 11, // Police en-tête augmentée (était 10)
       halign: "center",
     },
     bodyStyles: {
-      fillColor: [240, 240, 240], // Fond gris clair pour les lignes du corps
-      textColor: [50, 50, 50], // Couleur de texte plus foncée pour une meilleure lisibilité
+      fillColor: [255, 255, 255], // Fond blanc
+      valign: "middle",
     },
     alternateRowStyles: {
-      fillColor: [255, 255, 255], // Fond blanc pour les lignes alternées
+      fillColor: [248, 250, 252], // Gris très très clair avec nuance bleue
     },
     columnStyles: {
-      0: { cellWidth: 25, halign: "center", fillColor: [230, 230, 240] }, // Jour avec fond légèrement différent
-      1: { cellWidth: 90, halign: "center" },
-      2: { cellWidth: 25, halign: "center" },
-      3: { cellWidth: "auto", halign: "left" }, // Notes alignées à gauche pour faciliter la lecture
-    },
-    didDrawCell: function (data) {
-      // Ajuster la hauteur des cellules pour optimiser l'espace
-      if (
-        data.column.index === 3 &&
-        data.cell.text &&
-        data.cell.text.length > 0
-      ) {
-        const textHeight = data.cell.height - data.cell.padding("vertical");
-        if (textHeight < 10) {
-          data.row.height = 10 + data.cell.padding("vertical");
-        }
-      }
+      0: {
+        cellWidth: 55, // Largeur augmentée (était 45)
+        halign: "center",
+        fontStyle: "bold",
+        fontSize: 9, // Police légèrement augmentée (était 8)
+        fillColor: [241, 245, 249], // Gris-bleu très clair pour les jours
+      },
+      1: {
+        cellWidth: 100, // Largeur augmentée (était 80)
+        halign: "center",
+        fontSize: 10, // Police augmentée (était 9)
+      },
+      2: {
+        cellWidth: 35, // Largeur augmentée (était 25)
+        halign: "center",
+        fontStyle: "bold",
+        fontSize: 11, // Police augmentée pour mettre en évidence
+        textColor: [16, 185, 129], // Vert emeraude pour les durées
+      },
+      3: {
+        cellWidth: 87, // Largeur ajustée (était 117)
+        halign: "left",
+        fontSize: 9, // Police légèrement augmentée (était 8)
+        textColor: [75, 85, 99], // Gris professionnel pour les notes
+      },
     },
     didDrawPage: function () {
-      // Ajouter une bordure autour du tableau
+      // Bordure avec couleur professionnelle
       const table = (doc as any).lastAutoTable;
       if (table) {
-        doc.setDrawColor(44, 62, 80); // Même couleur que les lignes
-        doc.setLineWidth(0.3); // Bordure plus épaisse
+        doc.setDrawColor(74, 85, 104); // Bleu-gris moyen
+        doc.setLineWidth(0.5);
         doc.rect(
           table.startX,
           table.startY,
@@ -281,46 +269,54 @@ export const generateSchedulePDF = async (
     },
   });
 
-  // Notes globales - réduites pour tenir sur une page
-  if (schedule.notes && schedule.notes.trim() !== "") {
-    const finalY = (doc as any).lastAutoTable.finalY || 150;
-    if (finalY < 140) {
-      // Seulement si on a de la place
-      doc.setFontSize(10);
-      doc.setTextColor(44, 62, 80);
-      doc.text("Notes générales:", 15, finalY + 10);
+  // === NOTES GÉNÉRALES (si espace disponible) ===
+  const finalY = (doc as any).lastAutoTable.finalY || 160;
 
-      doc.setFontSize(9);
-      doc.setTextColor(52, 73, 94);
-      // Limiter la longueur du texte pour tenir sur une page
-      const maxChars = 200;
-      const truncatedNotes =
-        schedule.notes.length > maxChars
-          ? schedule.notes.substring(0, maxChars) + "..."
-          : schedule.notes;
-      const splitNotes = doc.splitTextToSize(truncatedNotes, 260);
-      doc.text(splitNotes, 15, finalY + 18);
-    }
+  if (schedule.notes && schedule.notes.trim() !== "" && finalY < 180) {
+    // Zone notes avec couleur discrète
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(45, 55, 72); // Bleu-gris professionnel
+    doc.text("Notes générales:", 15, finalY + 8);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(75, 85, 99); // Gris professionnel
+
+    // Limiter la longueur pour tenir sur la page
+    const maxChars = 400;
+    const truncatedNotes =
+      schedule.notes.length > maxChars
+        ? schedule.notes.substring(0, maxChars) + "..."
+        : schedule.notes;
+
+    const splitNotes = doc.splitTextToSize(truncatedNotes, 250);
+    doc.text(splitNotes, 15, finalY + 14);
   }
 
-  // Pied de page avec infos de génération
-  doc.setFontSize(8);
-  doc.setTextColor(127, 140, 141);
-  doc.text(`Généré le ${formattedDate} à ${formattedTime}`, 149, 200, {
-    align: "center",
-  });
+  // === PIED DE PAGE MINIMALISTE ===
+  doc.setDrawColor(148, 163, 184); // Gris-bleu discret
+  doc.setLineWidth(0.3);
+  doc.line(15, 195, 282, 195);
 
-  // Télécharger le PDF
-  doc.save(
-    `Planning_${schedule.employeeName.replace(/\s+/g, "_")}_S${
-      schedule.weekNumber
-    }_${schedule.year}.pdf`
-  );
+  // Informations de génération (discrètes)
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Généré le ${formattedDate} à ${formattedTime}`, 15, 200);
+
+  // Signature discrète avec bonne URL
+  doc.text("smartplanning.fr", 282, 200, { align: "right" });
+
+  // Télécharger le PDF avec nom optimisé
+  const fileName = `Planning_${schedule.employeeName.replace(/\s+/g, "_")}_S${
+    schedule.weekNumber
+  }_${schedule.year}.pdf`;
+  doc.save(fileName);
 };
 
 /**
  * Fonction pour générer un PDF pour l'ensemble des plannings d'une équipe ou des employés sélectionnés
- * Optimisé pour tenir sur une seule page paysage
+ * Design moderne assorti au PDF employé unique
  * @param schedules - Les plannings à inclure dans le PDF
  * @param teamName - Le nom de l'équipe ou "Tous les employés"
  * @param companyName - Le nom de l'entreprise
@@ -343,8 +339,8 @@ export const generateTeamSchedulePDF = (
 
   // Obtenir les dates de début et de fin de la semaine
   const { start: weekStart, end: weekEnd } = getWeekDateRange(year, weekNumber);
-  const formattedWeekStart = format(weekStart, "dd MMM", { locale: fr });
-  const formattedWeekEnd = format(weekEnd, "dd MMM yyyy", { locale: fr });
+  const formattedWeekStart = format(weekStart, "dd MMMM", { locale: fr });
+  const formattedWeekEnd = format(weekEnd, "dd MMMM yyyy", { locale: fr });
 
   // Initialiser le document PDF
   const doc = new jsPDF({
@@ -355,232 +351,225 @@ export const generateTeamSchedulePDF = (
 
   // Variables pour le document
   const now = new Date();
-  const formattedDate = format(now, "dd MMMM yyyy", { locale: fr });
+  const formattedDate = format(now, "dd/MM/yyyy", { locale: fr });
   const formattedTime = format(now, "HH:mm", { locale: fr });
 
-  // En-tête - Optimisé pour l'espace
-  doc.setFontSize(16);
-  doc.setTextColor(44, 62, 80);
-  doc.text(companyName, 149, 15, { align: "center" });
-
-  // Mettre le nom de l'équipe en gras
-  doc.setFontSize(14);
+  // === EN-TÊTE MINIMALISTE ===
+  // Titre principal avec couleur professionnelle discrète
+  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text(`Planning - ${teamName} - Semaine ${weekNumber}, ${year}`, 149, 25, {
-    align: "center",
-  });
-  doc.setFont("helvetica", "normal");
+  doc.setTextColor(45, 55, 72); // Bleu-gris professionnel
+  doc.text("PLANNING D'ÉQUIPE", 15, 15);
 
-  // Ajouter les dates exactes de la semaine
+  // Ligne de séparation avec couleur discrète
+  doc.setDrawColor(74, 85, 104); // Bleu-gris moyen
+  doc.setLineWidth(0.5);
+  doc.line(15, 20, 282, 20);
+
+  // === INFORMATIONS ÉQUIPE (Une ligne compacte) ===
+  const infoY = 28;
+
+  // Calculer le total d'heures de l'équipe
+  const totalTeamMinutes = schedules.reduce(
+    (total, schedule) => total + schedule.totalWeeklyMinutes,
+    0
+  );
+  const totalTeamHours = Math.round((totalTeamMinutes / 60) * 100) / 100;
+
   doc.setFontSize(12);
-  doc.text(`Du ${formattedWeekStart} au ${formattedWeekEnd}`, 149, 32, {
-    align: "center",
-  });
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(45, 55, 72);
+  doc.text(`${teamName}`, 15, infoY);
 
-  doc.setFontSize(10);
-  doc.setTextColor(52, 73, 94);
-  doc.text(`Nombre d'employés: ${schedules.length}`, 15, 40);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(75, 85, 99); // Gris professionnel
+  doc.text(
+    `| ${schedules.length} employé${schedules.length > 1 ? "s" : ""}`,
+    80,
+    infoY
+  );
+  doc.text(`| Semaine ${weekNumber}, ${year}`, 130, infoY);
+
+  // Dates en évidence avec design professionnel
+  const dateText = `Du ${formattedWeekStart} au ${formattedWeekEnd}`;
+  const dateWidth = doc.getTextWidth(dateText) + 10;
+  const dateX = 200;
+
+  // Fond coloré pour les dates
+  doc.setFillColor(226, 232, 240); // Gris-bleu très clair
+  doc.roundedRect(dateX - 2, infoY - 6, dateWidth, 12, 3, 3, "F");
+
+  // Bordure professionnelle
+  doc.setDrawColor(74, 85, 104); // Bleu-gris moyen
+  doc.setLineWidth(0.5);
+  doc.roundedRect(dateX - 2, infoY - 6, dateWidth, 12, 3, 3, "S");
+
+  // Texte des dates en gras
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(45, 55, 72); // Bleu-gris professionnel
+  doc.text(dateText, dateX, infoY);
 
   // Déterminer si nous générons un PDF pour "Tous les employés"
   const isAllEmployees = teamName === "Tous les employés";
 
   // Définir les en-têtes en fonction du mode
   let headers = isAllEmployees
-    ? ["Employé", "Équipe", "Total", ...DAYS_OF_WEEK]
-    : ["Employé", "Total", ...DAYS_OF_WEEK];
+    ? [
+        "EMPLOYÉ",
+        "ÉQUIPE",
+        "TOTAL",
+        "LUN",
+        "MAR",
+        "MER",
+        "JEU",
+        "VEN",
+        "SAM",
+        "DIM",
+      ]
+    : ["EMPLOYÉ", "TOTAL", "LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"];
 
-  // Préparer les données pour le tableau
+  // === TABLEAU PRINCIPAL AVEC DESIGN MODERNE ===
   let tableData: Array<any[]> = [];
-  let tableColors: Array<any> = [];
 
-  // Si on regroupe par équipe, trier d'abord les plannings par équipe
-  if (groupByTeam && isAllEmployees) {
-    // Regrouper les plannings par équipe pour l'affichage
-    const teamGroups: Record<string, Schedule[]> = {};
+  // Mode standard optimisé
+  schedules.forEach((schedule) => {
+    const employeeName = schedule.employeeName;
+    const totalHours =
+      Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
 
-    // Créer les groupes d'équipe
-    schedules.forEach((schedule) => {
-      const teamKey = schedule.teamName || "Non assigné";
-      if (!teamGroups[teamKey]) {
-        teamGroups[teamKey] = [];
-      }
-      teamGroups[teamKey].push(schedule);
+    // Obtenir le nom de l'équipe
+    const employeeTeamName = schedule.teamName || "Non assigné";
+
+    // Créer le tableau de données avec ou sans colonne d'équipe
+    const rowData = isAllEmployees
+      ? [employeeName, employeeTeamName, `${totalHours}h`]
+      : [employeeName, `${totalHours}h`];
+
+    // Ajouter les horaires condensés pour chaque jour
+    DAY_KEYS.forEach((day) => {
+      const daySlots = schedule.scheduleData[day] || [];
+      const timeText =
+        daySlots.length > 0
+          ? daySlots
+              .map((slot) => {
+                const [start, end] = slot.split("-");
+                return `${start}-${end}`;
+              })
+              .join("\n")
+          : "-";
+      rowData.push(timeText);
     });
 
-    // Parcourir chaque groupe d'équipe
-    Object.entries(teamGroups).forEach(
-      ([teamName, teamSchedules], teamIndex) => {
-        // Si ce n'est pas la première équipe, ajouter une ligne d'en-tête d'équipe
-        if (teamIndex > 0) {
-          // Ajouter une ligne vide entre les équipes
-          const emptyRow = Array(headers.length).fill("");
-          tableData.push(emptyRow);
-          tableColors.push({ fillColor: [240, 240, 240] });
-        }
+    tableData.push(rowData);
+  });
 
-        // Ajouter les données pour chaque employé de l'équipe
-        teamSchedules.forEach((schedule, employeeIndex) => {
-          const employeeName = schedule.employeeName;
-          const totalHours =
-            Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
+  // Ajuster la taille de police en fonction du nombre d'employés
+  let fontSize =
+    schedules.length > 20
+      ? 7
+      : schedules.length > 15
+      ? 8
+      : schedules.length > 10
+      ? 9
+      : 10;
 
-          // Créer le tableau de données avec colonne d'équipe
-          const rowData = [employeeName, teamName, `${totalHours}h`];
-
-          // Ajouter les horaires condensés pour chaque jour
-          DAY_KEYS.forEach((day) => {
-            const daySlots = schedule.scheduleData[day] || [];
-            const timeText =
-              daySlots.length > 0
-                ? daySlots
-                    .map((slot) => {
-                      const [start, end] = slot.split("-");
-                      return `${formatHourDisplay(start)}-${formatHourDisplay(
-                        end
-                      )}`;
-                    })
-                    .join("\n")
-                : "-";
-            rowData.push(timeText);
-          });
-
-          tableData.push(rowData);
-
-          // Déterminer la couleur de fond pour ce groupe d'équipe
-          // Alterner les couleurs entre les équipes pour une meilleure visibilité
-          const isEvenTeam = teamIndex % 2 === 0;
-          tableColors.push({
-            fillColor: isEvenTeam ? [255, 255, 255] : [240, 245, 255],
-          });
-        });
-      }
-    );
-  } else {
-    // Mode standard sans regroupement
-    schedules.forEach((schedule) => {
-      const employeeName = schedule.employeeName;
-      const totalHours =
-        Math.round((schedule.totalWeeklyMinutes / 60) * 100) / 100;
-
-      // Obtenir le nom de l'équipe
-      const employeeTeamName = schedule.teamName || "Non assigné";
-
-      // Créer le tableau de données avec ou sans colonne d'équipe
-      const rowData = isAllEmployees
-        ? [employeeName, employeeTeamName, `${totalHours}h`]
-        : [employeeName, `${totalHours}h`];
-
-      // Ajouter les horaires condensés pour chaque jour
-      DAY_KEYS.forEach((day) => {
-        const daySlots = schedule.scheduleData[day] || [];
-        const timeText =
-          daySlots.length > 0
-            ? daySlots
-                .map((slot) => {
-                  const [start, end] = slot.split("-");
-                  return `${formatHourDisplay(start)}-${formatHourDisplay(
-                    end
-                  )}`;
-                })
-                .join("\n")
-            : "-";
-        rowData.push(timeText);
-      });
-
-      tableData.push(rowData);
-    });
-  }
-
-  // Ajuster la taille de police en fonction du nombre d'employés et du mode
-  let fontSize;
-  if (isAllEmployees) {
-    fontSize = schedules.length > 12 ? 6 : schedules.length > 8 ? 7 : 8;
-  } else {
-    fontSize = schedules.length > 15 ? 7 : schedules.length > 10 ? 8 : 9;
-  }
-
-  // Configurer les styles de colonnes selon le mode
-  const columnStyles: Record<string, any> = {
-    0: { fontStyle: "bold", cellWidth: 30, halign: "left" }, // Nom de l'employé aligné à gauche
-  };
+  // Configurer les styles de colonnes selon le mode avec largeurs optimisées
+  const columnStyles: Record<string, any> = {};
 
   if (isAllEmployees) {
-    // Si "Tous les employés", ajouter un style pour la colonne "Équipe"
-    columnStyles[1] = { cellWidth: 25, halign: "left" };
-    columnStyles[2] = { cellWidth: 12, halign: "center" }; // Total
+    // Mode "Tous les employés" avec colonne équipe
+    columnStyles[0] = { cellWidth: 35, halign: "left", fontStyle: "bold" }; // Employé
+    columnStyles[1] = { cellWidth: 25, halign: "left" }; // Équipe
+    columnStyles[2] = {
+      cellWidth: 20,
+      halign: "center",
+      fontStyle: "bold",
+      textColor: [16, 185, 129],
+    }; // Total
+    // Jours de la semaine
+    for (let i = 3; i < 10; i++) {
+      columnStyles[i] = {
+        cellWidth: 25,
+        halign: "center",
+        fontSize: fontSize - 1,
+      };
+    }
   } else {
-    // Sinon, style normal pour la colonne Total
-    columnStyles[1] = { cellWidth: 15, halign: "center" };
+    // Mode équipe simple
+    columnStyles[0] = { cellWidth: 40, halign: "left", fontStyle: "bold" }; // Employé
+    columnStyles[1] = {
+      cellWidth: 25,
+      halign: "center",
+      fontStyle: "bold",
+      textColor: [16, 185, 129],
+    }; // Total
+    // Jours de la semaine
+    for (let i = 2; i < 9; i++) {
+      columnStyles[i] = {
+        cellWidth: 30,
+        halign: "center",
+        fontSize: fontSize - 1,
+      };
+    }
   }
 
-  // Générer le tableau avec autoTable - mode ultra-compact
   autoTable(doc, {
     head: [headers],
     body: tableData,
-    startY: 45,
+    startY: 38,
+    margin: { left: 10, right: 10 }, // Marges réduites pour plus d'espace
+    tableWidth: 277, // Largeur étendue comme le PDF employé
     styles: {
       fontSize: fontSize,
-      cellPadding: 2,
-      lineColor: [44, 62, 80],
-      lineWidth: 0.1,
-      overflow: "ellipsize",
-      valign: "middle",
-      halign: "center", // Alignement centré par défaut
+      cellPadding: 3,
+      lineColor: [148, 163, 184], // Gris-bleu discret
+      lineWidth: 0.3,
       font: "helvetica",
+      textColor: [30, 41, 59], // Bleu-gris foncé
     },
     headStyles: {
-      fillColor: [41, 128, 185],
-      textColor: 255,
+      fillColor: [226, 232, 240], // Gris-bleu très clair
+      textColor: [45, 55, 72], // Bleu-gris professionnel
       fontStyle: "bold",
-      halign: "center", // En-têtes centrés
+      fontSize: fontSize + 1,
+      halign: "center",
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255], // Fond blanc
+      valign: "middle",
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252], // Gris très très clair avec nuance bleue
     },
     columnStyles: columnStyles,
-    // Utiliser des couleurs de fond personnalisées si disponibles
-    bodyStyles:
-      tableColors.length > 0
-        ? undefined
-        : {
-            fillColor: [240, 240, 240], // Fond gris clair pour les lignes du corps
-            textColor: [50, 50, 50], // Couleur de texte plus foncée pour une meilleure lisibilité
-          },
-    // Utiliser des couleurs alternées uniquement si nous n'utilisons pas de couleurs personnalisées
-    alternateRowStyles:
-      tableColors.length > 0
-        ? undefined
-        : {
-            fillColor: [255, 255, 255], // Fond blanc pour les lignes alternées
-          },
-    // Ajuster le traitement des cellules pour économiser de l'espace
-    didParseCell: function (data: any) {
-      // Appliquer une fonte plus petite aux jours avec beaucoup de créneaux
-      if (
-        (isAllEmployees && data.column.index >= 3) ||
-        (!isAllEmployees && data.column.index >= 2)
-      ) {
-        if (data.section === "body") {
-          const content = data.cell.text;
-          if (content && content.length > 30) {
-            data.cell.styles.fontSize = fontSize - 1;
-          }
-        }
-      }
-
-      // Appliquer les couleurs personnalisées pour les lignes
-      if (data.section === "body" && tableColors.length > 0) {
-        const rowIndex = data.row.index;
-        if (tableColors[rowIndex]) {
-          Object.assign(data.cell.styles, tableColors[rowIndex]);
-        }
+    didDrawPage: function () {
+      // Bordure avec couleur professionnelle
+      const table = (doc as any).lastAutoTable;
+      if (table) {
+        doc.setDrawColor(74, 85, 104); // Bleu-gris moyen
+        doc.setLineWidth(0.5);
+        doc.rect(
+          table.startX,
+          table.startY,
+          table.tableWidth,
+          table.finalY - table.startY
+        );
       }
     },
   });
 
-  // Pied de page avec infos de génération
-  doc.setFontSize(8);
-  doc.setTextColor(127, 140, 141);
-  doc.text(`Généré le ${formattedDate} à ${formattedTime}`, 149, 200, {
-    align: "center",
-  });
+  // === PIED DE PAGE MINIMALISTE ===
+  doc.setDrawColor(148, 163, 184); // Gris-bleu discret
+  doc.setLineWidth(0.3);
+  doc.line(15, 195, 282, 195);
+
+  // Informations de génération (discrètes)
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Généré le ${formattedDate} à ${formattedTime}`, 15, 200);
+
+  // Signature discrète avec bonne URL
+  doc.text("smartplanning.fr", 282, 200, { align: "right" });
 
   // Télécharger le PDF
   doc.save(

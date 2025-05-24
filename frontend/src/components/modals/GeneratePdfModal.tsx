@@ -201,8 +201,8 @@ const GeneratePdfModal: React.FC<GeneratePdfModalProps> = ({
                 size="sm"
                 className={`flex items-center justify-center gap-2 ${
                   generationType === "employee"
-                    ? "bg-indigo-600 text-white dark:bg-indigo-700"
-                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                    ? "bg-slate-600 text-white hover:bg-slate-700 dark:bg-indigo-700"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 dark:bg-gray-700 dark:text-gray-200"
                 }`}
                 onClick={() => setGenerationType("employee")}
               >
@@ -216,8 +216,8 @@ const GeneratePdfModal: React.FC<GeneratePdfModalProps> = ({
                 size="sm"
                 className={`flex items-center justify-center gap-2 ${
                   generationType === "team"
-                    ? "bg-indigo-600 text-white dark:bg-indigo-700"
-                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                    ? "bg-slate-600 text-white hover:bg-slate-700 dark:bg-indigo-700"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 dark:bg-gray-700 dark:text-gray-200"
                 }`}
                 onClick={() => setGenerationType("team")}
               >
@@ -231,8 +231,8 @@ const GeneratePdfModal: React.FC<GeneratePdfModalProps> = ({
                 size="sm"
                 className={`flex items-center justify-center gap-2 ${
                   generationType === "all"
-                    ? "bg-indigo-600 text-white dark:bg-indigo-700"
-                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                    ? "bg-slate-600 text-white hover:bg-slate-700 dark:bg-indigo-700"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 dark:bg-gray-700 dark:text-gray-200"
                 }`}
                 onClick={() => setGenerationType("all")}
               >
@@ -327,7 +327,7 @@ const GeneratePdfModal: React.FC<GeneratePdfModalProps> = ({
             type="button"
             variant="secondary"
             onClick={handleClose}
-            className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="bg-gray-200 text-gray-700 hover:bg-gray-300 border-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
           >
             Annuler
           </Button>
@@ -336,7 +336,7 @@ const GeneratePdfModal: React.FC<GeneratePdfModalProps> = ({
             variant="primary"
             onClick={handleGeneratePdf}
             icon={<Printer size={16} />}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium dark:bg-indigo-700 dark:hover:bg-indigo-600"
+            className="bg-slate-600 hover:bg-slate-700 text-white font-medium dark:bg-indigo-700 dark:hover:bg-indigo-600"
             disabled={
               loading ||
               (generationType === "employee" && !selectedEmployeeId) ||
