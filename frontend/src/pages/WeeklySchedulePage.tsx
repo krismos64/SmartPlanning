@@ -1865,7 +1865,7 @@ const WeeklySchedulePage: React.FC = () => {
           title={
             isEditMode ? "Modifier le planning" : "Créer un nouveau planning"
           }
-          className="w-full max-w-[95%] max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-950 border border-indigo-500/20 backdrop-blur-xl"
+          className="w-full max-w-full sm:max-w-[95%] md:max-w-[90%] lg:max-w-[95%] xl:max-w-[98%] 2xl:max-w-[1800px] max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-950 border border-indigo-500/20 backdrop-blur-xl"
         >
           <div className="px-8 py-6">
             <div className="mb-8 p-5 bg-indigo-900/30 rounded-xl border border-indigo-500/30 shadow-lg shadow-indigo-500/10">
@@ -1898,7 +1898,7 @@ const WeeklySchedulePage: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-200 mb-5 pb-2 border-b border-gray-700/50 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   Horaires de la semaine
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 2xl:grid-cols-7 gap-4">
                   {DAY_KEYS.map((day, dayIndex) => {
                     // Calcul de la date du jour en fonction de l'année et la semaine
                     const dayDate = weekDates[day];
