@@ -870,6 +870,388 @@ const CTAButton = styled(motion.button)`
   }
 `;
 
+// Nouveaux composants pour le modal de bienvenue
+const ModalOverlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+`;
+
+const ModalContainer = styled(motion.div)`
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  border-radius: 1.5rem;
+  padding: 2.5rem 2rem;
+  max-width: 650px;
+  width: 100%;
+  max-height: 85vh;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(
+      45deg,
+      #3b82f6,
+      #06b6d4,
+      #10b981,
+      #f59e0b,
+      #ef4444,
+      #8b5cf6,
+      #3b82f6
+    );
+    background-size: 400% 400%;
+    border-radius: 1.5rem;
+    z-index: -1;
+    animation: ${keyframes`
+      0% { 
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg) brightness(1);
+      }
+      25% { 
+        background-position: 100% 50%;
+        filter: hue-rotate(90deg) brightness(1.2);
+      }
+      50% { 
+        background-position: 100% 100%;
+        filter: hue-rotate(180deg) brightness(1);
+      }
+      75% { 
+        background-position: 0% 100%;
+        filter: hue-rotate(270deg) brightness(1.2);
+      }
+      100% { 
+        background-position: 0% 50%;
+        filter: hue-rotate(360deg) brightness(1);
+      }
+    `} 4s ease-in-out infinite;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    border-radius: 1.5rem;
+    z-index: -1;
+  }
+
+  @media (max-width: 576px) {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+    max-height: 90vh;
+  }
+`;
+
+const ScrollableContent = styled.div`
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #3b82f6, #06b6d4);
+    border-radius: 3px;
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, #2563eb, #0891b2);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+  }
+
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 rgba(255, 255, 255, 0.05);
+
+  @media (max-width: 576px) {
+    max-height: 75vh;
+  }
+`;
+
+const ModalContent = styled.div`
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: white;
+`;
+
+const WelcomeTitle = styled(motion.h1)`
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  background: linear-gradient(45deg, #3b82f6, #06b6d4);
+  background-size: 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+
+  @media (max-width: 576px) {
+    font-size: 1.8rem;
+  }
+`;
+
+const WelcomeSubtitle = styled(motion.p)`
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+`;
+
+const CardsContainer = styled(motion.div)`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+`;
+
+const ModalCard = styled(motion.div)`
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: left;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+    transition: left 0.5s ease;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 20px rgba(59, 130, 246, 0.2);
+
+    &::before {
+      left: 100%;
+    }
+  }
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
+
+const CardIcon = styled.div`
+  font-size: 1.8rem;
+  margin-right: 0.8rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+`;
+
+const CardTitle = styled.h3`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+`;
+
+const CardDescription = styled.p`
+  font-size: 0.95rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+`;
+
+const ContactSection = styled(motion.div)`
+  background: rgba(6, 182, 212, 0.05);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin: 2rem 0 1.5rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      transparent,
+      rgba(6, 182, 212, 0.1),
+      transparent
+    );
+    animation: ${keyframes`
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    `} 8s linear infinite;
+    z-index: -1;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    background: rgba(6, 182, 212, 0.05);
+    border-radius: 1rem;
+    z-index: -1;
+  }
+`;
+
+const ContactEmail = styled.div`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #06b6d4;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+`;
+
+const ContactText = styled.p`
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin: 0;
+`;
+
+const ModalButtons = styled.div`
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+`;
+
+const ModalButton = styled(motion.button)`
+  padding: 0.8rem 1.8rem;
+  border: none;
+  border-radius: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.5s ease;
+  }
+
+  &.primary {
+    background: linear-gradient(45deg, #3b82f6, #06b6d4);
+    color: white;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+
+      &::before {
+        left: 100%;
+      }
+    }
+  }
+
+  &.secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-1px);
+      box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
+
+      &::before {
+        left: 100%;
+      }
+    }
+  }
+
+  @media (max-width: 576px) {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+`;
+
+const CloseButton = styled(motion.button)`
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+`;
+
 interface LandingPageProps {}
 
 // Données FAQ pour corriger les placeholders
@@ -945,6 +1327,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   const [visibleBenefits, setVisibleBenefits] = useState<number[]>([]);
   const benefitsRef = useRef<HTMLDivElement | null>(null);
   const [videoPlayed, setVideoPlayed] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
   const scrollToDemo = () => {
     demoRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -954,7 +1337,26 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     setVideoPlayed(true);
   };
 
+  const closeModal = () => {
+    setShowWelcomeModal(false);
+  };
+
+  const handleContactRedirect = () => {
+    setShowWelcomeModal(false);
+    setTimeout(() => {
+      window.location.href = "/contact";
+    }, 300);
+  };
+
   const sectionRef = useRef(null);
+
+  // Données pour l'animation des particules
+  const particles = Array.from({ length: 15 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 3 + 1,
+  }));
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -1112,6 +1514,151 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         </script>
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
       </Helmet>
+
+      {/* Modal de bienvenue */}
+      {showWelcomeModal && (
+        <ModalOverlay
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ModalContainer
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            <CloseButton
+              onClick={closeModal}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              ✕
+            </CloseButton>
+
+            <ScrollableContent>
+              <ModalContent>
+                <WelcomeTitle
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                >
+                  Bienvenue dans l'aventure SmartPlanning ! 🚀
+                </WelcomeTitle>
+
+                <WelcomeSubtitle
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                >
+                  On a quelques petites choses sympas à vous dire avant de
+                  commencer ! 😊
+                </WelcomeSubtitle>
+
+                <CardsContainer
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.6, duration: 0.5 }}
+                >
+                  <ModalCard
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CardHeader>
+                      <CardIcon>🎁</CardIcon>
+                      <CardTitle>Totalement gratuit !</CardTitle>
+                    </CardHeader>
+                    <CardDescription>
+                      Notre version bêta est 100% gratuite. Profitez-en pour
+                      tester toutes les fonctionnalités sans contrainte.
+                    </CardDescription>
+                  </ModalCard>
+
+                  <ModalCard
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CardHeader>
+                      <CardIcon>🔒</CardIcon>
+                      <CardTitle>Sécurité maximum</CardTitle>
+                    </CardHeader>
+                    <CardDescription>
+                      Vos données sont cryptées, sécurisées et conformes RGPD.
+                      Jamais partagées, toujours protégées.
+                    </CardDescription>
+                  </ModalCard>
+
+                  <ModalCard
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CardHeader>
+                      <CardIcon>⚡</CardIcon>
+                      <CardTitle>Lancement imminent</CardTitle>
+                    </CardHeader>
+                    <CardDescription>
+                      Vous êtes en avant-première ! La version officielle arrive
+                      très bientôt avec encore plus de features.
+                    </CardDescription>
+                  </ModalCard>
+
+                  <ModalCard
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CardHeader>
+                      <CardIcon>💎</CardIcon>
+                      <CardTitle>Vos avis comptent</CardTitle>
+                    </CardHeader>
+                    <CardDescription>
+                      On bosse dur pour vous offrir le meilleur outil possible.
+                      Vos retours nous aident à nous améliorer !
+                    </CardDescription>
+                  </ModalCard>
+                </CardsContainer>
+
+                <ContactSection
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                >
+                  <ContactEmail>📧 contact@smartplanning.fr</ContactEmail>
+                  <ContactText>
+                    Pour vos retours, questions, suggestions ou juste pour nous
+                    dire bonjour ! 👋
+                  </ContactText>
+                </ContactSection>
+
+                <ModalButtons>
+                  <ModalButton
+                    className="primary"
+                    onClick={handleContactRedirect}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 1, duration: 0.3 }}
+                  >
+                    💬 Donner mon avis
+                  </ModalButton>
+                  <ModalButton
+                    className="secondary"
+                    onClick={closeModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 1.1, duration: 0.3 }}
+                  >
+                    🚀 Découvrir SmartPlanning
+                  </ModalButton>
+                </ModalButtons>
+              </ModalContent>
+            </ScrollableContent>
+          </ModalContainer>
+        </ModalOverlay>
+      )}
 
       <Header />
 
