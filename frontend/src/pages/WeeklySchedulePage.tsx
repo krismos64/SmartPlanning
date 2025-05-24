@@ -141,6 +141,7 @@ const MONTH_NAMES = [
 ];
 
 // Importer le service de génération de PDF et le modal
+import ComingSoonAIModal from "../components/modals/ComingSoonAIModal";
 import GeneratePdfModal from "../components/modals/GeneratePdfModal";
 import {
   generateSchedulePDF,
@@ -282,6 +283,9 @@ const WeeklySchedulePage: React.FC = () => {
   const [generationType, setGenerationType] = useState<
     "employee" | "team" | "all"
   >("all");
+
+  // État pour le modal IA Coming Soon
+  const [isAIModalOpen, setIsAIModalOpen] = useState<boolean>(false);
 
   // Vérification automatique de l'état d'authentification
   useEffect(() => {
@@ -1685,12 +1689,12 @@ const WeeklySchedulePage: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <Button
-              onClick={() => navigate("/validation-plannings")}
+              onClick={() => setIsAIModalOpen(true)}
               variant="primary"
               className="w-full md:w-auto px-6 py-3 bg-slate-600 hover:bg-slate-700 dark:bg-gradient-to-r dark:from-indigo-500 dark:via-purple-500 dark:to-pink-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:brightness-110 dark:hover:brightness-110 transition-all duration-300"
               icon={<Brain size={18} />}
             >
-              Valider les plannings générés par l'IA
+              Plannings générés par l'IA
             </Button>
           </motion.div>
 
@@ -2727,6 +2731,12 @@ const WeeklySchedulePage: React.FC = () => {
           initialGenerationType={generationType}
           year={year}
           weekNumber={weekNumber}
+        />
+
+        {/* Modal IA Coming Soon */}
+        <ComingSoonAIModal
+          isOpen={isAIModalOpen}
+          onClose={() => setIsAIModalOpen(false)}
         />
       </PageWrapper>
     </LayoutWithSidebar>
