@@ -1865,16 +1865,37 @@ const WeeklySchedulePage: React.FC = () => {
           title={
             isEditMode ? "Modifier le planning" : "Créer un nouveau planning"
           }
-          className="w-full max-w-full sm:max-w-[95%] md:max-w-[90%] lg:max-w-[95%] xl:max-w-[98%] 2xl:max-w-[1800px] max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-950 border border-indigo-500/20 backdrop-blur-xl"
+          className="w-full max-w-full sm:max-w-[95%] md:max-w-[90%] lg:max-w-[95%] xl:max-w-[98%] 2xl:max-w-[1800px] max-h-[90vh] bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-950 border border-gray-200 dark:border-indigo-500/20 backdrop-blur-xl shadow-xl"
         >
           <div className="px-8 py-6">
-            <div className="mb-8 p-5 bg-indigo-900/30 rounded-xl border border-indigo-500/30 shadow-lg shadow-indigo-500/10">
-              <div className="flex items-center gap-3">
-                <Calendar className="text-indigo-400" size={24} />
-                <span className="font-medium text-indigo-300 text-xl bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                  Planification pour: Semaine {weekNumber}, {year} (
-                  {getWeekDateRange(year, weekNumber)})
-                </span>
+            <div className="mb-8 p-5 bg-blue-50 dark:bg-indigo-900/30 rounded-xl border border-blue-200 dark:border-indigo-500/30 shadow-sm dark:shadow-lg dark:shadow-indigo-500/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Calendar
+                    className="text-blue-600 dark:text-indigo-400"
+                    size={24}
+                  />
+                  <span className="font-medium text-blue-700 dark:text-indigo-300 text-xl bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                    Planification pour: Semaine {weekNumber}, {year} (
+                    {getWeekDateRange(year, weekNumber)})
+                  </span>
+                </div>
+
+                {/* Affichage du total d'heures en temps réel */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-lg border border-emerald-200 dark:border-emerald-500/30">
+                  <Clock
+                    className="text-emerald-600 dark:text-emerald-400"
+                    size={20}
+                  />
+                  <div className="text-right">
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      Total semaine
+                    </div>
+                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                      {Math.round((totalWeeklyMinutes / 60) * 100) / 100}h
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1890,201 +1911,553 @@ const WeeklySchedulePage: React.FC = () => {
                   onChange={setSelectedEmployeeId}
                   placeholder="Sélectionner un employé"
                   icon={<Users size={18} />}
+                  className="[&_select]:bg-white [&_select]:dark:bg-gray-800 [&_select]:text-gray-900 [&_select]:dark:text-gray-200 [&_select]:border-gray-300 [&_select]:dark:border-gray-600"
                 />
               </div>
 
               {/* Grille d'horaires intégrée */}
               <div className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-200 mb-5 pb-2 border-b border-gray-700/50 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-5 pb-2 border-b border-gray-300 dark:border-gray-700/50 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
                   Horaires de la semaine
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 2xl:grid-cols-7 gap-4">
-                  {DAY_KEYS.map((day, dayIndex) => {
-                    // Calcul de la date du jour en fonction de l'année et la semaine
-                    const dayDate = weekDates[day];
-                    const formattedDate = format(dayDate, "dd MMM", {
-                      locale: fr,
-                    });
 
-                    // Calcul du temps total pour ce jour avec vérification
-                    const dayTotalMinutes =
-                      scheduleData[day] && Array.isArray(scheduleData[day])
-                        ? scheduleData[day].reduce(
-                            (total, slot) =>
-                              total + calculateDuration(slot.start, slot.end),
-                            0
-                          )
-                        : 0;
+                {/* Mobile et tablette : grille classique */}
+                <div className="block xl:hidden">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {DAY_KEYS.map((day, dayIndex) => {
+                      // Calcul de la date du jour en fonction de l'année et la semaine
+                      const dayDate = weekDates[day];
+                      const formattedDate = format(dayDate, "dd MMM", {
+                        locale: fr,
+                      });
 
-                    return (
-                      <div
-                        key={day}
-                        className="p-4 border border-indigo-500/30 rounded-xl bg-gray-800/50 transition-all hover:shadow-md hover:shadow-indigo-500/20 backdrop-blur-sm"
-                      >
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                          <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                            <span className="font-semibold text-lg text-white">
-                              {DAYS_OF_WEEK[dayIndex]}
-                            </span>
-                            <span className="text-sm text-gray-300 font-medium">
-                              {formattedDate}
-                            </span>
-                          </div>
+                      // Calcul du temps total pour ce jour avec vérification
+                      const dayTotalMinutes =
+                        scheduleData[day] && Array.isArray(scheduleData[day])
+                          ? scheduleData[day].reduce(
+                              (total, slot) =>
+                                total + calculateDuration(slot.start, slot.end),
+                              0
+                            )
+                          : 0;
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-emerald-400">
-                              {formatDuration(dayTotalMinutes)}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleAddTimeSlot(day)}
-                              icon={<Plus size={14} />}
-                              className="bg-indigo-900/50 hover:bg-indigo-800/60 text-indigo-300 border-indigo-500/30 hover:border-indigo-400/50"
-                            >
-                              Ajouter
-                            </Button>
-                          </div>
-                        </div>
+                      return (
+                        <div
+                          key={day}
+                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-gray-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
+                        >
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                            <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                              <span className="font-semibold text-lg text-gray-900 dark:text-white">
+                                {DAYS_OF_WEEK[dayIndex]}
+                              </span>
+                              <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                {formattedDate}
+                              </span>
+                            </div>
 
-                        {/* Liste des créneaux horaires pour ce jour */}
-                        <div className="space-y-2">
-                          {!scheduleData[day] ||
-                          scheduleData[day].length === 0 ? (
-                            <p className="text-sm text-gray-400 italic">
-                              Aucun créneau horaire défini
-                            </p>
-                          ) : (
-                            scheduleData[day].map((slot, slotIndex) => (
-                              <div
-                                key={slotIndex}
-                                className="flex flex-wrap items-center gap-2 p-2 bg-gray-700/50 rounded-lg border border-indigo-500/20"
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-green-600 dark:text-emerald-400">
+                                {formatDuration(dayTotalMinutes)}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleAddTimeSlot(day)}
+                                icon={<Plus size={14} />}
+                                className="!bg-blue-600 hover:!bg-blue-700 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 !text-white dark:!text-indigo-300 !border-blue-600 dark:!border-indigo-500/30 hover:!border-blue-700 dark:hover:!border-indigo-400/50"
                               >
-                                <div className="flex flex-col md:flex-row w-full gap-2">
-                                  <div className="flex flex-row items-center gap-2 flex-1">
-                                    <label className="text-xs text-gray-300 w-10">
-                                      Début
-                                    </label>
-                                    <select
-                                      value={slot.start}
-                                      onChange={(e) =>
-                                        handleTimeSlotChange(
-                                          day,
-                                          slotIndex,
-                                          "start",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="flex-1 px-3 py-2 rounded border border-indigo-500/30 bg-gray-800 text-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    >
-                                      {TIME_OPTIONS.filter(
-                                        (time) => time < slot.end
-                                      ).map((time) => (
-                                        <option key={time} value={time}>
-                                          {time}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
+                                Ajouter
+                              </Button>
+                            </div>
+                          </div>
 
-                                  <div className="flex flex-row items-center gap-2 flex-1">
-                                    <label className="text-xs text-gray-300 w-10">
-                                      Fin
-                                    </label>
-                                    <select
-                                      value={slot.end}
-                                      onChange={(e) =>
-                                        handleTimeSlotChange(
-                                          day,
-                                          slotIndex,
-                                          "end",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="flex-1 px-3 py-2 rounded border border-indigo-500/30 bg-gray-800 text-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                    >
-                                      {TIME_OPTIONS.filter(
-                                        (time) => time > slot.start
-                                      ).map((time) => (
-                                        <option key={time} value={time}>
-                                          {time}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
+                          {/* Liste des créneaux horaires pour ce jour */}
+                          <div className="space-y-2">
+                            {!scheduleData[day] ||
+                            scheduleData[day].length === 0 ? (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                Aucun créneau horaire défini
+                              </p>
+                            ) : (
+                              scheduleData[day].map((slot, slotIndex) => (
+                                <div
+                                  key={slotIndex}
+                                  className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-indigo-500/20 shadow-sm"
+                                >
+                                  <div className="flex flex-col md:flex-row w-full gap-2">
+                                    <div className="flex flex-row items-center gap-2 flex-1">
+                                      <label className="text-xs text-gray-600 dark:text-gray-300 w-10">
+                                        Début
+                                      </label>
+                                      <select
+                                        value={slot.start}
+                                        onChange={(e) =>
+                                          handleTimeSlotChange(
+                                            day,
+                                            slotIndex,
+                                            "start",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                      >
+                                        {TIME_OPTIONS.filter(
+                                          (time) => time < slot.end
+                                        ).map((time) => (
+                                          <option key={time} value={time}>
+                                            {time}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
 
-                                  <div className="flex items-center">
-                                    <span className="text-xs font-medium text-emerald-400 mr-2">
-                                      {Math.round(
-                                        (calculateDuration(
-                                          slot.start,
-                                          slot.end
-                                        ) /
-                                          60) *
-                                          100
-                                      ) / 100}
-                                      h
-                                    </span>
+                                    <div className="flex flex-row items-center gap-2 flex-1">
+                                      <label className="text-xs text-gray-600 dark:text-gray-300 w-10">
+                                        Fin
+                                      </label>
+                                      <select
+                                        value={slot.end}
+                                        onChange={(e) =>
+                                          handleTimeSlotChange(
+                                            day,
+                                            slotIndex,
+                                            "end",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                      >
+                                        {TIME_OPTIONS.filter(
+                                          (time) => time > slot.start
+                                        ).map((time) => (
+                                          <option key={time} value={time}>
+                                            {time}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
 
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      size="sm"
-                                      className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/30 border-red-500/30 p-2 rounded-full"
-                                      onClick={() =>
-                                        handleRemoveTimeSlot(day, slotIndex)
-                                      }
-                                      icon={<Trash size={16} />}
-                                    >
-                                      <span className="sr-only">Supprimer</span>
-                                    </Button>
+                                    <div className="flex items-center">
+                                      <span className="text-xs font-medium text-green-600 dark:text-emerald-400 mr-2">
+                                        {Math.round(
+                                          (calculateDuration(
+                                            slot.start,
+                                            slot.end
+                                          ) /
+                                            60) *
+                                            100
+                                        ) / 100}
+                                        h
+                                      </span>
+
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 border-red-200 dark:border-red-500/30 p-2 rounded-full"
+                                        onClick={() =>
+                                          handleRemoveTimeSlot(day, slotIndex)
+                                        }
+                                        icon={<Trash size={16} />}
+                                      >
+                                        <span className="sr-only">
+                                          Supprimer
+                                        </span>
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
+                              ))
+                            )}
+                          </div>
 
-                        {/* Notes pour ce jour */}
-                        <div className="mt-2">
-                          <label className="text-xs text-gray-300">
-                            Notes pour {DAYS_OF_WEEK[dayIndex]} (optionnel)
-                          </label>
-                          <textarea
-                            value={dailyNotes[day] || ""}
-                            onChange={(e) =>
-                              handleDailyNoteChange(day, e.target.value)
-                            }
-                            className="w-full mt-1 px-3 py-2 rounded border border-indigo-500/30 bg-gray-800/50 text-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
-                            placeholder={`Notes pour ${DAYS_OF_WEEK[dayIndex]}...`}
-                          />
+                          {/* Notes pour ce jour */}
+                          <div className="mt-2">
+                            <label className="text-xs text-gray-600 dark:text-gray-300">
+                              Notes pour {DAYS_OF_WEEK[dayIndex]} (optionnel)
+                            </label>
+                            <textarea
+                              value={dailyNotes[day] || ""}
+                              onChange={(e) =>
+                                handleDailyNoteChange(day, e.target.value)
+                              }
+                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                              placeholder={`Notes pour ${DAYS_OF_WEEK[dayIndex]}...`}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Desktop XL+ : deux lignes */}
+                <div className="hidden xl:block">
+                  {/* Première ligne : Lundi, Mardi, Mercredi */}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    {DAY_KEYS.slice(0, 3).map((day, dayIndex) => {
+                      // Calcul de la date du jour en fonction de l'année et la semaine
+                      const dayDate = weekDates[day];
+                      const formattedDate = format(dayDate, "dd MMM", {
+                        locale: fr,
+                      });
+
+                      // Calcul du temps total pour ce jour avec vérification
+                      const dayTotalMinutes =
+                        scheduleData[day] && Array.isArray(scheduleData[day])
+                          ? scheduleData[day].reduce(
+                              (total, slot) =>
+                                total + calculateDuration(slot.start, slot.end),
+                              0
+                            )
+                          : 0;
+
+                      return (
+                        <div
+                          key={day}
+                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-gray-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
+                        >
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                            <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                              <span className="font-semibold text-lg text-gray-900 dark:text-white">
+                                {DAYS_OF_WEEK[dayIndex]}
+                              </span>
+                              <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                {formattedDate}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-green-600 dark:text-emerald-400">
+                                {formatDuration(dayTotalMinutes)}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleAddTimeSlot(day)}
+                                icon={<Plus size={14} />}
+                                className="!bg-blue-600 hover:!bg-blue-700 dark:!bg-indigo-900/50 dark:hover:!bg-indigo-800/60 !text-white dark:!text-indigo-300 !border-blue-600 dark:!border-indigo-500/30 hover:!border-blue-700 dark:hover:!border-indigo-400/50"
+                              >
+                                Ajouter
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Liste des créneaux horaires pour ce jour */}
+                          <div className="space-y-2">
+                            {!scheduleData[day] ||
+                            scheduleData[day].length === 0 ? (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                Aucun créneau horaire défini
+                              </p>
+                            ) : (
+                              scheduleData[day].map((slot, slotIndex) => (
+                                <div
+                                  key={slotIndex}
+                                  className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-indigo-500/20 shadow-sm"
+                                >
+                                  <div className="flex flex-col md:flex-row w-full gap-2">
+                                    <div className="flex flex-row items-center gap-2 flex-1">
+                                      <label className="text-xs text-gray-600 dark:text-gray-300 w-10">
+                                        Début
+                                      </label>
+                                      <select
+                                        value={slot.start}
+                                        onChange={(e) =>
+                                          handleTimeSlotChange(
+                                            day,
+                                            slotIndex,
+                                            "start",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                      >
+                                        {TIME_OPTIONS.filter(
+                                          (time) => time < slot.end
+                                        ).map((time) => (
+                                          <option key={time} value={time}>
+                                            {time}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="flex flex-row items-center gap-2 flex-1">
+                                      <label className="text-xs text-gray-600 dark:text-gray-300 w-10">
+                                        Fin
+                                      </label>
+                                      <select
+                                        value={slot.end}
+                                        onChange={(e) =>
+                                          handleTimeSlotChange(
+                                            day,
+                                            slotIndex,
+                                            "end",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                      >
+                                        {TIME_OPTIONS.filter(
+                                          (time) => time > slot.start
+                                        ).map((time) => (
+                                          <option key={time} value={time}>
+                                            {time}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="flex items-center">
+                                      <span className="text-xs font-medium text-green-600 dark:text-emerald-400 mr-2">
+                                        {Math.round(
+                                          (calculateDuration(
+                                            slot.start,
+                                            slot.end
+                                          ) /
+                                            60) *
+                                            100
+                                        ) / 100}
+                                        h
+                                      </span>
+
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 border-red-200 dark:border-red-500/30 p-2 rounded-full"
+                                        onClick={() =>
+                                          handleRemoveTimeSlot(day, slotIndex)
+                                        }
+                                        icon={<Trash size={16} />}
+                                      >
+                                        <span className="sr-only">
+                                          Supprimer
+                                        </span>
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Notes pour ce jour */}
+                          <div className="mt-2">
+                            <label className="text-xs text-gray-600 dark:text-gray-300">
+                              Notes pour {DAYS_OF_WEEK[dayIndex]} (optionnel)
+                            </label>
+                            <textarea
+                              value={dailyNotes[day] || ""}
+                              onChange={(e) =>
+                                handleDailyNoteChange(day, e.target.value)
+                              }
+                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                              placeholder={`Notes pour ${DAYS_OF_WEEK[dayIndex]}...`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Deuxième ligne : Jeudi, Vendredi, Samedi, Dimanche */}
+                  <div className="grid grid-cols-4 gap-4">
+                    {DAY_KEYS.slice(3, 7).map((day, dayIndex) => {
+                      const actualDayIndex = dayIndex + 3; // Ajuster l'index pour les jours 4-7
+                      // Calcul de la date du jour en fonction de l'année et la semaine
+                      const dayDate = weekDates[day];
+                      const formattedDate = format(dayDate, "dd MMM", {
+                        locale: fr,
+                      });
+
+                      // Calcul du temps total pour ce jour avec vérification
+                      const dayTotalMinutes =
+                        scheduleData[day] && Array.isArray(scheduleData[day])
+                          ? scheduleData[day].reduce(
+                              (total, slot) =>
+                                total + calculateDuration(slot.start, slot.end),
+                              0
+                            )
+                          : 0;
+
+                      return (
+                        <div
+                          key={day}
+                          className="p-4 border border-gray-300 dark:border-indigo-500/30 rounded-xl bg-gray-50 dark:bg-gray-800/50 transition-all hover:shadow-md hover:shadow-gray-300 dark:hover:shadow-indigo-500/20 backdrop-blur-sm"
+                        >
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                            <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                              <span className="font-semibold text-lg text-gray-900 dark:text-white">
+                                {DAYS_OF_WEEK[actualDayIndex]}
+                              </span>
+                              <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                {formattedDate}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-green-600 dark:text-emerald-400">
+                                {formatDuration(dayTotalMinutes)}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleAddTimeSlot(day)}
+                                icon={<Plus size={14} />}
+                                className="!bg-blue-600 hover:bg-blue-700 dark:bg-indigo-900/50 dark:hover:bg-indigo-800/60 text-white dark:text-indigo-300 border-blue-600 dark:border-indigo-500/30 hover:border-blue-700 dark:hover:border-indigo-400/50"
+                              >
+                                Ajouter
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Liste des créneaux horaires pour ce jour */}
+                          <div className="space-y-2">
+                            {!scheduleData[day] ||
+                            scheduleData[day].length === 0 ? (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                Aucun créneau horaire défini
+                              </p>
+                            ) : (
+                              scheduleData[day].map((slot, slotIndex) => (
+                                <div
+                                  key={slotIndex}
+                                  className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-indigo-500/20 shadow-sm"
+                                >
+                                  <div className="flex flex-col md:flex-row w-full gap-2">
+                                    <div className="flex flex-row items-center gap-2 flex-1">
+                                      <label className="text-xs text-gray-600 dark:text-gray-300 w-10">
+                                        Début
+                                      </label>
+                                      <select
+                                        value={slot.start}
+                                        onChange={(e) =>
+                                          handleTimeSlotChange(
+                                            day,
+                                            slotIndex,
+                                            "start",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                      >
+                                        {TIME_OPTIONS.filter(
+                                          (time) => time < slot.end
+                                        ).map((time) => (
+                                          <option key={time} value={time}>
+                                            {time}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="flex flex-row items-center gap-2 flex-1">
+                                      <label className="text-xs text-gray-600 dark:text-gray-300 w-10">
+                                        Fin
+                                      </label>
+                                      <select
+                                        value={slot.end}
+                                        onChange={(e) =>
+                                          handleTimeSlotChange(
+                                            day,
+                                            slotIndex,
+                                            "end",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm font-medium focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500 focus:border-transparent"
+                                      >
+                                        {TIME_OPTIONS.filter(
+                                          (time) => time > slot.start
+                                        ).map((time) => (
+                                          <option key={time} value={time}>
+                                            {time}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="flex items-center">
+                                      <span className="text-xs font-medium text-green-600 dark:text-emerald-400 mr-2">
+                                        {Math.round(
+                                          (calculateDuration(
+                                            slot.start,
+                                            slot.end
+                                          ) /
+                                            60) *
+                                            100
+                                        ) / 100}
+                                        h
+                                      </span>
+
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 border-red-200 dark:border-red-500/30 p-2 rounded-full"
+                                        onClick={() =>
+                                          handleRemoveTimeSlot(day, slotIndex)
+                                        }
+                                        icon={<Trash size={16} />}
+                                      >
+                                        <span className="sr-only">
+                                          Supprimer
+                                        </span>
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Notes pour ce jour */}
+                          <div className="mt-2">
+                            <label className="text-xs text-gray-600 dark:text-gray-300">
+                              Notes pour {DAYS_OF_WEEK[actualDayIndex]}{" "}
+                              (optionnel)
+                            </label>
+                            <textarea
+                              value={dailyNotes[day] || ""}
+                              onChange={(e) =>
+                                handleDailyNoteChange(day, e.target.value)
+                              }
+                              className="w-full mt-1 px-3 py-2 rounded border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-20"
+                              placeholder={`Notes pour ${DAYS_OF_WEEK[actualDayIndex]}...`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
               {/* Notes générales */}
               <div className="mb-8">
-                <label className="block text-gray-200 mb-2">
+                <label className="block text-gray-800 dark:text-gray-200 mb-2">
                   Notes générales (optionnel)
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-indigo-500/30 bg-gray-800/50 text-gray-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent resize-none h-32"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800/50 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500/50 focus:border-transparent resize-none h-32"
                   placeholder="Ajouter des notes générales sur ce planning..."
                 />
               </div>
 
-              <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-gray-900/80 backdrop-blur-md border-t border-indigo-500/20 p-4 mt-6 shadow-lg rounded-b-lg z-10">
+              <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-white/90 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-300 dark:border-indigo-500/20 p-4 mt-6 shadow-lg rounded-b-lg z-10">
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={closeCreateModal}
-                  className="px-8 py-3 text-base bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600"
+                  className="px-8 py-3 text-base bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white dark:text-white border border-red-600 dark:border-red-700"
                 >
                   Annuler
                 </Button>
@@ -2094,7 +2467,7 @@ const WeeklySchedulePage: React.FC = () => {
                   isLoading={creatingSchedule}
                   disabled={creatingSchedule || !selectedEmployeeId}
                   icon={isEditMode ? <Check size={20} /> : <Clock size={20} />}
-                  className="px-8 py-3 text-base bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium shadow-lg shadow-indigo-600/20"
+                  className="px-8 py-3 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-indigo-600 dark:to-purple-600 dark:hover:from-indigo-700 dark:hover:to-purple-700 text-white font-medium shadow-lg shadow-blue-600/20 dark:shadow-indigo-600/20"
                 >
                   {isEditMode
                     ? "Mettre à jour le planning"
