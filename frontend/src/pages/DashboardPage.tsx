@@ -41,7 +41,7 @@ const DashboardPage: React.FC = () => {
 
     switch (user.role) {
       case "directeur":
-        return "/director/users";
+        return "/collaborateurs";
       case "manager":
         return "/employees";
       case "admin":

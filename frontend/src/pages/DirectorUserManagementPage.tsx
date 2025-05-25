@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
+import ManageTeamsModal from "../components/modals/ManageTeamsModal";
 import Button from "../components/ui/Button";
 import FileUpload from "../components/ui/FileUpload";
 import FilterBar from "../components/ui/FilterBar";
@@ -37,6 +38,13 @@ interface CreateUserFormData {
   role: string;
   teamId: string;
   photoUrl: string;
+}
+
+interface ModalTeam {
+  _id: string;
+  name: string;
+  companyId: string;
+  managerId: string;
 }
 
 /**
@@ -106,6 +114,9 @@ const DirectorUserManagementPage: React.FC = () => {
   // État pour le mot de passe temporaire généré
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [updatingUser, setUpdatingUser] = useState<boolean>(false);
+
+  // États pour la gestion des équipes
+  const [isTeamsModalOpen, setIsTeamsModalOpen] = useState<boolean>(false);
 
   // Vérification que l'utilisateur est un directeur
   useEffect(() => {
@@ -674,8 +685,29 @@ const DirectorUserManagementPage: React.FC = () => {
           )}
         </div>
 
-        {/* Bouton pour ouvrir le formulaire de création */}
-        <div className="flex-shrink-0">
+        {/* Boutons d'actions */}
+        <div className="flex-shrink-0 flex gap-2">
+          <Button
+            variant="primary"
+            onClick={() => setIsTeamsModalOpen(true)}
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 dark:border-blue-600 dark:hover:border-blue-700"
+          >
+            Gérer les équipes
+          </Button>
           <Button
             variant="primary"
             onClick={() => setIsCreateModalOpen(true)}
@@ -793,9 +825,10 @@ const DirectorUserManagementPage: React.FC = () => {
                       <td className="px-4 py-3">
                         <div className="flex space-x-2">
                           <Button
-                            variant="secondary"
+                            variant="primary"
                             size="sm"
                             onClick={() => initEditForm(user)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 dark:border-blue-600 dark:hover:border-blue-700"
                           >
                             Modifier
                           </Button>
@@ -884,9 +917,9 @@ const DirectorUserManagementPage: React.FC = () => {
 
                   <div className="flex space-x-2">
                     <Button
-                      variant="secondary"
+                      variant="primary"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 dark:border-blue-600 dark:hover:border-blue-700"
                       onClick={() => initEditForm(user)}
                     >
                       Modifier
@@ -1387,6 +1420,35 @@ const DirectorUserManagementPage: React.FC = () => {
         type={toast.type}
         isVisible={toast.isVisible}
         onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+      />
+
+      {/* Modal de gestion des équipes */}
+      <ManageTeamsModal
+        isOpen={isTeamsModalOpen}
+        onClose={() => setIsTeamsModalOpen(false)}
+        teams={teams.map(
+          (team: Team): ModalTeam => ({
+            _id: team._id,
+            name: team.name,
+            companyId: team.companyId,
+            managerId: user?._id || "",
+          })
+        )}
+        onTeamsUpdated={(newTeams: ModalTeam[]) => {
+          // Convertir de nouveau vers le type Team local
+          const convertedTeams: Team[] = newTeams.map((team) => ({
+            _id: team._id,
+            name: team.name,
+            companyId: team.companyId,
+          }));
+          setTeams(convertedTeams);
+          setToast({
+            message: "Équipes mises à jour avec succès",
+            type: "success",
+            isVisible: true,
+          });
+        }}
+        companyId={user?.companyId || ""}
       />
     </div>
   );
