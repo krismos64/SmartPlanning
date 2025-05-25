@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
@@ -6,6 +7,7 @@ import checkRole from "../middlewares/checkRole.middleware";
 import EmployeeModel from "../models/Employee.model";
 import { TeamModel } from "../models/Team.model";
 import User from "../models/User.model";
+import { sendEmployeeWelcomeEmail } from "../utils/email";
 
 const router = express.Router();
 
@@ -410,45 +412,37 @@ router.post(
         }
       }
 
-      // Générer un mot de passe temporaire aléatoire
-      const tempPassword = Math.random().toString(36).slice(-8);
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
       // Normaliser le rôle pour la base de données
       const normalizedRole = role === "employé" ? "employee" : role;
 
-      // Créer un nouvel utilisateur
-      const newUser = await User.create(
-        [
-          {
-            firstName,
-            lastName,
-            email,
-            password: hashedPassword,
-            role: normalizedRole,
-            status: "active",
-            isEmailVerified: true,
-            companyId,
-          },
-        ],
-        { session }
-      );
-
-      let response: any = {
-        user: {
-          _id: newUser[0]._id,
-          firstName: newUser[0].firstName,
-          lastName: newUser[0].lastName,
-          email: newUser[0].email,
-          role: newUser[0].role,
-          isEmailVerified: newUser[0].isEmailVerified,
-        },
-        tempPassword,
-      };
-
-      // Traitement spécifique selon le rôle
+      // Pour les employés, créer un utilisateur sans mot de passe et envoyer un email de bienvenue
       if (normalizedRole === "employee") {
-        // Pour un employé, créer une entrée dans EmployeeModel
+        // Générer un token de création de mot de passe
+        const createPasswordToken = crypto.randomBytes(32).toString("hex");
+        const createPasswordTokenHash = crypto
+          .createHash("sha256")
+          .update(createPasswordToken)
+          .digest("hex");
+
+        // Créer un nouvel utilisateur sans mot de passe
+        const newUser = await User.create(
+          [
+            {
+              firstName,
+              lastName,
+              email,
+              role: normalizedRole,
+              status: "active",
+              isEmailVerified: false, // Sera vérifié lors de la création du mot de passe
+              companyId,
+              resetPasswordToken: createPasswordTokenHash, // Réutiliser ce champ pour le token de création
+              resetPasswordExpire: new Date(Date.now() + 7 * 24 * 3600000), // 7 jours
+            },
+          ],
+          { session }
+        );
+
+        // Créer l'employé associé
         const newEmployee = await EmployeeModel.create(
           [
             {
@@ -466,77 +460,131 @@ router.post(
           { session }
         );
 
-        response.employee = {
-          _id: newEmployee[0]._id,
-          firstName: newEmployee[0].firstName,
-          lastName: newEmployee[0].lastName,
-          email: newEmployee[0].email,
-          teamId: newEmployee[0].teamId,
-          companyId: newEmployee[0].companyId,
-          contractHoursPerWeek: newEmployee[0].contractHoursPerWeek,
-          status: newEmployee[0].status,
-          userId: newEmployee[0].userId,
-        };
-      } else if (normalizedRole === "manager") {
-        // Pour un manager, créer une entrée dans EmployeeModel ET l'ajouter à la liste des managers de l'équipe
+        // Envoyer l'email de bienvenue avec le lien de création de mot de passe
+        const frontendBaseUrl =
+          process.env.FRONTEND_URL || "http://localhost:3000";
+        const createPasswordUrl = `${frontendBaseUrl}/create-password?token=${createPasswordToken}&email=${email}`;
 
-        // Créer l'entrée dans EmployeeModel
-        const newEmployee = await EmployeeModel.create(
+        try {
+          await sendEmployeeWelcomeEmail(email, firstName, createPasswordUrl);
+          console.log(`📧 Email de bienvenue envoyé à ${email}`);
+        } catch (emailError) {
+          console.error(
+            "Erreur lors de l'envoi de l'email de bienvenue:",
+            emailError
+          );
+          // Ne pas faire échouer la création de l'employé pour un problème d'email
+        }
+
+        let response: any = {
+          user: {
+            _id: newUser[0]._id,
+            firstName: newUser[0].firstName,
+            lastName: newUser[0].lastName,
+            email: newUser[0].email,
+            role: newUser[0].role,
+            isEmailVerified: newUser[0].isEmailVerified,
+          },
+          employee: {
+            _id: newEmployee[0]._id,
+            firstName: newEmployee[0].firstName,
+            lastName: newEmployee[0].lastName,
+            email: newEmployee[0].email,
+            teamId: newEmployee[0].teamId,
+            companyId: newEmployee[0].companyId,
+            contractHoursPerWeek: newEmployee[0].contractHoursPerWeek,
+            status: newEmployee[0].status,
+            userId: newEmployee[0].userId,
+          },
+          message:
+            "Un email de bienvenue a été envoyé à l'employé pour qu'il puisse créer son mot de passe.",
+        };
+
+        // Valider la transaction
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(201).json({
+          success: true,
+          message: "Employé créé avec succès",
+          data: response,
+        });
+      } else {
+        // Pour les managers et directeurs, garder l'ancien système avec mot de passe temporaire
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        // Créer un nouvel utilisateur
+        const newUser = await User.create(
           [
             {
               firstName,
               lastName,
               email,
-              teamId,
+              password: hashedPassword,
+              role: normalizedRole,
+              status: "active",
+              isEmailVerified: true,
               companyId,
-              contractHoursPerWeek: contractHoursPerWeek || 35,
-              status: status || "actif",
-              photoUrl,
-              userId: newUser[0]._id,
-              role: "manager", // Spécifier explicitement le rôle
             },
           ],
           { session }
         );
 
-        // Ajouter le manager à l'équipe
-        const updatedTeam = await TeamModel.findByIdAndUpdate(
-          teamId,
-          { $addToSet: { managerIds: newUser[0]._id } },
-          { new: true, session }
-        );
-
-        response.employee = {
-          _id: newEmployee[0]._id,
-          firstName: newEmployee[0].firstName,
-          lastName: newEmployee[0].lastName,
-          email: newEmployee[0].email,
-          teamId: newEmployee[0].teamId,
-          companyId: newEmployee[0].companyId,
-          contractHoursPerWeek: newEmployee[0].contractHoursPerWeek,
-          status: newEmployee[0].status,
-          userId: newEmployee[0].userId,
+        let response: any = {
+          user: {
+            _id: newUser[0]._id,
+            firstName: newUser[0].firstName,
+            lastName: newUser[0].lastName,
+            email: newUser[0].email,
+            role: newUser[0].role,
+            isEmailVerified: newUser[0].isEmailVerified,
+          },
+          tempPassword,
         };
-        response.team = updatedTeam;
+
+        // Traitement spécifique selon le rôle
+        if (normalizedRole === "manager") {
+          // Pour un manager, mettre à jour les équipes qu'il gère
+          if (teamId) {
+            // Ajouter cette équipe aux équipes gérées par le manager
+            newUser[0].teamIds = [teamId];
+            await newUser[0].save({ session });
+
+            // Optionnellement, mettre à jour l'équipe pour référencer ce manager
+            await TeamModel.findByIdAndUpdate(
+              teamId,
+              { managerId: newUser[0]._id },
+              { session }
+            );
+          }
+
+          response.manager = {
+            _id: newUser[0]._id,
+            firstName: newUser[0].firstName,
+            lastName: newUser[0].lastName,
+            email: newUser[0].email,
+            role: newUser[0].role,
+            teamIds: newUser[0].teamIds,
+          };
+        }
+
+        // Valider la transaction
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(201).json({
+          success: true,
+          message: "Utilisateur créé avec succès",
+          data: response,
+        });
       }
-
-      // Valider et committer la transaction
-      await session.commitTransaction();
-      session.endSession();
-
-      return res.status(201).json({
-        success: true,
-        message: `${
-          normalizedRole === "employee" ? "Employé" : "Manager"
-        } créé avec succès`,
-        data: response,
-      });
     } catch (error) {
       // En cas d'erreur, annuler la transaction
       await session.abortTransaction();
       session.endSession();
 
-      console.error("[POST /employees/create] Erreur:", error);
+      console.error("Erreur création employé/manager:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la création",

@@ -17,6 +17,6 @@
     "alwaysStrict": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*", "scripts/migrate-add-email.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "**/*.test.ts", "dist"]
 }

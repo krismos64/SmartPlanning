@@ -98,6 +98,7 @@ router.post("/avatar", authenticateToken, (req, res) => {
   console.log("🔍 Body:", req.body);
 
   // Utiliser Multer comme middleware pour traiter le fichier unique
+  // @ts-ignore - Erreur de compatibilité entre les types Express
   upload.single("image")(req, res, async (err) => {
     // Gérer les erreurs de Multer (taille, type de fichier, etc.)
     if (err) {
@@ -184,6 +185,7 @@ router.post("/public", (req, res) => {
   console.log("🔍 Body:", req.body);
 
   // Utiliser Multer comme middleware pour traiter le fichier unique
+  // @ts-ignore - Erreur de compatibilité entre les types Express
   upload.single("image")(req, res, async (err) => {
     // Gérer les erreurs de Multer (taille, type de fichier, etc.)
     if (err) {

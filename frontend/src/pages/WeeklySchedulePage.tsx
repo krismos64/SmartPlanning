@@ -9,7 +9,6 @@ import { addDays, format, getISOWeek, getYear, startOfISOWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {
-  Brain,
   Calendar,
   Check,
   ChevronLeft,
@@ -1020,92 +1019,66 @@ const WeeklySchedulePage: React.FC = () => {
    */
   const tableData = useMemo(() => {
     if (viewMode === "team" && !selectedTeam) {
-      // Si nous sommes en mode "équipe" mais sans équipe sélectionnée, afficher la liste des équipes
+      // Mode équipe sans équipe sélectionnée : afficher la liste des équipes
       return teams.map((team) => {
-        // Extraire les informations du tableau d'équipes
-        let employeesCount = 0;
-
-        console.log(`Analyse équipe ${team.name}:`, team);
-
-        // Cas 1: employeeIds est un tableau d'objets peuplés avec firstName et lastName
-        if (Array.isArray(team.employeeIds) && team.employeeIds.length > 0) {
-          try {
-            // Vérifier si nous avons des objets peuplés
-            const firstEmployee = team.employeeIds[0];
-            if (
-              typeof firstEmployee === "object" &&
-              firstEmployee !== null &&
-              ("firstName" in firstEmployee || "_id" in firstEmployee)
-            ) {
-              // Nous avons des objets Employee peuplés
-              employeesCount = team.employeeIds.length;
-              console.log(
-                `Équipe ${team.name}: ${employeesCount} employés trouvés (peuplés)`
-              );
-            } else {
-              // Tableau de références (IDs)
-              employeesCount = team.employeeIds.length;
-              console.log(
-                `Équipe ${team.name}: ${employeesCount} employés trouvés (références)`
-              );
-            }
-          } catch (err) {
-            // En cas d'erreur, compter simplement le nombre d'éléments dans le tableau
-            employeesCount = team.employeeIds.length;
-            console.log(
-              `Équipe ${team.name}: ${employeesCount} employés trouvés (méthode de secours)`
-            );
-          }
-        }
-        // Cas 2: employeeIds est un objet non-array
-        else if (team.employeeIds && typeof team.employeeIds === "object") {
-          employeesCount = Object.keys(team.employeeIds).length;
-          console.log(
-            `Équipe ${team.name}: ${employeesCount} employés trouvés (objet)`
-          );
-        }
-
-        // Contournement spécifique pour l'équipe "Bazar" (si le problème persiste)
-        if (team.name === "Bazar" && employeesCount === 0) {
-          // Hardcoder un nombre pour l'équipe Bazar si nous n'avons pas pu le déterminer autrement
-          employeesCount = 3; // remplacer par le nombre réel d'employés que vous savez être dans cette équipe
-          console.log(
-            `Contournement appliqué pour l'équipe Bazar: ${employeesCount} employés`
-          );
-        }
+        const teamSchedules = schedules.filter((s) => s.teamName === team.name);
+        const employeesCount = teamSchedules.length;
 
         return {
-          name: team.name,
-          employeesCount: employeesCount.toString(),
+          name: (
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full"></div>
+              <span className="font-medium text-gray-900 dark:text-white">
+                {team.name}
+              </span>
+            </div>
+          ),
+          employeesCount: (
+            <span className="text-gray-600 dark:text-gray-300">
+              {employeesCount} employé{employeesCount > 1 ? "s" : ""}
+            </span>
+          ),
           actions: (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedTeam(team._id)}
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
-                title="Voir les plannings de cette équipe" // Ajout du titre explicatif
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Voir l'équipe</span>
+                <Eye className="h-4 w-4 mr-1" />
+                Voir
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openPdfModal(undefined, team._id)} // Corriger l'appel : employeeId=undefined, teamId=team._id
-                className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
-                title="Générer le PDF pour toute l'équipe" // Ajout du titre explicatif
-              >
-                <FileDown className="h-4 w-4" />
-                <span className="sr-only">Télécharger PDF</span>
-              </Button>
+              {/* Seuls les non-employés peuvent générer des PDFs d'équipe */}
+              {user?.role !== "employee" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openPdfModal(undefined, team._id)}
+                  className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                >
+                  <FileDown className="h-4 w-4" />
+                  <span className="sr-only">Générer PDF équipe</span>
+                </Button>
+              )}
             </div>
           ),
         };
       });
     } else {
       // Si une équipe est sélectionnée ou si nous sommes en mode employé, afficher les plannings
-      return schedules.map((schedule) => {
+      const filteredSchedules =
+        user?.role === "employee"
+          ? schedules.filter((schedule) => {
+              // Pour les employés, filtrer pour ne montrer que leurs propres plannings
+              return (
+                schedule.employeeId === user._id ||
+                schedule.employeeName === `${user.firstName} ${user.lastName}`
+              );
+            })
+          : schedules;
+
+      return filteredSchedules.map((schedule) => {
         // Calcul du temps total pour ce planning
         const totalMinutes = Object.values(schedule.scheduleData).reduce(
           (total, daySlots) => {
@@ -1127,43 +1100,53 @@ const WeeklySchedulePage: React.FC = () => {
           employee: schedule.employeeName,
           totalTime: `${totalHours}h`,
           actions: (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleViewSchedule(schedule)}
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
-                title="Voir le détail du planning" // Ajout du titre explicatif
+                title="Voir les détails"
               >
                 <Eye className="h-4 w-4" />
-                <span className="sr-only">Voir</span>
+                <span className="sr-only">Voir détails</span>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEditSchedule(schedule)}
-                className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
-                title="Modifier ce planning" // Ajout du titre explicatif
-              >
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">Modifier</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteSchedule(schedule._id)}
-                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
-                title="Supprimer définitivement ce planning" // Ajout du titre explicatif
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Supprimer</span>
-              </Button>
+
+              {/* Seuls les non-employés peuvent modifier les plannings */}
+              {user?.role !== "employee" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEditSchedule(schedule)}
+                  className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+                  title="Modifier ce planning"
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span className="sr-only">Modifier</span>
+                </Button>
+              )}
+
+              {/* Seuls les non-employés peuvent supprimer les plannings */}
+              {user?.role !== "employee" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteSchedule(schedule._id)}
+                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
+                  title="Supprimer ce planning"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Supprimer</span>
+                </Button>
+              )}
+
+              {/* Tous les utilisateurs authentifiés peuvent générer le PDF de leurs plannings */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => openPdfModal(schedule.employeeId)}
                 className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 h-8 w-8 p-0 rounded-full flex items-center justify-center"
-                title="Générer le PDF de ce planning" // Ajout du titre explicatif
+                title="Générer le PDF de ce planning"
               >
                 <FileDown className="h-4 w-4" />
                 <span className="sr-only">Télécharger PDF</span>
@@ -1173,7 +1156,7 @@ const WeeklySchedulePage: React.FC = () => {
         };
       });
     }
-  }, [viewMode, selectedTeam, teams, schedules]);
+  }, [viewMode, selectedTeam, teams, schedules, user]);
 
   /**
    * Récupère les détails d'un planning spécifique
@@ -1506,6 +1489,22 @@ const WeeklySchedulePage: React.FC = () => {
    * Rendu du sélecteur de vue (équipe/employé)
    */
   const renderViewSelector = () => {
+    // Pour les employés, afficher seulement un message informatif
+    if (user?.role === "employee") {
+      return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+            Mes plannings
+          </h3>
+          <p className="text-gray-600 dark:text-gray-300 text-sm">
+            Vous consultez vos plannings personnels. Vous pouvez les visualiser
+            et générer des PDFs.
+          </p>
+        </div>
+      );
+    }
+
+    // Pour les autres rôles, afficher le sélecteur complet
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-4">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
@@ -1797,56 +1796,43 @@ const WeeklySchedulePage: React.FC = () => {
         </div>
 
         {/* Boutons d'action */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          {/* Bouton de redirection vers la page de validation des plannings générés par l'IA */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <Button
-              onClick={() => setIsAIModalOpen(true)}
-              variant="primary"
-              className="w-full md:w-auto px-6 py-3 bg-slate-600 hover:bg-slate-700 dark:bg-gradient-to-r dark:from-indigo-500 dark:via-purple-500 dark:to-pink-500 text-white font-semibold text-sm rounded-xl shadow-lg hover:brightness-110 dark:hover:brightness-110 transition-all duration-300"
-              icon={<Brain size={18} />}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Bouton Nouveau Planning - Seulement pour les non-employés */}
+          {user?.role !== "employee" && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
             >
-              Plannings générés par l'IA
-            </Button>
-          </motion.div>
+              <Button
+                onClick={() => setIsCreateModalOpen(true)}
+                variant="primary"
+                className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 dark:from-indigo-500 dark:to-purple-600 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-0"
+                icon={<Plus size={18} />}
+              >
+                Nouveau Planning
+              </Button>
+            </motion.div>
+          )}
 
-          {/* Bouton de création de planning */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            <Button
-              onClick={openCreateModal}
-              variant="secondary"
-              className="w-full md:w-auto px-6 py-3 bg-slate-500 hover:bg-slate-600 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
-              icon={<Plus size={18} />}
-              title="Créer un nouveau planning hebdomadaire" // Ajout du titre explicatif
+          {/* Bouton PDF Global - Seulement pour les non-employés */}
+          {user?.role !== "employee" && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Créer un planning
-            </Button>
-          </motion.div>
-
-          {/* Bouton de génération de PDF pour tous les employés */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Button
-              onClick={() => openPdfModal()} // Utiliser openPdfModal sans arguments pour la génération globale
-              variant="secondary"
-              className="w-full md:w-auto px-6 py-3 bg-slate-500 hover:bg-slate-600 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
-              icon={<FileDown size={18} />}
-              title="Générer le PDF de tous les plannings affichés" // Ajout du titre explicatif
-            >
-              Générer PDF global
-            </Button>
-          </motion.div>
+              <Button
+                onClick={() => openPdfModal()} // Utiliser openPdfModal sans arguments pour la génération globale
+                variant="secondary"
+                className="w-full md:w-auto px-6 py-3 bg-slate-500 hover:bg-slate-600 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold text-sm rounded-xl shadow-lg transition-all duration-300"
+                icon={<FileDown size={18} />}
+                title="Générer le PDF de tous les plannings affichés"
+              >
+                Générer PDF global
+              </Button>
+            </motion.div>
+          )}
         </div>
 
         {/* Récapitulatif de la semaine */}

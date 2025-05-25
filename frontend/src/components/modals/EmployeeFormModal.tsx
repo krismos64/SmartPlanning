@@ -92,6 +92,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 
   // État pour le mot de passe temporaire généré
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState<boolean>(false);
 
   // Initialiser le formulaire avec les données existantes ou réinitialiser en mode création
   useEffect(() => {
@@ -264,11 +265,22 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         // Mode création - utiliser la route /create qui génère automatiquement le mot de passe
         const response = await axiosInstance.post("/employees/create", payload);
 
-        if (response.data.success && response.data.data.tempPassword) {
-          setTempPassword(response.data.data.tempPassword);
+        if (response.data.success) {
+          // Pour les employés, un email est envoyé automatiquement
+          if (formData.role === "employee") {
+            setEmailSent(true);
+            setToastMessage(
+              "Employé créé avec succès. Un email de bienvenue a été envoyé."
+            );
+          } else {
+            // Pour les autres rôles (managers, directeurs), afficher le mot de passe temporaire
+            if (response.data.data.tempPassword) {
+              setTempPassword(response.data.data.tempPassword);
+            }
+            setToastMessage("Utilisateur créé avec succès");
+          }
         }
 
-        setToastMessage("Employé créé avec succès");
         setShowSuccessToast(true);
       }
 
@@ -306,6 +318,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         onClose={onClose}
         title={
           tempPassword
+            ? "Utilisateur créé avec succès"
+            : emailSent
             ? "Employé créé avec succès"
             : isEditMode
             ? "Modifier un employé"
@@ -314,7 +328,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         className="max-w-lg"
       >
         {tempPassword ? (
-          // Affichage du mot de passe temporaire généré
+          // Affichage du mot de passe temporaire généré (pour managers et directeurs)
           <div className="text-center py-6">
             <div className="mb-6">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -334,7 +348,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Employé créé avec succès !
+                Utilisateur créé avec succès !
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Le mot de passe temporaire a été généré automatiquement :
@@ -348,8 +362,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 </code>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                Veuillez communiquer ce mot de passe à l'employé. Il devra le
-                changer lors de sa première connexion.
+                Veuillez communiquer ce mot de passe à l'utilisateur. Il devra
+                le changer lors de sa première connexion.
               </p>
             </div>
 
@@ -358,6 +372,56 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 onClick={() => {
                   onClose();
                   setTempPassword(null);
+                }}
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
+        ) : emailSent ? (
+          // Affichage du message d'email envoyé (pour les employés)
+          <div className="text-center py-6">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8 text-blue-600 dark:text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Employé créé avec succès !
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Un email de bienvenue a été envoyé à{" "}
+                <strong>{formData.email}</strong>
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  L'employé recevra un lien sécurisé pour créer son mot de passe
+                  et accéder à son compte SmartPlanning.
+                </p>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                Le lien sera valide pendant 7 jours. L'employé pourra créer son
+                mot de passe conforme aux normes de sécurité.
+              </p>
+            </div>
+
+            <div className="flex justify-center">
+              <Button
+                onClick={() => {
+                  onClose();
+                  setEmailSent(false);
                 }}
               >
                 Fermer

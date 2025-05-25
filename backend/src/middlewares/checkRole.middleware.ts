@@ -28,9 +28,8 @@ const checkRole = (roles: string | string[]) => {
     try {
       // Vérifier si l'utilisateur est attaché à la requête
       if (!req.user) {
-        return res
-          .status(401)
-          .json({ success: false, message: "Non authentifié" });
+        res.status(401).json({ success: false, message: "Non authentifié" });
+        return;
       }
 
       // Si "*" est spécifié, autoriser tous les utilisateurs authentifiés

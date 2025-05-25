@@ -88,7 +88,57 @@ export const sendPasswordResetEmail = async (
   return sendEmail(to, subject, html);
 };
 
+/**
+ * Envoyer un email de bienvenue à un nouvel employé avec lien de création de mot de passe
+ * @param to - Adresse email du destinataire
+ * @param firstName - Prénom de l'employé
+ * @param createPasswordLink - Lien de création de mot de passe avec token
+ * @returns Promise<boolean> - True si l'email est envoyé avec succès
+ */
+export const sendEmployeeWelcomeEmail = async (
+  to: string,
+  firstName: string,
+  createPasswordLink: string
+): Promise<boolean> => {
+  const subject = "Bienvenue chez SmartPlanning - Créez votre mot de passe";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="color: #4f46e5;">SmartPlanning</h1>
+      </div>
+      <p>Bonjour ${firstName},</p>
+      <p>Bienvenue dans l'équipe ! Un compte SmartPlanning a été créé pour vous.</p>
+      <p>Pour accéder à votre tableau de bord et commencer à utiliser la plateforme, vous devez d'abord créer votre mot de passe sécurisé.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${createPasswordLink}" style="background-color: #4f46e5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Créer mon mot de passe</a>
+      </div>
+      <p>Ce lien est valable pendant 7 jours. Après cette période, vous devrez contacter votre responsable pour qu'il génère un nouveau lien.</p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h3 style="color: #4f46e5; margin-top: 0;">Exigences de sécurité pour votre mot de passe :</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li>Au moins 8 caractères</li>
+          <li>Au moins une lettre majuscule</li>
+          <li>Au moins une lettre minuscule</li>
+          <li>Au moins un chiffre</li>
+          <li>Au moins un caractère spécial (@$!%*?&)</li>
+        </ul>
+      </div>
+      <p>Une fois votre mot de passe créé, vous pourrez vous connecter à SmartPlanning et accéder à toutes les fonctionnalités qui vous sont destinées.</p>
+      <p>Si vous rencontrez des difficultés ou avez des questions, n'hésitez pas à contacter votre responsable.</p>
+      <p>Cordialement,<br>L'équipe SmartPlanning</p>
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
+        <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre directement.</p>
+        <p>© ${new Date().getFullYear()} SmartPlanning. Tous droits réservés.</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(to, subject, html);
+};
+
 export default {
   sendEmail,
   sendPasswordResetEmail,
+  sendEmployeeWelcomeEmail,
 };

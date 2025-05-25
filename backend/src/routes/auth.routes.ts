@@ -231,6 +231,17 @@ router.post("/login", async (req: Request, res: Response) => {
     console.log("✅ Password hash récupéré :", user.password);
 
     if (!user.password) {
+      // Vérifier si c'est un employé qui n'a pas encore créé son mot de passe
+      if (user.role === "employee" && user.resetPasswordToken) {
+        console.log("ℹ️ Employé n'a pas encore créé son mot de passe");
+        return res.status(403).json({
+          success: false,
+          message:
+            "Veuillez créer votre mot de passe en utilisant le lien reçu par email.",
+          code: "PASSWORD_NOT_CREATED",
+        });
+      }
+
       console.error("❌ Champ 'password' manquant malgré .select('+password')");
       return res.status(500).json({
         success: false,
@@ -526,6 +537,82 @@ router.post("/reset-password", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Erreur lors de la réinitialisation du mot de passe:", error);
+    res.status(500).json({
+      success: false,
+      message: "Une erreur est survenue lors du traitement de votre demande",
+    });
+  }
+});
+
+/**
+ * @route POST /api/auth/create-password
+ * @desc Création du mot de passe pour un nouvel employé avec token
+ * @access Public
+ */
+router.post("/create-password", async (req: Request, res: Response) => {
+  try {
+    const { email, token, password } = req.body;
+
+    if (!email || !token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Tous les champs sont requis",
+      });
+    }
+
+    // Vérifier la complexité du mot de passe (RGPD)
+    if (!validatePasswordComplexity(password)) {
+      return res.status(400).json({
+        success: false,
+        message: passwordRequirementsMessage,
+      });
+    }
+
+    // Créer le hash du token reçu pour comparaison
+    const createPasswordTokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    // Rechercher l'utilisateur par email et token
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: createPasswordTokenHash, // Réutilise le champ resetPasswordToken
+      resetPasswordExpire: { $gt: Date.now() }, // Vérifier que le token n'a pas expiré
+      role: "employee", // S'assurer que c'est bien un employé
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Le lien est invalide ou a expiré",
+      });
+    }
+
+    // Vérifier que l'utilisateur n'a pas déjà un mot de passe
+    if (user.password) {
+      return res.status(400).json({
+        success: false,
+        message: "Un mot de passe a déjà été créé pour ce compte",
+      });
+    }
+
+    // Mettre à jour le mot de passe et vérifier l'email
+    user.password = password;
+    user.isEmailVerified = true;
+    // Supprimer les champs de token
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Votre mot de passe a été créé avec succès. Vous pouvez maintenant vous connecter.",
+    });
+  } catch (error) {
+    console.error("Erreur lors de la création du mot de passe:", error);
     res.status(500).json({
       success: false,
       message: "Une erreur est survenue lors du traitement de votre demande",

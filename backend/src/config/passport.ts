@@ -63,7 +63,7 @@ passport.use(
             firstName: profile.name?.givenName || "",
             lastName: profile.name?.familyName || "",
             email: email || `${profile.id}@googleauth.com`,
-            role: "user", // Rôle par défaut
+            role: "employee", // Rôle par défaut
             google: {
               id: profile.id,
               email: email || "",
@@ -88,8 +88,8 @@ passport.use(
 /**
  * Sérialisation de l'utilisateur pour la session
  */
-passport.serializeUser((user, done) => {
-  done(null, user.id);
+passport.serializeUser((user: any, done) => {
+  done(null, user._id);
 });
 
 /**
@@ -107,7 +107,7 @@ passport.deserializeUser(async (id, done) => {
 /**
  * Génère un JWT token pour l'utilisateur
  */
-export const generateToken = (user: IUser): string => {
+export const generateToken = (user: any): string => {
   return jwt.sign(
     {
       user: {

@@ -107,7 +107,8 @@ const userSchema = new Schema<UserDocument>(
       type: String,
       required: function (this: UserDocument) {
         // Le mot de passe n'est pas obligatoire pour les connexions via Google
-        return !this.google;
+        // ou pour les nouveaux employés qui n'ont pas encore créé leur mot de passe
+        return !this.google && !this.resetPasswordToken;
       },
       minlength: [6, "Le mot de passe doit contenir au moins 6 caractères"],
       select: false, // Ne retourne pas le mot de passe par défaut dans les requêtes

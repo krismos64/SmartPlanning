@@ -15,6 +15,7 @@ import CollaboratorManagementPage from "./pages/CollaboratorManagementPage";
 import CompanyManagementPage from "./pages/CompanyManagementPage";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
 import ContactPage from "./pages/ContactPage";
+import CreatePasswordPage from "./pages/CreatePasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import DatePickerDemoPage from "./pages/DatePickerDemoPage";
 import DirectorUserManagementPage from "./pages/DirectorUserManagementPage";
@@ -61,7 +62,8 @@ const ProfileChecker: React.FC = () => {
       !location.pathname.startsWith("/inscription") &&
       !location.pathname.startsWith("/unauthorized") &&
       !location.pathname.startsWith("/forgot-password") &&
-      !location.pathname.startsWith("/reset-password")
+      !location.pathname.startsWith("/reset-password") &&
+      !location.pathname.startsWith("/create-password")
     ) {
       navigate("/complete-profile", { replace: true });
     }
@@ -166,6 +168,7 @@ const AppRouter: React.FC = () => {
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/create-password" element={<CreatePasswordPage />} />
         <Route path="/complete-profile" element={<CompleteProfilePage />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />
 
