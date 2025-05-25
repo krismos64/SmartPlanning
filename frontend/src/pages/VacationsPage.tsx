@@ -256,7 +256,7 @@ const formatDateForBackend = (dateStr: string) => {
 // Composant principal VacationsPage
 const VacationsPage: React.FC = () => {
   // Simulation du rôle utilisateur (à remplacer par une authentification réelle)
-  const [userRole] = useState<UserRole>("admin");
+  const [userRole] = useState<UserRole>("directeur");
 
   // État pour les demandes de congés
   const [vacationRequests, setVacationRequests] = useState<VacationRequest[]>(
@@ -316,9 +316,11 @@ const VacationsPage: React.FC = () => {
   const canSelectEmployee =
     userRole === "manager" || userRole === "directeur" || userRole === "admin";
 
-  // Vérifier si l'utilisateur peut voir les filtres avancés (admin et directeur)
-  const canUseAdvancedFilters =
-    userRole === "admin" || userRole === "directeur";
+  // Vérifier si l'utilisateur peut voir les filtres avancés (admin seulement)
+  const canUseAdvancedFilters = userRole === "admin";
+
+  // Vérifier si l'utilisateur peut filtrer par équipe (directeur et admin)
+  const canFilterByTeam = userRole === "admin" || userRole === "directeur";
 
   // Ajout des états pour le tri des demandes
   const [sortField, setSortField] = useState<
@@ -351,7 +353,7 @@ const VacationsPage: React.FC = () => {
     }
   }, [canSelectEmployee]);
 
-  // Fonction pour récupérer les entreprises (admin et directeur)
+  // Fonction pour récupérer les entreprises (admin uniquement)
   const fetchCompanies = useCallback(async () => {
     if (!canUseAdvancedFilters) return;
 
@@ -397,6 +399,31 @@ const VacationsPage: React.FC = () => {
     },
     [canUseAdvancedFilters]
   );
+
+  // Fonction pour récupérer les équipes du directeur de son entreprise
+  const fetchDirectorTeams = useCallback(async () => {
+    if (userRole !== "directeur") return;
+
+    setLoadingTeams(true);
+    try {
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Team[];
+      }>("/teams");
+
+      console.log("Équipes du directeur reçues:", response.data.data);
+      setTeams(response.data.data || []);
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des équipes du directeur:",
+        error
+      );
+      setError("Erreur lors de la récupération des équipes");
+      setShowErrorToast(true);
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, [userRole]);
 
   // Gestionnaire de changement d'entreprise
   const handleCompanyChange = (companyId: string) => {
@@ -468,16 +495,18 @@ const VacationsPage: React.FC = () => {
     }
   }, [fetchAccessibleEmployees, showForm]);
 
-  // Charger les entreprises pour admin et directeur au montage
+  // Charger les entreprises pour admin au montage
   useEffect(() => {
     if (canUseAdvancedFilters) {
       fetchCompanies();
     }
   }, [fetchCompanies]);
 
-  // Pour les managers : charger leurs équipes au montage
+  // Charger les équipes selon le rôle au montage
   useEffect(() => {
-    if (userRole === "manager") {
+    if (userRole === "directeur") {
+      fetchDirectorTeams();
+    } else if (userRole === "manager") {
       const fetchManagerTeams = async () => {
         try {
           setLoadingTeams(true);
@@ -500,7 +529,7 @@ const VacationsPage: React.FC = () => {
 
       fetchManagerTeams();
     }
-  }, [userRole]);
+  }, [userRole, fetchDirectorTeams]);
 
   // Gestionnaire de changement pour le formulaire
   const handleInputChange = (
@@ -1534,7 +1563,7 @@ const VacationsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Filtres avancés pour admin et directeur */}
+            {/* Filtres avancés pour admin uniquement */}
             {canUseAdvancedFilters && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Filtre par entreprise */}
@@ -1577,28 +1606,36 @@ const VacationsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Filtre par équipe pour les managers */}
-            {userRole === "manager" && teams.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Select
-                    label="Équipe"
-                    options={[
-                      { label: "Toutes mes équipes", value: "" },
-                      ...teams.map((team) => ({
-                        label: team.name,
-                        value: team._id,
-                      })),
-                    ]}
-                    value={selectedTeamId}
-                    onChange={setSelectedTeamId}
-                    placeholder="Sélectionner une équipe..."
-                    icon={<Users size={16} />}
-                    disabled={loadingTeams}
-                  />
+            {/* Filtre par équipe pour directeur et manager */}
+            {!canUseAdvancedFilters &&
+              (userRole === "directeur" || userRole === "manager") &&
+              teams.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Select
+                      label="Équipe"
+                      options={[
+                        {
+                          label:
+                            userRole === "manager"
+                              ? "Toutes mes équipes"
+                              : "Toutes les équipes",
+                          value: "",
+                        },
+                        ...teams.map((team) => ({
+                          label: team.name,
+                          value: team._id,
+                        })),
+                      ]}
+                      value={selectedTeamId}
+                      onChange={setSelectedTeamId}
+                      placeholder="Sélectionner une équipe..."
+                      icon={<Users size={16} />}
+                      disabled={loadingTeams}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Filtres de statut */}
             <div className="flex flex-wrap gap-3">

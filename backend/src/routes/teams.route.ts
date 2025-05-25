@@ -20,7 +20,9 @@ const router = express.Router();
 
 /**
  * @route   GET /api/teams
- * @desc    Récupérer toutes les équipes dont l'utilisateur est manager
+ * @desc    Récupérer les équipes selon le rôle de l'utilisateur:
+ *          - Manager: équipes dont il est manager
+ *          - Directeur: toutes les équipes de son entreprise
  * @access  Private
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
@@ -32,9 +34,32 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const teams = await TeamModel.find({ managerIds: req.user._id })
-      .populate("managerIds", "firstName lastName email photoUrl")
-      .populate("employeeIds", "firstName lastName email photoUrl");
+    let teams;
+
+    if (req.user.role === "directeur") {
+      // Directeur: récupérer toutes les équipes de son entreprise
+      if (!req.user.companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise manquant pour le directeur",
+        });
+      }
+
+      teams = await TeamModel.find({ companyId: req.user.companyId })
+        .populate("managerIds", "firstName lastName email photoUrl")
+        .populate("employeeIds", "firstName lastName email photoUrl");
+
+      console.log(
+        `Directeur ${req.user._id}: ${teams.length} équipes trouvées pour l'entreprise ${req.user.companyId}`
+      );
+    } else {
+      // Manager: récupérer seulement les équipes dont il est manager
+      teams = await TeamModel.find({ managerIds: req.user._id })
+        .populate("managerIds", "firstName lastName email photoUrl")
+        .populate("employeeIds", "firstName lastName email photoUrl");
+
+      console.log(`Manager ${req.user._id}: ${teams.length} équipes trouvées`);
+    }
 
     return res.status(200).json({
       success: true,

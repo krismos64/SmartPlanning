@@ -258,7 +258,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
  * Route POST /api/employees/create
  * Crée un nouvel employé ou manager selon le rôle spécifié
  *
- * Accessible uniquement aux directeurs
+ * Accessible aux directeurs et managers
  * Permet de créer:
  * - Des employés (role="employee") associés à une équipe
  * - Des managers (role="manager") associés à une équipe comme gestionnaire
@@ -266,7 +266,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 router.post(
   "/create",
   authenticateToken,
-  checkRole(["directeur"]),
+  checkRole(["directeur", "manager"]),
   async (req: AuthRequest, res: Response) => {
     // Extraction des champs de la requête
     const {
@@ -288,29 +288,59 @@ router.post(
       });
     }
 
-    // Validation du rôle
-    const validRoles = ["employee", "manager", "directeur"];
+    // Validation du rôle selon le rôle de l'utilisateur qui fait la demande
+    let validRoles: string[] = [];
+    if (req.user?.role === "directeur") {
+      validRoles = ["employee", "manager", "directeur"];
+    } else if (req.user?.role === "manager") {
+      validRoles = ["employee"]; // Les managers ne peuvent créer que des employés
+    }
+
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
+        message: `Rôle invalide. Valeurs acceptées pour votre rôle : ${validRoles.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Vérification de l'ID d'entreprise selon le rôle
+    let companyId = "";
+    if (req.user?.role === "directeur") {
+      if (!req.user?.companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise manquant pour le directeur",
+        });
+      }
+      companyId = req.user.companyId;
+    } else if (req.user?.role === "manager") {
+      // Pour un manager, on récupère l'entreprise via ses équipes
+      if (!req.user?.teamIds || req.user.teamIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Manager non assigné à des équipes",
+        });
+      }
+
+      // Récupérer l'ID d'entreprise via la première équipe du manager
+      const managerTeam = await TeamModel.findById(req.user.teamIds[0]).lean();
+      if (!managerTeam) {
+        return res.status(400).json({
+          success: false,
+          message: "Équipe du manager introuvable",
+        });
+      }
+      companyId = managerTeam.companyId.toString();
+    }
+
+    // Pour un manager ou un employé, teamId est obligatoire
+    if ((role === "manager" || role === "employee") && !teamId) {
+      return res.status(400).json({
+        success: false,
         message:
-          "Rôle invalide. Valeurs acceptées : employee, manager, directeur",
-      });
-    }
-
-    // Vérification que le directeur a bien un companyId
-    if (!req.user?.companyId) {
-      return res.status(400).json({
-        success: false,
-        message: "ID d'entreprise manquant pour le directeur",
-      });
-    }
-
-    // Pour un manager, teamId est obligatoire
-    if (role === "manager" && !teamId) {
-      return res.status(400).json({
-        success: false,
-        message: "L'ID d'équipe est obligatoire pour créer un manager",
+          "L'ID d'équipe est obligatoire pour créer un employé ou manager",
       });
     }
 
@@ -351,8 +381,8 @@ router.post(
           });
         }
 
-        // Vérifier que l'équipe appartient à la même entreprise que le directeur
-        if (team.companyId.toString() !== req.user.companyId.toString()) {
+        // Vérifier que l'équipe appartient à la même entreprise
+        if (team.companyId.toString() !== companyId) {
           await session.abortTransaction();
           session.endSession();
           return res.status(403).json({
@@ -360,6 +390,23 @@ router.post(
             message:
               "Vous ne pouvez pas créer un utilisateur dans une équipe d'une autre entreprise",
           });
+        }
+
+        // Vérification supplémentaire pour les managers : ils ne peuvent créer des employés que dans leurs équipes
+        if (req.user?.role === "manager") {
+          const isManagerOfTeam = req.user.teamIds?.some(
+            (managerTeamId: any) => managerTeamId.toString() === teamId
+          );
+
+          if (!isManagerOfTeam) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez créer des employés que dans les équipes que vous gérez",
+            });
+          }
         }
       }
 
@@ -381,7 +428,7 @@ router.post(
             role: normalizedRole,
             status: "active",
             isEmailVerified: true,
-            companyId: req.user.companyId,
+            companyId,
           },
         ],
         { session }
@@ -409,7 +456,7 @@ router.post(
               lastName,
               email,
               teamId,
-              companyId: req.user.companyId,
+              companyId,
               contractHoursPerWeek,
               status,
               photoUrl,
@@ -441,7 +488,7 @@ router.post(
               lastName,
               email,
               teamId,
-              companyId: req.user.companyId,
+              companyId,
               contractHoursPerWeek: contractHoursPerWeek || 35,
               status: status || "actif",
               photoUrl,

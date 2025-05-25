@@ -24,9 +24,7 @@ import axiosInstance from "../api/axiosInstance";
 
 // Hooks personnalisés
 import { useAuth } from "../hooks/useAuth";
-import useEmployeeActions, {
-  NewEmployeeData,
-} from "../hooks/useEmployeeActions";
+import useEmployeeActions from "../hooks/useEmployeeActions";
 import { Employee } from "../hooks/useEmployeesByTeam";
 
 // Composants de layout
@@ -48,7 +46,7 @@ import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
 
 // Composants modaux
-import CollaboratorFormModal from "../components/modals/CollaboratorFormModal";
+import EmployeeFormModal from "../components/modals/EmployeeFormModal";
 import ManageTeamsModal from "../components/modals/ManageTeamsModal";
 
 // Services
@@ -235,9 +233,15 @@ const CollaboratorManagementPage: React.FC = () => {
   // États pour le modal d'ajout/édition de collaborateurs
   const [collaboratorModalOpen, setCollaboratorModalOpen] =
     useState<boolean>(false);
-  const [selectedCollaborator, setSelectedCollaborator] = useState<Partial<
-    NewEmployeeData & { _id?: string }
-  > | null>(null);
+  const [selectedCollaborator, setSelectedCollaborator] = useState<{
+    _id?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    role?: string;
+    teamId?: string;
+    photoUrl?: string;
+  } | null>(null);
 
   // États pour le modal de suppression de collaborateurs
   const [deleteEmployeeModalOpen, setDeleteEmployeeModalOpen] =
@@ -771,15 +775,22 @@ const CollaboratorManagementPage: React.FC = () => {
    * Ouvrir le modal pour éditer un collaborateur existant
    */
   const handleOpenEditCollaborator = (employee: EmployeeWithEmail) => {
+    // Gérer le type teamId qui peut être string ou PopulatedTeam
+    let teamId = "";
+    if (typeof employee.teamId === "string") {
+      teamId = employee.teamId;
+    } else if (employee.teamId && typeof employee.teamId === "object") {
+      teamId = employee.teamId._id;
+    }
+
     setSelectedCollaborator({
       _id: employee._id,
       firstName: employee.firstName,
       lastName: employee.lastName,
       email: employee.email,
-      teamId: employee.teamId,
-      contractHoursPerWeek: employee.contractHoursPerWeek,
-      status: employee.status as "actif" | "inactif",
-      companyId: employee.companyId,
+      teamId: teamId,
+      photoUrl: employee.photoUrl,
+      role: employee.role,
     });
     setCollaboratorModalOpen(true);
   };
@@ -1540,15 +1551,15 @@ const CollaboratorManagementPage: React.FC = () => {
         />
 
         {/* Modal d'ajout/édition de collaborateur */}
-        <CollaboratorFormModal
+        <EmployeeFormModal
           isOpen={collaboratorModalOpen}
           onClose={() => setCollaboratorModalOpen(false)}
-          onSuccess={(isEditMode) => {
+          onSuccess={(tempPassword?: string) => {
             // Rafraîchir les données avant de fermer le modal
             refetchEmployees();
 
             // Afficher un toast dynamique selon l'opération effectuée
-            if (isEditMode) {
+            if (selectedCollaborator?._id) {
               showToast("Collaborateur modifié avec succès", "success");
             } else {
               showToast("Collaborateur ajouté avec succès", "success");
@@ -1556,13 +1567,10 @@ const CollaboratorManagementPage: React.FC = () => {
 
             setCollaboratorModalOpen(false);
           }}
-          initialData={
-            selectedCollaborator as
-              | Partial<NewEmployeeData & { _id?: string }>
-              | undefined
-          }
+          initialData={selectedCollaborator || undefined}
           teams={teamOptions}
           companyId={user?.companyId || ""}
+          userRole={user?.role || ""}
         />
       </PageWrapper>
     </LayoutWithSidebar>
