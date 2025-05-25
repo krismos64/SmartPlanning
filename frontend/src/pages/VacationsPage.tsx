@@ -6,6 +6,7 @@
  */
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Building,
   Calendar,
   CalendarCheck,
   CalendarDays,
@@ -13,7 +14,9 @@ import {
   Clock,
   FileDown,
   Plus,
+  Search,
   User,
+  Users,
   XCircle,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
@@ -32,14 +35,30 @@ import Badge from "../components/ui/Badge";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import Button from "../components/ui/Button";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Select from "../components/ui/Select";
 import Table from "../components/ui/Table";
 import Toast from "../components/ui/Toast";
+
+// Interface pour les entreprises
+interface Company {
+  _id: string;
+  name: string;
+}
+
+// Interface pour les équipes
+interface Team {
+  _id: string;
+  name: string;
+  companyId: string;
+}
 
 // Interface pour les employés accessibles
 interface Employee {
   _id: string;
   firstName: string;
   lastName: string;
+  companyId?: string;
+  teamId?: string;
 }
 
 // Types pour les demandes de congés
@@ -49,6 +68,8 @@ interface VacationRequest {
     _id: string;
     firstName: string;
     lastName: string;
+    companyId?: string;
+    teamId?: string;
   };
   startDate: string;
   endDate: string;
@@ -235,7 +256,7 @@ const formatDateForBackend = (dateStr: string) => {
 // Composant principal VacationsPage
 const VacationsPage: React.FC = () => {
   // Simulation du rôle utilisateur (à remplacer par une authentification réelle)
-  const [userRole] = useState<UserRole>("manager");
+  const [userRole] = useState<UserRole>("admin");
 
   // État pour les demandes de congés
   const [vacationRequests, setVacationRequests] = useState<VacationRequest[]>(
@@ -276,6 +297,15 @@ const VacationsPage: React.FC = () => {
   // État pour l'affichage du formulaire
   const [showForm, setShowForm] = useState<boolean>(false);
 
+  // Nouveaux états pour la recherche et les filtres
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [loadingCompanies, setLoadingCompanies] = useState<boolean>(false);
+  const [loadingTeams, setLoadingTeams] = useState<boolean>(false);
+
   // Items du fil d'ariane
   const breadcrumbItems = [
     { label: "Dashboard", href: "/tableau-de-bord" },
@@ -285,6 +315,10 @@ const VacationsPage: React.FC = () => {
   // Vérifier si l'utilisateur peut sélectionner un employé
   const canSelectEmployee =
     userRole === "manager" || userRole === "directeur" || userRole === "admin";
+
+  // Vérifier si l'utilisateur peut voir les filtres avancés (admin et directeur)
+  const canUseAdvancedFilters =
+    userRole === "admin" || userRole === "directeur";
 
   // Ajout des états pour le tri des demandes
   const [sortField, setSortField] = useState<
@@ -316,6 +350,64 @@ const VacationsPage: React.FC = () => {
       setLoadingEmployees(false);
     }
   }, [canSelectEmployee]);
+
+  // Fonction pour récupérer les entreprises (admin et directeur)
+  const fetchCompanies = useCallback(async () => {
+    if (!canUseAdvancedFilters) return;
+
+    setLoadingCompanies(true);
+    try {
+      const response = await axiosInstance.get<{
+        success: boolean;
+        data: Company[];
+      }>("/admin/companies");
+
+      console.log("Entreprises reçues:", response.data.data);
+      setCompanies(response.data.data || []);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des entreprises:", error);
+      setError("Erreur lors de la récupération des entreprises");
+      setShowErrorToast(true);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  }, [canUseAdvancedFilters]);
+
+  // Fonction pour récupérer les équipes d'une entreprise
+  const fetchTeamsByCompany = useCallback(
+    async (companyId: string) => {
+      if (!companyId || !canUseAdvancedFilters) return;
+
+      setLoadingTeams(true);
+      try {
+        const response = await axiosInstance.get<{
+          success: boolean;
+          data: Team[];
+        }>(`/admin/teams?companyId=${companyId}`);
+
+        console.log("Équipes reçues:", response.data.data);
+        setTeams(response.data.data || []);
+      } catch (error) {
+        console.error("Erreur lors de la récupération des équipes:", error);
+        setError("Erreur lors de la récupération des équipes");
+        setShowErrorToast(true);
+      } finally {
+        setLoadingTeams(false);
+      }
+    },
+    [canUseAdvancedFilters]
+  );
+
+  // Gestionnaire de changement d'entreprise
+  const handleCompanyChange = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    setSelectedTeamId(""); // Réinitialiser l'équipe sélectionnée
+    setTeams([]); // Vider la liste des équipes
+
+    if (companyId) {
+      fetchTeamsByCompany(companyId);
+    }
+  };
 
   // Fonction pour récupérer les demandes de congés
   const fetchVacationRequests = useCallback(async () => {
@@ -375,6 +467,40 @@ const VacationsPage: React.FC = () => {
       fetchAccessibleEmployees();
     }
   }, [fetchAccessibleEmployees, showForm]);
+
+  // Charger les entreprises pour admin et directeur au montage
+  useEffect(() => {
+    if (canUseAdvancedFilters) {
+      fetchCompanies();
+    }
+  }, [fetchCompanies]);
+
+  // Pour les managers : charger leurs équipes au montage
+  useEffect(() => {
+    if (userRole === "manager") {
+      const fetchManagerTeams = async () => {
+        try {
+          setLoadingTeams(true);
+          const response = await axiosInstance.get<{
+            success: boolean;
+            data: Team[];
+          }>("/teams");
+
+          console.log("Équipes du manager reçues:", response.data.data);
+          setTeams(response.data.data || []);
+        } catch (error) {
+          console.error(
+            "Erreur lors de la récupération des équipes du manager:",
+            error
+          );
+        } finally {
+          setLoadingTeams(false);
+        }
+      };
+
+      fetchManagerTeams();
+    }
+  }, [userRole]);
 
   // Gestionnaire de changement pour le formulaire
   const handleInputChange = (
@@ -816,12 +942,48 @@ const VacationsPage: React.FC = () => {
     setShowSuccessToast(false);
   };
 
-  // Fonction pour filtrer les demandes par statut
+  // Fonction pour filtrer les demandes par statut, recherche et équipe/entreprise
   const filterVacationRequests = (requests: VacationRequest[]) => {
-    if (statusFilter === "all") {
-      return requests;
+    let filtered = requests;
+
+    // Filtrer par statut
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((request) => request.status === statusFilter);
     }
-    return requests.filter((request) => request.status === statusFilter);
+
+    // Filtrer par recherche (nom/prénom de l'employé)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((request) => {
+        const fullName = `${request.employeeId?.firstName || ""} ${
+          request.employeeId?.lastName || ""
+        }`.toLowerCase();
+        return fullName.includes(term);
+      });
+    }
+
+    // Filtrer par entreprise (admin et directeur uniquement)
+    if (canUseAdvancedFilters && selectedCompanyId) {
+      filtered = filtered.filter(
+        (request) => request.employeeId?.companyId === selectedCompanyId
+      );
+    }
+
+    // Filtrer par équipe (admin et directeur uniquement)
+    if (canUseAdvancedFilters && selectedTeamId) {
+      filtered = filtered.filter(
+        (request) => request.employeeId?.teamId === selectedTeamId
+      );
+    }
+
+    // Pour les managers : filtrer par les équipes qu'ils gèrent
+    if (userRole === "manager" && selectedTeamId) {
+      filtered = filtered.filter(
+        (request) => request.employeeId?.teamId === selectedTeamId
+      );
+    }
+
+    return filtered;
   };
 
   // Fonction pour trier les demandes
@@ -1350,9 +1512,96 @@ const VacationsPage: React.FC = () => {
             </Button>
           }
         >
-          <div className="flex flex-wrap justify-between gap-3 p-4">
+          <div className="space-y-4 p-4">
+            {/* Barre de recherche */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom ou prénom..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 
+                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                             focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                  />
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Filtres avancés pour admin et directeur */}
+            {canUseAdvancedFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Filtre par entreprise */}
+                <div>
+                  <Select
+                    label="Entreprise"
+                    options={[
+                      { label: "Toutes les entreprises", value: "" },
+                      ...companies.map((company) => ({
+                        label: company.name,
+                        value: company._id,
+                      })),
+                    ]}
+                    value={selectedCompanyId}
+                    onChange={handleCompanyChange}
+                    placeholder="Sélectionner une entreprise..."
+                    icon={<Building size={16} />}
+                    disabled={loadingCompanies}
+                  />
+                </div>
+
+                {/* Filtre par équipe */}
+                <div>
+                  <Select
+                    label="Équipe"
+                    options={[
+                      { label: "Toutes les équipes", value: "" },
+                      ...teams.map((team) => ({
+                        label: team.name,
+                        value: team._id,
+                      })),
+                    ]}
+                    value={selectedTeamId}
+                    onChange={setSelectedTeamId}
+                    placeholder="Sélectionner une équipe..."
+                    icon={<Users size={16} />}
+                    disabled={loadingTeams || !selectedCompanyId}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Filtre par équipe pour les managers */}
+            {userRole === "manager" && teams.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Select
+                    label="Équipe"
+                    options={[
+                      { label: "Toutes mes équipes", value: "" },
+                      ...teams.map((team) => ({
+                        label: team.name,
+                        value: team._id,
+                      })),
+                    ]}
+                    value={selectedTeamId}
+                    onChange={setSelectedTeamId}
+                    placeholder="Sélectionner une équipe..."
+                    icon={<Users size={16} />}
+                    disabled={loadingTeams}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Filtres de statut */}
             <div className="flex flex-wrap gap-3">
-              {/* Amélioration dark mode */}
               <Button
                 variant={statusFilter === "all" ? "primary" : "secondary"}
                 size="sm"
@@ -1404,20 +1653,20 @@ const VacationsPage: React.FC = () => {
               >
                 Refusés
               </Button>
-            </div>
 
-            {/* Bouton d'export PDF - visible uniquement pour manager, directeur et admin et si des demandes sont présentes */}
-            {["manager", "directeur", "admin"].includes(userRole) &&
-              filteredRequests.length > 0 && (
-                <Button
-                  variant="secondary"
-                  onClick={() => generateVacationPdf(filteredRequests)}
-                  icon={<FileDown size={14} />}
-                  className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600"
-                >
-                  Exporter PDF
-                </Button>
-              )}
+              {/* Bouton d'export PDF */}
+              {["manager", "directeur", "admin"].includes(userRole) &&
+                filteredRequests.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => generateVacationPdf(filteredRequests)}
+                    icon={<FileDown size={14} />}
+                    className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600 ml-auto"
+                  >
+                    Exporter PDF
+                  </Button>
+                )}
+            </div>
           </div>
         </SectionCard>
       </motion.div>

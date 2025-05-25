@@ -131,7 +131,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
     // Exécuter la requête paginée
     const vacationRequests = await VacationRequestModel.find(query)
-      .populate("employeeId", "firstName lastName")
+      .populate("employeeId", "firstName lastName companyId teamId")
       .populate("updatedBy", "firstName lastName")
       .sort({ createdAt: -1 })
       .limit(Number(limit))
