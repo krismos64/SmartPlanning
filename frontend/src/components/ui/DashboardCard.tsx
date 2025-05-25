@@ -9,6 +9,8 @@ interface DashboardCardProps {
   icon: React.ReactNode;
   path: string;
   delay: number;
+  isAI?: boolean;
+  onClick?: () => void;
 }
 
 const DashboardCard: React.FC<DashboardCardProps> = ({
@@ -17,8 +19,18 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   icon,
   path,
   delay,
+  isAI = false,
+  onClick,
 }) => {
   const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (isAI && onClick) {
+      onClick();
+    } else {
+      navigate(path);
+    }
+  };
 
   const iconVariants = {
     initial: { scale: 1 },
@@ -53,7 +65,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         boxShadow: "0 0 20px rgba(59, 130, 246, 0.4)",
       }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => navigate(path)}
+      onClick={handleClick}
       className="h-full"
       role="button"
       aria-label={`Accéder à ${title}`}

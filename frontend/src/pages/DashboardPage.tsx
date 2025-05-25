@@ -9,8 +9,9 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
+import ComingSoonAIModal from "../components/modals/ComingSoonAIModal";
 import { useTheme } from "../components/ThemeProvider";
 import CardGrid from "../components/ui/CardGrid";
 import DashboardCard from "../components/ui/DashboardCard";
@@ -22,6 +23,9 @@ import { useAuth } from "../hooks/useAuth";
 const DashboardPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
+
+  // État pour contrôler l'ouverture du modal IA
+  const [isAIModalOpen, setIsAIModalOpen] = useState<boolean>(false);
 
   // Obtenir l'heure pour personnaliser le message
   const getGreeting = () => {
@@ -116,6 +120,7 @@ const DashboardPage: React.FC = () => {
         "Consultez et gérez les horaires de travail de votre équipe pour la semaine en cours",
       icon: <CalendarCheck size={24} />,
       path: "/plannings-hebdomadaires",
+      isAI: false,
     },
     {
       title: "IA Planification Automatique",
@@ -123,6 +128,7 @@ const DashboardPage: React.FC = () => {
         "🚀 Fonctionnalité à venir : génération automatique de plannings intelligents basés sur les contraintes et préférences des employés",
       icon: <Bot size={24} />,
       path: "/tableau-de-bord",
+      isAI: true,
     },
     {
       title: "Gestion des collaborateurs",
@@ -130,6 +136,7 @@ const DashboardPage: React.FC = () => {
         "Visualisez, ajoutez ou modifiez les membres de votre équipe et leurs informations",
       icon: <Users size={24} />,
       path: getCollaboratorsPath(),
+      isAI: false,
     },
     {
       title: "Gestion des congés",
@@ -137,6 +144,7 @@ const DashboardPage: React.FC = () => {
         "Gérez les demandes de congés des employés et générez des PDF",
       icon: <Plane size={24} />,
       path: "/gestion-des-conges",
+      isAI: false,
     },
     {
       title: "Suivi des incidents",
@@ -144,6 +152,7 @@ const DashboardPage: React.FC = () => {
         "Enregistrez et suivez les incidents (retards, absences...) des employés",
       icon: <AlertTriangle size={24} />,
       path: "/suivi-des-incidents",
+      isAI: false,
     },
     {
       title: "Tâches personnelles",
@@ -151,8 +160,17 @@ const DashboardPage: React.FC = () => {
         "Assignez et suivez l'avancement de vos tâches personnelles, un vrai pense bête!",
       icon: <ClipboardList size={24} />,
       path: "/taches-employes",
+      isAI: false,
     },
   ];
+
+  // Gestionnaire de clic pour les cartes
+  const handleCardClick = (feature: any) => {
+    if (feature.isAI) {
+      setIsAIModalOpen(true);
+    }
+    // Pour les autres cartes, DashboardCard gère déjà la navigation
+  };
 
   return (
     <LayoutWithSidebar
@@ -315,10 +333,18 @@ const DashboardPage: React.FC = () => {
               icon={feature.icon}
               path={feature.path}
               delay={index}
+              isAI={feature.isAI}
+              onClick={() => handleCardClick(feature)}
             />
           ))}
         </CardGrid>
       </div>
+
+      {/* Modal IA Coming Soon */}
+      <ComingSoonAIModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+      />
     </LayoutWithSidebar>
   );
 };
