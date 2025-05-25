@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Response } from "express";
 import mongoose, { isValidObjectId } from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
@@ -10,12 +10,12 @@ const router = express.Router();
 /**
  * Route POST /api/weekly-schedules
  * Crée un planning hebdomadaire validé manuellement
- * Accessible uniquement aux managers et directeurs
+ * Accessible aux managers, directeurs et admins
  */
 router.post(
   "/",
   authenticateToken,
-  checkRole(["manager", "directeur"]),
+  checkRole(["manager", "directeur", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
       const {
@@ -168,27 +168,37 @@ router.post(
  * Route GET /api/weekly-schedules/week/:year/:weekNumber
  * Récupère les plannings hebdomadaires validés (status: "approved") pour une semaine et une année données
  * Sécurisé avec multitenant: filtre uniquement les employés de l'entreprise de l'utilisateur connecté
- * Accessible uniquement aux utilisateurs authentifiés avec roles directeur, manager ou employé
+ * Accessible aux utilisateurs authentifiés avec roles directeur, manager, employé et admin
  */
 router.get(
   "/week/:year/:weekNumber",
   authenticateToken,
-  checkRole(["directeur", "manager", "employé"]),
+  checkRole(["directeur", "manager", "employé", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
       const { year, weekNumber } = req.params;
       const { teamId, employeeId } = req.query;
 
       // Validation de l'authentification et récupération de companyId
-      if (!req.user || !req.user.companyId) {
+      if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: "Utilisateur non authentifié ou companyId manquant",
+          message: "Utilisateur non authentifié",
         });
       }
 
+      // Pour les admins, pas de restriction de companyId
+      const isAdmin = req.user.role === "admin";
       const userCompanyId = req.user.companyId;
       const userId = req.user.userId || req.user._id || req.user.id;
+
+      // Vérification du companyId seulement pour les non-admins
+      if (!isAdmin && !userCompanyId) {
+        return res.status(401).json({
+          success: false,
+          message: "CompanyId manquant pour un utilisateur non-admin",
+        });
+      }
 
       // Logs pour déboguer
       console.log("Recherche de plannings hebdomadaires:", {
@@ -241,12 +251,14 @@ router.get(
         {
           $unwind: "$employeeData",
         },
-        // Quatrième étape: filtrer uniquement les employés de l'entreprise de l'utilisateur connecté
+        // Quatrième étape: filtrer uniquement les employés de l'entreprise de l'utilisateur connecté (sauf pour les admins)
         {
-          $match: {
-            "employeeData.companyId":
-              mongoose.Types.ObjectId.createFromHexString(userCompanyId),
-          },
+          $match: isAdmin
+            ? {}
+            : {
+                "employeeData.companyId":
+                  mongoose.Types.ObjectId.createFromHexString(userCompanyId),
+              },
         },
       ];
 
@@ -262,15 +274,19 @@ router.get(
         try {
           console.log("Filtrage par équipe:", teamId);
 
-          // Vérifier d'abord si l'équipe existe et appartient à la même entreprise
-          const team = await TeamModel.findOne({
-            _id: teamId,
-            companyId: userCompanyId,
-          }).lean();
+          // Pour les admins, on vérifie juste que l'équipe existe
+          // Pour les autres rôles, on vérifie l'appartenance à l'entreprise
+          const teamQuery = isAdmin
+            ? { _id: teamId }
+            : { _id: teamId, companyId: userCompanyId };
+
+          const team = await TeamModel.findOne(teamQuery).lean();
 
           if (!team) {
             console.log(
-              `Équipe non trouvée ou n'appartient pas à l'entreprise: ${teamId}`
+              `Équipe non trouvée${
+                !isAdmin ? " ou n'appartient pas à l'entreprise" : ""
+              }: ${teamId}`
             );
             return res.status(200).json({
               success: true,
@@ -398,12 +414,12 @@ router.get(
 /**
  * Route PUT /api/weekly-schedules/:id
  * Met à jour un planning hebdomadaire existant
- * Accessible uniquement aux managers et directeurs
+ * Accessible aux managers, directeurs et admins
  */
 router.put(
   "/:id",
   authenticateToken,
-  checkRole(["manager", "directeur"]),
+  checkRole(["manager", "directeur", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
@@ -542,71 +558,76 @@ router.put(
 /**
  * Route GET /api/weekly-schedules/:id
  * Récupère un planning spécifique par son ID
+ * Accessible aux utilisateurs authentifiés
  */
-router.get("/:id", async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.get(
+  "/:id",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({
+      if (!isValidObjectId(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de planning invalide",
+        });
+      }
+
+      const schedule = await WeeklyScheduleModel.findById(id)
+        .populate("employeeId", "firstName lastName")
+        .populate("updatedBy", "firstName lastName")
+        .lean();
+
+      if (!schedule) {
+        return res.status(404).json({
+          success: false,
+          message: "Planning introuvable",
+        });
+      }
+
+      // Formatage de la réponse
+      const formattedSchedule = {
+        ...schedule,
+        employeeName: schedule.employeeId
+          ? `${(schedule.employeeId as any).firstName} ${
+              (schedule.employeeId as any).lastName
+            }`
+          : "Employé inconnu",
+        updatedByName: schedule.updatedBy
+          ? `${(schedule.updatedBy as any).firstName} ${
+              (schedule.updatedBy as any).lastName
+            }`
+          : "Utilisateur inconnu",
+        employeeId: schedule.employeeId
+          ? (schedule.employeeId as any)._id
+          : schedule.employeeId,
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: formattedSchedule,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération du planning:", error);
+      return res.status(500).json({
         success: false,
-        message: "ID de planning invalide",
+        message: "Erreur serveur lors de la récupération du planning",
+        error: error instanceof Error ? error.message : String(error),
       });
     }
-
-    const schedule = await WeeklyScheduleModel.findById(id)
-      .populate("employeeId", "firstName lastName")
-      .populate("updatedBy", "firstName lastName")
-      .lean();
-
-    if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        message: "Planning introuvable",
-      });
-    }
-
-    // Formatage de la réponse
-    const formattedSchedule = {
-      ...schedule,
-      employeeName: schedule.employeeId
-        ? `${(schedule.employeeId as any).firstName} ${
-            (schedule.employeeId as any).lastName
-          }`
-        : "Employé inconnu",
-      updatedByName: schedule.updatedBy
-        ? `${(schedule.updatedBy as any).firstName} ${
-            (schedule.updatedBy as any).lastName
-          }`
-        : "Utilisateur inconnu",
-      employeeId: schedule.employeeId
-        ? (schedule.employeeId as any)._id
-        : schedule.employeeId,
-    };
-
-    return res.status(200).json({
-      success: true,
-      data: formattedSchedule,
-    });
-  } catch (error) {
-    console.error("Erreur lors de la récupération du planning:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Erreur serveur lors de la récupération du planning",
-      error: error instanceof Error ? error.message : String(error),
-    });
   }
-});
+);
 
 /**
  * Route DELETE /api/weekly-schedules/:id
  * Supprime un planning spécifique
- * Accessible uniquement aux managers et directeurs
+ * Accessible aux managers, directeurs et admins
  */
 router.delete(
   "/:id",
   authenticateToken,
-  checkRole(["manager", "directeur"]),
+  checkRole(["manager", "directeur", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;

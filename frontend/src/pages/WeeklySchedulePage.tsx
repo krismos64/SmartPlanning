@@ -31,7 +31,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import useEmployeesByTeam from "../hooks/useEmployeesByTeam"; // Importer le hook pour les employés par équipe
 import api from "../services/api"; // Importer l'instance API configurée
@@ -181,6 +181,7 @@ const formatDuration = (minutes: number): string => {
  */
 const WeeklySchedulePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
 
   // État pour la sélection de semaine et date
@@ -301,6 +302,95 @@ const WeeklySchedulePage: React.FC = () => {
       });
     }
   }, [user, isAuthenticated]);
+
+  // Gestion des paramètres URL pour l'édition depuis la page admin
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const editScheduleId = searchParams.get("edit");
+    const urlYear = searchParams.get("year");
+    const urlWeek = searchParams.get("week");
+    const urlTeamId = searchParams.get("teamId");
+    const urlEmployeeId = searchParams.get("employeeId");
+
+    if (editScheduleId && urlYear && urlWeek) {
+      // Mode édition : récupérer un planning existant
+      const parsedYear = parseInt(urlYear);
+      const parsedWeek = parseInt(urlWeek);
+
+      if (parsedYear && parsedWeek) {
+        setYear(parsedYear);
+        setWeekNumber(parsedWeek);
+
+        // Mettre à jour la date sélectionnée
+        const startDate = new Date(parsedYear, 0, (parsedWeek - 1) * 7 + 1);
+        setSelectedDate(startDate);
+
+        // Récupérer et éditer le planning
+        fetchScheduleForEdit(editScheduleId);
+      }
+    } else if (urlYear && urlWeek) {
+      // Mode création : pré-remplir avec l'année et semaine
+      const parsedYear = parseInt(urlYear);
+      const parsedWeek = parseInt(urlWeek);
+
+      if (parsedYear && parsedWeek) {
+        setYear(parsedYear);
+        setWeekNumber(parsedWeek);
+
+        // Mettre à jour la date sélectionnée
+        const startDate = new Date(parsedYear, 0, (parsedWeek - 1) * 7 + 1);
+        setSelectedDate(startDate);
+      }
+    }
+
+    // Gérer les paramètres d'équipe et d'employé pour la création
+    if (urlTeamId) {
+      setSelectedTeam(urlTeamId);
+      setViewMode("team");
+    }
+    if (urlEmployeeId) {
+      setSelectedEmployeeId(urlEmployeeId);
+      if (!urlTeamId) {
+        setViewMode("employee");
+      }
+    }
+  }, [location.search]);
+
+  // Fonction pour récupérer un planning spécifique à éditer
+  const fetchScheduleForEdit = async (scheduleId: string) => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/weekly-schedules/${scheduleId}`);
+
+      if (response.data.success && response.data.data) {
+        const schedule = response.data.data;
+
+        console.log("Planning récupéré pour édition:", schedule);
+
+        // Mettre en mode édition AVANT d'appeler handleEditSchedule
+        setIsEditMode(true);
+        setExistingScheduleId(schedule._id);
+
+        // Mettre en mode édition et ouvrir le modal
+        handleEditSchedule(schedule);
+
+        // Afficher un message de confirmation
+        setSuccess(
+          `Mode édition activé pour le planning de ${schedule.employeeName}`
+        );
+        setShowSuccessToast(true);
+      } else {
+        setError("Planning introuvable");
+        setShowErrorToast(true);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération du planning:", error);
+      setError("Erreur lors de la récupération du planning");
+      setShowErrorToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /**
    * Gestionnaire de changement de date dans le DatePicker
@@ -445,6 +535,11 @@ const WeeklySchedulePage: React.FC = () => {
    * et la semaine/année courante, puis charge ses données dans le formulaire si nécessaire
    */
   const checkExistingSchedule = useCallback(() => {
+    // Si on a déjà un planning en cours d'édition, ne pas interférer
+    if (existingScheduleId && isEditMode) {
+      return;
+    }
+
     if (!selectedEmployeeId) {
       setExistingScheduleId(null);
       setIsEditMode(false);
@@ -488,11 +583,21 @@ const WeeklySchedulePage: React.FC = () => {
       );
       setNotes(existingSchedule.notes || "");
     } else {
-      setExistingScheduleId(null);
-      setIsEditMode(false);
-      resetForm();
+      // Seulement réinitialiser si on n'est pas déjà en mode édition
+      if (!isEditMode) {
+        setExistingScheduleId(null);
+        setIsEditMode(false);
+        resetForm();
+      }
     }
-  }, [selectedEmployeeId, schedules, weekNumber, year]);
+  }, [
+    selectedEmployeeId,
+    schedules,
+    weekNumber,
+    year,
+    existingScheduleId,
+    isEditMode,
+  ]);
 
   /**
    * Réinitialise le formulaire avec des valeurs par défaut
@@ -501,6 +606,9 @@ const WeeklySchedulePage: React.FC = () => {
     setScheduleData(DAY_KEYS.reduce((acc, day) => ({ ...acc, [day]: [] }), {}));
     setDailyNotes(DAY_KEYS.reduce((acc, day) => ({ ...acc, [day]: "" }), {}));
     setNotes("");
+    // Réinitialiser les états d'édition
+    setIsEditMode(false);
+    setExistingScheduleId(null);
   };
 
   /**
@@ -653,7 +761,7 @@ const WeeklySchedulePage: React.FC = () => {
       const response = await fetch(
         isEditMode && existingScheduleId ? `${url}/${existingScheduleId}` : url,
         {
-          method: isEditMode ? "PUT" : "POST",
+          method: isEditMode && existingScheduleId ? "PUT" : "POST",
           headers: headers,
           body: jsonPayload,
         }
@@ -689,6 +797,7 @@ const WeeklySchedulePage: React.FC = () => {
     resetForm();
     setSelectedEmployeeId("");
     setIsEditMode(false);
+    setExistingScheduleId(null);
     setIsCreateModalOpen(true);
   };
 
@@ -697,6 +806,10 @@ const WeeklySchedulePage: React.FC = () => {
    */
   const closeCreateModal = () => {
     setIsCreateModalOpen(false);
+    // Réinitialiser les états d'édition lors de la fermeture
+    setIsEditMode(false);
+    setExistingScheduleId(null);
+    resetForm();
   };
 
   /**
@@ -731,8 +844,11 @@ const WeeklySchedulePage: React.FC = () => {
       setShowSuccessToast(true);
 
       // Réinitialisation et rechargement
-      resetForm();
-      setSelectedEmployeeId("");
+      if (!isEditMode) {
+        // Seulement pour les nouvelles créations
+        resetForm();
+        setSelectedEmployeeId("");
+      }
       // Fermer le modal dans tous les cas après une sauvegarde réussie
       closeCreateModal();
       fetchSchedules();

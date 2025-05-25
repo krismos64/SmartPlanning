@@ -8,7 +8,7 @@
  * - Suppression des entreprises
  */
 
-import { Building, Edit, Plus, Trash2 } from "lucide-react";
+import { Building, Edit, Plus, Search, Trash2, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
 
@@ -128,6 +128,10 @@ const CompanyManagementPage: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
 
+  // États pour la recherche
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
+
   /**
    * Récupération des entreprises depuis l'API
    */
@@ -166,16 +170,31 @@ const CompanyManagementPage: React.FC = () => {
   }, [fetchCompanies]);
 
   /**
-   * Effet pour formater les données des entreprises pour le tableau
+   * Effet pour filtrer les entreprises selon le terme de recherche
    */
   useEffect(() => {
-    if (!companies || companies.length === 0) {
+    if (!searchTerm.trim()) {
+      setFilteredCompanies(companies);
+      return;
+    }
+
+    const filtered = companies.filter((company) =>
+      company.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredCompanies(filtered);
+  }, [companies, searchTerm]);
+
+  /**
+   * Effet pour mettre à jour les données du tableau avec les entreprises filtrées
+   */
+  useEffect(() => {
+    if (!filteredCompanies || filteredCompanies.length === 0) {
       setTableData([]);
       return;
     }
 
-    // Format des données pour le tableau
-    const formattedCompanies = companies.map((company) => {
+    // Format des données filtrées pour le tableau
+    const formattedCompanies = filteredCompanies.map((company) => {
       return {
         _id: company._id,
         name: <Badge type="info" label={company.name} />,
@@ -211,15 +230,6 @@ const CompanyManagementPage: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              icon={<Trash2 size={16} />}
-              onClick={() => handleOpenDeleteModal(company._id)}
-              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-            >
-              Supprimer
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
               icon={<Building size={16} />}
               onClick={() =>
                 (window.location.href = `/admin/entreprises/${company._id}/equipes`)
@@ -228,19 +238,25 @@ const CompanyManagementPage: React.FC = () => {
             >
               Équipes
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 size={16} />}
+              onClick={() => handleOpenDeleteModal(company._id)}
+              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+            >
+              Supprimer
+            </Button>
           </div>
         ),
       };
     });
 
     setTableData(formattedCompanies);
-
-    // Log pour vérifier si les données sont correctement formatées
-    console.log("Données formatées pour le tableau:", formattedCompanies);
-  }, [companies]);
+  }, [filteredCompanies]);
 
   /**
-   * Fermeture des toasts
+   * Gestion des toasts de notification
    */
   const closeSuccessToast = () => {
     setShowSuccessToast(false);
@@ -248,6 +264,17 @@ const CompanyManagementPage: React.FC = () => {
 
   const closeErrorToast = () => {
     setShowErrorToast(false);
+  };
+
+  /**
+   * Gestion de la recherche
+   */
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
   };
 
   /**
@@ -569,6 +596,37 @@ const CompanyManagementPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Barre de recherche */}
+        <div className="mb-6">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+            </div>
+            <input
+              type="text"
+              placeholder="Rechercher une entreprise..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="block w-full pl-10 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+            />
+            {searchTerm && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <X className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors" />
+              </button>
+            )}
+          </div>
+          {searchTerm && (
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {filteredCompanies.length} résultat
+              {filteredCompanies.length !== 1 ? "s" : ""} trouvé
+              {filteredCompanies.length !== 1 ? "s" : ""} pour "{searchTerm}"
+            </p>
+          )}
+        </div>
+
         {/* Contenu principal */}
         <SectionCard>
           {loading && !tableData.length ? (
@@ -601,22 +659,25 @@ const CompanyManagementPage: React.FC = () => {
 
               {/* Affichage mobile - Cards */}
               <div className="md:hidden space-y-4">
-                {companies.length === 0 ? (
+                {filteredCompanies.length === 0 ? (
                   <div className="text-center py-12">
                     <Building
                       size={48}
                       className="mx-auto text-gray-300 dark:text-gray-600 mb-4"
                     />
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      Aucune entreprise trouvée
+                      {searchTerm
+                        ? "Aucune entreprise trouvée"
+                        : "Aucune entreprise trouvée"}
                     </h3>
                     <p className="text-gray-500 dark:text-gray-400">
-                      Il n'y a actuellement aucune entreprise enregistrée dans
-                      le système.
+                      {searchTerm
+                        ? `Aucune entreprise ne correspond à "${searchTerm}".`
+                        : "Il n'y a actuellement aucune entreprise enregistrée dans le système."}
                     </p>
                   </div>
                 ) : (
-                  companies.map((company) => (
+                  filteredCompanies.map((company) => (
                     <div
                       key={company._id}
                       className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm"

@@ -175,7 +175,12 @@ const AppRouter: React.FC = () => {
         {/* Routes principales de l'application */}
         <Route
           path="/plannings-hebdomadaires"
-          element={<WeeklySchedulePage />}
+          element={
+            <RoleProtectedRoute
+              element={<WeeklySchedulePage />}
+              allowedRoles={["admin", "manager", "directeur", "employee"]}
+            />
+          }
         />
         <Route path="/gestion-des-conges" element={<VacationsPage />} />
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />

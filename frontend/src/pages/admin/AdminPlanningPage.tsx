@@ -4,17 +4,22 @@
  * Permet aux administrateurs de visualiser tous les plannings
  * avec des filtres par entreprise, équipe et employé.
  */
+import { getISOWeek } from "date-fns";
 import {
   Building,
   Calendar,
   Clock,
+  Edit,
   Eye,
   Filter,
+  Plus,
   Search,
+  Trash2,
   User,
   Users,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 
 // Composants de layout
@@ -111,6 +116,8 @@ const breadcrumbItems = [
 ];
 
 const AdminPlanningPage: React.FC = () => {
+  const navigate = useNavigate();
+
   // États pour les données
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -144,6 +151,12 @@ const AdminPlanningPage: React.FC = () => {
     null
   );
   const [isViewModalOpen, setIsViewModalOpen] = useState<boolean>(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [deletingScheduleId, setDeletingScheduleId] = useState<string | null>(
+    null
+  );
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Options pour les années
   const yearOptions = Array.from({ length: 11 }, (_, i) => {
@@ -331,6 +344,61 @@ const AdminPlanningPage: React.FC = () => {
     setIsViewModalOpen(true);
   };
 
+  const handleEditSchedule = (schedule: Schedule) => {
+    // Rediriger vers la page de plannings hebdomadaires avec les paramètres appropriés
+    navigate(
+      `/plannings-hebdomadaires?edit=${schedule._id}&year=${schedule.year}&week=${schedule.weekNumber}`
+    );
+  };
+
+  const handleCreateSchedule = () => {
+    // Rediriger vers la page de plannings hebdomadaires pour créer un nouveau planning
+    // Utiliser l'année et semaine actuellement sélectionnées ou la semaine actuelle par défaut
+    const year = selectedYear || new Date().getFullYear().toString();
+    const week = selectedWeek || getISOWeek(new Date()).toString();
+
+    // Construire l'URL avec les paramètres de base
+    let url = `/plannings-hebdomadaires?year=${year}&week=${week}`;
+
+    // Ajouter les filtres sélectionnés pour pré-remplir le formulaire
+    if (selectedTeam) {
+      url += `&teamId=${selectedTeam}`;
+    }
+    if (selectedEmployee) {
+      url += `&employeeId=${selectedEmployee}`;
+    }
+
+    navigate(url);
+  };
+
+  const handleDeleteSchedule = (scheduleId: string) => {
+    setDeletingScheduleId(scheduleId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteSchedule = async () => {
+    if (!deletingScheduleId) return;
+
+    try {
+      setLoading(true);
+      await axiosInstance.delete(`/weekly-schedules/${deletingScheduleId}`);
+
+      setSuccess("Planning supprimé avec succès");
+      setShowSuccessToast(true);
+      setIsDeleteModalOpen(false);
+      setDeletingScheduleId(null);
+
+      // Recharger la liste des plannings
+      fetchSchedules();
+    } catch (error: any) {
+      console.error("Erreur lors de la suppression:", error);
+      setError("Erreur lors de la suppression du planning");
+      setShowErrorToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetFilters = () => {
     setSelectedCompany("");
     setSelectedTeam("");
@@ -382,7 +450,7 @@ const AdminPlanningPage: React.FC = () => {
     { key: "period", label: "Période", className: "w-32" },
     { key: "totalTime", label: "Total", className: "w-24" },
     { key: "updatedBy", label: "Mis à jour par", className: "w-40" },
-    { key: "actions", label: "Actions", className: "w-32" },
+    { key: "actions", label: "Actions", className: "w-40" },
   ];
 
   const tableData = schedules.map((schedule) => ({
@@ -393,15 +461,35 @@ const AdminPlanningPage: React.FC = () => {
     totalTime: calculateTotalHours(schedule.scheduleData),
     updatedBy: schedule.updatedByName || "Inconnu",
     actions: (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleViewSchedule(schedule)}
-        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-        title="Voir le détail du planning"
-      >
-        <Eye className="h-4 w-4" />
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleViewSchedule(schedule)}
+          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+          title="Voir le détail du planning"
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleEditSchedule(schedule)}
+          className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+          title="Modifier le planning"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleDeleteSchedule(schedule._id)}
+          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+          title="Supprimer le planning"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     ),
   }));
 
@@ -417,6 +505,13 @@ const AdminPlanningPage: React.FC = () => {
           type="error"
           isVisible={showErrorToast}
           onClose={() => setShowErrorToast(false)}
+        />
+
+        <Toast
+          message={success || ""}
+          type="success"
+          isVisible={showSuccessToast}
+          onClose={() => setShowSuccessToast(false)}
         />
 
         {/* En-tête avec fil d'ariane */}
@@ -542,6 +637,14 @@ const AdminPlanningPage: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-800 dark:text-white">
               Plannings trouvés ({pagination.totalItems})
             </h3>
+            <Button
+              variant="primary"
+              onClick={handleCreateSchedule}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+              icon={<Plus className="h-4 w-4" />}
+            >
+              Créer un planning
+            </Button>
           </div>
 
           {loading ? (
@@ -587,10 +690,39 @@ const AdminPlanningPage: React.FC = () => {
               ? `Planning de ${selectedSchedule.employeeName}`
               : "Détails du planning"
           }
-          className="w-full max-w-[95vw] mx-auto"
+          className="w-full max-w-[98vw] lg:max-w-[90vw] xl:max-w-[85vw] mx-auto"
         >
           {selectedSchedule && (
             <div className="space-y-6">
+              {/* En-tête avec boutons d'action */}
+              <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border-b">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                    Actions disponibles
+                  </h3>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleEditSchedule(selectedSchedule)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    icon={<Edit className="h-4 w-4" />}
+                  >
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDeleteSchedule(selectedSchedule._id)}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    icon={<Trash2 className="h-4 w-4" />}
+                  >
+                    Supprimer
+                  </Button>
+                </div>
+              </div>
+
               {/* Informations générales */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div>
@@ -644,38 +776,84 @@ const AdminPlanningPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Planning hebdomadaire */}
+              {/* Planning hebdomadaire - Nouvelle présentation sur deux lignes */}
               <div>
                 <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-6">
                   Planning de la semaine
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4 lg:gap-6">
-                  {DAY_KEYS.map((day, index) => (
-                    <div
-                      key={day}
-                      className="p-4 lg:p-5 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[120px]"
-                    >
-                      <label className="text-sm lg:text-base font-semibold text-gray-700 dark:text-gray-300 mb-3 block text-center">
-                        {DAYS_OF_WEEK[index]}
-                      </label>
-                      <div className="space-y-2">
-                        {selectedSchedule.scheduleData[day]?.length > 0 ? (
-                          selectedSchedule.scheduleData[day].map((slot, i) => (
-                            <div
-                              key={i}
-                              className="text-sm lg:text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-3 py-2 lg:px-4 lg:py-3 rounded-md shadow-sm border border-gray-100 dark:border-gray-600 font-medium text-center"
-                            >
-                              {slot}
+
+                {/* Première ligne : Lundi, Mardi, Mercredi */}
+                <div className="mb-6">
+                  <h5 className="text-md font-medium text-gray-600 dark:text-gray-300 mb-4">
+                    Début de semaine
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {DAY_KEYS.slice(0, 3).map((day, index) => (
+                      <div
+                        key={day}
+                        className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl border border-blue-200 dark:border-blue-700 min-h-[140px] shadow-sm"
+                      >
+                        <label className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-4 block text-center">
+                          {DAYS_OF_WEEK[index]}
+                        </label>
+                        <div className="space-y-3">
+                          {selectedSchedule.scheduleData[day]?.length > 0 ? (
+                            selectedSchedule.scheduleData[day].map(
+                              (slot, i) => (
+                                <div
+                                  key={i}
+                                  className="text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 font-medium text-center"
+                                >
+                                  {slot}
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className="text-base text-gray-500 dark:text-gray-400 italic text-center py-6">
+                              Repos
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-sm lg:text-base text-gray-500 dark:text-gray-400 italic text-center py-4">
-                            Repos
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                {/* Deuxième ligne : Jeudi, Vendredi, Samedi, Dimanche */}
+                <div>
+                  <h5 className="text-md font-medium text-gray-600 dark:text-gray-300 mb-4">
+                    Fin de semaine
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {DAY_KEYS.slice(3, 7).map((day, index) => (
+                      <div
+                        key={day}
+                        className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl border border-green-200 dark:border-green-700 min-h-[140px] shadow-sm"
+                      >
+                        <label className="text-lg font-semibold text-green-700 dark:text-green-300 mb-4 block text-center">
+                          {DAYS_OF_WEEK[index + 3]}
+                        </label>
+                        <div className="space-y-3">
+                          {selectedSchedule.scheduleData[day]?.length > 0 ? (
+                            selectedSchedule.scheduleData[day].map(
+                              (slot, i) => (
+                                <div
+                                  key={i}
+                                  className="text-base text-gray-900 dark:text-white bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 font-medium text-center"
+                                >
+                                  {slot}
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className="text-base text-gray-500 dark:text-gray-400 italic text-center py-6">
+                              Repos
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -692,6 +870,38 @@ const AdminPlanningPage: React.FC = () => {
               )}
             </div>
           )}
+        </Modal>
+
+        {/* Modal de confirmation de suppression */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Confirmer la suppression"
+          className="w-full max-w-md mx-auto"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-600 dark:text-gray-300">
+              Êtes-vous sûr de vouloir supprimer ce planning ? Cette action est
+              irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={loading}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmDeleteSchedule}
+                isLoading={loading}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Supprimer
+              </Button>
+            </div>
+          </div>
         </Modal>
       </PageWrapper>
     </LayoutWithSidebar>
