@@ -256,7 +256,7 @@ const formatDateForBackend = (dateStr: string) => {
 // Composant principal VacationsPage
 const VacationsPage: React.FC = () => {
   // Simulation du rôle utilisateur (à remplacer par une authentification réelle)
-  const [userRole] = useState<UserRole>("directeur");
+  const [userRole] = useState<UserRole>("employee");
 
   // État pour les demandes de congés
   const [vacationRequests, setVacationRequests] = useState<VacationRequest[]>(
@@ -321,6 +321,10 @@ const VacationsPage: React.FC = () => {
 
   // Vérifier si l'utilisateur peut filtrer par équipe (directeur et admin)
   const canFilterByTeam = userRole === "admin" || userRole === "directeur";
+
+  // Vérifier si l'utilisateur peut approuver/refuser des demandes
+  const canApproveReject =
+    userRole === "manager" || userRole === "directeur" || userRole === "admin";
 
   // Ajout des états pour le tri des demandes
   const [sortField, setSortField] = useState<
@@ -1326,20 +1330,22 @@ const VacationsPage: React.FC = () => {
         className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-3 p-4 transition-all"
       >
         <div className="flex flex-col space-y-3">
-          {/* Employé */}
-          <div className="flex items-center gap-3">
-            <Avatar
-              src={null}
-              alt={`${request.employeeId?.firstName || ""} ${
-                request.employeeId?.lastName || ""
-              }`}
-              size="sm"
-            />
-            <span className="text-gray-800 dark:text-white font-medium">
-              {request.employeeId?.firstName || "Employé"}{" "}
-              {request.employeeId?.lastName || "inconnu"}
-            </span>
-          </div>
+          {/* Employé - masqué pour les employés car ils ne voient que leurs propres demandes */}
+          {userRole !== "employee" && (
+            <div className="flex items-center gap-3">
+              <Avatar
+                src={null}
+                alt={`${request.employeeId?.firstName || ""} ${
+                  request.employeeId?.lastName || ""
+                }`}
+                size="sm"
+              />
+              <span className="text-gray-800 dark:text-white font-medium">
+                {request.employeeId?.firstName || "Employé"}{" "}
+                {request.employeeId?.lastName || "inconnu"}
+              </span>
+            </div>
+          )}
 
           {/* Statut */}
           <div className="flex justify-between items-center">
@@ -1394,37 +1400,47 @@ const VacationsPage: React.FC = () => {
 
           {/* Actions - utilisent maintenant les permissions */}
           {/* Actions - Boutons d'approbation/refus (pour les demandes en attente) */}
-          {request.permissions?.canEdit && request.status === "pending" && (
-            <div className="flex flex-wrap justify-end gap-2 mt-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() =>
-                  handleUpdateVacationStatus(request._id, "approved")
-                }
-                isLoading={actionLoading === request._id}
-                icon={<CheckCircle2 size={14} />}
-                className="bg-green-600 hover:bg-green-700 focus:ring-green-500/40"
-              >
-                Approuver
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() =>
-                  handleUpdateVacationStatus(request._id, "rejected")
-                }
-                isLoading={actionLoading === request._id}
-                icon={<XCircle size={14} />}
-              >
-                Refuser
-              </Button>
-            </div>
-          )}
+          {canApproveReject &&
+            request.permissions?.canEdit &&
+            request.status === "pending" && (
+              <div className="flex flex-wrap justify-end gap-2 mt-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() =>
+                    handleUpdateVacationStatus(request._id, "approved")
+                  }
+                  isLoading={actionLoading === request._id}
+                  icon={<CheckCircle2 size={14} />}
+                  className="bg-green-600 hover:bg-green-700 focus:ring-green-500/40"
+                >
+                  Approuver
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() =>
+                    handleUpdateVacationStatus(request._id, "rejected")
+                  }
+                  isLoading={actionLoading === request._id}
+                  icon={<XCircle size={14} />}
+                >
+                  Refuser
+                </Button>
+              </div>
+            )}
 
           {/* Bouton Modifier - affiché pour toutes les demandes avec permission d'édition */}
-          {request.permissions?.canEdit && (
-            <div className="flex justify-end mt-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+          {request.permissions?.canEdit && userRole !== "employee" && (
+            <div
+              className={`flex justify-end mt-2 ${
+                canApproveReject &&
+                request.status === "pending" &&
+                request.permissions?.canEdit
+                  ? ""
+                  : "pt-3 border-t border-gray-100 dark:border-gray-700"
+              }`}
+            >
               <Button
                 variant="secondary"
                 size="sm"
@@ -1441,7 +1457,10 @@ const VacationsPage: React.FC = () => {
           {request.permissions?.canDelete && (
             <div
               className={`flex justify-end mt-2 ${
-                request.status === "pending" && request.permissions?.canEdit
+                (canApproveReject &&
+                  request.status === "pending" &&
+                  request.permissions?.canEdit) ||
+                request.permissions?.canEdit
                   ? ""
                   : "pt-3 border-t border-gray-100 dark:border-gray-700"
               }`}
@@ -1459,16 +1478,18 @@ const VacationsPage: React.FC = () => {
           )}
 
           {/* Information sur qui a approuvé/refusé */}
-          {request.status !== "pending" && (
-            <div className="text-gray-500 dark:text-gray-400 text-xs text-right pt-2 border-t border-gray-100 dark:border-gray-700">
-              {request.status === "approved" ? "Approuvé" : "Refusé"} par{" "}
-              <span className="font-medium">
-                {request.updatedBy && request.updatedBy.firstName
-                  ? `${request.updatedBy.firstName} ${request.updatedBy.lastName}`
-                  : "le système"}
-              </span>
-            </div>
-          )}
+          {request.status !== "pending" &&
+            !request.permissions?.canDelete &&
+            canApproveReject && (
+              <div className="text-[var(--text-tertiary)] dark:text-gray-400 text-xs text-right">
+                {request.status === "approved" ? "Approuvé" : "Refusé"} par{" "}
+                <span className="font-medium">
+                  {request.updatedBy && request.updatedBy.firstName
+                    ? `${request.updatedBy.firstName} ${request.updatedBy.lastName}`
+                    : "le système"}
+                </span>
+              </div>
+            )}
         </div>
       </motion.div>
     );
@@ -1919,12 +1940,17 @@ const VacationsPage: React.FC = () => {
               <div className="hidden md:block overflow-x-auto">
                 <Table
                   columns={[
-                    {
-                      key: "employee",
-                      label: "Employé",
-                      className: "w-48",
-                      sortable: true,
-                    },
+                    // Colonne employé - masquée pour les employés car ils ne voient que leurs propres demandes
+                    ...(userRole !== "employee"
+                      ? [
+                          {
+                            key: "employee",
+                            label: "Employé",
+                            className: "w-48",
+                            sortable: true,
+                          },
+                        ]
+                      : []),
                     {
                       key: "period",
                       label: "Période",
@@ -1943,21 +1969,24 @@ const VacationsPage: React.FC = () => {
                   data={filteredRequests
                     .filter((request) => request && typeof request === "object")
                     .map((request) => ({
-                      employee: (
-                        <div className="flex items-center gap-3">
-                          <Avatar
-                            src={null}
-                            alt={`${request.employeeId?.firstName || ""} ${
-                              request.employeeId?.lastName || ""
-                            }`}
-                            size="sm"
-                          />
-                          <span className="text-[var(--text-primary)] dark:text-white font-medium">
-                            {request.employeeId?.firstName || "Employé"}{" "}
-                            {request.employeeId?.lastName || "inconnu"}
-                          </span>
-                        </div>
-                      ),
+                      // Données employé - masquées pour les employés
+                      ...(userRole !== "employee" && {
+                        employee: (
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              src={null}
+                              alt={`${request.employeeId?.firstName || ""} ${
+                                request.employeeId?.lastName || ""
+                              }`}
+                              size="sm"
+                            />
+                            <span className="text-[var(--text-primary)] dark:text-white font-medium">
+                              {request.employeeId?.firstName || "Employé"}{" "}
+                              {request.employeeId?.lastName || "inconnu"}
+                            </span>
+                          </div>
+                        ),
+                      }),
                       period: (
                         <div>
                           <div className="flex items-center gap-1.5 text-[var(--text-primary)] dark:text-white">
@@ -2004,7 +2033,8 @@ const VacationsPage: React.FC = () => {
                       actions: (
                         <div className="flex justify-end gap-2">
                           {/* Boutons d'approbation/refus - uniquement pour les demandes en attente */}
-                          {request.permissions?.canEdit &&
+                          {canApproveReject &&
+                            request.permissions?.canEdit &&
                             request.status === "pending" && (
                               <>
                                 <Button
@@ -2040,17 +2070,18 @@ const VacationsPage: React.FC = () => {
                             )}
 
                           {/* Bouton Modifier - affiché pour toutes les demandes avec permission d'édition */}
-                          {request.permissions?.canEdit && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleEditVacation(request)}
-                              icon={<Calendar size={14} />}
-                              className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600"
-                            >
-                              Modifier
-                            </Button>
-                          )}
+                          {request.permissions?.canEdit &&
+                            userRole !== "employee" && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleEditVacation(request)}
+                                icon={<Calendar size={14} />}
+                                className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600"
+                              >
+                                Modifier
+                              </Button>
+                            )}
 
                           {request.permissions?.canDelete && (
                             <Button
@@ -2065,7 +2096,8 @@ const VacationsPage: React.FC = () => {
                           )}
 
                           {request.status !== "pending" &&
-                            !request.permissions?.canDelete && (
+                            !request.permissions?.canDelete &&
+                            canApproveReject && (
                               <div className="text-[var(--text-tertiary)] dark:text-gray-400 text-xs text-right">
                                 {request.status === "approved"
                                   ? "Approuvé"

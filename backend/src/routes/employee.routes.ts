@@ -742,4 +742,49 @@ router.delete(
   }
 );
 
+/**
+ * Route GET /api/employees/me
+ * Récupère les informations de l'employé connecté
+ */
+router.get(
+  "/me",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      const userId = req.user.userId || req.user._id || req.user.id;
+
+      // Récupérer l'employé basé sur le userId
+      const employee = await EmployeeModel.findOne({ userId })
+        .populate("teamId", "name")
+        .populate("companyId", "name")
+        .lean();
+
+      if (!employee) {
+        return res.status(404).json({
+          success: false,
+          message: "Profil employé non trouvé",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: employee,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la récupération du profil employé:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur",
+      });
+    }
+  }
+);
+
 export default router;

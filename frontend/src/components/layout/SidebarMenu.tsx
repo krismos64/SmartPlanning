@@ -159,6 +159,18 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   const dynamicMenuItems = useMemo(() => {
     let items = [...menuItems];
 
+    // Pour les employés, remplacer le lien "Plannings" par "Mes Plannings"
+    if (user?.role === "employee") {
+      items = items.map((item) =>
+        item.id === "plannings"
+          ? { ...item, label: "Mes Plannings", route: "/mes-plannings" }
+          : item
+      );
+
+      // Pour les employés, supprimer l'accès aux statistiques
+      items = items.filter((item) => item.id !== "statistiques");
+    }
+
     // Pour les admins, retirer le lien "Plannings" normal
     if (user?.role === "admin") {
       items = items.filter((item) => item.id !== "plannings");

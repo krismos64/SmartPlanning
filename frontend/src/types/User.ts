@@ -10,6 +10,8 @@ export interface User {
   createdAt: string;
   photoUrl?: string; // URL de la photo de profil (optionnelle)
   companyId?: string;
+  teamId?: string; // ID de l'équipe assignée
+  companyName?: string; // Nom de l'entreprise
   token?: string;
   userId?: string; // Ajout de userId pour la compatibilité avec le middleware d'auth
 }

@@ -1,96 +1,96 @@
 import { User } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 interface AvatarProps {
   src?: string | null;
   alt?: string;
-  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
-  fallbackClassName?: string;
-  fallback?: string;
+  fallbackName?: string;
 }
 
 const Avatar: React.FC<AvatarProps> = ({
   src,
-  alt = "Photo de profil",
+  alt,
   size = "md",
   className = "",
-  fallbackClassName = "",
-  fallback,
+  fallbackName,
 }) => {
-  const [hasError, setHasError] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
-  // Vérifier et traiter l'URL de l'image
-  useEffect(() => {
-    // Réinitialiser l'état d'erreur si une nouvelle URL est fournie
-    setHasError(false);
-
-    if (src) {
-      // Accepter les URLs complètes (http, https) et les URLs data:image
-      if (
-        !src.startsWith("http://") &&
-        !src.startsWith("https://") &&
-        !src.startsWith("data:image/")
-      ) {
-        setHasError(true);
-        return;
-      }
-
-      // Vérifier si l'URL est accessible (sauf pour les data:image qui sont déjà chargées)
-      if (src.startsWith("data:image/")) {
-        setImageSrc(src);
-        setHasError(false);
-      } else {
-        // Pour les URLs http/https, vérifier qu'elles sont accessibles
-        const img = new Image();
-        img.onload = () => {
-          setImageSrc(src);
-          setHasError(false);
-        };
-        img.onerror = () => {
-          setHasError(true);
-        };
-        img.src = src;
-      }
-    } else {
-      setHasError(true);
-    }
-  }, [src]);
-
+  // Tailles prédéfinies
   const sizeClasses = {
-    sm: "w-8 h-8 text-xs",
-    md: "w-12 h-12 text-sm",
-    lg: "w-16 h-16 text-base",
-    xl: "w-24 h-24 text-lg",
-    "2xl": "w-32 h-32 text-xl",
+    sm: "w-8 h-8",
+    md: "w-10 h-10",
+    lg: "w-12 h-12",
+    xl: "w-16 h-16",
   };
 
-  const handleError = () => {
-    setHasError(true);
+  const iconSizes = {
+    sm: "h-4 w-4",
+    md: "h-5 w-5",
+    lg: "h-6 w-6",
+    xl: "h-8 w-8",
   };
 
+  // Générer les initiales à partir du nom
+  const getInitials = (name?: string): string => {
+    if (!name) return "";
+    return name
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join("");
+  };
+
+  // Générer une couleur de fond basée sur le nom
+  const getBackgroundColor = (name?: string): string => {
+    if (!name) return "bg-gradient-to-br from-blue-500 to-purple-600";
+
+    const colors = [
+      "bg-gradient-to-br from-blue-500 to-purple-600",
+      "bg-gradient-to-br from-green-500 to-teal-600",
+      "bg-gradient-to-br from-orange-500 to-red-600",
+      "bg-gradient-to-br from-pink-500 to-rose-600",
+      "bg-gradient-to-br from-indigo-500 to-blue-600",
+      "bg-gradient-to-br from-yellow-500 to-orange-600",
+      "bg-gradient-to-br from-purple-500 to-pink-600",
+      "bg-gradient-to-br from-cyan-500 to-blue-600",
+    ];
+
+    const index = name.length % colors.length;
+    return colors[index];
+  };
+
+  const initials = getInitials(fallbackName);
+  const backgroundColorClass = getBackgroundColor(fallbackName);
+
+  // Si on a une image valide et qu'elle ne pose pas de problème
+  if (src && !imageError) {
+    return (
+      <div
+        className={`${sizeClasses[size]} rounded-full overflow-hidden ${className}`}
+      >
+        <img
+          src={src}
+          alt={alt || fallbackName || "Avatar"}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+          onLoad={() => setImageError(false)}
+        />
+      </div>
+    );
+  }
+
+  // Fallback : afficher les initiales ou l'icône
   return (
     <div
-      className={`relative rounded-full overflow-hidden ${sizeClasses[size]} ${className}`}
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center ${backgroundColorClass} ${className}`}
     >
-      {!hasError && imageSrc ? (
-        <img
-          src={imageSrc}
-          alt={alt}
-          className="w-full h-full object-cover"
-          onError={handleError}
-        />
+      {initials ? (
+        <span className="text-white font-medium text-sm">{initials}</span>
       ) : (
-        <div
-          className={`flex items-center justify-center bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 w-full h-full ${fallbackClassName}`}
-        >
-          {fallback ? (
-            <span className="font-medium">{fallback}</span>
-          ) : (
-            <User />
-          )}
-        </div>
+        <User className={`${iconSizes[size]} text-white`} />
       )}
     </div>
   );

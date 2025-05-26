@@ -234,10 +234,9 @@ router.get(
         weekNumber: weekNumberValue,
       };
 
-      // **RESTRICTION POUR LES EMPLOYÉS : ne voir que leurs propres plannings**
+      // **RESTRICTION POUR LES EMPLOYÉS**
       if (isEmployee) {
         // Pour les employés, on doit d'abord trouver leur document Employee
-        // puis filtrer les plannings par leur employeeId
         const EmployeeModel = require("../models/Employee.model").default;
         const employee = await EmployeeModel.findOne({ userId: userId }).lean();
 
@@ -248,12 +247,32 @@ router.get(
           });
         }
 
-        // Restricter aux plannings de cet employé uniquement
-        matchStage.employeeId = employee._id;
-
-        console.log(
-          `Employé ${userId} ne peut voir que ses plannings (employeeId: ${employee._id})`
-        );
+        // Si un teamId est spécifié, vérifier que c'est bien l'équipe de l'employé
+        if (teamId && isValidObjectId(teamId as string)) {
+          // Vérifier que le teamId correspond à l'équipe de l'employé
+          if (employee.teamId && employee.teamId.toString() === teamId) {
+            console.log(
+              `Employé ${userId} consulte les plannings de son équipe (teamId: ${teamId})`
+            );
+            // Ne pas restreindre par employeeId, permettre de voir toute l'équipe
+            // Le filtre par équipe sera appliqué plus tard dans l'agrégation
+          } else {
+            console.log(
+              `Employé ${userId} tente d'accéder à une équipe non autorisée (teamId: ${teamId}, son équipe: ${employee.teamId})`
+            );
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez consulter que les plannings de votre propre équipe",
+            });
+          }
+        } else {
+          // Pas de teamId spécifié, restricter aux plannings de cet employé uniquement
+          matchStage.employeeId = employee._id;
+          console.log(
+            `Employé ${userId} consulte ses propres plannings (employeeId: ${employee._id})`
+          );
+        }
       } else {
         // Pour les autres rôles (manager, directeur), appliquer les filtres normaux
 
@@ -291,59 +310,57 @@ router.get(
         },
       ];
 
-      // Pour les non-employés, ajouter les filtres d'entreprise et d'équipe
-      if (!isEmployee) {
-        // Filtre par entreprise (sauf pour les admins)
-        if (!isAdmin) {
-          aggregationPipeline.push({
-            $match: {
-              "employeeData.companyId":
-                mongoose.Types.ObjectId.createFromHexString(userCompanyId),
-            },
-          });
-        }
+      // Ajouter les filtres d'entreprise et d'équipe
+      // Filtre par entreprise (sauf pour les admins)
+      if (!isAdmin) {
+        aggregationPipeline.push({
+          $match: {
+            "employeeData.companyId":
+              mongoose.Types.ObjectId.createFromHexString(userCompanyId),
+          },
+        });
+      }
 
-        // Filtre par équipe si spécifié
-        if (teamId && isValidObjectId(teamId as string)) {
-          try {
-            console.log("Filtrage par équipe:", teamId);
+      // Filtre par équipe si spécifié (pour tous les rôles maintenant)
+      if (teamId && isValidObjectId(teamId as string)) {
+        try {
+          console.log("Filtrage par équipe:", teamId);
 
-            const teamQuery = isAdmin
-              ? { _id: teamId }
-              : { _id: teamId, companyId: userCompanyId };
+          const teamQuery = isAdmin
+            ? { _id: teamId }
+            : { _id: teamId, companyId: userCompanyId };
 
-            const team = await TeamModel.findOne(teamQuery).lean();
+          const team = await TeamModel.findOne(teamQuery).lean();
 
-            if (!team) {
-              console.log(
-                `Équipe non trouvée${
-                  !isAdmin ? " ou n'appartient pas à l'entreprise" : ""
-                }: ${teamId}`
-              );
-              return res.status(200).json({
-                success: true,
-                data: [],
-                count: 0,
-                message: "Équipe introuvable ou non autorisée",
-              });
-            }
-
-            console.log(`Équipe trouvée: ${team.name}`);
-
-            aggregationPipeline.push({
-              $match: {
-                "employeeData.teamId":
-                  mongoose.Types.ObjectId.createFromHexString(teamId as string),
-              },
-            });
-          } catch (err) {
-            console.error("Erreur lors de la vérification de l'équipe:", err);
-            return res.status(500).json({
-              success: false,
-              message: "Erreur lors de la vérification de l'équipe",
-              error: err instanceof Error ? err.message : String(err),
+          if (!team) {
+            console.log(
+              `Équipe non trouvée${
+                !isAdmin ? " ou n'appartient pas à l'entreprise" : ""
+              }: ${teamId}`
+            );
+            return res.status(200).json({
+              success: true,
+              data: [],
+              count: 0,
+              message: "Équipe introuvable ou non autorisée",
             });
           }
+
+          console.log(`Équipe trouvée: ${team.name}`);
+
+          aggregationPipeline.push({
+            $match: {
+              "employeeData.teamId":
+                mongoose.Types.ObjectId.createFromHexString(teamId as string),
+            },
+          });
+        } catch (err) {
+          console.error("Erreur lors de la vérification de l'équipe:", err);
+          return res.status(500).json({
+            success: false,
+            message: "Erreur lors de la vérification de l'équipe",
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
 
@@ -378,6 +395,7 @@ router.get(
                 "$employeeData.lastName",
               ],
             },
+            employeePhotoUrl: "$employeeData.photoUrl",
             teamId: "$employeeData.teamId",
             teamName: {
               $cond: {
@@ -959,6 +977,174 @@ router.get(
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des plannings admin:",
+        error
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la récupération des plannings",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+);
+
+/**
+ * Route GET /api/weekly-schedules/employee/:employeeId
+ * Récupère tous les plannings d'un employé spécifique
+ * Accessible aux employés (leurs propres plannings) et aux managers/directeurs/admins
+ */
+router.get(
+  "/employee/:employeeId",
+  authenticateToken,
+  checkRole(["employee", "manager", "directeur", "admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { employeeId } = req.params;
+
+      // Validation de l'authentification
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      const isAdmin = req.user.role === "admin";
+      const isEmployee = req.user.role === "employee";
+      const userCompanyId = req.user.companyId;
+      const userId = req.user.userId || req.user._id || req.user.id;
+
+      // Validation de l'ID employé
+      if (!isValidObjectId(employeeId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID employé invalide",
+        });
+      }
+
+      // Vérifier que l'employé existe et appartient à la bonne entreprise
+      const EmployeeModel = require("../models/Employee.model").default;
+      const targetEmployee = await EmployeeModel.findById(employeeId).lean();
+
+      if (!targetEmployee) {
+        return res.status(404).json({
+          success: false,
+          message: "Employé non trouvé",
+        });
+      }
+
+      // Pour les employés : ils ne peuvent voir que leurs propres plannings
+      if (isEmployee) {
+        const currentEmployee = await EmployeeModel.findOne({
+          userId: userId,
+        }).lean();
+
+        if (!currentEmployee || currentEmployee._id.toString() !== employeeId) {
+          return res.status(403).json({
+            success: false,
+            message: "Vous ne pouvez consulter que vos propres plannings",
+          });
+        }
+      } else if (!isAdmin) {
+        // Pour les managers/directeurs : vérifier que l'employé appartient à leur entreprise
+        if (targetEmployee.companyId.toString() !== userCompanyId) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Vous ne pouvez pas consulter les plannings de cet employé",
+          });
+        }
+      }
+
+      // Construire le pipeline d'agrégation
+      const aggregationPipeline: any[] = [
+        {
+          $match: {
+            employeeId: new mongoose.Types.ObjectId(employeeId),
+            status: "approved", // Seulement les plannings approuvés
+          },
+        },
+
+        // Jointure avec les employés
+        {
+          $lookup: {
+            from: "employees",
+            localField: "employeeId",
+            foreignField: "_id",
+            as: "employee",
+          },
+        },
+        { $unwind: "$employee" },
+
+        // Jointure avec les équipes
+        {
+          $lookup: {
+            from: "teams",
+            localField: "employee.teamId",
+            foreignField: "_id",
+            as: "team",
+          },
+        },
+
+        // Jointure avec les entreprises
+        {
+          $lookup: {
+            from: "companies",
+            localField: "employee.companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+
+        // Projection des données
+        {
+          $project: {
+            _id: 1,
+            year: 1,
+            weekNumber: 1,
+            scheduleData: 1,
+            dailyNotes: 1,
+            dailyDates: 1,
+            totalWeeklyMinutes: 1,
+            notes: 1,
+            status: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            employeeId: "$employee._id",
+            employeeName: {
+              $concat: ["$employee.firstName", " ", "$employee.lastName"],
+            },
+            employeePhotoUrl: "$employee.photoUrl",
+            teamId: { $arrayElemAt: ["$team._id", 0] },
+            teamName: { $arrayElemAt: ["$team.name", 0] },
+            companyId: { $arrayElemAt: ["$company._id", 0] },
+            companyName: { $arrayElemAt: ["$company.name", 0] },
+          },
+        },
+
+        // Tri par année et semaine (plus récent en premier)
+        {
+          $sort: { year: -1, weekNumber: -1 },
+        },
+      ];
+
+      const schedules = await WeeklyScheduleModel.aggregate(
+        aggregationPipeline
+      );
+
+      console.log(
+        `${schedules.length} plannings trouvés pour l'employé ${employeeId}`
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: schedules,
+        count: schedules.length,
+        message: `Plannings de ${targetEmployee.firstName} ${targetEmployee.lastName}`,
+      });
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des plannings employé:",
         error
       );
       return res.status(500).json({

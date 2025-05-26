@@ -19,6 +19,7 @@ import CreatePasswordPage from "./pages/CreatePasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import DatePickerDemoPage from "./pages/DatePickerDemoPage";
 import DirectorUserManagementPage from "./pages/DirectorUserManagementPage";
+import EmployeeSchedulePage from "./pages/EmployeeSchedulePage";
 import EmployeeTasksPage from "./pages/EmployeeTasksPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import IncidentTrackingPage from "./pages/IncidentTrackingPage";
@@ -185,6 +186,18 @@ const AppRouter: React.FC = () => {
             />
           }
         />
+
+        {/* Route dédiée aux employés pour consulter leurs plannings */}
+        <Route
+          path="/mes-plannings"
+          element={
+            <RoleProtectedRoute
+              element={<EmployeeSchedulePage />}
+              allowedRoles={["employee"]}
+            />
+          }
+        />
+
         <Route path="/gestion-des-conges" element={<VacationsPage />} />
         <Route path="/taches-employes" element={<EmployeeTasksPage />} />
         <Route path="/suivi-des-incidents" element={<IncidentTrackingPage />} />
@@ -216,7 +229,15 @@ const AppRouter: React.FC = () => {
           path="/validation-plannings"
           element={<ManagerPlanningValidationPage />}
         />
-        <Route path="/statistiques" element={<StatsPage />} />
+        <Route
+          path="/statistiques"
+          element={
+            <RoleProtectedRoute
+              element={<StatsPage />}
+              allowedRoles={["admin", "manager", "directeur"]}
+            />
+          }
+        />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
 
         {/* Route pour la gestion des utilisateurs par un directeur */}

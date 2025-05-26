@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Plane,
   Sparkles,
+  User,
   Users,
   Zap,
 } from "lucide-react";
@@ -113,6 +114,43 @@ const DashboardPage: React.FC = () => {
     },
   };
 
+  // Fonctionnalités pour les employés
+  const employeeFeatures = [
+    {
+      title: "Mon Planning & Équipe",
+      description:
+        "Consultez votre planning hebdomadaire et celui de votre équipe, avec génération PDF",
+      icon: <CalendarCheck size={24} />,
+      path: "/plannings-hebdomadaires",
+      isAI: false,
+    },
+    {
+      title: "Mes Demandes de Congés",
+      description:
+        "Gérez vos demandes de congés et suivez leur statut de validation par votre manager",
+      icon: <Plane size={24} />,
+      path: "/gestion-des-conges",
+      isAI: false,
+    },
+    {
+      title: "Mes Tâches Personnelles",
+      description:
+        "Suivez et gérez vos tâches personnelles, votre pense-bête quotidien",
+      icon: <ClipboardList size={24} />,
+      path: "/taches-employes",
+      isAI: false,
+    },
+    {
+      title: "Mon Profil",
+      description:
+        "Mettez à jour vos informations personnelles et votre photo de profil",
+      icon: <User size={24} />,
+      path: "/mon-profil",
+      isAI: false,
+    },
+  ];
+
+  // Fonctionnalités pour les autres rôles (managers, directeurs, admins)
   const features = [
     {
       title: "Planning hebdomadaire",
@@ -171,6 +209,10 @@ const DashboardPage: React.FC = () => {
     }
     // Pour les autres cartes, DashboardCard gère déjà la navigation
   };
+
+  // Choisir les bonnes fonctionnalités selon le rôle
+  const featuresToDisplay =
+    user?.role === "employee" ? employeeFeatures : features;
 
   return (
     <LayoutWithSidebar
@@ -325,7 +367,7 @@ const DashboardPage: React.FC = () => {
         </motion.div>
 
         <CardGrid>
-          {features.map((feature, index) => (
+          {featuresToDisplay.map((feature, index) => (
             <DashboardCard
               key={index}
               title={feature.title}
