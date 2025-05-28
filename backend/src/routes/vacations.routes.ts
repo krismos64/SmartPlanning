@@ -10,6 +10,13 @@ import mongoose from "mongoose";
 import { AuthRequest, authenticateToken } from "../middlewares/auth.middleware";
 import VacationRequestModel from "../models/VacationRequest.model";
 
+// Import de l'enum pour les statuts
+enum VacationRequestStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
 // Création du routeur Express
 const router = Router();
 
@@ -117,31 +124,76 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       user.teamIds.length > 0
     ) {
       // Manager voit les membres de ses équipes
+      console.log("=== FILTRE MANAGER ===");
+      console.log("Manager user ID:", user._id);
+      console.log("Manager teamIds:", user.teamIds);
+
       const teamEmployees = await mongoose
         .model("Employee")
         .find({ teamId: { $in: user.teamIds } })
-        .select("_id");
+        .select("_id teamId firstName lastName");
+
+      console.log(
+        "Employés trouvés dans les équipes du manager:",
+        teamEmployees
+      );
 
       const employeeIds = teamEmployees.map((employee: any) => employee._id);
+      console.log("Employee IDs pour le filtre:", employeeIds);
+
       query = { employeeId: { $in: employeeIds } };
+      console.log("Query finale pour manager:", query);
     } else {
       // Employé voit uniquement ses demandes
-      query = { requestedBy: user._id };
+      // D'abord, trouver le profil Employee correspondant au User connecté
+      const employee = await mongoose
+        .model("Employee")
+        .findOne({ userId: user._id })
+        .select("_id");
+
+      if (!employee) {
+        console.log(
+          "Aucun profil employé trouvé pour l'utilisateur:",
+          user._id
+        );
+        // Si pas de profil employé, retourner un tableau vide
+        query = { employeeId: null }; // Requête qui ne retourne rien
+      } else {
+        console.log("Profil employé trouvé:", employee._id);
+        query = { employeeId: employee._id };
+      }
     }
 
     // Exécuter la requête paginée
+    console.log("=== EXECUTION REQUETE ===");
+    console.log("Query utilisée:", query);
+    console.log("Rôle utilisateur:", user.role);
+
     const vacationRequests = await VacationRequestModel.find(query)
-      .populate("employeeId", "firstName lastName companyId teamId")
+      .populate("employeeId", "firstName lastName companyId teamId photoUrl")
       .populate("updatedBy", "firstName lastName")
       .sort({ createdAt: -1 })
       .limit(Number(limit))
       .skip(Number(skip));
+
+    console.log("Nombre de demandes trouvées:", vacationRequests.length);
+    console.log(
+      "Demandes trouvées (basiques):",
+      vacationRequests.map((req) => ({
+        id: req._id,
+        employeeId: req.employeeId,
+        startDate: req.startDate,
+        status: req.status,
+        requestedBy: req.requestedBy,
+      }))
+    );
 
     // Ajouter des permissions à chaque demande
     const vacationRequestsWithPermissions = vacationRequests.map((request) => {
       const requestObj = request.toObject();
 
       // Déterminer si l'utilisateur peut modifier cette demande
+      // Pour admin/directeur/manager: toujours true pour leurs employés accessibles
       const canEdit = ["admin", "directeur", "manager"].includes(user.role);
 
       // Déterminer si l'utilisateur peut supprimer cette demande
@@ -149,6 +201,13 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         ["admin", "directeur", "manager"].includes(user.role) ||
         (user._id.toString() === requestObj.requestedBy.toString() &&
           requestObj.status === "pending");
+
+      console.log(`Permissions pour demande ${requestObj._id}:`, {
+        userRole: user.role,
+        canEdit,
+        canDelete,
+        requestStatus: requestObj.status,
+      });
 
       // Ajouter les permissions à l'objet de demande
       return {
@@ -242,7 +301,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     }
 
     // Déterminer pour quel employé la demande est créée
-    let targetEmployeeId = user._id;
+    let targetEmployeeId;
 
     // Si un employeeId est fourni, vérifier les permissions
     if (employeeId && employeeId !== user._id.toString()) {
@@ -313,6 +372,32 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       // Si toutes les vérifications sont passées, utiliser l'ID de l'employé cible
       targetEmployeeId = employeeId;
       console.log("Création autorisée pour l'employé:", targetEmployeeId);
+    } else {
+      // Pour un employé normal, récupérer son document Employee correspondant
+      console.log("Recherche de l'employé correspondant au user:", user._id);
+
+      const currentEmployee = await mongoose
+        .model("Employee")
+        .findOne({ userId: user._id })
+        .select("_id teamId companyId firstName lastName");
+
+      if (!currentEmployee) {
+        return res.status(404).json({
+          success: false,
+          message: "Aucun profil d'employé trouvé pour cet utilisateur",
+        });
+      }
+
+      console.log("Employee trouvé pour la création:", {
+        _id: currentEmployee._id,
+        teamId: currentEmployee.teamId,
+        companyId: currentEmployee.companyId,
+        firstName: currentEmployee.firstName,
+        lastName: currentEmployee.lastName,
+      });
+
+      targetEmployeeId = currentEmployee._id;
+      console.log("Employee ID trouvé:", targetEmployeeId);
     }
 
     // Créer la nouvelle demande avec les dates normalisées
@@ -332,7 +417,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const savedRequest = await newVacationRequest.save();
 
     // Populer les champs nécessaires
-    await savedRequest.populate("employeeId", "firstName lastName");
+    await savedRequest.populate("employeeId", "firstName lastName photoUrl");
 
     return res.status(201).json({
       success: true,
@@ -380,7 +465,7 @@ router.get(
 
       // Récupérer la demande
       const vacationRequest = await VacationRequestModel.findById(id)
-        .populate("employeeId", "firstName lastName")
+        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
         .populate("updatedBy", "firstName lastName");
 
       if (!vacationRequest) {
@@ -681,7 +766,7 @@ router.put(
 
       // Récupérer la demande mise à jour avec les champs peuplés
       const updatedVacationRequest = await VacationRequestModel.findById(id)
-        .populate("employeeId", "firstName lastName")
+        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
         .populate("updatedBy", "firstName lastName");
 
       // Vérifier si la demande existe toujours
@@ -814,6 +899,174 @@ router.delete(
       return res.status(500).json({
         success: false,
         message: "Erreur lors de la suppression de la demande",
+        status: 500,
+      });
+    }
+  }
+);
+
+/**
+ * @route   PATCH /api/vacations/:id/approve
+ * @desc    Approuver une demande de congés
+ * @access  Privé (admin, directeur, manager)
+ */
+router.patch(
+  "/:id/approve",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { comment } = req.body;
+      const user = req.user;
+
+      // Valider l'ID MongoDB
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de demande invalide",
+          status: 400,
+        });
+      }
+
+      // Vérifier les permissions (seuls admin, directeur, manager peuvent approuver)
+      if (!["admin", "directeur", "manager"].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Vous n'avez pas les droits pour approuver cette demande",
+          status: 403,
+        });
+      }
+
+      // Récupérer la demande existante
+      const vacationRequest = await VacationRequestModel.findById(id);
+
+      if (!vacationRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Demande de congés non trouvée",
+          status: 404,
+        });
+      }
+
+      // Vérifier si l'utilisateur a les droits d'accès à cette demande
+      const hasAccess = await hasAccessToVacationRequest(user, vacationRequest);
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: "Vous n'avez pas les droits pour approuver cette demande",
+          status: 403,
+        });
+      }
+
+      // Mettre à jour le statut et les informations de mise à jour
+      vacationRequest.status = VacationRequestStatus.APPROVED;
+      vacationRequest.updatedBy = user._id;
+      if (comment) {
+        vacationRequest.reason = comment;
+      }
+
+      await vacationRequest.save();
+
+      // Récupérer la demande mise à jour avec les champs peuplés
+      const updatedRequest = await VacationRequestModel.findById(id)
+        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
+        .populate("updatedBy", "firstName lastName");
+
+      return res.status(200).json({
+        success: true,
+        message: "Demande de congés approuvée avec succès",
+        data: updatedRequest,
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'approbation de la demande:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur lors de l'approbation de la demande",
+        status: 500,
+      });
+    }
+  }
+);
+
+/**
+ * @route   PATCH /api/vacations/:id/reject
+ * @desc    Rejeter une demande de congés
+ * @access  Privé (admin, directeur, manager)
+ */
+router.patch(
+  "/:id/reject",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { comment } = req.body;
+      const user = req.user;
+
+      // Valider l'ID MongoDB
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de demande invalide",
+          status: 400,
+        });
+      }
+
+      // Vérifier les permissions (seuls admin, directeur, manager peuvent rejeter)
+      if (!["admin", "directeur", "manager"].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Vous n'avez pas les droits pour rejeter cette demande",
+          status: 403,
+        });
+      }
+
+      // Récupérer la demande existante
+      const vacationRequest = await VacationRequestModel.findById(id);
+
+      if (!vacationRequest) {
+        return res.status(404).json({
+          success: false,
+          message: "Demande de congés non trouvée",
+          status: 404,
+        });
+      }
+
+      // Vérifier si l'utilisateur a les droits d'accès à cette demande
+      const hasAccess = await hasAccessToVacationRequest(user, vacationRequest);
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: "Vous n'avez pas les droits pour rejeter cette demande",
+          status: 403,
+        });
+      }
+
+      // Mettre à jour le statut et les informations de mise à jour
+      vacationRequest.status = VacationRequestStatus.REJECTED;
+      vacationRequest.updatedBy = user._id;
+      if (comment) {
+        vacationRequest.reason = comment;
+      }
+
+      await vacationRequest.save();
+
+      // Récupérer la demande mise à jour avec les champs peuplés
+      const updatedRequest = await VacationRequestModel.findById(id)
+        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
+        .populate("updatedBy", "firstName lastName");
+
+      return res.status(200).json({
+        success: true,
+        message: "Demande de congés rejetée avec succès",
+        data: updatedRequest,
+      });
+    } catch (error) {
+      console.error("Erreur lors du rejet de la demande:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur lors du rejet de la demande",
         status: 500,
       });
     }
