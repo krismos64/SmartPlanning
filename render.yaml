@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: smartplanning-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: smartplanning-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://smartplanning.fr
+      - key: CLIENT_URL
+        value: https://smartplanning.fr
+    autoDeploy: true
+    rootDir: backend
+
+databases:
+  - name: smartplanning-db
+    databaseName: smartplanning
+    user: smartplanning_user
+    region: frankfurt
+    plan: free

@@ -86,6 +86,16 @@ app.get("/", (req: Request, res: Response) => {
   res.json({ message: "SmartPlanning API" });
 });
 
+// Health check pour Render
+app.get("/api/health", (req: Request, res: Response) => {
+  res.status(200).json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
 // Gestion des erreurs 404
 app.use((req: Request, res: Response) => {
   res.status(404).json({ message: "Route non trouvée" });
