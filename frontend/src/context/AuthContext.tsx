@@ -26,7 +26,8 @@ interface AuthContextType {
 }
 
 // URL de base de l'API
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api";
 
 // Configuration axios avec token
 const setAuthToken = (token: string | null) => {

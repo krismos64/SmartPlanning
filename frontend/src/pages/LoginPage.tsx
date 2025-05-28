@@ -248,7 +248,8 @@ const LoginPage: React.FC = () => {
 
   const handleGoogleLogin = () => {
     // Rediriger vers l'URL d'authentification Google du backend
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5050/api";
+    const apiUrl =
+      import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api";
     window.location.href = `${apiUrl}/auth/google`;
   };
 

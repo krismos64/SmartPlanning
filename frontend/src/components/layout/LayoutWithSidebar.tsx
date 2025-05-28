@@ -16,7 +16,10 @@ import SidebarMenu from "./SidebarMenu";
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
 // URL de base de l'API (fix pour TypeScript)
-const API_URL = getEnvVar("VITE_API_URL", "http://localhost:5050/api");
+const API_URL = getEnvVar(
+  "VITE_API_URL",
+  "https://smartplanning.onrender.com/api"
+);
 
 interface LayoutWithSidebarProps {
   children: React.ReactNode;

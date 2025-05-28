@@ -749,7 +749,7 @@ const WeeklySchedulePage: React.FC = () => {
 
       // Essayer avec une approche plus directe pour s'assurer que les données sont envoyées correctement
       const url = `${
-        import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+        import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api"
       }/weekly-schedules`;
 
       // Transformer le payload en chaîne JSON

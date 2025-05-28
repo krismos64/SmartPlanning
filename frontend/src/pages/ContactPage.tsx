@@ -220,7 +220,8 @@ const ContactPage: React.FC = () => {
       // Appel à l'API de contact
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_URL || "http://localhost:5050/api"
+          import.meta.env.VITE_API_URL ||
+          "https://smartplanning.onrender.com/api"
         }/contact`,
         {
           method: "POST",
