@@ -1,4 +1,3 @@
-import axios from "axios";
 import { motion } from "framer-motion";
 import {
   Building,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { CountUp } from "use-count-up";
+import axiosInstance from "../api/axiosInstance";
 
 // Composants layout
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
@@ -134,8 +134,8 @@ const StatsPage: React.FC = () => {
           Authorization: token ? `Bearer ${token}` : "",
         };
 
-        const response = await axios.get(
-          `/api/stats/overview?period=${periodFilter}`,
+        const response = await axiosInstance.get(
+          `/stats/overview?period=${periodFilter}`,
           { headers }
         );
         if (response.data.success) {

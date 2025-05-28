@@ -1,4 +1,3 @@
-import axios from "axios";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -13,11 +12,11 @@ import {
   Users,
 } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import axiosInstance from "../../api/axiosInstance";
 
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { useAuth } from "../../hooks/useAuth";
 import { User } from "../../types/User";
-import { getEnvVar } from "../../utils/getEnv";
 
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
@@ -129,15 +128,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       if (!user?.companyId) return;
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get(
-          `${getEnvVar("VITE_API_URL")}/companies/me`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response = await axiosInstance.get("/companies/me");
 
         if (response.data.success) {
           setCompanyData({
