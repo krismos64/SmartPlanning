@@ -1296,7 +1296,7 @@ const userReviews = [
     id: 1,
     name: "Camille D.",
     role: "Responsable RH",
-    avatar: "/src/assets/images/user-camille.webp",
+    avatar: "/images/user-camille.webp",
     comment:
       "L'IA de SmartPlanning m'a fait gagner 5h par semaine ! La génération automatique de plannings est bluffante et prend en compte toutes nos contraintes.",
     rating: "4.9 ⭐",
@@ -1305,7 +1305,7 @@ const userReviews = [
     id: 2,
     name: "Sofiane K.",
     role: "Manager équipe terrain",
-    avatar: "/src/assets/images/user-sofiane.webp",
+    avatar: "/images/user-sofiane.webp",
     comment:
       "Super intuitif, je recommande ! Même mes collaborateurs les moins à l'aise avec la technologie ont adopté l'outil en quelques minutes.",
     rating: "4.7 ⭐",
@@ -1314,7 +1314,7 @@ const userReviews = [
     id: 3,
     name: "Lisa M.",
     role: "Fondatrice startup",
-    avatar: "/src/assets/images/user-lisa.webp",
+    avatar: "/images/user-lisa.webp",
     comment:
       "SmartPlanning a complètement changé ma gestion RH ! Facile à utiliser, adaptable et l'équipe support est réactive. Un must pour les petites structures.",
     rating: "5.0 ⭐",
@@ -1668,7 +1668,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
         <HeroContent>
           <HeroBrandImage
-            src="/src/assets/images/logo-smartplanning.webp"
+            src="/images/logo-smartplanning.webp"
             alt="SmartPlanningAI - Logiciel de planification intelligente pour entreprises"
             loading="lazy"
           />
@@ -1794,7 +1794,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 transition={{ duration: 0.5 }}
               >
                 <CarouselImage
-                  src="/src/assets/images/business-smartplanning.webp"
+                  src="/images/business-smartplanning.webp"
                   alt="SmartPlanning en action - Interface de planification pour entreprises"
                   loading="lazy"
                 />
@@ -1807,7 +1807,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
                 <CarouselImage
-                  src="/src/assets/images/bd.webp"
+                  src="/images/bd.webp"
                   alt="SmartPlanning - Tableau de bord analytique"
                   loading="lazy"
                 />
@@ -1820,7 +1820,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <CarouselImage
-                  src="/src/assets/images/bd1.webp"
+                  src="/images/bd1.webp"
                   alt="SmartPlanning - Gestion avancée des plannings"
                   loading="lazy"
                 />
@@ -1848,7 +1848,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 exit={{ opacity: 0 }}
               >
                 <VideoPreviewImage
-                  src="/src/assets/images/preview-video.webp"
+                  src="/images/preview-video.webp"
                   alt="Aperçu de la vidéo SmartPlanning"
                   loading="lazy"
                 />
@@ -1889,7 +1889,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           style={{ maxWidth: "900px", margin: "0 auto", textAlign: "center" }}
         >
           <TestimonialImage
-            src="/src/assets/images/comic-smartplanning.webp"
+            src="/images/comic-smartplanning.webp"
             alt="Témoignages clients SmartPlanning - Bénéfices de la planification intelligente"
             loading="lazy"
           />
