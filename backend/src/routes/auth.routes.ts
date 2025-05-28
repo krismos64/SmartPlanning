@@ -805,7 +805,9 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     failureRedirect: `${
-      process.env.CLIENT_URL || "http://localhost:3000"
+      process.env.CLIENT_URL ||
+      process.env.FRONTEND_URL ||
+      "https://smartplanning.fr"
     }/connexion?error=googleauth`,
     session: false,
   }),
@@ -815,7 +817,9 @@ router.get(
       if (!req.user) {
         return res.redirect(
           `${
-            process.env.CLIENT_URL || "http://localhost:3000"
+            process.env.CLIENT_URL ||
+            process.env.FRONTEND_URL ||
+            "https://smartplanning.fr"
           }/connexion?error=usernotfound`
         );
       }
@@ -826,14 +830,18 @@ router.get(
       // Rediriger vers la page de callback OAuth du frontend avec le token JWT dans l'URL
       res.redirect(
         `${
-          process.env.CLIENT_URL || "http://localhost:3000"
+          process.env.CLIENT_URL ||
+          process.env.FRONTEND_URL ||
+          "https://smartplanning.fr"
         }/oauth/callback?token=${token}`
       );
     } catch (error) {
       console.error("Erreur lors de l'authentification Google OAuth:", error);
       res.redirect(
         `${
-          process.env.CLIENT_URL || "http://localhost:3000"
+          process.env.CLIENT_URL ||
+          process.env.FRONTEND_URL ||
+          "https://smartplanning.fr"
         }/connexion?error=internal`
       );
     }
