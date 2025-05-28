@@ -2,7 +2,7 @@
 
 ## ✅ Problèmes Résolus
 
-### 🔧 Erreurs TypeScript Corrigées (Commit: 59c5477)
+### 🔧 Erreurs TypeScript Corrigées (Commits: 59c5477 + 9aa2cf5)
 
 **Problème initial :**
 
@@ -10,11 +10,16 @@
 - Conflits entre fichier de types Express personnalisé et types standards
 - 200+ erreurs de compilation empêchant le build
 
+**Problème secondaire :**
+
+- Erreur `Cannot find type definition file for 'node'`
+- Configuration TypeScript incorrecte dans tsconfig.json
+
 **Solutions appliquées :**
 
 1. ✅ Suppression du fichier `backend/src/types/express/index.d.ts` conflictuel
 2. ✅ Création d'un nouveau `backend/src/types/global.d.ts` simplifié
-3. ✅ Mise à jour du `tsconfig.json` pour une configuration propre
+3. ✅ Correction du `tsconfig.json` - Retrait de `"types": ["node"]`
 4. ✅ Test de compilation local réussi (0 erreur)
 
 **Changements techniques :**
@@ -31,18 +36,21 @@ declare namespace Express {
   }
 }
 
-// tsconfig.json mis à jour
-"typeRoots": ["./node_modules/@types"],
-"types": ["node"],
-"include": ["src/**/*", "src/types/global.d.ts"]
+// tsconfig.json corrigé
+{
+  "compilerOptions": {
+    "typeRoots": ["./node_modules/@types"]
+  },
+  "include": ["src/**/*", "src/types/global.d.ts"]
+}
 ```
 
 ## 🚀 Déploiement en Cours
 
 ### Backend sur Render
 
-- **Status** : 🔄 Redéploiement automatique en cours
-- **Commit** : 59c5477 (Fix TypeScript compilation errors)
+- **Status** : 🔄 Nouveau redéploiement automatique en cours
+- **Commit** : 9aa2cf5 (Fix tsconfig.json)
 - **URL** : https://[VOTRE-SERVICE].onrender.com
 - **Logs** : Surveiller dans le dashboard Render
 
@@ -95,6 +103,7 @@ npm run build
 - ✅ "Connected to MongoDB"
 - ✅ "Server running on port 10000"
 - ❌ Aucune erreur de compilation TypeScript
+- ❌ Aucune erreur "Cannot find type definition file"
 - ❌ Aucune erreur de connexion MongoDB
 
 ### Variables d'Environnement Requises
@@ -123,7 +132,12 @@ SMTP_PASS=...
 - **Tests** : 5-10 minutes
 - **Total** : 15-25 minutes
 
+## 📈 Historique des Corrections
+
+1. **Commit 59c5477** : Suppression types Express conflictuels
+2. **Commit 9aa2cf5** : Correction tsconfig.json (types: node)
+
 ---
 
-**Dernière mise à jour** : $(date)
-**Statut global** : 🔄 Déploiement en cours - Erreurs TypeScript corrigées
+**Dernière mise à jour** : Maintenant
+**Statut global** : 🔄 Déploiement en cours - Toutes erreurs TypeScript corrigées
