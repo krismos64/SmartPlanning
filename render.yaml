@@ -22,6 +22,22 @@ services:
         value: https://smartplanning.fr
       - key: CLIENT_URL
         value: https://smartplanning.fr
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        value: https://smartplanning-backend.onrender.com/api/auth/google/callback
+      - key: SMTP_HOST
+        value: smtp.hostinger.com
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_USER
+        value: contact@smartplanning.fr
+      - key: SMTP_PASS
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
     autoDeploy: true
     rootDir: backend
 
