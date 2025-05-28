@@ -2,7 +2,7 @@
 
 ## ✅ Problèmes Résolus
 
-### 🔧 Erreurs TypeScript Corrigées (Commits: 59c5477 + 9aa2cf5)
+### 🔧 Erreurs TypeScript Corrigées (Commits: 59c5477 + 9aa2cf5 + 51c21d3)
 
 **Problème initial :**
 
@@ -15,12 +15,19 @@
 - Erreur `Cannot find type definition file for 'node'`
 - Configuration TypeScript incorrecte dans tsconfig.json
 
+**Problème tertiaire (NOUVEAU) :**
+
+- Erreurs `Cannot find module 'cors'`, `Cannot find name 'process'`, etc.
+- Types Node.js non disponibles en production sur Render
+- `@types/node` et `typescript` en devDependencies seulement
+
 **Solutions appliquées :**
 
 1. ✅ Suppression du fichier `backend/src/types/express/index.d.ts` conflictuel
 2. ✅ Création d'un nouveau `backend/src/types/global.d.ts` simplifié
-3. ✅ Correction du `tsconfig.json` - Retrait de `"types": ["node"]`
-4. ✅ Test de compilation local réussi (0 erreur)
+3. ✅ Correction du `tsconfig.json` - Ajout de `"types": ["node"]`
+4. ✅ **NOUVEAU** : Déplacement `@types/node` et `typescript` vers dependencies
+5. ✅ Test de compilation local réussi (0 erreur)
 
 **Changements techniques :**
 
@@ -39,9 +46,19 @@ declare namespace Express {
 // tsconfig.json corrigé
 {
   "compilerOptions": {
-    "typeRoots": ["./node_modules/@types"]
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node"]
   },
   "include": ["src/**/*", "src/types/global.d.ts"]
+}
+
+// package.json corrigé
+{
+  "dependencies": {
+    "@types/node": "^20.17.51",
+    "typescript": "^5.8.3",
+    // ... autres dépendances
+  }
 }
 ```
 
@@ -49,8 +66,8 @@ declare namespace Express {
 
 ### Backend sur Render
 
-- **Status** : 🔄 Nouveau redéploiement automatique en cours
-- **Commit** : 9aa2cf5 (Fix tsconfig.json)
+- **Status** : 🔄 **NOUVEAU** redéploiement automatique en cours
+- **Commit** : **51c21d3** (Fix types Node.js pour production)
 - **URL** : https://[VOTRE-SERVICE].onrender.com
 - **Logs** : Surveiller dans le dashboard Render
 
@@ -102,9 +119,10 @@ npm run build
 
 - ✅ "Connected to MongoDB"
 - ✅ "Server running on port 10000"
-- ❌ Aucune erreur de compilation TypeScript
-- ❌ Aucune erreur "Cannot find type definition file"
-- ❌ Aucune erreur de connexion MongoDB
+- ❌ **AUCUNE** erreur de compilation TypeScript
+- ❌ **AUCUNE** erreur "Cannot find module 'cors'"
+- ❌ **AUCUNE** erreur "Cannot find name 'process'"
+- ❌ **AUCUNE** erreur de connexion MongoDB
 
 ### Variables d'Environnement Requises
 
@@ -136,8 +154,9 @@ SMTP_PASS=...
 
 1. **Commit 59c5477** : Suppression types Express conflictuels
 2. **Commit 9aa2cf5** : Correction tsconfig.json (types: node)
+3. **Commit 51c21d3** : **NOUVEAU** - Fix types Node.js production (dependencies)
 
 ---
 
 **Dernière mise à jour** : Maintenant
-**Statut global** : 🔄 Déploiement en cours - Toutes erreurs TypeScript corrigées
+**Statut global** : 🔄 **NOUVEAU** Déploiement en cours - Toutes erreurs TypeScript corrigées
