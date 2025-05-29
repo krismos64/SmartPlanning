@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Eye, EyeOff, Key } from "lucide-react";
+import { Key } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useTheme } from "../components/ThemeProvider";
 import Avatar from "../components/ui/Avatar";
@@ -9,6 +9,7 @@ import Card from "../components/ui/Card";
 import FileUpload from "../components/ui/FileUpload";
 import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import PasswordField from "../components/ui/PasswordField";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 import api, { updateUserProfile, uploadFile } from "../services/api";
@@ -54,8 +55,6 @@ const UserProfilePage = () => {
     confirmPassword: "",
   });
   const [showPasswordSection, setShowPasswordSection] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordModified, setPasswordModified] = useState(false);
 
   // État pour le chargement des opérations
@@ -659,10 +658,9 @@ const UserProfilePage = () => {
                     Mot de passe actuel <span className="text-red-500">*</span>
                   </p>
                   <div className="relative">
-                    <InputField
+                    <PasswordField
                       label="Mot de passe actuel"
                       name="currentPassword"
-                      type={showCurrentPassword ? "text" : "password"}
                       value={passwordForm.currentPassword}
                       onChange={handlePasswordChange}
                       required
@@ -670,24 +668,6 @@ const UserProfilePage = () => {
                       helperText="Entrez votre mot de passe actuel pour confirmer votre identité"
                       className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
                     />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
-                      onClick={() =>
-                        setShowCurrentPassword(!showCurrentPassword)
-                      }
-                      aria-label={
-                        showCurrentPassword
-                          ? "Masquer le mot de passe"
-                          : "Afficher le mot de passe"
-                      }
-                    >
-                      {showCurrentPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
                   </div>
                 </div>
 
@@ -696,10 +676,9 @@ const UserProfilePage = () => {
                     Nouveau mot de passe <span className="text-red-500">*</span>
                   </p>
                   <div className="relative">
-                    <InputField
+                    <PasswordField
                       label="Nouveau mot de passe"
                       name="newPassword"
-                      type={showNewPassword ? "text" : "password"}
                       value={passwordForm.newPassword}
                       onChange={handlePasswordChange}
                       required
@@ -707,22 +686,6 @@ const UserProfilePage = () => {
                       helperText="Doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)"
                       className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
                     />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      aria-label={
-                        showNewPassword
-                          ? "Masquer le mot de passe"
-                          : "Afficher le mot de passe"
-                      }
-                    >
-                      {showNewPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
                   </div>
                 </div>
 
@@ -732,10 +695,9 @@ const UserProfilePage = () => {
                     <span className="text-red-500">*</span>
                   </p>
                   <div className="relative">
-                    <InputField
+                    <PasswordField
                       label="Confirmer le mot de passe"
                       name="confirmPassword"
-                      type="password"
                       value={passwordForm.confirmPassword}
                       onChange={handlePasswordChange}
                       required

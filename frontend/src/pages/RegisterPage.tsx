@@ -19,6 +19,7 @@ import Button from "../components/ui/Button";
 import FileUpload from "../components/ui/FileUpload";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
+import PasswordField from "../components/ui/PasswordField";
 import Toast from "../components/ui/Toast";
 import { useToast } from "../hooks/useToast";
 import api from "../services/api";
@@ -903,8 +904,7 @@ const RegisterPage: React.FC = () => {
                 transition={{ duration: 0.3, delay: 0.6 }}
               >
                 <FormGroup>
-                  <InputField
-                    type="password"
+                  <PasswordField
                     label="Mot de passe"
                     name="password"
                     placeholder="Minimum 8 caractères"
@@ -926,8 +926,7 @@ const RegisterPage: React.FC = () => {
                 transition={{ duration: 0.3, delay: 0.7 }}
               >
                 <FormGroup>
-                  <InputField
-                    type="password"
+                  <PasswordField
                     label="Confirmer le mot de passe"
                     name="confirmPassword"
                     placeholder="Saisissez à nouveau votre mot de passe"

@@ -54,6 +54,7 @@ import FilterBar from "../components/ui/FilterBar";
 import InputField from "../components/ui/InputField";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Modal from "../components/ui/Modal";
+import PasswordField from "../components/ui/PasswordField";
 import Select from "../components/ui/Select";
 import SelectMulti from "../components/ui/SelectMulti";
 import Table from "../components/ui/Table";
@@ -2342,10 +2343,9 @@ const UserManagementPage: React.FC = () => {
             />
 
             {/* Mot de passe */}
-            <InputField
+            <PasswordField
               label="Mot de passe (optionnel)"
               name="password"
-              type="password"
               value={formData.password || ""}
               onChange={handleInputChange}
               error={formErrors.password}

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Loader, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -11,7 +11,7 @@ import PageWrapper from "../components/layout/PageWrapper";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
-import InputField from "../components/ui/InputField";
+import PasswordField from "../components/ui/PasswordField";
 import Toast from "../components/ui/Toast";
 import { useToast } from "../hooks/useToast";
 import { passwordService } from "../services/api";
@@ -127,8 +127,6 @@ const ResetPasswordPage = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
 
   // Extraire les paramètres d'URL
@@ -293,8 +291,7 @@ const ResetPasswordPage = () => {
                 transition={{ duration: 0.3, delay: 0.1 }}
               >
                 <FormGroup>
-                  <InputField
-                    type={showPassword ? "text" : "password"}
+                  <PasswordField
                     label="Nouveau mot de passe"
                     name="newPassword"
                     placeholder="••••••••••••"
@@ -303,13 +300,6 @@ const ResetPasswordPage = () => {
                     required
                     className="dark-input reset-password-field"
                   />
-                  <IconButton
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </IconButton>
                   {errors.newPassword && (
                     <ErrorMessage>{errors.newPassword}</ErrorMessage>
                   )}
@@ -322,8 +312,7 @@ const ResetPasswordPage = () => {
                 transition={{ duration: 0.3, delay: 0.2 }}
               >
                 <FormGroup>
-                  <InputField
-                    type={showConfirmPassword ? "text" : "password"}
+                  <PasswordField
                     label="Confirmer le mot de passe"
                     name="confirmPassword"
                     placeholder="••••••••••••"
@@ -332,17 +321,6 @@ const ResetPasswordPage = () => {
                     required
                     className="dark-input reset-password-field"
                   />
-                  <IconButton
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
-                  </IconButton>
                   {errors.confirmPassword && (
                     <ErrorMessage>{errors.confirmPassword}</ErrorMessage>
                   )}

@@ -17,6 +17,7 @@ import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
+import PasswordField from "../components/ui/PasswordField";
 import Toast from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
 import { useToast } from "../hooks/useToast";
@@ -325,8 +326,7 @@ const LoginPage: React.FC = () => {
               transition={{ duration: 0.3, delay: 0.2 }}
             >
               <FormGroup>
-                <InputField
-                  type="password"
+                <PasswordField
                   label="Mot de passe"
                   name="password"
                   placeholder="Saisissez votre mot de passe"

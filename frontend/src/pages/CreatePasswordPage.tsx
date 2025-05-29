@@ -1,12 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  CheckCircle,
-  Eye,
-  EyeOff,
-  Loader,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle, Loader, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -18,7 +11,7 @@ import PageWrapper from "../components/layout/PageWrapper";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
-import InputField from "../components/ui/InputField";
+import PasswordField from "../components/ui/PasswordField";
 import Toast from "../components/ui/Toast";
 import { useToast } from "../hooks/useToast";
 import api from "../services/api";
@@ -176,8 +169,6 @@ const CreatePasswordPage = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordCreated, setPasswordCreated] = useState(false);
 
   // Extraire les paramètres d'URL
@@ -372,8 +363,7 @@ const CreatePasswordPage = () => {
                   transition={{ duration: 0.3, delay: 0.1 }}
                 >
                   <FormGroup>
-                    <InputField
-                      type={showPassword ? "text" : "password"}
+                    <PasswordField
                       label="Créer votre mot de passe"
                       name="password"
                       placeholder="••••••••••••"
@@ -382,13 +372,6 @@ const CreatePasswordPage = () => {
                       required
                       className="dark-input create-password-field"
                     />
-                    <IconButton
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </IconButton>
                     {errors.password && (
                       <ErrorMessage>{errors.password}</ErrorMessage>
                     )}
@@ -401,8 +384,7 @@ const CreatePasswordPage = () => {
                   transition={{ duration: 0.3, delay: 0.2 }}
                 >
                   <FormGroup>
-                    <InputField
-                      type={showConfirmPassword ? "text" : "password"}
+                    <PasswordField
                       label="Confirmer votre mot de passe"
                       name="confirmPassword"
                       placeholder="••••••••••••"
@@ -411,19 +393,6 @@ const CreatePasswordPage = () => {
                       required
                       className="dark-input create-password-field"
                     />
-                    <IconButton
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </IconButton>
                     {errors.confirmPassword && (
                       <ErrorMessage>{errors.confirmPassword}</ErrorMessage>
                     )}
