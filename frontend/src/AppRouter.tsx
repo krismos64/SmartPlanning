@@ -10,6 +10,10 @@ import {
 import { useAuth } from "./hooks/useAuth";
 import IndexPage from "./pages/LandingPage";
 
+// Import des composants de gestion des cookies RGPD
+import { CookieConsentBanner } from "./components/cookies/CookieConsentBanner";
+import { CookieManager } from "./components/cookies/CookieManager";
+
 // Import des composants de pages
 import CollaboratorManagementPage from "./pages/CollaboratorManagementPage";
 import CompanyManagementPage from "./pages/CompanyManagementPage";
@@ -159,6 +163,8 @@ const AppRouter: React.FC = () => {
     <BrowserRouter>
       <ProfileChecker />
       <DirectorRedirect />
+      <CookieManager />
+      <CookieConsentBanner />
       <Routes>
         {/* Route par défaut - Page d'accueil */}
         <Route path="/" element={<IndexPage />} />

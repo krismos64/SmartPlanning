@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
@@ -6,7 +6,7 @@ import styled, { keyframes } from "styled-components";
 import planningAnimation from "../assets/animations/planning-animation.json";
 import FooterComponent from "../components/layout/Footer";
 import Header from "../components/layout/Header";
-import { useTheme } from "../components/ThemeProvider";
+import { Theme, useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 // Import différé d'EnhancedLottie pour optimiser le chargement
 const EnhancedLottie = lazy(() => import("../components/ui/EnhancedLottie"));
@@ -1252,6 +1252,157 @@ const CloseButton = styled(motion.button)`
   }
 `;
 
+// Composant bouton "retour en haut" moderne et futuriste
+const ScrollToTopButton = styled(motion.button)`
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+
+  /* Gradient futuriste */
+  background: linear-gradient(
+    135deg,
+    ${({ theme }) => theme.colors.primary} 0%,
+    ${({ theme }) => theme.colors.secondary || theme.colors.primary + "aa"} 50%,
+    #00d4ff 100%
+  );
+
+  /* Effet de bordure animée */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: linear-gradient(
+      45deg,
+      #00d4ff,
+      ${({ theme }) => theme.colors.primary},
+      #ff6b6b,
+      #4ecdc4,
+      #45b7d1,
+      #00d4ff
+    );
+    background-size: 400% 400%;
+    z-index: -1;
+    animation: ${keyframes`
+      0% { 
+        background-position: 0% 50%;
+        transform: rotate(0deg);
+      }
+      50% { 
+        background-position: 100% 50%;
+        transform: rotate(180deg);
+      }
+      100% { 
+        background-position: 0% 50%;
+        transform: rotate(360deg);
+      }
+    `} 3s ease-in-out infinite;
+  }
+
+  /* Effet de glow */
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* Animations au hover */
+  &:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5), 0 0 60px rgba(0, 212, 255, 0.3),
+      0 12px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.95);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    width: 50px;
+    height: 50px;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    font-size: 1.2rem;
+  }
+
+  /* Animation de l'icône */
+  svg {
+    transition: transform 0.3s ease;
+  }
+
+  &:hover svg {
+    transform: translateY(-2px);
+  }
+`;
+
+const ScrollToTopIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  /* Effet de particules */
+  &::after {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: ${keyframes`
+      0% { 
+        opacity: 0;
+        transform: translateX(-50%) translateY(0);
+      }
+      50% { 
+        opacity: 1;
+        transform: translateX(-50%) translateY(-8px);
+      }
+      100% { 
+        opacity: 0;
+        transform: translateX(-50%) translateY(-16px);
+      }
+    `} 2s ease-in-out infinite;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    top: -6px;
+    right: -6px;
+    animation: ${keyframes`
+      0% { 
+        opacity: 0;
+        transform: translateY(0);
+      }
+      50% { 
+        opacity: 1;
+        transform: translateY(-6px);
+      }
+      100% { 
+        opacity: 0;
+        transform: translateY(-12px);
+      }
+    `} 2.5s ease-in-out infinite 0.5s;
+  }
+`;
+
 interface LandingPageProps {}
 
 // Données FAQ pour corriger les placeholders
@@ -1322,12 +1473,14 @@ const userReviews = [
 ];
 
 const LandingPage: React.FC<LandingPageProps> = () => {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, theme }: { isDarkMode: boolean; theme: Theme } =
+    useTheme();
   const demoRef = useRef<HTMLElement | null>(null);
   const [visibleBenefits, setVisibleBenefits] = useState<number[]>([]);
   const benefitsRef = useRef<HTMLDivElement | null>(null);
   const [videoPlayed, setVideoPlayed] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   const scrollToDemo = () => {
     demoRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1388,6 +1541,18 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     };
   }, []);
 
+  // Gestion de l'affichage du bouton "retour en haut"
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollToTop(scrollTop > 300);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Référence pour le haut de la page
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -1395,7 +1560,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     topRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Données structurées JSON-LD
+  // Données structurées JSON-LD optimisées pour le SEO
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -1406,14 +1571,19 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       "@type": "Offer",
       price: "0",
       priceCurrency: "EUR",
+      description: "Version bêta gratuite",
     },
     description:
-      "Optimisez la gestion de vos plannings avec SmartPlanning. Version bêta gratuite, intuitive et assistée par IA.",
+      "SmartPlanning est un SaaS de gestion de plannings et d'équipes pour entreprises. Solution intelligente avec IA pour optimiser vos plannings, gérer vos employés et automatiser vos ressources humaines.",
     featureList: [
-      "Planification intelligente",
-      "Gestion des employés",
-      "Optimisation des plannings",
-      "Interface intuitive",
+      "Gestion de plannings intelligente",
+      "Automatisation des RH",
+      "Gestion d'équipes",
+      "Export PDF des plannings",
+      "Interface responsive",
+      "IA pour optimisation",
+      "Gestion des congés",
+      "Liste des employés",
     ],
     url: "https://smartplanning.fr",
     author: {
@@ -1421,9 +1591,11 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       name: "SmartPlanning",
       url: "https://smartplanning.fr",
     },
+    keywords:
+      "smartplanning, gestion plannings, saas planning, IA RH, planning manager, gestion équipe, automatisation plannings, smart planning, gestion des congés, liste des équipes, liste d'employés, export PDF, planning PDF",
   };
 
-  // Données structurées pour organisation
+  // Données structurées pour organisation optimisées
   const organizationLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -1431,10 +1603,16 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     url: "https://smartplanning.fr",
     logo: "https://smartplanning.fr/images/logo-smartplanning.png",
     description:
-      "SmartPlanning offre une solution de planification intelligente pour les entreprises de toutes tailles.",
+      "SmartPlanning est un SaaS français de gestion de plannings et d'équipes pour entreprises. Notre solution intelligente avec IA permet d'optimiser vos plannings, gérer vos employés et automatiser vos ressources humaines.",
+    sameAs: ["https://smartplanning.fr"],
+    contactPoint: {
+      "@type": "ContactPoint",
+      email: "contact@smartplanning.fr",
+      contactType: "customer service",
+    },
   };
 
-  // Données structurées pour FAQ
+  // Données structurées pour FAQ optimisées
   const faqLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -1444,15 +1622,15 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         name: "Qu'est-ce que SmartPlanning ?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "SmartPlanning est une solution de planification intelligente pour entreprises, qui utilise l'intelligence artificielle pour optimiser vos plannings d'employés. Notre plateforme est disponible sur smartplanning.fr et propose une version bêta gratuite.",
+          text: "SmartPlanning est un SaaS de gestion de plannings et d'équipes pour entreprises. Notre solution intelligente utilise l'IA pour optimiser vos plannings d'employés, gérer vos équipes et automatiser vos ressources humaines. Disponible sur smartplanning.fr avec une version bêta gratuite.",
         },
       },
       {
         "@type": "Question",
-        name: "Comment fonctionne l'optimisation des plannings avec l'IA ?",
+        name: "Comment fonctionne la gestion de plannings avec l'IA ?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Notre algorithme d'IA analyse les contraintes de votre entreprise (disponibilités des employés, compétences requises, règles de travail) pour générer automatiquement des plannings optimisés qui maximisent l'efficacité tout en respectant les préférences de chacun.",
+          text: "Notre algorithme d'IA analyse les contraintes de votre entreprise (disponibilités des employés, compétences requises, règles de travail) pour générer automatiquement des plannings optimisés. Le manager garde le contrôle avec validation manuelle et peut exporter en PDF.",
         },
       },
       {
@@ -1460,31 +1638,31 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         name: "SmartPlanning est-il vraiment gratuit ?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Oui, SmartPlanning est actuellement disponible gratuitement pendant sa phase bêta. Après le lancement officiel, nous proposerons différentes formules tarifaires, mais les utilisateurs de la bêta bénéficieront d'un mois gratuit supplémentaire.",
+          text: "Oui, SmartPlanning est actuellement gratuit pendant sa phase bêta. Toutes les fonctionnalités de gestion de plannings, d'équipes et d'export PDF sont incluses. Après le lancement officiel, les utilisateurs bêta bénéficieront d'un mois gratuit supplémentaire.",
         },
       },
       {
         "@type": "Question",
-        name: "Quels types d'entreprises peuvent utiliser SmartPlanning ?",
+        name: "Quels types d'entreprises peuvent utiliser ce SaaS de planning ?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "SmartPlanning s'adapte à tous types d'entreprises : restaurants, commerces, hôpitaux, cliniques, usines, centres d'appels, etc. Notre solution est particulièrement efficace pour les entreprises avec des horaires variables ou complexes.",
+          text: "SmartPlanning s'adapte à tous types d'entreprises : restaurants, commerces, hôpitaux, cliniques, usines, centres d'appels, etc. Notre SaaS de gestion de plannings est particulièrement efficace pour les entreprises avec des horaires variables ou complexes.",
         },
       },
       {
         "@type": "Question",
-        name: "Comment puis-je accéder à SmartPlanning ?",
+        name: "Comment accéder à SmartPlanning ?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "SmartPlanning est accessible directement depuis votre navigateur sur smartplanning.fr. Il suffit de créer un compte gratuit pour commencer à utiliser toutes les fonctionnalités. Notre application est responsive et fonctionne sur ordinateurs, tablettes et smartphones.",
+          text: "SmartPlanning est accessible directement depuis votre navigateur sur smartplanning.fr. Il suffit de créer un compte gratuit pour commencer à gérer vos plannings et équipes. Notre application est responsive et fonctionne sur ordinateurs, tablettes et smartphones.",
         },
       },
       {
         "@type": "Question",
-        name: "Mes données sont-elles sécurisées avec SmartPlanning ?",
+        name: "Mes données RH sont-elles sécurisées ?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Absolument. La sécurité est notre priorité. Toutes les données sont cryptées et nous respectons strictement le RGPD. Nous n'utilisons jamais vos données à des fins commerciales et vous restez propriétaire de toutes vos informations.",
+          text: "Absolument. La sécurité de vos données RH est notre priorité. Toutes les données de plannings et d'employés sont cryptées et nous respectons strictement le RGPD. Nous n'utilisons jamais vos données à des fins commerciales.",
         },
       },
     ],
@@ -1493,21 +1671,64 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   return (
     <Container ref={topRef} id="top">
       <Helmet>
+        {/* SEO optimisé pour SmartPlanning */}
         <title>
-          SmartPlanning - Logiciel de planification intelligent et gratuit pour
-          les entreprises
+          SmartPlanning - SaaS de gestion de plannings et d'équipes pour
+          entreprises
         </title>
         <meta
           name="description"
-          content="SmartPlanning.fr - Optimisez la gestion de vos plannings d'entreprise avec notre solution intelligente assistée par IA. Version bêta gratuite, intuitive et efficace. Essayez-la dès maintenant !"
+          content="Optimisez vos plannings, gérez vos équipes et automatisez vos RH avec SmartPlanning. SaaS intelligent, intuitif et rapide. Version bêta gratuite disponible."
         />
         <meta
           name="keywords"
-          content="planification, planning, IA, intelligence artificielle, gestion d'entreprise, optimisation, bêta gratuite, smartplanning.fr, logiciel planning, planning entreprise, planning employés"
+          content="smartplanning, gestion plannings, saas planning, IA RH, planning manager, gestion équipe, automatisation plannings, smart planning, gestion des congés, liste des équipes, liste d'employés, export PDF, planning PDF"
+        />
+
+        {/* Open Graph optimisé */}
+        <meta
+          property="og:title"
+          content="SmartPlanning - SaaS de gestion de plannings et d'équipes pour entreprises"
+        />
+        <meta
+          property="og:description"
+          content="Optimisez vos plannings, gérez vos équipes et automatisez vos RH avec SmartPlanning. SaaS intelligent, intuitif et rapide."
+        />
+        <meta
+          property="og:image"
+          content="https://smartplanning.fr/images/logo-smartplanning.png"
         />
         <meta property="og:url" content="https://smartplanning.fr" />
         <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="SmartPlanning" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="SmartPlanning - SaaS de gestion de plannings"
+        />
+        <meta
+          name="twitter:description"
+          content="Optimisez vos plannings et gérez vos équipes avec notre SaaS intelligent"
+        />
+        <meta
+          name="twitter:image"
+          content="https://smartplanning.fr/images/logo-smartplanning.png"
+        />
+
+        {/* Balises techniques SEO */}
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow" />
+        <meta name="language" content="fr-FR" />
+        <meta name="geo.region" content="FR" />
+        <meta name="geo.country" content="France" />
+
+        {/* Canonical et hreflang */}
         <link rel="canonical" href="https://smartplanning.fr" />
+        <link rel="alternate" hrefLang="fr" href="https://smartplanning.fr" />
+
+        {/* Données structurées JSON-LD */}
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
         <script type="application/ld+json">
           {JSON.stringify(organizationLd)}
@@ -1533,6 +1754,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               onClick={closeModal}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              aria-label="Fermer la modal de bienvenue"
             >
               ✕
             </CloseButton>
@@ -1567,7 +1789,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   >
                     <CardHeader>
                       <CardIcon>🎁</CardIcon>
-                      <CardTitle>Totalement gratuit !</CardTitle>
+                      <CardTitle>Version Béta</CardTitle>
                     </CardHeader>
                     <CardDescription>
                       Notre version bêta est 100% gratuite. Profitez-en pour
@@ -1662,434 +1884,619 @@ const LandingPage: React.FC<LandingPageProps> = () => {
 
       <Header />
 
-      <HeroSection>
-        <BackgroundDecoration className="top-right" />
-        <BackgroundDecoration className="bottom-left" />
+      <main>
+        <HeroSection as="section" role="banner">
+          <BackgroundDecoration className="top-right" />
+          <BackgroundDecoration className="bottom-left" />
 
-        <HeroContent>
-          <HeroBrandImage
-            src="/images/logo-smartplanning.webp"
-            alt="SmartPlanningAI - Logiciel de planification intelligente pour entreprises"
-            loading="lazy"
-          />
-          <HeroTitle>Plannings intelligents pour votre entreprise</HeroTitle>
-          <HeroSubtitle>
-            Optimisez vos plannings d'entreprise avec notre solution assistée
-            par IA. Facile, intuitive et accessible à tous.
-          </HeroSubtitle>
-          <CTAButtons>
-            <CTAButtonContainer>
-              <Link to="/inscription">
-                <CTAButton
-                  whileHover={{ scale: 1.1 }}
+          <HeroContent>
+            <HeroBrandImage
+              src="/images/logo-smartplanning.webp"
+              alt="SmartPlanning - SaaS de gestion de plannings et d'équipes pour entreprises"
+              loading="eager"
+            />
+            <HeroTitle as="h1">
+              SmartPlanning : la solution SaaS intelligente pour gérer vos
+              plannings, équipes et ressources humaines
+            </HeroTitle>
+            <HeroSubtitle>
+              Optimisez vos plannings d'entreprise avec notre SaaS assisté par
+              IA. Gérez vos équipes, automatisez vos RH et exportez vos
+              plannings en PDF. Solution intuitive et accessible à tous les
+              managers.
+            </HeroSubtitle>
+            <CTAButtons>
+              <CTAButtonContainer>
+                <Link
+                  to="/inscription"
+                  aria-label="S'inscrire gratuitement à SmartPlanning"
+                >
+                  <CTAButton
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    🚀 Essayer gratuitement
+                  </CTAButton>
+                </Link>
+              </CTAButtonContainer>
+              <CTAButtonContainer>
+                <button
+                  onClick={scrollToDemo}
+                  style={{
+                    background: "transparent",
+                    border: `2px solid ${theme?.colors?.primary || "#3b82f6"}`,
+                    color: theme?.colors?.primary || "#3b82f6",
+                    padding: "1rem 2rem",
+                    borderRadius: "0.8rem",
+                    cursor: "pointer",
+                    fontSize: "1.2rem",
+                    fontWeight: "600",
+                  }}
+                  aria-label="Voir la démo vidéo de SmartPlanning"
+                >
+                  🎥 Découvrir la démo
+                </button>
+              </CTAButtonContainer>
+            </CTAButtons>
+          </HeroContent>
+          <AnimationContainer>
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    width: 550,
+                    height: 400,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Chargement...
+                </div>
+              }
+            >
+              <EnhancedLottie
+                animationData={planningAnimation}
+                loop={true}
+                alt="Animation de planification intelligente avec SmartPlanning - SaaS de gestion d'équipes"
+              />
+            </Suspense>
+          </AnimationContainer>
+        </HeroSection>
+
+        {/* Section Avantages par profil - SEO optimisée */}
+        <section aria-labelledby="avantages-profils-title">
+          <FeaturesSection>
+            <SectionTitle id="avantages-profils-title" as="h2">
+              SmartPlanning s'adapte à votre profil
+            </SectionTitle>
+            <SectionSubtitle>
+              Découvrez comment notre SaaS de gestion de plannings répond aux
+              besoins spécifiques de chaque utilisateur
+            </SectionSubtitle>
+            <FeaturesGrid>
+              <FeatureCard>
+                <FeatureIcon>👨‍💼</FeatureIcon>
+                <FeatureTitle as="h3">Pour les Managers</FeatureTitle>
+                <FeatureDescription>
+                  Créez et optimisez vos plannings d'équipe en quelques clics.
+                  Gérez les congés, les incidents, visualisez la charge de
+                  travail et exportez vos données en PDF. L'IA vous aide à
+                  équilibrer automatiquement les ressources humaines.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>👥</FeatureIcon>
+                <FeatureTitle as="h3">Pour les Employés</FeatureTitle>
+                <FeatureDescription>
+                  Consultez vos plannings en temps réel, posez vos congés et
+                  échangez vos créneaux facilement. Interface mobile responsive
+                  pour accéder à vos horaires et celles de votre équipe partout.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>🏢</FeatureIcon>
+                <FeatureTitle as="h3">Pour les Directeurs</FeatureTitle>
+                <FeatureDescription>
+                  Pilotez vos équipes avec des tableaux de bord analytiques.
+                  Optimisez vos coûts RH, suivez la productivité et prenez des
+                  décisions éclairées. Gestion multi-sites et reporting avancé
+                  inclus.
+                </FeatureDescription>
+              </FeatureCard>
+            </FeaturesGrid>
+          </FeaturesSection>
+        </section>
+
+        {/* Section Fonctionnalités principales - SEO optimisée */}
+        <section aria-labelledby="fonctionnalites-title">
+          <FeaturesSection>
+            <SectionTitle id="fonctionnalites-title" as="h2">
+              Fonctionnalités de notre SaaS de gestion de plannings
+            </SectionTitle>
+            <SectionSubtitle>
+              Découvrez comment SmartPlanning révolutionne la gestion d'équipes
+              et l'automatisation des RH
+            </SectionSubtitle>
+            <FeaturesGrid>
+              <FeatureCard>
+                <FeatureIcon>🧠</FeatureIcon>
+                <FeatureTitle as="h3">
+                  Planification intelligente par IA
+                </FeatureTitle>
+                <FeatureDescription>
+                  Notre algorithme d'IA génère automatiquement des plannings
+                  optimisés en tenant compte des contraintes RH, disponibilités
+                  des employés et préférences. Gestion intelligente des équipes
+                  pour maximiser l'efficacité.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>💰</FeatureIcon>
+                <FeatureTitle as="h3">
+                  SaaS gratuit en version bêta
+                </FeatureTitle>
+                <FeatureDescription>
+                  Profitez de toutes les fonctionnalités de gestion de plannings
+                  gratuitement pendant notre phase bêta. Export PDF, gestion
+                  d'équipes, automatisation RH : tout est inclus sans
+                  limitation.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>📱</FeatureIcon>
+                <FeatureTitle as="h3">
+                  Interface responsive multi-appareils
+                </FeatureTitle>
+                <FeatureDescription>
+                  Gérez vos plannings depuis votre ordinateur, tablette ou
+                  smartphone. Interface optimisée pour managers et employés,
+                  accessible partout. Synchronisation en temps réel sur tous vos
+                  appareils.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>📄</FeatureIcon>
+                <FeatureTitle as="h3">Export PDF des plannings</FeatureTitle>
+                <FeatureDescription>
+                  Exportez vos plannings d'équipe en PDF haute qualité pour
+                  impression ou partage. Formats personnalisés et mise en page
+                  professionnelle. Idéal pour affichage en entreprise.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>🔒</FeatureIcon>
+                <FeatureTitle as="h3">Sécurité des données RH</FeatureTitle>
+                <FeatureDescription>
+                  Vos données de plannings et informations RH sont cryptées et
+                  protégées. Conformité RGPD stricte, hébergement sécurisé en
+                  France. Confidentialité garantie pour toutes vos données
+                  d'entreprise.
+                </FeatureDescription>
+              </FeatureCard>
+
+              <FeatureCard>
+                <FeatureIcon>📊</FeatureIcon>
+                <FeatureTitle as="h3">Analytiques et reporting RH</FeatureTitle>
+                <FeatureDescription>
+                  Suivez et analysez les heures travaillées, coûts RH et
+                  efficacité des plannings. Tableaux de bord interactifs, KPI
+                  personnalisés et rapports automatisés. Optimisez vos
+                  ressources humaines avec des données précises.
+                </FeatureDescription>
+              </FeatureCard>
+            </FeaturesGrid>
+          </FeaturesSection>
+        </section>
+
+        {/* Section Vidéo Démo - SEO optimisée */}
+        <section id="video-demo" aria-labelledby="demo-title">
+          <DemoSection ref={demoRef}>
+            <DemoContainer>
+              <SectionTitle id="demo-title" as="h2">
+                Démo SmartPlanning : votre SaaS de gestion de plannings en
+                action
+              </SectionTitle>
+              <SectionSubtitle>
+                Découvrez en vidéo comment SmartPlanning simplifie la gestion
+                d'équipes et l'automatisation des RH
+              </SectionSubtitle>
+
+              <figure>
+                <VideoTitle
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  as="h3"
+                >
+                  🎥 Regardez vidéo promotionnelle de SmartPlanning
+                </VideoTitle>
+
+                <AnimatedVideoWrapper
+                  whileHover={{ scale: 1.02 }}
                   transition={{ duration: 0.3 }}
                 >
-                  🚀 Commencer gratuitement
-                </CTAButton>
-              </Link>
-            </CTAButtonContainer>
-          </CTAButtons>
-        </HeroContent>
-        <AnimationContainer>
-          <Suspense
-            fallback={
-              <div
-                style={{
-                  width: 550,
-                  height: 400,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                Chargement...
-              </div>
-            }
-          >
-            <EnhancedLottie
-              animationData={planningAnimation}
-              loop={true}
-              alt="Animation de planification intelligente avec SmartPlanning"
-            />
-          </Suspense>
-        </AnimationContainer>
-      </HeroSection>
+                  {!videoPlayed ? (
+                    <VideoPreviewContainer
+                      onClick={handleVideoPlay}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Lancer la vidéo de démonstration SmartPlanning"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleVideoPlay();
+                        }
+                      }}
+                    >
+                      <VideoPreviewImage
+                        src="/images/preview-video.webp"
+                        alt="Aperçu vidéo démo SmartPlanning - SaaS de gestion de plannings"
+                        loading="lazy"
+                      />
+                      <PlayButton
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        aria-hidden="true"
+                      >
+                        ▶️
+                      </PlayButton>
+                    </VideoPreviewContainer>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <DemoVideoContainer>
+                        <iframe
+                          src="https://www.youtube.com/embed/W4UWkI4S2Qg?autoplay=1"
+                          title="SmartPlanning - Démonstration complète du SaaS de gestion de plannings et d'équipes"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          loading="lazy"
+                        ></iframe>
+                      </DemoVideoContainer>
+                    </motion.div>
+                  )}
+                </AnimatedVideoWrapper>
 
-      <FeaturesSection>
-        <SectionTitle>Fonctionnalités principales</SectionTitle>
-        <SectionSubtitle>
-          Découvrez comment SmartPlanning simplifie la gestion de vos équipes
-        </SectionSubtitle>
-        <FeaturesGrid>
-          <FeatureCard>
-            <FeatureIcon>🧠</FeatureIcon>
-            <FeatureTitle>Planification intelligente par IA</FeatureTitle>
-            <FeatureDescription>
-              Notre algorithme génère automatiquement des plannings optimisés en
-              tenant compte des contraintes et préférences.
-            </FeatureDescription>
-          </FeatureCard>
+                <figcaption
+                  style={{
+                    textAlign: "center",
+                    marginTop: "1rem",
+                    color: "#6b7280",
+                  }}
+                >
+                  Démonstration complète de SmartPlanning : gestion de
+                  plannings, automatisation RH et export PDF
+                </figcaption>
+              </figure>
 
-          <FeatureCard>
-            <FeatureIcon>💰</FeatureIcon>
-            <FeatureTitle>Version bêta 100% gratuite</FeatureTitle>
-            <FeatureDescription>
-              Profitez de toutes les fonctionnalités gratuitement pendant notre
-              phase bêta et aidez-nous à améliorer SmartPlanning.
-            </FeatureDescription>
-          </FeatureCard>
+              <ImageCarouselCard>
+                <CarouselTitle as="h3">Profitez de SmartPlanning</CarouselTitle>
+                <ImagesContainer>
+                  <ImageWrapper
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <CarouselImage
+                      src="/images/business-smartplanning.webp"
+                      alt="SmartPlanning interface - Gestion de plannings d'entreprise avec IA"
+                      loading="lazy"
+                    />
+                  </ImageWrapper>
 
-          <FeatureCard>
-            <FeatureIcon>📱</FeatureIcon>
-            <FeatureTitle>Compatible tous appareils</FeatureTitle>
-            <FeatureDescription>
-              Consultez et modifiez vos plannings depuis votre ordinateur,
-              tablette ou smartphone, où que vous soyez.
-            </FeatureDescription>
-          </FeatureCard>
+                  <ImageWrapper
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                  >
+                    <CarouselImage
+                      src="/images/bd.webp"
+                      alt="SmartPlanning tableau de bord - Analytiques RH et gestion d'équipes"
+                      loading="lazy"
+                    />
+                  </ImageWrapper>
 
-          <FeatureCard>
-            <FeatureIcon>📄</FeatureIcon>
-            <FeatureTitle>Export en PDF</FeatureTitle>
-            <FeatureDescription>
-              Exportez vos plannings en PDF pour les imprimer ou les partager
-              facilement avec vos équipes.
-            </FeatureDescription>
-          </FeatureCard>
+                  <ImageWrapper
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
+                    <CarouselImage
+                      src="/images/bd1.webp"
+                      alt="SmartPlanning gestion avancée - Export PDF et automatisation des plannings"
+                      loading="lazy"
+                    />
+                  </ImageWrapper>
+                </ImagesContainer>
+              </ImageCarouselCard>
+            </DemoContainer>
+          </DemoSection>
+        </section>
 
-          <FeatureCard>
-            <FeatureIcon>🔒</FeatureIcon>
-            <FeatureTitle>Sécurité maximale</FeatureTitle>
-            <FeatureDescription>
-              Vos données sont cryptées et protégées. Nous respectons
-              strictement le RGPD et la confidentialité.
-            </FeatureDescription>
-          </FeatureCard>
-
-          <FeatureCard>
-            <FeatureIcon>📊</FeatureIcon>
-            <FeatureTitle>Statistiques avancées</FeatureTitle>
-            <FeatureDescription>
-              Suivez et analysez les heures travaillées, les coûts et
-              l'efficacité de vos plannings.
-            </FeatureDescription>
-          </FeatureCard>
-        </FeaturesGrid>
-      </FeaturesSection>
-
-      <DemoSection ref={demoRef} id="demo-section">
-        <DemoContainer>
-          <SectionTitle>Votre nouvel outil de planification RH</SectionTitle>
+        <BenefitsSection>
+          <SectionTitle>Pourquoi choisir SmartPlanning ?</SectionTitle>
           <SectionSubtitle>
-            Un aperçu de l'interface simple et intuitive de SmartPlanning
+            Les avantages concrets pour votre entreprise
           </SectionSubtitle>
 
-          <ImageCarouselCard>
-            <CarouselTitle>Découvrez SmartPlanning en action</CarouselTitle>
-            <ImagesContainer>
-              <ImageWrapper
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-              >
-                <CarouselImage
-                  src="/images/business-smartplanning.webp"
-                  alt="SmartPlanning en action - Interface de planification pour entreprises"
-                  loading="lazy"
-                />
-              </ImageWrapper>
-
-              <ImageWrapper
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <CarouselImage
-                  src="/images/bd.webp"
-                  alt="SmartPlanning - Tableau de bord analytique"
-                  loading="lazy"
-                />
-              </ImageWrapper>
-
-              <ImageWrapper
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <CarouselImage
-                  src="/images/bd1.webp"
-                  alt="SmartPlanning - Gestion avancée des plannings"
-                  loading="lazy"
-                />
-              </ImageWrapper>
-            </ImagesContainer>
-          </ImageCarouselCard>
-
-          <VideoTitle
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+          <div
+            style={{ maxWidth: "900px", margin: "0 auto", textAlign: "center" }}
           >
-            🎥 Regardez la démo SmartPlanning !
-          </VideoTitle>
+            <TestimonialImage
+              src="/images/comic-smartplanning.webp"
+              alt="Témoignages clients SmartPlanning - Bénéfices de la planification intelligente"
+              loading="lazy"
+            />
+          </div>
 
-          <AnimatedVideoWrapper
-            whileHover={{ scale: 1.02 }}
-            transition={{ duration: 0.3 }}
+          <div
+            ref={benefitsRef}
+            style={{ maxWidth: "900px", margin: "0 auto" }}
           >
-            {!videoPlayed ? (
-              <VideoPreviewContainer
-                onClick={handleVideoPlay}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+            <BenefitItem
+              className={visibleBenefits.includes(0) ? "visible" : ""}
+            >
+              <BenefitIcon>⏱️</BenefitIcon>
+              <BenefitContent>
+                <BenefitTitle>Gain de temps considérable</BenefitTitle>
+                <BenefitDescription>
+                  Réduisez jusqu'à 80% le temps consacré à la création et
+                  gestion de vos plannings d'équipe.
+                </BenefitDescription>
+              </BenefitContent>
+            </BenefitItem>
+
+            <BenefitItem
+              className={visibleBenefits.includes(1) ? "visible" : ""}
+            >
+              <BenefitIcon>💼</BenefitIcon>
+              <BenefitContent>
+                <BenefitTitle>Réduction des coûts</BenefitTitle>
+                <BenefitDescription>
+                  Optimisez vos ressources humaines et évitez le sureffectif ou
+                  les périodes creuses.
+                </BenefitDescription>
+              </BenefitContent>
+            </BenefitItem>
+
+            <BenefitItem
+              className={visibleBenefits.includes(2) ? "visible" : ""}
+            >
+              <BenefitIcon>🔄</BenefitIcon>
+              <BenefitContent>
+                <BenefitTitle>Flexibilité maximale</BenefitTitle>
+                <BenefitDescription>
+                  Ajustez vos plannings en temps réel et adaptez-vous rapidement
+                  aux imprévus.
+                </BenefitDescription>
+              </BenefitContent>
+            </BenefitItem>
+
+            <BenefitItem
+              className={visibleBenefits.includes(3) ? "visible" : ""}
+            >
+              <BenefitIcon>📊</BenefitIcon>
+              <BenefitContent>
+                <BenefitTitle>Données exploitables</BenefitTitle>
+                <BenefitDescription>
+                  Prenez des décisions basées sur des données précises et des
+                  analyses automatisées.
+                </BenefitDescription>
+              </BenefitContent>
+            </BenefitItem>
+          </div>
+        </BenefitsSection>
+
+        <UserReviewsSection>
+          <SectionTitle>Ils parlent de SmartPlanning</SectionTitle>
+          <SectionSubtitle>
+            Découvrez ce que pensent nos premiers utilisateurs
+          </SectionSubtitle>
+
+          <UserReviewsGrid>
+            {userReviews.map((review, index) => (
+              <UserReviewCard
+                key={review.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <VideoPreviewImage
-                  src="/images/preview-video.webp"
-                  alt="Aperçu de la vidéo SmartPlanning"
+                <UserAvatar
+                  src={review.avatar}
+                  alt={`Photo de ${review.name}`}
                   loading="lazy"
                 />
-                <PlayButton
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+                <UserName>{review.name}</UserName>
+                <UserRole>{review.role}</UserRole>
+                <UserComment>{review.comment}</UserComment>
+                <UserRating>{review.rating}</UserRating>
+              </UserReviewCard>
+            ))}
+          </UserReviewsGrid>
+        </UserReviewsSection>
+
+        <BetaSection ref={sectionRef}>
+          <BetaContent>
+            <BetaTitle>🎉 SmartPlanning est en bêta gratuite ! 🎁</BetaTitle>
+            <BetaDescription>
+              Profitez de notre version bêta gratuite et contribuez à
+              l'amélioration de SmartPlanning !
+            </BetaDescription>
+            <BetaFeatures>
+              <BetaFeature
+                whileHover={{ scale: 1.05 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3 }}
+              >
+                <BetaFeatureIcon>🎁</BetaFeatureIcon>
+                <BetaFeatureText>
+                  Accès complet gratuit pendant la phase bêta
+                </BetaFeatureText>
+              </BetaFeature>
+              <BetaFeature
+                whileHover={{ scale: 1.05 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <BetaFeatureIcon>💡</BetaFeatureIcon>
+                <BetaFeatureText>
+                  1 mois gratuit à partir du lancement du plan tarifaire
+                </BetaFeatureText>
+              </BetaFeature>
+              <BetaFeature
+                whileHover={{ scale: 1.05 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                <BetaFeatureIcon>🤝</BetaFeatureIcon>
+                <BetaFeatureText>
+                  Contribuez à l'amélioration du produit
+                </BetaFeatureText>
+              </BetaFeature>
+              <BetaFeature
+                whileHover={{ scale: 1.05 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+              >
+                <BetaFeatureIcon>✉️</BetaFeatureIcon>
+                <BetaFeatureText>
+                  Donnez votre avis et signalez les bugs
+                </BetaFeatureText>
+              </BetaFeature>
+            </BetaFeatures>
+            <BetaButtonContainer>
+              <Link to="/contact">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="beta-feedback-button"
                 >
-                  ▶️
-                </PlayButton>
-              </VideoPreviewContainer>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
+                  🗣️ Donner votre avis
+                </Button>
+              </Link>
+            </BetaButtonContainer>
+          </BetaContent>
+        </BetaSection>
+
+        <FAQSection>
+          <SectionTitle>Foire aux questions</SectionTitle>
+          <SectionSubtitle>
+            Tout ce que vous devez savoir sur SmartPlanning
+          </SectionSubtitle>
+          <FAQContainer>
+            {faqData.map((faq, index) => (
+              <FAQCard
+                key={index}
+                whileHover={{ scale: 1.02 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <DemoVideoContainer>
-                  <iframe
-                    src="https://www.youtube.com/embed/W4UWkI4S2Qg?autoplay=1"
-                    title="SmartPlanning - Démonstration vidéo"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </DemoVideoContainer>
-              </motion.div>
-            )}
-          </AnimatedVideoWrapper>
-        </DemoContainer>
-      </DemoSection>
+                <FAQQuestion>
+                  <span>{faq.icon}</span>
+                  {faq.question}
+                </FAQQuestion>
+                <FAQAnswer>{faq.answer}</FAQAnswer>
+              </FAQCard>
+            ))}
+          </FAQContainer>
+        </FAQSection>
 
-      <BenefitsSection>
-        <SectionTitle>Pourquoi choisir SmartPlanning ?</SectionTitle>
-        <SectionSubtitle>
-          Les avantages concrets pour votre entreprise
-        </SectionSubtitle>
+        <CTASection>
+          <CircleDecoration className="small" />
+          <CircleDecoration className="medium" />
+          <CircleDecoration className="large" />
 
-        <div
-          style={{ maxWidth: "900px", margin: "0 auto", textAlign: "center" }}
-        >
-          <TestimonialImage
-            src="/images/comic-smartplanning.webp"
-            alt="Témoignages clients SmartPlanning - Bénéfices de la planification intelligente"
-            loading="lazy"
-          />
-        </div>
-
-        <div ref={benefitsRef} style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <BenefitItem className={visibleBenefits.includes(0) ? "visible" : ""}>
-            <BenefitIcon>⏱️</BenefitIcon>
-            <BenefitContent>
-              <BenefitTitle>Gain de temps considérable</BenefitTitle>
-              <BenefitDescription>
-                Réduisez jusqu'à 80% le temps consacré à la création et gestion
-                de vos plannings d'équipe.
-              </BenefitDescription>
-            </BenefitContent>
-          </BenefitItem>
-
-          <BenefitItem className={visibleBenefits.includes(1) ? "visible" : ""}>
-            <BenefitIcon>💼</BenefitIcon>
-            <BenefitContent>
-              <BenefitTitle>Réduction des coûts</BenefitTitle>
-              <BenefitDescription>
-                Optimisez vos ressources humaines et évitez le sureffectif ou
-                les périodes creuses.
-              </BenefitDescription>
-            </BenefitContent>
-          </BenefitItem>
-
-          <BenefitItem className={visibleBenefits.includes(2) ? "visible" : ""}>
-            <BenefitIcon>🔄</BenefitIcon>
-            <BenefitContent>
-              <BenefitTitle>Flexibilité maximale</BenefitTitle>
-              <BenefitDescription>
-                Ajustez vos plannings en temps réel et adaptez-vous rapidement
-                aux imprévus.
-              </BenefitDescription>
-            </BenefitContent>
-          </BenefitItem>
-
-          <BenefitItem className={visibleBenefits.includes(3) ? "visible" : ""}>
-            <BenefitIcon>📊</BenefitIcon>
-            <BenefitContent>
-              <BenefitTitle>Données exploitables</BenefitTitle>
-              <BenefitDescription>
-                Prenez des décisions basées sur des données précises et des
-                analyses automatisées.
-              </BenefitDescription>
-            </BenefitContent>
-          </BenefitItem>
-        </div>
-      </BenefitsSection>
-
-      <UserReviewsSection>
-        <SectionTitle>Ils parlent de SmartPlanning</SectionTitle>
-        <SectionSubtitle>
-          Découvrez ce que pensent nos premiers utilisateurs
-        </SectionSubtitle>
-
-        <UserReviewsGrid>
-          {userReviews.map((review, index) => (
-            <UserReviewCard
-              key={review.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <UserAvatar
-                src={review.avatar}
-                alt={`Photo de ${review.name}`}
-                loading="lazy"
-              />
-              <UserName>{review.name}</UserName>
-              <UserRole>{review.role}</UserRole>
-              <UserComment>{review.comment}</UserComment>
-              <UserRating>{review.rating}</UserRating>
-            </UserReviewCard>
-          ))}
-        </UserReviewsGrid>
-      </UserReviewsSection>
-
-      <BetaSection ref={sectionRef}>
-        <BetaContent>
-          <BetaTitle>🎉 SmartPlanning est en bêta gratuite ! 🎁</BetaTitle>
-          <BetaDescription>
-            Profitez de notre version bêta gratuite et contribuez à
-            l'amélioration de SmartPlanning !
-          </BetaDescription>
-          <BetaFeatures>
-            <BetaFeature
-              whileHover={{ scale: 1.05 }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3 }}
-            >
-              <BetaFeatureIcon>🎁</BetaFeatureIcon>
-              <BetaFeatureText>
-                Accès complet gratuit pendant la phase bêta
-              </BetaFeatureText>
-            </BetaFeature>
-            <BetaFeature
-              whileHover={{ scale: 1.05 }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <BetaFeatureIcon>💡</BetaFeatureIcon>
-              <BetaFeatureText>
-                1 mois gratuit à partir du lancement du plan tarifaire
-              </BetaFeatureText>
-            </BetaFeature>
-            <BetaFeature
-              whileHover={{ scale: 1.05 }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
-              <BetaFeatureIcon>🤝</BetaFeatureIcon>
-              <BetaFeatureText>
-                Contribuez à l'amélioration du produit
-              </BetaFeatureText>
-            </BetaFeature>
-            <BetaFeature
-              whileHover={{ scale: 1.05 }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-            >
-              <BetaFeatureIcon>✉️</BetaFeatureIcon>
-              <BetaFeatureText>
-                Donnez votre avis et signalez les bugs
-              </BetaFeatureText>
-            </BetaFeature>
-          </BetaFeatures>
-          <BetaButtonContainer>
-            <Link to="/contact">
-              <Button
-                variant="primary"
-                size="lg"
-                className="beta-feedback-button"
+          <CTATitle>Prêt à optimiser vos plannings ?</CTATitle>
+          <CTADescription>
+            Rejoignez les entreprises qui gagnent du temps et améliorent leur
+            efficacité avec SmartPlanning.
+          </CTADescription>
+          <CTAButtonContainer>
+            <Link to="/inscription">
+              <CTAButton
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.3 }}
               >
-                🗣️ Donner votre avis
-              </Button>
+                🚀 Commencer gratuitement
+              </CTAButton>
             </Link>
-          </BetaButtonContainer>
-        </BetaContent>
-      </BetaSection>
-
-      <FAQSection>
-        <SectionTitle>Foire aux questions</SectionTitle>
-        <SectionSubtitle>
-          Tout ce que vous devez savoir sur SmartPlanning
-        </SectionSubtitle>
-        <FAQContainer>
-          {faqData.map((faq, index) => (
-            <FAQCard
-              key={index}
-              whileHover={{ scale: 1.02 }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <FAQQuestion>
-                <span>{faq.icon}</span>
-                {faq.question}
-              </FAQQuestion>
-              <FAQAnswer>{faq.answer}</FAQAnswer>
-            </FAQCard>
-          ))}
-        </FAQContainer>
-      </FAQSection>
-
-      <CTASection>
-        <CircleDecoration className="small" />
-        <CircleDecoration className="medium" />
-        <CircleDecoration className="large" />
-
-        <CTATitle>Prêt à optimiser vos plannings ?</CTATitle>
-        <CTADescription>
-          Rejoignez les entreprises qui gagnent du temps et améliorent leur
-          efficacité avec SmartPlanning.
-        </CTADescription>
-        <CTAButtonContainer>
-          <Link to="/inscription">
-            <CTAButton
-              whileHover={{ scale: 1.1 }}
-              transition={{ duration: 0.3 }}
-            >
-              🚀 Commencer gratuitement
-            </CTAButton>
-          </Link>
-        </CTAButtonContainer>
-      </CTASection>
+          </CTAButtonContainer>
+        </CTASection>
+      </main>
 
       <FooterComponent scrollToTop={scrollToTop} />
+
+      {/* Bouton "retour en haut" avec animations fluides */}
+      <AnimatePresence>
+        {showScrollToTop && (
+          <ScrollToTopButton
+            onClick={scrollToTop}
+            initial={{ opacity: 0, scale: 0, rotate: -180 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0, rotate: 180 }}
+            transition={{
+              type: "spring",
+              stiffness: 260,
+              damping: 20,
+              duration: 0.3,
+            }}
+            whileHover={{
+              scale: 1.1,
+              rotate: 5,
+              transition: { duration: 0.2 },
+            }}
+            whileTap={{
+              scale: 0.9,
+              rotate: -5,
+              transition: { duration: 0.1 },
+            }}
+            aria-label="Retour en haut de la page SmartPlanning"
+          >
+            <ScrollToTopIcon>
+              <svg
+                xmlns="https://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </ScrollToTopIcon>
+          </ScrollToTopButton>
+        )}
+      </AnimatePresence>
     </Container>
   );
 };
