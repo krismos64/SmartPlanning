@@ -2138,7 +2138,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                       }}
                     >
                       <VideoPreviewImage
-                        src="/images/preview-video.webp"
+                        src="/images/preview-video.webp?v=2024"
                         alt="Aperçu vidéo démo SmartPlanning - SaaS de gestion de plannings"
                         loading="lazy"
                       />
