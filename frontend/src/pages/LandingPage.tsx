@@ -259,6 +259,24 @@ const FeatureCard = styled(motion.div).attrs({
   text-align: center;
 `;
 
+// Nouvelle version statique de FeatureCard pour mobile (optimisation performance)
+const FeatureCardStatic = styled.div`
+  background-color: ${({ theme }) => theme.colors.background};
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  /* Conserve l'effet hover même sur mobile mais sans framer-motion */
+  &:hover {
+    transform: translateY(-10px);
+  }
+`;
+
 const FeatureIcon = styled.div`
   font-size: 2.5rem;
   margin-bottom: 1rem;
@@ -1482,6 +1500,54 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
 
+  // ✨ OPTIMISATION MOBILE : Détection du type d'appareil pour optimiser les performances
+  // Désactive les animations framer-motion coûteuses sur mobile lors du premier rendu
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Détection mobile basée sur la largeur d'écran et le user agent
+    const checkIsMobile = () => {
+      const screenWidth = window.innerWidth;
+      const isMobileScreen = screenWidth <= 768;
+
+      // Double vérification avec user agent pour une détection plus précise
+      const isMobileUA =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+
+      return isMobileScreen || isMobileUA;
+    };
+
+    setIsMobile(checkIsMobile());
+
+    // Mise à jour lors du redimensionnement (orientation mobile)
+    const handleResize = () => {
+      setIsMobile(checkIsMobile());
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  /**
+   * ✨ OPTIMISATION PERFORMANCE : Fonction qui retourne le bon composant FeatureCard
+   * Sur mobile : div statique sans animations pour améliorer le rendu initial
+   * Sur desktop : motion.div avec animations framer-motion complètes
+   */
+  const getResponsiveFeatureCard = (
+    children: React.ReactNode,
+    key?: string | number
+  ) => {
+    if (isMobile) {
+      // Version optimisée mobile : pas d'animations coûteuses au premier rendu
+      return <FeatureCardStatic key={key}>{children}</FeatureCardStatic>;
+    }
+
+    // Version desktop : animations complètes pour une expérience riche
+    return <FeatureCard key={key}>{children}</FeatureCard>;
+  };
+
   const scrollToDemo = () => {
     demoRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -1890,6 +1956,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           <BackgroundDecoration className="bottom-left" />
 
           <HeroContent>
+            {/* ✨ OPTIMISATION MOBILE : loading="eager" pour l'image principale visible immédiatement */}
             <HeroBrandImage
               src="/images/logo-smartplanning.webp"
               alt="SmartPlanning - SaaS de gestion de plannings et d'équipes pour entreprises"
@@ -1975,37 +2042,48 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               besoins spécifiques de chaque utilisateur
             </SectionSubtitle>
             <FeaturesGrid>
-              <FeatureCard>
-                <FeatureIcon>👨‍💼</FeatureIcon>
-                <FeatureTitle as="h3">Pour les Managers</FeatureTitle>
-                <FeatureDescription>
-                  Créez et optimisez vos plannings d'équipe en quelques clics.
-                  Gérez les congés, les incidents, visualisez la charge de
-                  travail et exportez vos données en PDF. L'IA vous aide à
-                  équilibrer automatiquement les ressources humaines.
-                </FeatureDescription>
-              </FeatureCard>
+              {/* ✨ OPTIMISATION MOBILE : Utilisation du composant responsive optimisé */}
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>👨‍💼</FeatureIcon>
+                  <FeatureTitle as="h3">Pour les Managers</FeatureTitle>
+                  <FeatureDescription>
+                    Créez et optimisez vos plannings d'équipe en quelques clics.
+                    Gérez les congés, les incidents, visualisez la charge de
+                    travail et exportez vos données en PDF. L'IA vous aide à
+                    équilibrer automatiquement les ressources humaines.
+                  </FeatureDescription>
+                </>,
+                "managers"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>👥</FeatureIcon>
-                <FeatureTitle as="h3">Pour les Employés</FeatureTitle>
-                <FeatureDescription>
-                  Consultez vos plannings en temps réel, posez vos congés et
-                  échangez vos créneaux facilement. Interface mobile responsive
-                  pour accéder à vos horaires et celles de votre équipe partout.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>👥</FeatureIcon>
+                  <FeatureTitle as="h3">Pour les Employés</FeatureTitle>
+                  <FeatureDescription>
+                    Consultez vos plannings en temps réel, posez vos congés et
+                    échangez vos créneaux facilement. Interface mobile
+                    responsive pour accéder à vos horaires et celles de votre
+                    équipe partout.
+                  </FeatureDescription>
+                </>,
+                "employees"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>🏢</FeatureIcon>
-                <FeatureTitle as="h3">Pour les Directeurs</FeatureTitle>
-                <FeatureDescription>
-                  Pilotez vos équipes avec des tableaux de bord analytiques.
-                  Optimisez vos coûts RH, suivez la productivité et prenez des
-                  décisions éclairées. Gestion multi-sites et reporting avancé
-                  inclus.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>🏢</FeatureIcon>
+                  <FeatureTitle as="h3">Pour les Directeurs</FeatureTitle>
+                  <FeatureDescription>
+                    Pilotez vos équipes avec des tableaux de bord analytiques.
+                    Optimisez vos coûts RH, suivez la productivité et prenez des
+                    décisions éclairées. Gestion multi-sites et reporting avancé
+                    inclus.
+                  </FeatureDescription>
+                </>,
+                "directors"
+              )}
             </FeaturesGrid>
           </FeaturesSection>
         </section>
@@ -2021,76 +2099,97 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               et l'automatisation des RH
             </SectionSubtitle>
             <FeaturesGrid>
-              <FeatureCard>
-                <FeatureIcon>🧠</FeatureIcon>
-                <FeatureTitle as="h3">
-                  Planification intelligente par IA
-                </FeatureTitle>
-                <FeatureDescription>
-                  Notre algorithme d'IA génère automatiquement des plannings
-                  optimisés en tenant compte des contraintes RH, disponibilités
-                  des employés et préférences. Gestion intelligente des équipes
-                  pour maximiser l'efficacité.
-                </FeatureDescription>
-              </FeatureCard>
+              {/* ✨ OPTIMISATION MOBILE : Application de l'optimisation à toutes les FeatureCard */}
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>🧠</FeatureIcon>
+                  <FeatureTitle as="h3">
+                    Planification intelligente par IA
+                  </FeatureTitle>
+                  <FeatureDescription>
+                    Notre algorithme d'IA génère automatiquement des plannings
+                    optimisés en tenant compte des contraintes RH,
+                    disponibilités des employés et préférences. Gestion
+                    intelligente des équipes pour maximiser l'efficacité.
+                  </FeatureDescription>
+                </>,
+                "ai-planning"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>💰</FeatureIcon>
-                <FeatureTitle as="h3">
-                  SaaS gratuit en version bêta
-                </FeatureTitle>
-                <FeatureDescription>
-                  Profitez de toutes les fonctionnalités de gestion de plannings
-                  gratuitement pendant notre phase bêta. Export PDF, gestion
-                  d'équipes, automatisation RH : tout est inclus sans
-                  limitation.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>💰</FeatureIcon>
+                  <FeatureTitle as="h3">
+                    SaaS gratuit en version bêta
+                  </FeatureTitle>
+                  <FeatureDescription>
+                    Profitez de toutes les fonctionnalités de gestion de
+                    plannings gratuitement pendant notre phase bêta. Export PDF,
+                    gestion d'équipes, automatisation RH : tout est inclus sans
+                    limitation.
+                  </FeatureDescription>
+                </>,
+                "free-beta"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>📱</FeatureIcon>
-                <FeatureTitle as="h3">
-                  Interface responsive multi-appareils
-                </FeatureTitle>
-                <FeatureDescription>
-                  Gérez vos plannings depuis votre ordinateur, tablette ou
-                  smartphone. Interface optimisée pour managers et employés,
-                  accessible partout. Synchronisation en temps réel sur tous vos
-                  appareils.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>📱</FeatureIcon>
+                  <FeatureTitle as="h3">
+                    Interface responsive multi-appareils
+                  </FeatureTitle>
+                  <FeatureDescription>
+                    Gérez vos plannings depuis votre ordinateur, tablette ou
+                    smartphone. Interface optimisée pour managers et employés,
+                    accessible partout. Synchronisation en temps réel sur tous
+                    vos appareils.
+                  </FeatureDescription>
+                </>,
+                "responsive"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>📄</FeatureIcon>
-                <FeatureTitle as="h3">Export PDF des plannings</FeatureTitle>
-                <FeatureDescription>
-                  Exportez vos plannings d'équipe en PDF haute qualité pour
-                  impression ou partage. Formats personnalisés et mise en page
-                  professionnelle. Idéal pour affichage en entreprise.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>📄</FeatureIcon>
+                  <FeatureTitle as="h3">Export PDF des plannings</FeatureTitle>
+                  <FeatureDescription>
+                    Exportez vos plannings d'équipe en PDF haute qualité pour
+                    impression ou partage. Formats personnalisés et mise en page
+                    professionnelle. Idéal pour affichage en entreprise.
+                  </FeatureDescription>
+                </>,
+                "pdf-export"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>🔒</FeatureIcon>
-                <FeatureTitle as="h3">Sécurité des données RH</FeatureTitle>
-                <FeatureDescription>
-                  Vos données de plannings et informations RH sont cryptées et
-                  protégées. Conformité RGPD stricte, hébergement sécurisé en
-                  France. Confidentialité garantie pour toutes vos données
-                  d'entreprise.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>🔒</FeatureIcon>
+                  <FeatureTitle as="h3">Sécurité des données RH</FeatureTitle>
+                  <FeatureDescription>
+                    Vos données de plannings et informations RH sont cryptées et
+                    protégées. Conformité RGPD stricte, hébergement sécurisé en
+                    France. Confidentialité garantie pour toutes vos données
+                    d'entreprise.
+                  </FeatureDescription>
+                </>,
+                "security"
+              )}
 
-              <FeatureCard>
-                <FeatureIcon>📊</FeatureIcon>
-                <FeatureTitle as="h3">Analytiques et reporting RH</FeatureTitle>
-                <FeatureDescription>
-                  Suivez et analysez les heures travaillées, coûts RH et
-                  efficacité des plannings. Tableaux de bord interactifs, KPI
-                  personnalisés et rapports automatisés. Optimisez vos
-                  ressources humaines avec des données précises.
-                </FeatureDescription>
-              </FeatureCard>
+              {getResponsiveFeatureCard(
+                <>
+                  <FeatureIcon>📊</FeatureIcon>
+                  <FeatureTitle as="h3">
+                    Analytiques et reporting RH
+                  </FeatureTitle>
+                  <FeatureDescription>
+                    Suivez et analysez les heures travaillées, coûts RH et
+                    efficacité des plannings. Tableaux de bord interactifs, KPI
+                    personnalisés et rapports automatisés. Optimisez vos
+                    ressources humaines avec des données précises.
+                  </FeatureDescription>
+                </>,
+                "analytics"
+              )}
             </FeaturesGrid>
           </FeaturesSection>
         </section>
@@ -2137,10 +2236,11 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         }
                       }}
                     >
+                      {/* ✨ OPTIMISATION MOBILE : loading="eager" pour l'aperçu vidéo visible */}
                       <VideoPreviewImage
                         src="/images/preview-video-youtube.webp"
                         alt="Aperçu vidéo démo SmartPlanning - SaaS de gestion de plannings"
-                        loading="lazy"
+                        loading="eager"
                       />
                       <PlayButton
                         whileHover={{ scale: 1.1 }}
