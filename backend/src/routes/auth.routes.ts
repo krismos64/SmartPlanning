@@ -789,12 +789,16 @@ router.patch(
  * @desc Initialise l'authentification via Google OAuth
  * @access Public
  */
-router.get(
-  "/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-  })
-);
+router.get("/google", (req: Request, res: Response, next: NextFunction) => {
+  (
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      accessType: "offline",
+      prompt: "select_account",
+      redirect_uri: "https://smartplanning.fr/api/auth/google/callback",
+    } as any) as express.RequestHandler
+  )(req, res, next);
+});
 
 /**
  * @route GET /api/auth/google/callback
