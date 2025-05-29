@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import axiosInstance from "../api/axiosInstance";
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
+import SEO from "../components/layout/SEO";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
@@ -550,6 +551,10 @@ const EmployeeSchedulePage: React.FC = () => {
 
   return (
     <LayoutWithSidebar activeItem="plannings" pageTitle="Mes Plannings">
+      <SEO
+        title="Mes Plannings"
+        description="Consultez vos plannings personnels et ceux de votre équipe"
+      />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* En-tête */}

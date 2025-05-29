@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import SEO from "../components/layout/SEO";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
@@ -241,22 +241,10 @@ const ResetPasswordPage = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Réinitialisation de mot de passe - SmartPlanning</title>
-        <meta
-          name="description"
-          content="Définissez un nouveau mot de passe pour votre compte SmartPlanning"
-        />
-        <style>
-          {`
-            .reset-password-field input {
-              background-color: ${isDarkMode ? "#2D3748" : "white"} !important;
-              color: ${isDarkMode ? "white" : "#1A202C"} !important;
-              border-color: ${isDarkMode ? "#4A5568" : "#E2E8F0"} !important;
-            }
-          `}
-        </style>
-      </Helmet>
+      <SEO
+        title="Réinitialisation de mot de passe - SmartPlanning"
+        description="Définissez un nouveau mot de passe pour votre compte SmartPlanning"
+      />
 
       <Header />
 

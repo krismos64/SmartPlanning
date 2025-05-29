@@ -1,6 +1,8 @@
 import axios from "axios";
 import { Key } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
+import SEO from "../components/layout/SEO";
 import { useTheme } from "../components/ThemeProvider";
 import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
@@ -428,311 +430,320 @@ const UserProfilePage = () => {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-5xl">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800 dark:text-white bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
-        Mon profil
-      </h1>
+    <LayoutWithSidebar activeItem="mon-profil">
+      <SEO
+        title="Mon profil - SmartPlanning"
+        description="Gérez vos informations personnelles et paramètres de compte."
+      />
+      <div className="container mx-auto py-8 px-4 max-w-5xl">
+        <h1 className="text-3xl font-bold mb-8 text-gray-800 dark:text-white bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
+          Mon profil
+        </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-        {/* Carte d'information */}
-        <Card className="md:col-span-5 flex flex-col items-center p-6 bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900">
-          <div className="mb-8 mt-4 relative group">
-            <Avatar
-              src={previewUrl}
-              size="2xl"
-              className="border-4 border-white dark:border-gray-700 shadow-xl hover:shadow-indigo-300/50 dark:hover:shadow-indigo-700/30 transition-all duration-300"
-            />
-            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              {user?.role && getRoleLabel(user.role)}
-            </div>
-          </div>
-
-          <h2 className="text-2xl font-semibold mb-2 text-center text-gray-800 dark:text-white">
-            {formData.firstName} {formData.lastName}
-          </h2>
-
-          <div className="mb-4 flex justify-center">
-            <Badge
-              label={getRoleLabel(user?.role || "")}
-              type={getRoleBadgeType(user?.role || "")}
-              className="text-sm px-3 py-1"
-            />
-          </div>
-
-          <div className="w-full my-6 text-sm space-y-4">
-            {/* Email avec design moderne */}
-            <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                <h3 className="text-indigo-600 dark:text-indigo-400 font-medium">
-                  Email
-                </h3>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+          {/* Carte d'information */}
+          <Card className="md:col-span-5 flex flex-col items-center p-6 bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900">
+            <div className="mb-8 mt-4 relative group">
+              <Avatar
+                src={previewUrl}
+                size="xl"
+                className="border-4 border-white dark:border-gray-700 shadow-xl hover:shadow-indigo-300/50 dark:hover:shadow-indigo-700/30 transition-all duration-300"
+              />
+              <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                {user?.role && getRoleLabel(user.role)}
               </div>
-              <p className="ml-4 font-medium break-all text-gray-700 dark:text-gray-300">
-                {formData.email}
-              </p>
             </div>
 
-            {/* Entreprise avec design moderne */}
-            {companyName && (
-              <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-violet-500"></div>
-                  <h3 className="text-violet-600 dark:text-violet-400 font-medium">
-                    Entreprise
-                  </h3>
-                </div>
-                <p className="ml-4 font-medium text-gray-700 dark:text-gray-300">
-                  {companyName}
-                </p>
-              </div>
-            )}
-
-            {/* Équipes avec design moderne */}
-            {teams.length > 0 && (
-              <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                  <h3 className="text-blue-600 dark:text-blue-400 font-medium">
-                    Équipes
-                  </h3>
-                </div>
-                <div className="flex flex-wrap gap-2 ml-4">
-                  {teams.map((team, index) => (
-                    <Badge
-                      key={index}
-                      label={team}
-                      type="info"
-                      className="text-xs px-2 py-0.5 bg-blue-600 text-white"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Formulaire de modification */}
-        <div className="md:col-span-7">
-          <Card className="bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900 p-6">
-            <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-white bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
-              Informations personnelles
+            <h2 className="text-2xl font-semibold mb-2 text-center text-gray-800 dark:text-white">
+              {formData.firstName} {formData.lastName}
             </h2>
 
-            <form onSubmit={handleSubmit}>
-              <div className="mb-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
-                      Prénom <span className="text-red-500">*</span>
-                    </p>
-                    <div className="dark:text-white">
-                      <InputField
-                        label="Prénom"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        required
-                        helperText="Votre prénom tel qu'il apparaîtra sur votre profil"
-                        className="dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
-                      Nom <span className="text-red-500">*</span>
-                    </p>
-                    <div className="dark:text-white">
-                      <InputField
-                        label="Nom"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        required
-                        helperText="Votre nom de famille tel qu'il apparaîtra sur votre profil"
-                        className="dark:text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
-                  Email <span className="text-red-500">*</span>
-                </p>
-                <div className="dark:text-white">
-                  <InputField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    helperText="Votre adresse email professionnelle, utilisée pour vous connecter"
-                    className="dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">
-                  Photo de profil
-                </label>
-
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <Avatar
-                      src={previewUrl}
-                      size="xl"
-                      className="border-2 border-indigo-200 dark:border-indigo-800"
-                    />
-                    {isUploadingImage && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-                        <LoadingSpinner size="sm" className="text-white" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <FileUpload
-                      onFileSelect={handleFileSelect}
-                      onPreviewChange={setPreviewUrl}
-                      acceptedTypes="image/*"
-                      maxSizeMB={2}
-                      buttonText={
-                        isUploadingImage
-                          ? "Upload en cours..."
-                          : "Changer la photo"
-                      }
-                      label=""
-                      className={`${isUploadingImage ? "opacity-70" : ""}`}
-                      hideNoFileText={true}
-                      buttonClassName="bg-green-500 hover:bg-green-600 text-white border-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Formats acceptés : JPG, PNG, GIF, WebP. Taille max. 2 Mo.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {isFormModified && (
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    isLoading={isSaving}
-                    disabled={isSaving}
-                    className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-md hover:shadow-lg transition-all duration-300"
-                  >
-                    Enregistrer les modifications
-                  </Button>
-                </div>
-              )}
-            </form>
-          </Card>
-
-          {/* Carte pour le changement de mot de passe */}
-          <Card className="mt-6 bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
-                Sécurité
-              </h2>
-
-              <Button
-                variant="ghost"
-                icon={<Key size={16} />}
-                onClick={() => setShowPasswordSection(!showPasswordSection)}
-                className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30"
-              >
-                {showPasswordSection ? "Annuler" : "Modifier le mot de passe"}
-              </Button>
+            <div className="mb-4 flex justify-center">
+              <Badge
+                label={getRoleLabel(user?.role || "")}
+                type={getRoleBadgeType(user?.role || "")}
+                className="text-sm px-3 py-1"
+              />
             </div>
 
-            {showPasswordSection && (
-              <form onSubmit={handlePasswordSubmit}>
-                <div className="mb-4">
-                  <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
-                    Mot de passe actuel <span className="text-red-500">*</span>
+            <div className="w-full my-6 text-sm space-y-4">
+              {/* Email avec design moderne */}
+              <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                  <h3 className="text-indigo-600 dark:text-indigo-400 font-medium">
+                    Email
+                  </h3>
+                </div>
+                <p className="ml-4 font-medium break-all text-gray-700 dark:text-gray-300">
+                  {formData.email}
+                </p>
+              </div>
+
+              {/* Entreprise avec design moderne */}
+              {companyName && (
+                <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-violet-500"></div>
+                    <h3 className="text-violet-600 dark:text-violet-400 font-medium">
+                      Entreprise
+                    </h3>
+                  </div>
+                  <p className="ml-4 font-medium text-gray-700 dark:text-gray-300">
+                    {companyName}
                   </p>
-                  <div className="relative">
-                    <PasswordField
-                      label="Mot de passe actuel"
-                      name="currentPassword"
-                      value={passwordForm.currentPassword}
-                      onChange={handlePasswordChange}
-                      required
-                      autoComplete="current-password"
-                      helperText="Entrez votre mot de passe actuel pour confirmer votre identité"
-                      className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
-                    />
+                </div>
+              )}
+
+              {/* Équipes avec design moderne */}
+              {teams.length > 0 && (
+                <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <h3 className="text-blue-600 dark:text-blue-400 font-medium">
+                      Équipes
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2 ml-4">
+                    {teams.map((team, index) => (
+                      <Badge
+                        key={index}
+                        label={team}
+                        type="info"
+                        className="text-xs px-2 py-0.5 bg-blue-600 text-white"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Formulaire de modification */}
+          <div className="md:col-span-7">
+            <Card className="bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900 p-6">
+              <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-white bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
+                Informations personnelles
+              </h2>
+
+              <form onSubmit={handleSubmit}>
+                <div className="mb-6">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
+                        Prénom <span className="text-red-500">*</span>
+                      </p>
+                      <div className="dark:text-white">
+                        <InputField
+                          label="Prénom"
+                          name="firstName"
+                          value={formData.firstName}
+                          onChange={handleInputChange}
+                          required
+                          helperText="Votre prénom tel qu'il apparaîtra sur votre profil"
+                          className="dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
+                        Nom <span className="text-red-500">*</span>
+                      </p>
+                      <div className="dark:text-white">
+                        <InputField
+                          label="Nom"
+                          name="lastName"
+                          value={formData.lastName}
+                          onChange={handleInputChange}
+                          required
+                          helperText="Votre nom de famille tel qu'il apparaîtra sur votre profil"
+                          className="dark:text-white"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="mb-6">
                   <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
-                    Nouveau mot de passe <span className="text-red-500">*</span>
+                    Email <span className="text-red-500">*</span>
                   </p>
-                  <div className="relative">
-                    <PasswordField
-                      label="Nouveau mot de passe"
-                      name="newPassword"
-                      value={passwordForm.newPassword}
-                      onChange={handlePasswordChange}
+                  <div className="dark:text-white">
+                    <InputField
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
                       required
-                      autoComplete="new-password"
-                      helperText="Doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)"
-                      className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
+                      helperText="Votre adresse email professionnelle, utilisée pour vous connecter"
+                      className="dark:text-white"
                     />
                   </div>
                 </div>
 
                 <div className="mb-6">
-                  <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
-                    Confirmer le mot de passe{" "}
-                    <span className="text-red-500">*</span>
-                  </p>
-                  <div className="relative">
-                    <PasswordField
-                      label="Confirmer le mot de passe"
-                      name="confirmPassword"
-                      value={passwordForm.confirmPassword}
-                      onChange={handlePasswordChange}
-                      required
-                      helperText="Veuillez confirmer votre nouveau mot de passe"
-                      className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
-                    />
+                  <label className="block text-sm font-medium mb-2">
+                    Photo de profil
+                  </label>
+
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <Avatar
+                        src={previewUrl}
+                        size="xl"
+                        className="border-2 border-indigo-200 dark:border-indigo-800"
+                      />
+                      {isUploadingImage && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                          <LoadingSpinner size="sm" className="text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      <FileUpload
+                        onFileSelect={handleFileSelect}
+                        onPreviewChange={setPreviewUrl}
+                        acceptedTypes="image/*"
+                        maxSizeMB={2}
+                        buttonText={
+                          isUploadingImage
+                            ? "Upload en cours..."
+                            : "Changer la photo"
+                        }
+                        label=""
+                        className={`${isUploadingImage ? "opacity-70" : ""}`}
+                        hideNoFileText={true}
+                        buttonClassName="bg-green-500 hover:bg-green-600 text-white border-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Formats acceptés : JPG, PNG, GIF, WebP. Taille max. 2
+                        Mo.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {passwordModified && (
+                {isFormModified && (
                   <div className="flex justify-end">
                     <Button
                       type="submit"
                       variant="primary"
-                      isLoading={isChangingPassword}
-                      disabled={isChangingPassword}
+                      isLoading={isSaving}
+                      disabled={isSaving}
                       className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-md hover:shadow-lg transition-all duration-300"
                     >
-                      Changer le mot de passe
+                      Enregistrer les modifications
                     </Button>
                   </div>
                 )}
               </form>
-            )}
+            </Card>
 
-            {!showPasswordSection && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 backdrop-blur-sm p-3 rounded-lg bg-white/40 dark:bg-gray-800/40 border border-indigo-100 dark:border-indigo-900">
-                Vous pouvez modifier votre mot de passe en cliquant sur le
-                bouton ci-dessus.
-              </p>
-            )}
-          </Card>
+            {/* Carte pour le changement de mot de passe */}
+            <Card className="mt-6 bg-gradient-to-b from-white to-indigo-50/30 dark:from-gray-800 dark:to-indigo-950/30 shadow-lg border border-indigo-100 dark:border-indigo-900 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
+                  Sécurité
+                </h2>
+
+                <Button
+                  variant="ghost"
+                  icon={<Key size={16} />}
+                  onClick={() => setShowPasswordSection(!showPasswordSection)}
+                  className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30"
+                >
+                  {showPasswordSection ? "Annuler" : "Modifier le mot de passe"}
+                </Button>
+              </div>
+
+              {showPasswordSection && (
+                <form onSubmit={handlePasswordSubmit}>
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
+                      Mot de passe actuel{" "}
+                      <span className="text-red-500">*</span>
+                    </p>
+                    <div className="relative">
+                      <PasswordField
+                        label="Mot de passe actuel"
+                        name="currentPassword"
+                        value={passwordForm.currentPassword}
+                        onChange={handlePasswordChange}
+                        required
+                        autoComplete="current-password"
+                        helperText="Entrez votre mot de passe actuel pour confirmer votre identité"
+                        className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
+                      Nouveau mot de passe{" "}
+                      <span className="text-red-500">*</span>
+                    </p>
+                    <div className="relative">
+                      <PasswordField
+                        label="Nouveau mot de passe"
+                        name="newPassword"
+                        value={passwordForm.newPassword}
+                        onChange={handlePasswordChange}
+                        required
+                        autoComplete="new-password"
+                        helperText="Doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)"
+                        className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <p className="text-sm font-medium mb-1 text-gray-700 dark:text-white">
+                      Confirmer le mot de passe{" "}
+                      <span className="text-red-500">*</span>
+                    </p>
+                    <div className="relative">
+                      <PasswordField
+                        label="Confirmer le mot de passe"
+                        name="confirmPassword"
+                        value={passwordForm.confirmPassword}
+                        onChange={handlePasswordChange}
+                        required
+                        helperText="Veuillez confirmer votre nouveau mot de passe"
+                        className="bg-white/80 dark:bg-gray-800 border-indigo-200 dark:border-indigo-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-indigo-500 dark:focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {passwordModified && (
+                    <div className="flex justify-end">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        isLoading={isChangingPassword}
+                        disabled={isChangingPassword}
+                        className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        Changer le mot de passe
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              )}
+
+              {!showPasswordSection && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 backdrop-blur-sm p-3 rounded-lg bg-white/40 dark:bg-gray-800/40 border border-indigo-100 dark:border-indigo-900">
+                  Vous pouvez modifier votre mot de passe en cliquant sur le
+                  bouton ci-dessus.
+                </p>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </LayoutWithSidebar>
   );
 };
 

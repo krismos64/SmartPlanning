@@ -8,12 +8,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, Plus, Search } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
-
-// Hooks
+import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
+import SEO from "../components/layout/SEO";
 import { useAuth } from "../hooks/useAuth";
 
 // Composants de layout
-import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
 import PageWrapper from "../components/layout/PageWrapper";
 import SectionCard from "../components/layout/SectionCard";
 import SectionTitle from "../components/layout/SectionTitle";
@@ -523,6 +522,11 @@ const VacationsPage: React.FC = () => {
 
   return (
     <LayoutWithSidebar activeItem="congés">
+      <SEO
+        title="Gestion des congés - SmartPlanning"
+        description="Gérez efficacement les demandes de congés de votre équipe avec SmartPlanning."
+      />
+
       <PageWrapper>
         {/* Fil d'ariane */}
         <Breadcrumb items={breadcrumbItems} />

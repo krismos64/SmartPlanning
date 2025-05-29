@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader } from "lucide-react";
-import { useState } from "react";
-import { Helmet } from "react-helmet-async";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import SEO from "../components/layout/SEO";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
@@ -113,22 +113,10 @@ const ForgotPasswordPage = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Mot de passe oublié - SmartPlanning</title>
-        <meta
-          name="description"
-          content="Réinitialisez votre mot de passe SmartPlanning"
-        />
-        <style>
-          {`
-            .forgot-password-field input {
-              background-color: ${isDarkMode ? "#2D3748" : "white"} !important;
-              color: ${isDarkMode ? "white" : "#1A202C"} !important;
-              border-color: ${isDarkMode ? "#4A5568" : "#E2E8F0"} !important;
-            }
-          `}
-        </style>
-      </Helmet>
+      <SEO
+        title="Mot de passe oublié - SmartPlanning"
+        description="Réinitialisez votre mot de passe SmartPlanning"
+      />
 
       <Header />
 

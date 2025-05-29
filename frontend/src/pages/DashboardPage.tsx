@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import React, { useState } from "react";
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
+import SEO from "../components/layout/SEO";
 import ComingSoonAIModal from "../components/modals/ComingSoonAIModal";
 import { useTheme } from "../components/ThemeProvider";
 import CardGrid from "../components/ui/CardGrid";
@@ -219,6 +220,10 @@ const DashboardPage: React.FC = () => {
       activeItem="tableau-de-bord"
       pageTitle="Dashboard SmartPlanning – Vue d'ensemble RH"
     >
+      <SEO
+        title="Dashboard SmartPlanning – Vue d'ensemble RH"
+        description="Découvrez le tableau de bord de SmartPlanning, l'outil de gestion de l'équipe par excellence."
+      />
       <div
         className={`max-w-6xl mx-auto mb-12 relative ${
           isDarkMode ? "text-gray-100" : "text-gray-900"

@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 import React, { useEffect, useRef, useState } from "react";
-import { Helmet } from "react-helmet-async";
 import styled from "styled-components";
 import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
+import SEO from "../components/layout/SEO";
 import Card from "../components/ui/Card";
 
 const Container = styled.div<{ isDarkMode?: boolean }>`
@@ -444,13 +444,10 @@ const TermsOfUsePage: React.FC = () => {
   return (
     <Container ref={topRef} isDarkMode={isDarkMode}>
       <GlobalStyles isDarkMode={isDarkMode} />
-      <Helmet>
-        <title>Conditions d'utilisation - SmartPlanning</title>
-        <meta
-          name="description"
-          content="Conditions générales d'utilisation du service SmartPlanning"
-        />
-      </Helmet>
+      <SEO
+        title="Conditions d'utilisation - SmartPlanning"
+        description="Conditions générales d'utilisation du service SmartPlanning"
+      />
 
       <Header />
 

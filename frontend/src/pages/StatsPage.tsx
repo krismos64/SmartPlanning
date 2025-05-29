@@ -14,9 +14,10 @@ import {
 import React, { useEffect, useState } from "react";
 import { CountUp } from "use-count-up";
 import axiosInstance from "../api/axiosInstance";
+import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
+import SEO from "../components/layout/SEO";
 
 // Composants layout
-import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
 import PageWrapper from "../components/layout/PageWrapper";
 
 // Composants UI
@@ -224,6 +225,7 @@ const StatsPage: React.FC = () => {
       activeItem="statistiques"
       pageTitle={`${getPageTitle()} - SmartPlanning`}
     >
+      <SEO title={`${getPageTitle()} - SmartPlanning`} />
       <PageWrapper>
         <div className="max-w-7xl mx-auto">
           {/* En-tête de page */}

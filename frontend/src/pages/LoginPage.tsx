@@ -7,12 +7,12 @@
  */
 import { motion } from "framer-motion";
 import React, { useContext, useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import SEO from "../components/layout/SEO";
 import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
@@ -256,22 +256,20 @@ const LoginPage: React.FC = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Connexion - SmartPlanning</title>
-        <meta
-          name="description"
-          content="Connectez-vous à votre compte SmartPlanning pour accéder à votre espace de gestion."
-        />
-        <style>
-          {`
-            .login-field input {
-              background-color: ${isDarkMode ? "#2D3748" : "white"} !important;
-              color: ${isDarkMode ? "white" : "#1A202C"} !important;
-              border-color: ${isDarkMode ? "#4A5568" : "#E2E8F0"} !important;
-            }
-          `}
-        </style>
-      </Helmet>
+      <SEO
+        title="Connexion - SmartPlanning"
+        description="Connectez-vous à votre compte SmartPlanning pour accéder à votre espace de gestion."
+      />
+
+      <style>
+        {`
+          .login-field input {
+            background-color: ${isDarkMode ? "#2D3748" : "white"} !important;
+            color: ${isDarkMode ? "white" : "#1A202C"} !important;
+            border-color: ${isDarkMode ? "#4A5568" : "#E2E8F0"} !important;
+          }
+        `}
+      </style>
 
       <Header />
 

@@ -40,6 +40,7 @@ import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
 import PageWrapper from "../components/layout/PageWrapper";
 import SectionCard from "../components/layout/SectionCard";
 import SectionTitle from "../components/layout/SectionTitle";
+import SEO from "../components/layout/SEO";
 
 // Composants UI
 import Breadcrumb from "../components/ui/Breadcrumb";
@@ -1774,6 +1775,10 @@ const WeeklySchedulePage: React.FC = () => {
       activeItem="plannings-hebdomadaires"
       pageTitle="Plannings Hebdomadaires"
     >
+      <SEO
+        title="Plannings Hebdomadaires"
+        description="Gestion des plannings hebdomadaires pour les employés"
+      />
       <PageWrapper>
         {/* Notifications */}
         <Toast

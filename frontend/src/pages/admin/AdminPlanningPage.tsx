@@ -21,12 +21,11 @@ import {
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
-
-// Composants de layout
 import LayoutWithSidebar from "../../components/layout/LayoutWithSidebar";
 import PageWrapper from "../../components/layout/PageWrapper";
 import SectionCard from "../../components/layout/SectionCard";
 import SectionTitle from "../../components/layout/SectionTitle";
+import SEO from "../../components/layout/SEO";
 
 // Composants UI
 import Breadcrumb from "../../components/ui/Breadcrumb";
@@ -498,6 +497,10 @@ const AdminPlanningPage: React.FC = () => {
       activeItem="admin-plannings"
       pageTitle="Gestion des plannings"
     >
+      <SEO
+        title="Gestion des plannings"
+        description="Page d'administration des plannings"
+      />
       <PageWrapper>
         {/* Notifications */}
         <Toast

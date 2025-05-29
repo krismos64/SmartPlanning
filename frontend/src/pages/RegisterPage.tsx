@@ -7,13 +7,13 @@
  */
 import { motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
-import { Helmet } from "react-helmet-async";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import SEO from "../components/layout/SEO";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import FileUpload from "../components/ui/FileUpload";
@@ -641,13 +641,10 @@ const RegisterPage: React.FC = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Inscription - SmartPlanning</title>
-        <meta
-          name="description"
-          content="Créez votre compte SmartPlanning pour accéder à notre solution de gestion de planning innovante."
-        />
-      </Helmet>
+      <SEO
+        title="Inscription - SmartPlanning"
+        description="Créez votre compte SmartPlanning pour accéder à notre solution de gestion de planning innovante."
+      />
 
       <Header />
 

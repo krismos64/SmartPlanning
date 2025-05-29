@@ -6,13 +6,13 @@
  */
 import { motion } from "framer-motion";
 import React, { useState } from "react";
-import { Helmet } from "react-helmet-async";
 import { MdOutlineMail } from "react-icons/md";
 import styled from "styled-components";
-import { useTheme } from "../components/ThemeProvider";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
 import PageWrapper from "../components/layout/PageWrapper";
+import SEO from "../components/layout/SEO";
+import { useTheme } from "../components/ThemeProvider";
 import Button from "../components/ui/Button";
 import FormContainer from "../components/ui/FormContainer";
 import InputField from "../components/ui/InputField";
@@ -263,13 +263,10 @@ const ContactPage: React.FC = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Contact - SmartPlanning</title>
-        <meta
-          name="description"
-          content="Contactez l'équipe SmartPlanning pour toute question ou assistance concernant votre planning."
-        />
-      </Helmet>
+      <SEO
+        title="Contact - SmartPlanning"
+        description="Contactez l'équipe SmartPlanning pour toute question ou assistance concernant votre planning."
+      />
 
       <Header />
 
