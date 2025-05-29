@@ -2158,7 +2158,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     >
                       <DemoVideoContainer>
                         <iframe
-                          src="https://www.youtube.com/embed/W4UWkI4S2Qg?autoplay=1"
+                          src="https://www.youtube.com/embed/jSdnkoMc8gU?autoplay=1"
                           title="SmartPlanning - Démonstration complète du SaaS de gestion de plannings et d'équipes"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
