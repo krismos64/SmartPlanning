@@ -17,6 +17,7 @@ import employeesByCompanyRoutes from "./routes/employees.route";
 import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route";
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
 import incidentsRoutes from "./routes/incidents.route";
+import publicRoutes from "./routes/index";
 import passwordRoutes from "./routes/password.routes";
 import profileRoutes from "./routes/profile.routes";
 import statsRoutes from "./routes/stats.routes";
@@ -55,6 +56,9 @@ app.use(
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Routes publiques (SEO)
+app.use("/api", publicRoutes);
 
 // Routes
 app.use("/api/auth", authRoutes);

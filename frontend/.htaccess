@@ -1,3 +1,14 @@
+# 🔒 Redirection HTTPS + suppression de www
+RewriteEngine On
+
+# Rediriger www vers sans www
+RewriteCond %{HTTP_HOST} ^www\.smartplanning\.fr$ [NC]
+RewriteRule ^(.*)$ https://smartplanning.fr/$1 [R=301,L]
+
+# Forcer HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
 # Configuration pour React SPA
 Options -MultiViews
 RewriteEngine On

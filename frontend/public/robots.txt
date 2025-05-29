@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /register
+
+Allow: /
+
+Sitemap: https://smartplanning.fr/sitemap.xml 
