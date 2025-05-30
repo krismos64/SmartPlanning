@@ -18,6 +18,7 @@ import {
   FileDown,
   Pencil,
   Plus,
+  Sparkles,
   Trash,
   Trash2,
   User,
@@ -143,6 +144,7 @@ const MONTH_NAMES = [
 // Importer le service de génération de PDF et le modal
 import ComingSoonAIModal from "../components/modals/ComingSoonAIModal";
 import GeneratePdfModal from "../components/modals/GeneratePdfModal";
+import GenerateIAScheduleModal from "../components/planning/GenerateIAScheduleModal";
 import {
   generateSchedulePDF,
   generateTeamSchedulePDF,
@@ -287,6 +289,10 @@ const WeeklySchedulePage: React.FC = () => {
 
   // État pour le modal IA Coming Soon
   const [isAIModalOpen, setIsAIModalOpen] = useState<boolean>(false);
+
+  // État pour la modale de génération IA
+  const [isAIGenerateModalOpen, setIsAIGenerateModalOpen] =
+    useState<boolean>(false);
 
   // Vérification automatique de l'état d'authentification
   useEffect(() => {
@@ -1838,6 +1844,25 @@ const WeeklySchedulePage: React.FC = () => {
               </Button>
             </motion.div>
           )}
+
+          {/* Bouton Plannings IA - Seulement pour manager, directeur, admin */}
+          {(user?.role === "manager" ||
+            user?.role === "directeur" ||
+            user?.role === "admin") && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <Button
+                onClick={() => setIsAIGenerateModalOpen(true)}
+                className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 px-5 py-3 flex items-center gap-2"
+              >
+                <Sparkles className="w-5 h-5 text-yellow-200 animate-pulse" />
+                Générer Planning IA
+              </Button>
+            </motion.div>
+          )}
         </div>
 
         {/* Récapitulatif de la semaine */}
@@ -2844,6 +2869,28 @@ const WeeklySchedulePage: React.FC = () => {
         <ComingSoonAIModal
           isOpen={isAIModalOpen}
           onClose={() => setIsAIModalOpen(false)}
+        />
+
+        {/* Modale de génération IA de planning */}
+        <GenerateIAScheduleModal
+          isOpen={isAIGenerateModalOpen}
+          onClose={() => setIsAIGenerateModalOpen(false)}
+          onSuccess={() => {
+            setSuccess("Planning IA généré avec succès !");
+            setShowSuccessToast(true);
+            fetchSchedules();
+          }}
+          teams={(() => {
+            if (teams.length === 0) {
+              console.warn(
+                "Aucune équipe disponible pour la génération IA de plannings"
+              );
+            }
+            return teams.map((team) => ({
+              value: team._id,
+              label: team.name,
+            }));
+          })()}
         />
       </PageWrapper>
     </LayoutWithSidebar>

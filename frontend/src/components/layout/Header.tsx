@@ -9,7 +9,7 @@ import ThemeSwitch from "../ui/ThemeSwitch";
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
 interface DarkModeProps {
-  isDarkMode?: boolean;
+  $isDarkMode?: boolean;
 }
 
 const HeaderContainer = styled.header<DarkModeProps>`
@@ -18,7 +18,8 @@ const HeaderContainer = styled.header<DarkModeProps>`
   align-items: center;
   padding: 1rem 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  background-color: ${({ isDarkMode }) => (isDarkMode ? "#121829" : "#FFFFFF")};
+  background-color: ${({ $isDarkMode }) =>
+    $isDarkMode ? "#121829" : "#FFFFFF"};
   position: sticky;
   top: 0;
   z-index: 100;
@@ -108,7 +109,7 @@ const Header: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
 
   return (
-    <HeaderContainer isDarkMode={isDarkMode}>
+    <HeaderContainer $isDarkMode={isDarkMode}>
       <Link to="/" onClick={scrollToTop} style={{ textDecoration: "none" }}>
         <Logo>
           <LogoAnimation>

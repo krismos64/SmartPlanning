@@ -25,10 +25,6 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-// URL de base de l'API
-const API_URL =
-  import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api";
-
 // Configuration axios avec token
 const setAuthToken = (token: string | null) => {
   if (token) {
@@ -87,7 +83,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setAuthToken(token);
 
         // Appel à l'API pour vérifier le token
-        const response = await axiosInstance.get(`${API_URL}/auth/me`);
+        const response = await axiosInstance.get("/auth/me");
 
         if (response.data.success) {
           // S'assurer que l'ID est disponible dans le format attendu par le backend
@@ -126,7 +122,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     try {
       // Appel à l'API d'authentification
-      const response = await axiosInstance.post(`${API_URL}/auth/login`, {
+      const response = await axiosInstance.post("/auth/login", {
         email,
         password,
       });
@@ -166,7 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       // Appel à l'API de déconnexion
-      await axiosInstance.post(`${API_URL}/auth/logout`);
+      await axiosInstance.post("/auth/logout");
 
       // Supprimer le token
       setAuthToken(null);
@@ -212,7 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthToken(token);
 
       // Appel à l'API pour obtenir les données utilisateur à jour
-      const response = await axiosInstance.get(`${API_URL}/auth/me`);
+      const response = await axiosInstance.get("/auth/me");
 
       if (response.data.success) {
         // Mettre à jour l'utilisateur avec les données fraîches

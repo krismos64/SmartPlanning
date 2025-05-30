@@ -9,6 +9,7 @@ import adminTeamRoutes from "./routes/admin/adminTeam.routes";
 import { adminCompaniesRouter } from "./routes/admin/companies.route";
 import adminEmployeesRoutes from "./routes/admin/employees";
 import adminUsersRoutes from "./routes/admin/users.route";
+import aiRoutes from "./routes/ai.routes";
 import authRoutes from "./routes/auth.routes";
 import companiesRoutes from "./routes/companies.route";
 import contactRoutes from "./routes/contact.routes";
@@ -44,15 +45,72 @@ mongoose
 
 // Middlewares
 app.use(morgan("dev"));
-app.use(
-  cors({
-    origin: [
-      process.env.FRONTEND_URL || "http://localhost:5173",
-      "http://localhost:3000",
-    ],
-    credentials: true,
-  })
-);
+
+// 🔒 Configuration CORS sécurisée selon l'environnement
+const corsConfig = {
+  // 🌐 Origine autorisée selon l'environnement
+  origin: function (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) {
+    // Liste des origines autorisées selon l'environnement
+    const allowedOrigins: string[] = [];
+
+    if (process.env.NODE_ENV === "development") {
+      // 🚧 Développement : autoriser localhost
+      allowedOrigins.push("http://localhost:5173");
+      console.log(
+        "🔧 Mode développement : autorisation CORS pour localhost:5173"
+      );
+    } else if (process.env.NODE_ENV === "production") {
+      // 🏭 Production : autoriser uniquement le domaine officiel
+      allowedOrigins.push("https://smartplanning.fr");
+      console.log(
+        "🚀 Mode production : autorisation CORS pour smartplanning.fr uniquement"
+      );
+    } else {
+      // 🔍 Autres environnements (test, staging...) : utiliser la variable d'environnement
+      const envOrigin = process.env.FRONTEND_URL;
+      if (envOrigin) {
+        allowedOrigins.push(envOrigin);
+        console.log(
+          `🔧 Mode ${process.env.NODE_ENV}: autorisation CORS pour ${envOrigin}`
+        );
+      }
+    }
+
+    // Autoriser les requêtes sans origine (ex: Postman, apps mobiles)
+    if (!origin) return callback(null, true);
+
+    // Vérifier si l'origine est autorisée
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`❌ CORS bloqué pour l'origine: ${origin}`);
+      callback(new Error("Non autorisé par la politique CORS"), false);
+    }
+  },
+
+  // 🔑 Headers autorisés pour toutes les requêtes
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+
+  // 🛠️ Méthodes HTTP autorisées
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+
+  // 🍪 Autoriser l'envoi de cookies/credentials
+  credentials: true,
+
+  // ⚡ Cache preflight pendant 24h pour optimiser les performances
+  maxAge: 86400,
+};
+
+app.use(cors(corsConfig));
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -62,6 +120,7 @@ app.use("/api", publicRoutes);
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/ai", aiRoutes);
 app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);

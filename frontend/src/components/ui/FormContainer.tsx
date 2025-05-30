@@ -11,18 +11,23 @@ interface FormContainerProps {
   wide?: boolean;
 }
 
-const Container = styled(motion.div)<{ isDarkMode?: boolean; wide?: boolean }>`
-  background-color: ${({ isDarkMode }) => (isDarkMode ? "#121829" : "#FFFFFF")};
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+const Container = styled(motion.div)<{
+  $isDarkMode?: boolean;
+  $wide?: boolean;
+}>`
+  background-color: ${({ $isDarkMode }) =>
+    $isDarkMode ? "#121829" : "#FFFFFF"};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#F1F5F9" : "#1A202C")};
   border-radius: 1rem;
-  box-shadow: ${({ isDarkMode }) =>
-    isDarkMode
+  box-shadow: ${({ $isDarkMode }) =>
+    $isDarkMode
       ? "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)"
       : "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"};
-  border: 1px solid ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
+  border: 1px solid
+    ${({ $isDarkMode }) => ($isDarkMode ? "#2D3748" : "#E2E8F0")};
   padding: 2rem;
   width: 100%;
-  max-width: ${({ wide }) => (wide ? "56rem" : "28rem")};
+  max-width: ${({ $wide }) => ($wide ? "56rem" : "28rem")};
   margin: 0 auto;
   overflow: hidden;
 
@@ -39,10 +44,10 @@ const Title = styled(motion.h2)`
   margin-bottom: 0.75rem;
 `;
 
-const Description = styled(motion.p)<{ isDarkMode?: boolean }>`
+const Description = styled(motion.p)<{ $isDarkMode?: boolean }>`
   font-size: 1rem;
   text-align: center;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
   margin-bottom: 2rem;
 `;
 
@@ -64,9 +69,9 @@ const FormContainer: React.FC<FormContainerProps> = ({
 
   return (
     <Container
-      isDarkMode={isDarkMode}
+      $isDarkMode={isDarkMode}
       className={className}
-      wide={wide}
+      $wide={wide}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -83,7 +88,7 @@ const FormContainer: React.FC<FormContainerProps> = ({
 
       {description && (
         <Description
-          isDarkMode={isDarkMode}
+          $isDarkMode={isDarkMode}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}

@@ -8,6 +8,7 @@ import {
   Home,
   LogOut,
   Plane,
+  Sparkles,
   User as UserIcon,
   Users,
 } from "lucide-react";
@@ -104,6 +105,13 @@ const incidentsMenuItem = {
   label: "Incidents employés",
   icon: AlertCircle,
   route: "/incidents",
+};
+
+const planningsAiMenuItem = {
+  id: "plannings-ai",
+  label: "Plannings IA",
+  icon: Sparkles,
+  route: "/validation-plannings",
 };
 
 const SidebarMenu: React.FC<SidebarMenuProps> = ({
@@ -211,6 +219,30 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       } else {
         // Fallback si "conges" n'est pas trouvé
         items.push(incidentsMenuItem);
+      }
+    }
+
+    // Ajouter "Plannings IA" après les incidents pour manager, directeur et admin
+    if (
+      user?.role === "manager" ||
+      user?.role === "directeur" ||
+      user?.role === "admin"
+    ) {
+      // Trouver l'index après "incidents"
+      const incidentsIndex = items.findIndex((item) => item.id === "incidents");
+      if (incidentsIndex !== -1) {
+        // Insérer plannings IA après incidents
+        items.splice(incidentsIndex + 1, 0, planningsAiMenuItem);
+      } else {
+        // Fallback - ajouter après les plannings normaux
+        const planningsIndex = items.findIndex(
+          (item) => item.id === "plannings"
+        );
+        if (planningsIndex !== -1) {
+          items.splice(planningsIndex + 1, 0, planningsAiMenuItem);
+        } else {
+          items.push(planningsAiMenuItem);
+        }
       }
     }
 

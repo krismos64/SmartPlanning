@@ -6,9 +6,17 @@ enum ScheduleStatus {
   APPROVED = "approved",
 }
 
+// Interface pour les données d'horaire d'une journée
+export interface DayScheduleData {
+  start?: string;
+  end?: string;
+  pause?: string;
+  slots?: string[]; // Format: ["09:00-12:00", "14:00-17:00"]
+}
+
 // Interface pour les données d'horaire
 export interface ScheduleData {
-  [day: string]: string[]; // ex: "lundi": ["09:00-12:00", "14:00-17:00"]
+  [day: string]: DayScheduleData; // ex: "lundi": { slots: ["09:00-12:00", "14:00-17:00"] }
 }
 
 // Interface pour le document GeneratedSchedule
@@ -18,6 +26,8 @@ export interface IGeneratedSchedule {
   generatedBy: mongoose.Types.ObjectId | string; // UserId ou "AI"
   timestamp: Date;
   status: ScheduleStatus;
+  weekNumber?: number; // Numéro de semaine (1-53)
+  year?: number; // Année du planning
 }
 
 // Interface pour le document GeneratedSchedule avec les méthodes de Mongoose
@@ -35,10 +45,15 @@ const generatedScheduleSchema = new Schema<GeneratedScheduleDocument>(
     },
     scheduleData: {
       type: Map,
-      of: [String],
+      of: {
+        start: { type: String, required: false },
+        end: { type: String, required: false },
+        pause: { type: String, required: false },
+        slots: { type: [String], required: false },
+      },
       required: [true, "Les données d'horaire sont requises"],
       validate: {
-        validator: function (v: Map<string, string[]>) {
+        validator: function (v: Map<string, DayScheduleData>) {
           return v && v.size > 0;
         },
         message: "Au moins un jour doit être défini dans les données d'horaire",
@@ -65,6 +80,18 @@ const generatedScheduleSchema = new Schema<GeneratedScheduleDocument>(
       enum: Object.values(ScheduleStatus),
       required: [true, "Le statut est requis"],
       default: ScheduleStatus.DRAFT,
+    },
+    weekNumber: {
+      type: Number,
+      required: false,
+      min: [1, "Le numéro de semaine doit être compris entre 1 et 53"],
+      max: [53, "Le numéro de semaine doit être compris entre 1 et 53"],
+    },
+    year: {
+      type: Number,
+      required: false,
+      min: [2020, "L'année doit être supérieure ou égale à 2020"],
+      max: [2030, "L'année doit être inférieure ou égale à 2030"],
     },
   },
   {

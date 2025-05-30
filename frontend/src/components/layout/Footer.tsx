@@ -8,17 +8,17 @@ import { useTheme } from "../../components/ThemeProvider";
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
 
 interface DarkModeProps {
-  isDarkMode?: boolean;
+  $isDarkMode?: boolean;
 }
 
 const FooterContainer = styled.footer<DarkModeProps>`
-  background: ${({ isDarkMode }) =>
-    isDarkMode
+  background: ${({ $isDarkMode }) =>
+    $isDarkMode
       ? "linear-gradient(135deg, #0A0F1A, #121829)"
       : "linear-gradient(135deg, #F0F4F8, #FFFFFF)"};
   padding: 3rem 1.5rem;
   border-top: 1px solid
-    ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
+    ${({ $isDarkMode }) => ($isDarkMode ? "#2D3748" : "#E2E8F0")};
 `;
 
 const FooterContent = styled.div`
@@ -63,7 +63,7 @@ const FooterLinks = styled.div`
 `;
 
 const FooterLink = styled(Link)<DarkModeProps>`
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
   font-weight: 500;
   text-decoration: none;
   transition: color 0.3s ease;
@@ -98,7 +98,7 @@ const SocialLink = styled.a`
 `;
 
 const FooterCopyright = styled.div<DarkModeProps>`
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
   font-size: 0.9rem;
   text-align: center;
   margin-top: 2rem;
@@ -120,7 +120,7 @@ const Footer: React.FC<{ scrollToTop?: () => void }> = ({ scrollToTop }) => {
   const { isDarkMode } = useTheme();
 
   return (
-    <FooterContainer isDarkMode={isDarkMode}>
+    <FooterContainer $isDarkMode={isDarkMode}>
       <FooterContent>
         <FooterLogo to="/" onClick={scrollToTop}>
           <LogoAnimation>
@@ -136,16 +136,16 @@ const Footer: React.FC<{ scrollToTop?: () => void }> = ({ scrollToTop }) => {
         </FooterLogo>
 
         <FooterLinks>
-          <FooterLink to="/mentions-legales" isDarkMode={isDarkMode}>
+          <FooterLink to="/mentions-legales" $isDarkMode={isDarkMode}>
             Conditions d'utilisation
           </FooterLink>
           <FooterLink
             to="/politique-de-confidentialite"
-            isDarkMode={isDarkMode}
+            $isDarkMode={isDarkMode}
           >
             Politique de confidentialité
           </FooterLink>
-          <FooterLink to="/contact" isDarkMode={isDarkMode}>
+          <FooterLink to="/contact" $isDarkMode={isDarkMode}>
             Contact
           </FooterLink>
         </FooterLinks>
@@ -193,7 +193,7 @@ const Footer: React.FC<{ scrollToTop?: () => void }> = ({ scrollToTop }) => {
         </Socials>
       </FooterContent>
 
-      <FooterCopyright isDarkMode={isDarkMode}>
+      <FooterCopyright $isDarkMode={isDarkMode}>
         &copy; 2025 SmartPlanning. Tous droits réservés.
       </FooterCopyright>
     </FooterContainer>

@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import planningAnimation from "../../assets/animations/planning-animation.json";
 import { useAuth } from "../../hooks/useAuth";
-import { getEnvVar } from "../../utils/getEnv";
 import { useTheme } from "../ThemeProvider";
 import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
@@ -14,12 +13,6 @@ import ThemeSwitch from "../ui/ThemeSwitch";
 import SidebarMenu from "./SidebarMenu";
 
 const EnhancedLottie = lazy(() => import("../ui/EnhancedLottie"));
-
-// URL de base de l'API (fix pour TypeScript)
-const API_URL = getEnvVar(
-  "VITE_API_URL",
-  "https://smartplanning.onrender.com/api"
-);
 
 interface LayoutWithSidebarProps {
   children: React.ReactNode;
@@ -58,7 +51,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
           ] = `Bearer ${token}`;
         }
 
-        const response = await axiosInstance.get(`${API_URL}/companies/me`);
+        const response = await axiosInstance.get("/companies/me");
 
         // Vérifier la structure de la réponse et extraire les données correctement
         if (response.data) {

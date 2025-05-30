@@ -219,4 +219,147 @@ export const passwordService = {
   },
 };
 
+/**
+ * Service pour interagir avec l'IA de manière conversationnelle
+ * @param conversationData - Données de la conversation
+ * @returns - Réponse de l'IA avec questions et suggestions
+ */
+export const aiConversation = async (conversationData: {
+  teamId: string;
+  year: number;
+  weekNumber: number;
+  message: string;
+  conversationHistory?: Array<{
+    role: "user" | "assistant";
+    content: string;
+    timestamp: Date;
+  }>;
+}) => {
+  try {
+    const response = await api.post("/ai/conversation", conversationData);
+
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error("Format de réponse invalide lors de l'interaction IA");
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'interaction IA:", error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        `Échec de l'interaction IA (${error.response.status}): ${
+          error.response.data.message || "Erreur inconnue"
+        }`
+      );
+    } else {
+      throw new Error(
+        "Impossible de communiquer avec l'IA. Veuillez réessayer."
+      );
+    }
+  }
+};
+
+/**
+ * Service pour générer un planning avec contexte enrichi
+ * @param enhancedData - Données enrichies pour la génération
+ * @returns - Planning généré avec métadonnées
+ */
+export const generateScheduleWithContext = async (enhancedData: {
+  teamId: string;
+  year: number;
+  weekNumber: number;
+  constraints: string[];
+  notes?: string;
+  conversationSummary?: string;
+  additionalRequirements?: string;
+}) => {
+  try {
+    const response = await api.post("/ai/generate-with-context", enhancedData);
+
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        "Format de réponse invalide lors de la génération enrichie"
+      );
+    }
+  } catch (error) {
+    console.error("Erreur lors de la génération enrichie:", error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        `Échec de la génération enrichie (${error.response.status}): ${
+          error.response.data.message || "Erreur inconnue"
+        }`
+      );
+    } else {
+      throw new Error(
+        "Impossible de générer le planning enrichi. Veuillez réessayer."
+      );
+    }
+  }
+};
+
+/**
+ * Service pour générer un planning classique (amélioré)
+ * @param scheduleData - Données du planning à générer
+ * @returns - Planning généré
+ */
+export const generateSchedule = async (scheduleData: {
+  teamId: string;
+  year: number;
+  weekNumber: number;
+  constraints: string[];
+  notes?: string;
+}) => {
+  try {
+    const response = await api.post("/ai/generate-schedule", scheduleData);
+
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error("Format de réponse invalide lors de la génération");
+    }
+  } catch (error) {
+    console.error("Erreur lors de la génération de planning:", error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        `Échec de la génération (${error.response.status}): ${
+          error.response.data.message || "Erreur inconnue"
+        }`
+      );
+    } else {
+      throw new Error("Impossible de générer le planning. Veuillez réessayer.");
+    }
+  }
+};
+
+/**
+ * Service pour récupérer les plannings générés par l'IA
+ * @returns - Liste des plannings générés
+ */
+export const getGeneratedSchedules = async () => {
+  try {
+    const response = await api.get("/ai/generated-schedules");
+
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error("Format de réponse invalide lors de la récupération");
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération des plannings IA:", error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        `Échec de la récupération (${error.response.status}): ${
+          error.response.data.message || "Erreur inconnue"
+        }`
+      );
+    } else {
+      throw new Error(
+        "Impossible de récupérer les plannings. Veuillez réessayer."
+      );
+    }
+  }
+};
+
 export default api;

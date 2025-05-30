@@ -143,14 +143,24 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
 }) => {
   const { user } = useAuth();
 
+  // Logs de debug
+  console.log("RoleProtectedRoute - User:", user);
+  console.log("RoleProtectedRoute - Allowed roles:", allowedRoles);
+  console.log("RoleProtectedRoute - User role:", user?.role);
+
   if (!user) {
+    console.log("RoleProtectedRoute - User is null, redirecting to login");
     return <Navigate to="/connexion" replace />;
   }
 
   if (allowedRoles.includes(user.role)) {
+    console.log("RoleProtectedRoute - Access granted");
     return <>{element}</>;
   }
 
+  console.log(
+    "RoleProtectedRoute - Access denied, redirecting to unauthorized"
+  );
   return <Navigate to="/unauthorized" replace />;
 };
 
@@ -233,7 +243,12 @@ const AppRouter: React.FC = () => {
         />
         <Route
           path="/validation-plannings"
-          element={<ManagerPlanningValidationPage />}
+          element={
+            <RoleProtectedRoute
+              element={<ManagerPlanningValidationPage />}
+              allowedRoles={["manager", "directeur", "admin"]}
+            />
+          }
         />
         <Route
           path="/statistiques"
