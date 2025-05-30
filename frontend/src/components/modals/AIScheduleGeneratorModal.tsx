@@ -291,12 +291,51 @@ const AIScheduleGeneratorModal: React.FC<AIScheduleGeneratorModalProps> = ({
   const handleAssistedGeneration = async () => {
     setIsLoading(true);
     try {
+      // Extraire des contraintes intelligentes de la conversation
+      const extractedConstraints = [
+        "Respecter les préférences d'horaires des employés",
+        "Assurer une couverture minimum en permanence",
+        "Équilibrer la charge de travail",
+      ];
+
+      // Ajouter des contraintes basées sur la conversation si disponible
+      if (conversationHistory.length > 0) {
+        extractedConstraints.push(
+          "Appliquer TOUTES les consignes spécifiques de la conversation"
+        );
+      }
+
+      // Créer un résumé enrichi qui combine tout le contexte
+      const enrichedSummary = [
+        "=== RÉSUMÉ DE LA CONVERSATION ===",
+        conversationSummary || "Aucun résumé personnalisé fourni",
+        "",
+        "=== HISTORIQUE COMPLET DES ÉCHANGES ===",
+        ...conversationHistory.map(
+          (msg) =>
+            `${msg.role === "user" ? "👤 MANAGER" : "🤖 IA"}: ${msg.content}`
+        ),
+        "",
+        "=== INSTRUCTIONS SUPPLÉMENTAIRES ===",
+        additionalRequirements || "Aucune instruction supplémentaire",
+      ].join("\n");
+
+      console.log("Debug - Données enrichies envoyées:", {
+        teamId,
+        year,
+        weekNumber,
+        constraints: extractedConstraints,
+        conversationSummary: enrichedSummary,
+        additionalRequirements,
+        conversationLength: conversationHistory.length,
+      });
+
       const request: EnhancedAIGenerationRequest = {
         teamId,
         year,
         weekNumber,
-        constraints: ["Contraintes définies via conversation IA"],
-        conversationSummary,
+        constraints: extractedConstraints,
+        conversationSummary: enrichedSummary,
         additionalRequirements,
       };
 

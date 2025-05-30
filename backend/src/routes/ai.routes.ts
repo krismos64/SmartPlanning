@@ -1438,6 +1438,16 @@ router.post(
       console.log(
         `[AI Enhanced] Génération de planning avec contexte enrichi pour l'équipe ${teamId}`
       );
+      console.log(
+        `[AI Enhanced] Conversation summary length: ${
+          conversationSummary?.length || 0
+        }`
+      );
+      console.log(
+        `[AI Enhanced] Additional requirements: ${
+          additionalRequirements || "None"
+        }`
+      );
 
       // ✅ Validation des champs obligatoires
       if (!teamId || !year || !weekNumber || !constraints) {
@@ -1523,32 +1533,47 @@ ${constraints.map((c: string) => `- ${c}`).join("\n")}
 
 ${
   conversationSummary
-    ? `💬 RÉSUMÉ DE NOTRE ÉCHANGE:\n${conversationSummary}\n`
+    ? `💬 CONTEXTE CONVERSATIONNEL PRIORITAIRE:
+${conversationSummary}
+
+🎯 INSTRUCTION CRITIQUE: Vous DEVEZ analyser et respecter SCRUPULEUSEMENT toutes les consignes et préférences mentionnées dans cette conversation. Ces informations sont PRIORITAIRES et doivent être appliquées dans le planning généré.
+
+`
     : ""
 }
 
 ${
   additionalRequirements
-    ? `🎯 EXIGENCES SPÉCIALES:\n${additionalRequirements}\n`
+    ? `🔥 EXIGENCES SPÉCIALES À RESPECTER ABSOLUMENT:
+${additionalRequirements}
+
+`
     : ""
 }
 
-${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n` : ""}
+${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
 
 🔧 RÈGLES DE PLANIFICATION STRICTES:
 1. ✅ RESPECTER les heures contractuelles exactes
-2. ✅ PRIORISER les préférences employés quand possible
-3. ✅ ASSURER repos hebdomadaire minimum 35h consécutives
-4. ✅ LIMITER journées à 10h maximum
-5. ✅ GARANTIR repos quotidien 11h entre services
-6. ✅ PRÉVOIR pauses déjeuner 1h minimum
-7. ✅ ÉQUILIBRER charge travail dans l'équipe
+2. ✅ APPLIQUER TOUTES les consignes de la conversation
+3. ✅ PRIORISER les préférences employés mentionnées
+4. ✅ ASSURER repos hebdomadaire minimum 35h consécutives
+5. ✅ LIMITER journées à 10h maximum
+6. ✅ GARANTIR repos quotidien 11h entre services
+7. ✅ PRÉVOIR pauses déjeuner 1h minimum
+8. ✅ ÉQUILIBRER charge travail dans l'équipe
 
-💡 OPTIMISATIONS RECOMMANDÉES:
-- Alterner créneaux matin/après-midi par personne
-- Grouper employés avec préférences similaires
-- Prévoir chevauchements pour passation informations
-- Équilibrer expérience entre créneaux
+💡 MÉTHODOLOGIE DE PLANIFICATION:
+1. Analyser d'abord TOUS les éléments de conversation
+2. Identifier les contraintes spécifiques mentionnées
+3. Appliquer ces contraintes en priorité
+4. Optimiser le planning selon les règles standards
+5. Vérifier que toutes les consignes sont respectées
+
+⚡ EXEMPLE D'APPLICATION:
+- Si conversation mentionne "Jean ne peut pas travailler le mardi" → Jean ne doit PAS être planifié le mardi
+- Si conversation dit "besoin de plus de personnel le vendredi" → prioriser plus d'employés le vendredi
+- Si conversation précise "éviter les horaires de nuit pour Marie" → Marie ne doit pas avoir d'horaires tardifs
 
 ⚡ FORMAT JSON OBLIGATOIRE (AUCUN TEXTE AVANT/APRÈS):
 {
@@ -1561,7 +1586,9 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n` : ""}
   "dimanche": {}
 }
 
-🎯 GÉNÉRER LE PLANNING MAINTENANT!`;
+🎯 RAPPEL CRITIQUE: Le planning généré doit IMPÉRATIVEMENT refléter et respecter TOUTES les consignes données dans la conversation. C'est votre PRIORITÉ ABSOLUE!
+
+🚀 GÉNÉRER LE PLANNING MAINTENANT!`;
 
       // 🌐 Appel à l'API OpenRouter avec prompt enrichi
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
@@ -1585,11 +1612,18 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n` : ""}
             model: "mistralai/devstral-small:free",
             messages: [
               {
+                role: "system",
+                content:
+                  "Tu es un expert en planification RH. Tu dois absolument respecter et appliquer toutes les consignes données dans la conversation avec le manager. C'est ta priorité numéro 1. Analyse soigneusement chaque instruction et applique-la dans le planning généré.",
+              },
+              {
                 role: "user",
                 content: enhancedPrompt,
               },
             ],
-            temperature: 0.6, // Plus bas pour plus de cohérence
+            temperature: 0.3, // Plus bas pour plus de précision et cohérence
+            max_tokens: 2000,
+            top_p: 0.9,
           }),
         }
       );
