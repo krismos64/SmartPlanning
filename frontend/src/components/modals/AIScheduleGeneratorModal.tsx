@@ -305,8 +305,11 @@ const AIScheduleGeneratorModal: React.FC<AIScheduleGeneratorModalProps> = ({
         );
       }
 
-      // Créer un résumé enrichi qui combine tout le contexte
+      // Créer un résumé enrichi qui combine tout le contexte avec consignes strictes
       const enrichedSummary = [
+        "🚨 DIRECTIVE ABSOLUE :",
+        "Tu dois impérativement respecter toutes les consignes données dans la conversation ci-dessous. Ne prends aucune initiative hors de ces instructions.",
+        "",
         "=== RÉSUMÉ DE LA CONVERSATION ===",
         conversationSummary || "Aucun résumé personnalisé fourni",
         "",
@@ -316,9 +319,22 @@ const AIScheduleGeneratorModal: React.FC<AIScheduleGeneratorModalProps> = ({
             `${msg.role === "user" ? "👤 MANAGER" : "🤖 IA"}: ${msg.content}`
         ),
         "",
+        "⚠️ CONSIGNES SUPPLÉMENTAIRES À TOUJOURS RESPECTER :",
+        "- Aucun salarié ne doit dépasser 10h de travail par jour.",
+        "- Respecter les repos légaux entre deux jours de travail.",
+        "- Aucune planification de travail un jour férié ou un congé déjà signalé.",
+        "- Assurer une couverture minimale sur tous les créneaux.",
+        "- Favoriser la continuité de service par des shifts consécutifs.",
+        "",
         "=== INSTRUCTIONS SUPPLÉMENTAIRES ===",
         additionalRequirements || "Aucune instruction supplémentaire",
       ].join("\n");
+
+      // Debug: Loguer le prompt enrichi avant envoi
+      console.log(
+        "[DEBUG] → Prompt IA envoyé avec résumé enrichi :\n",
+        enrichedSummary
+      );
 
       console.log("Debug - Données enrichies envoyées:", {
         teamId,
