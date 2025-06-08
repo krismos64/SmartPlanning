@@ -10,10 +10,10 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 import LayoutWithSidebar from "../components/layout/LayoutWithSidebar";
 import SEO from "../components/layout/SEO";
-import ComingSoonAIModal from "../components/modals/ComingSoonAIModal";
+
 import { useTheme } from "../components/ThemeProvider";
 import CardGrid from "../components/ui/CardGrid";
 import DashboardCard from "../components/ui/DashboardCard";
@@ -25,9 +25,6 @@ import { useAuth } from "../hooks/useAuth";
 const DashboardPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
-
-  // État pour contrôler l'ouverture du modal IA
-  const [isAIModalOpen, setIsAIModalOpen] = useState<boolean>(false);
 
   // Obtenir l'heure pour personnaliser le message
   const getGreeting = () => {
@@ -164,10 +161,10 @@ const DashboardPage: React.FC = () => {
     {
       title: "IA Planification Automatique",
       description:
-        "🚀 Fonctionnalité à venir : génération automatique de plannings intelligents basés sur les contraintes et préférences des employés",
+        "Générez et validez des plannings intelligents automatiquement basés sur les contraintes et préférences des employés",
       icon: <Bot size={24} />,
-      path: "/tableau-de-bord",
-      isAI: true,
+      path: "/validation-plannings",
+      isAI: false,
     },
     {
       title: "Gestion des collaborateurs",
@@ -203,13 +200,7 @@ const DashboardPage: React.FC = () => {
     },
   ];
 
-  // Gestionnaire de clic pour les cartes
-  const handleCardClick = (feature: any) => {
-    if (feature.isAI) {
-      setIsAIModalOpen(true);
-    }
-    // Pour les autres cartes, DashboardCard gère déjà la navigation
-  };
+  // DashboardCard gère automatiquement la navigation
 
   // Choisir les bonnes fonctionnalités selon le rôle
   const featuresToDisplay =
@@ -381,17 +372,10 @@ const DashboardPage: React.FC = () => {
               path={feature.path}
               delay={index}
               isAI={feature.isAI}
-              onClick={() => handleCardClick(feature)}
             />
           ))}
         </CardGrid>
       </div>
-
-      {/* Modal IA Coming Soon */}
-      <ComingSoonAIModal
-        isOpen={isAIModalOpen}
-        onClose={() => setIsAIModalOpen(false)}
-      />
     </LayoutWithSidebar>
   );
 };

@@ -8,6 +8,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
+  Bot,
   Calendar,
   Check,
   ChevronRight,
@@ -48,6 +49,13 @@ import Toast from "../components/ui/Toast";
 
 // Hooks
 import { useAuth } from "../hooks/useAuth";
+
+// Composants IA
+import AIScheduleGeneratorModal from "../components/modals/AIScheduleGeneratorModal";
+import AITeamSelectorModal from "../components/modals/AITeamSelectorModal";
+import AIGenerationGuide from "../components/ui/AIGenerationGuide";
+import { useAIGuide } from "../hooks/useAIGuide";
+import { useAIScheduleModal } from "../hooks/useAIScheduleModal";
 
 // Types et interfaces
 interface Employee {
@@ -203,6 +211,52 @@ const ManagerPlanningValidationPage: React.FC = () => {
     scheduleId: "",
     employeeName: "",
   });
+
+  // États pour les modals IA
+  const [isAISelectorOpen, setIsAISelectorOpen] = useState<boolean>(false);
+
+  // Hook pour gérer l'affichage du guide IA
+  const aiGuide = useAIGuide(2000); // Délai de 2 secondes
+
+  // Gestion de la génération IA
+  const handleAIScheduleGenerated = (scheduleData: any) => {
+    console.log("Planning IA généré:", scheduleData);
+    setSuccess(
+      `Planning généré avec succès pour l'équipe ${scheduleData.teamName} !`
+    );
+    setShowSuccessToast(true);
+
+    // Afficher le guide visuel vers les plannings IA
+    aiGuide.showGuide();
+
+    // Recharger les plannings pour voir le nouveau planning généré
+    fetchGeneratedSchedules();
+  };
+
+  const aiScheduleModal = useAIScheduleModal({
+    onScheduleGenerated: handleAIScheduleGenerated,
+  });
+
+  const handleOpenAISelector = () => {
+    console.log("Debug - Bouton IA cliqué, ouverture du sélecteur");
+    setIsAISelectorOpen(true);
+  };
+
+  const handleTeamSelected = (
+    teamId: string,
+    teamName: string,
+    year: number,
+    weekNumber: number
+  ) => {
+    console.log("Debug - handleTeamSelected appelé avec:", {
+      teamId,
+      teamName,
+      year,
+      weekNumber,
+    });
+    setIsAISelectorOpen(false);
+    aiScheduleModal.openModal(teamId, teamName, year, weekNumber);
+  };
 
   /**
    * Récupérer tous les plannings générés par l'IA avec le statut "draft"
@@ -925,14 +979,24 @@ const ManagerPlanningValidationPage: React.FC = () => {
                   attente de validation. Les nouveaux plannings générés
                   apparaîtront ici automatiquement.
                 </p>
-                <Button
-                  variant="primary"
-                  className="mt-6 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-                  onClick={() => navigate("/plannings-hebdomadaires")}
-                  icon={<Calendar className="w-4 h-4" />}
-                >
-                  Aller aux plannings
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenAISelector}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 flex items-center gap-2"
+                    icon={<Bot className="h-4 w-4" />}
+                  >
+                    Générer Planning IA
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                    onClick={() => navigate("/plannings-hebdomadaires")}
+                    icon={<Calendar className="w-4 h-4" />}
+                  >
+                    Aller aux plannings
+                  </Button>
+                </div>
               </div>
             </SectionCard>
           </motion.div>
@@ -1004,6 +1068,32 @@ const ManagerPlanningValidationPage: React.FC = () => {
             </div>
           </div>
         </Modal>
+
+        {/* Modals IA */}
+        <AITeamSelectorModal
+          isOpen={isAISelectorOpen}
+          onClose={() => setIsAISelectorOpen(false)}
+          onTeamSelected={handleTeamSelected}
+        />
+
+        {/* Modal de génération IA */}
+        {aiScheduleModal.selectedTeam && aiScheduleModal.selectedTeam.id && (
+          <AIScheduleGeneratorModal
+            isOpen={aiScheduleModal.isOpen}
+            onClose={aiScheduleModal.closeModal}
+            teamId={aiScheduleModal.selectedTeam.id}
+            teamName={aiScheduleModal.selectedTeam.name}
+            year={aiScheduleModal.selectedWeek.year}
+            weekNumber={aiScheduleModal.selectedWeek.weekNumber}
+            onScheduleGenerated={aiScheduleModal.handleScheduleGenerated}
+          />
+        )}
+
+        {/* Guide visuel vers plannings IA */}
+        <AIGenerationGuide
+          isVisible={aiGuide.isVisible}
+          onClose={aiGuide.hideGuide}
+        />
       </PageWrapper>
     </LayoutWithSidebar>
   );
