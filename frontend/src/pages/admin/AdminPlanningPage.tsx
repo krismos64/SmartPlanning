@@ -41,6 +41,8 @@ import Toast from "../../components/ui/Toast";
 // Composants IA
 import AIScheduleGeneratorModal from "../../components/modals/AIScheduleGeneratorModal";
 import AITeamSelectorModal from "../../components/modals/AITeamSelectorModal";
+import AIGenerationGuide from "../../components/ui/AIGenerationGuide";
+import { useAIGuide } from "../../hooks/useAIGuide";
 import { useAIScheduleModal } from "../../hooks/useAIScheduleModal";
 
 // Types
@@ -166,6 +168,9 @@ const AdminPlanningPage: React.FC = () => {
   // États pour les modals IA
   const [isAISelectorOpen, setIsAISelectorOpen] = useState<boolean>(false);
 
+  // Hook pour gérer l'affichage du guide IA
+  const aiGuide = useAIGuide(2000); // Délai de 2 secondes
+
   // Gestion de la génération IA - déclaré avant d'être utilisé
   const handleAIScheduleGenerated = (scheduleData: any) => {
     console.log("Planning IA généré:", scheduleData);
@@ -173,6 +178,10 @@ const AdminPlanningPage: React.FC = () => {
       `Planning généré avec succès pour l'équipe ${scheduleData.teamName} !`
     );
     setShowSuccessToast(true);
+
+    // Afficher le guide visuel vers les plannings IA
+    aiGuide.showGuide();
+
     // Recharger les plannings pour voir le nouveau planning généré
     fetchSchedules();
   };
@@ -991,6 +1000,12 @@ const AdminPlanningPage: React.FC = () => {
             onScheduleGenerated={aiScheduleModal.handleScheduleGenerated}
           />
         )}
+
+        {/* Guide visuel vers plannings IA */}
+        <AIGenerationGuide
+          isVisible={aiGuide.isVisible}
+          onClose={aiGuide.hideGuide}
+        />
       </PageWrapper>
     </LayoutWithSidebar>
   );

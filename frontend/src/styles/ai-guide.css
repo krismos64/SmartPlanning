@@ -1,0 +1,78 @@
+/* Styles pour le guide visuel de l'IA */
+
+.ai-guide-highlight {
+  animation: highlight-pulse 2s infinite;
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+  position: relative;
+  z-index: 51;
+}
+
+.ai-guide-pulse {
+  animation: guide-pulse 3s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.6);
+  }
+}
+
+@keyframes guide-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+  }
+  25% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(139, 92, 246, 0.2);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 20px rgba(139, 92, 246, 0);
+  }
+}
+
+/* Animation de scintillement pour l'élément pointé */
+.ai-guide-sparkle {
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02);
+  }
+}
+
+/* Style pour le doigt pointeur avec effet de brillance */
+.ai-guide-pointer {
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+  animation: pointer-bounce 2s ease-in-out infinite;
+}
+
+@keyframes pointer-bounce {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(15deg);
+  }
+  25% {
+    transform: translate(-10px, 5px) rotate(25deg);
+  }
+  50% {
+    transform: translate(5px, -3px) rotate(15deg);
+  }
+  75% {
+    transform: translate(-5px, 2px) rotate(20deg);
+  }
+}

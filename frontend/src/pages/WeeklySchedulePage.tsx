@@ -145,6 +145,8 @@ const MONTH_NAMES = [
 import ComingSoonAIModal from "../components/modals/ComingSoonAIModal";
 import GeneratePdfModal from "../components/modals/GeneratePdfModal";
 import GenerateIAScheduleModal from "../components/planning/GenerateIAScheduleModal";
+import AIGenerationGuide from "../components/ui/AIGenerationGuide";
+import { useAIGuide } from "../hooks/useAIGuide";
 import {
   generateSchedulePDF,
   generateTeamSchedulePDF,
@@ -293,6 +295,9 @@ const WeeklySchedulePage: React.FC = () => {
   // État pour la modale de génération IA
   const [isAIGenerateModalOpen, setIsAIGenerateModalOpen] =
     useState<boolean>(false);
+
+  // Hook pour gérer l'affichage du guide IA
+  const aiGuide = useAIGuide(1500); // Délai de 1.5 secondes
 
   // Vérification automatique de l'état d'authentification
   useEffect(() => {
@@ -2878,6 +2883,10 @@ const WeeklySchedulePage: React.FC = () => {
           onSuccess={() => {
             setSuccess("Planning IA généré avec succès !");
             setShowSuccessToast(true);
+
+            // Afficher le guide visuel vers les plannings IA
+            aiGuide.showGuide();
+
             fetchSchedules();
           }}
           teams={(() => {
@@ -2891,6 +2900,12 @@ const WeeklySchedulePage: React.FC = () => {
               label: team.name,
             }));
           })()}
+        />
+
+        {/* Guide visuel vers plannings IA */}
+        <AIGenerationGuide
+          isVisible={aiGuide.isVisible}
+          onClose={aiGuide.hideGuide}
         />
       </PageWrapper>
     </LayoutWithSidebar>

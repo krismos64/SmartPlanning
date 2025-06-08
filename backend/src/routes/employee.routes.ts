@@ -460,6 +460,18 @@ router.post(
           { session }
         );
 
+        // CORRECTION: Ajouter l'employé à l'équipe dans le tableau employeeIds
+        if (teamId) {
+          await TeamModel.findByIdAndUpdate(
+            teamId,
+            { $addToSet: { employeeIds: newEmployee[0]._id } },
+            { session }
+          );
+          console.log(
+            `✅ Employé ${firstName} ${lastName} ajouté à l'équipe ${teamId}`
+          );
+        }
+
         // Envoyer l'email de bienvenue avec le lien de création de mot de passe
         const frontendBaseUrl =
           process.env.FRONTEND_URL || "http://localhost:3000";

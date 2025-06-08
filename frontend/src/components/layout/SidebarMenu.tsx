@@ -260,6 +260,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         onClick={() => onNavigate(item.route)}
       >
         <motion.div
+          data-menu-item={item.id}
           className={`relative flex items-center w-full p-3 rounded-lg text-left transition-all duration-200 ease-in-out ${
             isActive
               ? "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-l-4 border-violet-600 dark:border-violet-400"
