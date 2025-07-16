@@ -13,7 +13,7 @@ process.env.NODE_ENV = 'test';
 process.env.PORT = '5051';
 
 // Setup avant tous les tests
-global.beforeAll(async () => {
+beforeAll(async () => {
   try {
     // Fermer toute connexion existante
     if (mongoose.connection.readyState !== 0) {
@@ -38,7 +38,7 @@ global.beforeAll(async () => {
 });
 
 // Nettoyage après tous les tests
-global.afterAll(async () => {
+afterAll(async () => {
   try {
     // Nettoyer toutes les collections avant de fermer
     if (mongoose.connection.readyState === 1) {
@@ -63,7 +63,7 @@ global.afterAll(async () => {
 });
 
 // Nettoyage entre chaque test
-global.beforeEach(async () => {
+beforeEach(async () => {
   try {
     if (mongoose.connection.readyState === 1) {
       // Nettoyer toutes les collections

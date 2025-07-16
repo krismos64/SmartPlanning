@@ -17,7 +17,7 @@ dotenv.config();
  * Extension de l'interface Request d'Express pour inclure l'utilisateur authentifié
  */
 export interface AuthRequest extends Request {
-  user?: any; // L'utilisateur décodé à partir du token JWT
+  user?: any;
 }
 
 /**
@@ -56,8 +56,8 @@ export function authenticateToken(
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    const user = (decoded as any).user;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    const user = decoded.user;
 
     // Normaliser l'ID utilisateur: transformer id en _id pour la cohérence
     if (user && user.id) {

@@ -2,6 +2,7 @@ import cors from "cors";
 const cookieParser = require("cookie-parser");
 import dotenv from "dotenv";
 import express, { Express, NextFunction, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import morgan from "morgan";
@@ -38,17 +39,40 @@ dotenv.config();
 // Initialisation de l'application
 const app: Express = express();
 
-// Connexion à MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/smartplanning")
-  .then(() => console.log("✅ Connected to MongoDB"))
-  .catch((err) => {
-    console.error("❌ Error connecting to MongoDB:", err);
-    process.exit(1);
-  });
+// Connexion à MongoDB (seulement si pas en mode test)
+if (process.env.NODE_ENV !== 'test') {
+  mongoose
+    .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/smartplanning")
+    .then(() => console.log("✅ Connected to MongoDB"))
+    .catch((err) => {
+      console.error("❌ Error connecting to MongoDB:", err);
+      process.exit(1);
+    });
+}
 
 // Middlewares
 app.use(morgan("dev"));
+
+// 🔒 Rate limiting pour prévenir les attaques par déni de service
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Maximum 100 requêtes par IP par fenêtre
+  message: {
+    success: false,
+    message: "Trop de requêtes depuis cette IP, veuillez réessayer dans 15 minutes"
+  },
+  standardHeaders: true, // Inclure les headers `RateLimit-*`
+  legacyHeaders: false, // Désactiver les headers `X-RateLimit-*`
+  skip: (req) => {
+    // Exemptions pour les tests et certaines routes
+    if (process.env.NODE_ENV === 'test') return true;
+    if (req.url?.startsWith('/api/health')) return true;
+    return false;
+  }
+});
+
+// Appliquer le rate limiting à toutes les routes API
+app.use('/api/', limiter);
 
 // 🔒 Configuration CORS sécurisée selon l'environnement
 const corsConfig = {
