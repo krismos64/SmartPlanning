@@ -26,19 +26,31 @@ export function setupAxiosInterceptors(): void {
       if (error.response) {
         // Si statut 401 Unauthorized
         if (error.response.status === 401) {
-          console.warn("Session expirée ou non autorisée");
+          console.warn("Session expirée ou non autorisée pour:", error.config?.url);
 
-          // Plus besoin de supprimer manuellement les tokens - les cookies httpOnly 
-          // sont automatiquement gérés côté serveur
-
-          // Ne pas rediriger automatiquement si l'utilisateur est déjà sur la page de connexion
-          // ou si la requête est une tentative de connexion
+          // Ne pas rediriger automatiquement dans certains cas:
           const isLoginPage = window.location.pathname === "/connexion";
           const isLoginRequest = error.config?.url?.includes("/auth/login");
+          const isProfileUpdate = error.config?.url?.includes("/profile/update");
+          const isPhotoUpload = error.config?.url?.includes("/upload/") || 
+                                error.config?.url?.includes("/photo");
+          
+          // Si c'est une mise à jour de profil ou photo, ne pas rediriger immédiatement
+          // Laisser le composant gérer l'erreur
+          if (isProfileUpdate || isPhotoUpload) {
+            console.warn("Erreur 401 sur mise à jour de profil/photo - pas de redirection automatique");
+            return Promise.reject(error);
+          }
 
           if (!isLoginPage && !isLoginRequest) {
-            // Rediriger vers la page de connexion uniquement si l'utilisateur n'est pas déjà sur cette page
-            window.location.href = "/connexion";
+            // Délai avant redirection pour permettre au composant de gérer l'erreur
+            setTimeout(() => {
+              // Vérifier si on est toujours sur la même page (l'utilisateur n'a pas navigué)
+              if (window.location.pathname !== "/connexion") {
+                console.warn("Redirection vers la page de connexion après délai");
+                window.location.href = "/connexion";
+              }
+            }, 2000); // 2 secondes de délai
           }
         }
       }

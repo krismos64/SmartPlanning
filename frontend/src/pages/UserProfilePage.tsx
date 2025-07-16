@@ -14,7 +14,8 @@ import LoadingSpinner from "../components/ui/LoadingSpinner";
 import PasswordField from "../components/ui/PasswordField";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
-import api, { updateUserProfile, uploadFile } from "../services/api";
+import { useProfileUpdate } from "../hooks/useProfileUpdate";
+import api from "../services/api";
 
 type PasswordForm = {
   currentPassword: string;
@@ -26,6 +27,7 @@ const UserProfilePage = () => {
   const { user, refreshUser } = useAuth();
   const { showSuccessToast, showErrorToast, toast, hideToast } = useToast();
   const { isDarkMode } = useTheme();
+  const { updateProfilePhoto, updateProfile } = useProfileUpdate();
 
   // État pour les données utilisateur modifiables
   const [formData, setFormData] = useState({
@@ -260,28 +262,37 @@ const UserProfilePage = () => {
             );
           }
 
-          photoUrlToSave = await uploadFile(selectedFile);
+          // Utiliser le hook updateProfilePhoto qui gère la synchronisation
+          const result = await updateProfilePhoto(selectedFile);
+          photoUrlToSave = result.imageUrl;
 
-          // Indiquer que l'upload est terminé
-          showSuccessToast("Image uploadée avec succès !");
+          console.log("✅ Photo mise à jour avec succès dans UserProfilePage");
         } catch (error) {
-          console.error("Erreur lors de l'upload de l'image:", error);
-          showErrorToast("Erreur lors de l'upload de l'image");
+          console.error("Erreur lors de la mise à jour de la photo:", error);
+          showErrorToast("Erreur lors de la mise à jour de la photo");
           setIsSaving(false);
           setIsUploadingImage(false);
           return;
         } finally {
           setIsUploadingImage(false);
         }
+      } else {
+        // Si seules les données du profil ont été modifiées (sans nouvelle photo)
+        try {
+          await updateProfile({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            photoUrl: photoUrlToSave,
+          });
+          console.log("✅ Profil mis à jour avec succès dans UserProfilePage");
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour du profil:", error);
+          showErrorToast("Erreur lors de la mise à jour du profil");
+          setIsSaving(false);
+          return;
+        }
       }
-
-      // Mise à jour du profil en utilisant la nouvelle fonction
-      const updatedUser = await updateUserProfile({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        photoUrl: photoUrlToSave,
-      });
 
       // Mettre à jour l'état local avec les nouvelles données
       setFormData((prev) => ({
@@ -289,15 +300,16 @@ const UserProfilePage = () => {
         photoUrl: photoUrlToSave,
       }));
 
+      // Toast de succès final après toutes les opérations
+      if (selectedFile) {
+        showSuccessToast("Photo de profil mise à jour avec succès !");
+      } else {
+        showSuccessToast("Profil mis à jour avec succès !");
+      }
+
       // Réinitialiser l'état du formulaire
       setIsFormModified(false);
       setSelectedFile(null);
-
-      // Mettre à jour l'utilisateur dans le contexte d'authentification
-      // pour que l'avatar dans l'en-tête soit rafraîchi
-      await refreshUser();
-
-      showSuccessToast("Profil mis à jour avec succès");
     } catch (error) {
       console.error("Erreur lors de la mise à jour du profil:", error);
       showErrorToast(

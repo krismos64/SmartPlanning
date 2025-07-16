@@ -7,6 +7,7 @@
 import { motion } from "framer-motion";
 import React, { useState } from "react";
 import { MdOutlineMail } from "react-icons/md";
+import axiosInstance from "../api/axiosInstance";
 import styled from "styled-components";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
@@ -217,24 +218,12 @@ const ContactPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Appel à l'API de contact
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_URL ||
-          "https://smartplanning.onrender.com/api"
-        }/contact`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
+      // Appel à l'API de contact avec axiosInstance
+      const response = await axiosInstance.post("/contact", formData);
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (response.ok) {
+      if (response.status === 200) {
         setFormData({
           firstName: "",
           lastName: "",

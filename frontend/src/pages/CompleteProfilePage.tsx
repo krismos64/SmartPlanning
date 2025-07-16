@@ -142,6 +142,39 @@ const CompleteProfilePage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Checklist des éléments à compléter pour l'UX
+  const checklistItems = [
+    { 
+      label: "Nom de l'entreprise", 
+      completed: !!formData.companyName.trim(),
+      required: true 
+    },
+    { 
+      label: "Logo d'entreprise", 
+      completed: !!companyLogoFile || !!companyLogoPreview,
+      required: false 
+    },
+    { 
+      label: "Photo de profil", 
+      completed: !!profilePictureFile || !!profilePicturePreview,
+      required: false 
+    },
+    { 
+      label: "Téléphone professionnel", 
+      completed: !!formData.phone.trim(),
+      required: false 
+    },
+  ];
+
+  // Vérifier si tous les éléments obligatoires sont complétés
+  const requiredItemsCompleted = checklistItems
+    .filter(item => item.required)
+    .every(item => item.completed);
+
+  // Compter les éléments complétés
+  const completedCount = checklistItems.filter(item => item.completed).length;
+  const totalCount = checklistItems.length;
+
   // Soumission du formulaire
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -195,20 +228,29 @@ const CompleteProfilePage: React.FC = () => {
 
       // Mettre à jour le profil utilisateur
       try {
-        await api.patch("/api/users/me", {
-          companyId,
-          phone: formData.phone || undefined,
-          bio: formData.bio || undefined,
+        await api.put("/profile/update", {
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          email: user?.email,
           photoUrl: profilePictureUrl,
         });
+
+        // Mettre à jour les champs supplémentaires si disponibles
+        if (formData.phone || formData.bio) {
+          await api.patch("/api/users/me", {
+            companyId,
+            phone: formData.phone || undefined,
+            bio: formData.bio || undefined,
+          });
+        }
 
         // Rafraîchir les données de l'utilisateur dans le contexte
         await refreshUser();
 
         showSuccessToast("Profil complété avec succès !");
 
-        // Rediriger vers le tableau de bord
-        navigate("/tableau-de-bord", { replace: true });
+        // Rediriger vers la page de profil utilisateur
+        navigate("/user/profile", { replace: true });
       } catch (error) {
         console.error("Erreur lors de la mise à jour du profil:", error);
         showErrorToast("Échec de la mise à jour du profil");
@@ -248,6 +290,94 @@ const CompleteProfilePage: React.FC = () => {
             informations suivantes pour finaliser votre profil.
           </p>
         </div>
+
+        {/* Checklist UX des éléments à compléter */}
+        <Card className="p-6 mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border border-blue-200 dark:border-gray-600">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              📋 Progression de votre profil
+            </h2>
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              {completedCount}/{totalCount} complétés
+            </span>
+          </div>
+          
+          {/* Barre de progression */}
+          <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-6">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300 ease-in-out"
+              style={{ width: `${(completedCount / totalCount) * 100}%` }}
+            ></div>
+          </div>
+
+          {/* Liste des éléments à compléter */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {checklistItems.map((item, index) => (
+              <div 
+                key={index}
+                className={`flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 ${
+                  item.completed 
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                    : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600'
+                }`}
+              >
+                {/* Icône de statut */}
+                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                  item.completed 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                }`}>
+                  {item.completed ? (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Label */}
+                <span className={`text-sm font-medium ${
+                  item.completed 
+                    ? 'text-green-700 dark:text-green-300' 
+                    : 'text-gray-600 dark:text-gray-300'
+                }`}>
+                  {item.label}
+                  {item.required && <span className="text-red-500 ml-1">*</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Message de statut */}
+          {requiredItemsCompleted && completedCount === totalCount && (
+            <div className="mt-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                  🎉 Parfait ! Votre profil est complet et prêt à être envoyé
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {requiredItemsCompleted && completedCount < totalCount && (
+            <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  ✅ Prêt à être envoyé ! Vous pouvez ajouter les éléments optionnels pour un profil plus complet
+                </span>
+              </div>
+            </div>
+          )}
+        </Card>
 
         <Card className="p-6 sm:p-8">
           <form onSubmit={handleSubmit}>
@@ -374,23 +504,95 @@ const CompleteProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Bouton de soumission */}
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting || isUploading}
-                className="w-full sm:w-auto"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center">
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Traitement en cours...
-                  </span>
-                ) : (
-                  "Compléter mon profil"
-                )}
-              </Button>
+            {/* Message de validation et bouton de soumission */}
+            <div className="space-y-4">
+              {/* Message conditionnel basé sur la checklist */}
+              {requiredItemsCompleted && completedCount === totalCount && (
+                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <svg className="w-6 h-6 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-lg font-semibold text-green-700 dark:text-green-300">
+                      Prêt à être envoyé ✅
+                    </span>
+                  </div>
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    Votre profil est complet avec tous les éléments renseignés !
+                  </p>
+                </div>
+              )}
+
+              {requiredItemsCompleted && completedCount < totalCount && (
+                <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <svg className="w-6 h-6 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-lg font-semibold text-blue-700 dark:text-blue-300">
+                      Prêt à être envoyé ✅
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    Les éléments obligatoires sont complétés. Vous pouvez ajouter les éléments optionnels pour enrichir votre profil.
+                  </p>
+                </div>
+              )}
+
+              {!requiredItemsCompleted && (
+                <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <svg className="w-6 h-6 text-amber-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-lg font-semibold text-amber-700 dark:text-amber-300">
+                      Éléments obligatoires manquants
+                    </span>
+                  </div>
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    Veuillez compléter les éléments marqués d'un * avant de continuer.
+                  </p>
+                </div>
+              )}
+
+              {/* Bouton de soumission */}
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitting || isUploading || !requiredItemsCompleted}
+                  className={`w-full sm:w-auto transition-all duration-200 ${
+                    requiredItemsCompleted 
+                      ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center">
+                      <LoadingSpinner size="sm" className="mr-2" />
+                      Traitement en cours...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      {requiredItemsCompleted ? (
+                        <>
+                          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Compléter mon profil
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                          </svg>
+                          Éléments obligatoires manquants
+                        </>
+                      )}
+                    </span>
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
         </Card>

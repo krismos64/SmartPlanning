@@ -14,4 +14,5 @@ export interface User {
   companyName?: string; // Nom de l'entreprise
   token?: string;
   userId?: string; // Ajout de userId pour la compatibilité avec le middleware d'auth
+  profileCompleted?: boolean; // Indique si le profil est complet
 }

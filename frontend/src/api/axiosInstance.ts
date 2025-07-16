@@ -21,4 +21,19 @@ const axiosInstance = axios.create({
 // Les cookies httpOnly sont automatiquement envoyés grâce à withCredentials: true
 // Plus besoin d'intercepteur pour ajouter manuellement le token
 
+/**
+ * Fonction de test pour vérifier l'authentification
+ * Utilise l'endpoint /auth/me pour valider que le token JWT est correctement envoyé
+ */
+export const testAuthentication = async () => {
+  try {
+    const response = await axiosInstance.get("/auth/me");
+    console.log("✅ Authentification réussie:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Échec de l'authentification:", error);
+    throw error;
+  }
+};
+
 export default axiosInstance;

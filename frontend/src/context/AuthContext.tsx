@@ -191,7 +191,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           return {
             ...userData,
-            token,
             userId: userData._id,
             photoUrl: updatedPhotoUrl,
             companyId: userData.companyId, // ✅ nécessaire pour filtrage multi-tenant (ex: collaborateurs, plannings)
@@ -202,12 +201,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const isProfileIncomplete =
           !userData.companyId ||
           !userData.photoUrl ||
-          !userData.bio ||
           !userData.firstName ||
           !userData.lastName;
 
-        // Mettre à jour l'état shouldCompleteProfile
-        setShouldCompleteProfile(isProfileIncomplete);
+        // Debug: Log des données pour comprendre pourquoi ça oscille
+        console.log("🔍 Debug profil incomplet:", {
+          companyId: userData.companyId,
+          photoUrl: userData.photoUrl,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          isProfileIncomplete
+        });
+
+        // Mettre à jour l'état shouldCompleteProfile seulement s'il a changé
+        setShouldCompleteProfile(prevState => {
+          if (prevState !== isProfileIncomplete) {
+            console.log("🔄 shouldCompleteProfile changed:", prevState, "→", isProfileIncomplete);
+            return isProfileIncomplete;
+          }
+          return prevState;
+        });
       }
     } catch (error) {
       console.error(

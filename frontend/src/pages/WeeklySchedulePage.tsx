@@ -6,6 +6,7 @@
  */
 import axios from "axios";
 import { addDays, format, getISOWeek, getYear, startOfISOWeek } from "date-fns";
+import axiosInstance from "../api/axiosInstance";
 import { fr } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {
@@ -751,42 +752,15 @@ const WeeklySchedulePage: React.FC = () => {
             : "/weekly-schedules",
       });
 
-      // Définir les en-têtes manuellement pour s'assurer que tout est correct
-      const headers = {
-        "Content-Type": "application/json",
-        // Les cookies httpOnly sont automatiquement envoyés
-      };
+      console.log("Payload à envoyer:", payload);
 
-      console.log("En-têtes utilisés:", headers);
-
-      // Essayer avec une approche plus directe pour s'assurer que les données sont envoyées correctement
-      const url = `${
-        import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api"
-      }/weekly-schedules`;
-
-      // Transformer le payload en chaîne JSON
-      const jsonPayload = JSON.stringify(payload);
-      console.log("Payload JSON:", jsonPayload);
-
-      // Utiliser fetch pour plus de contrôle sur la requête
-      const response = await fetch(
-        isEditMode && existingScheduleId ? `${url}/${existingScheduleId}` : url,
-        {
-          method: isEditMode && existingScheduleId ? "PUT" : "POST",
-          headers: headers,
-          body: jsonPayload,
-        }
-      );
-
-      // Vérifier si la réponse est OK
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Erreur serveur:", errorData);
-        throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
-      }
+      // Utiliser axiosInstance pour assurer l'envoi des cookies JWT
+      const response = isEditMode && existingScheduleId
+        ? await axiosInstance.put(`/weekly-schedules/${existingScheduleId}`, payload)
+        : await axiosInstance.post("/weekly-schedules", payload);
 
       // Traiter la réponse réussie
-      const data = await response.json();
+      const data = response.data;
       console.log("Réponse reçue avec succès:", data);
       return true;
     } catch (error) {

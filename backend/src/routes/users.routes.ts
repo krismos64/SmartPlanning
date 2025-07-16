@@ -6,13 +6,64 @@
  */
 import bcrypt from "bcrypt";
 import { Request, Response, Router } from "express";
+import fs from "fs";
+import multer from "multer";
+import path from "path";
 import randomstring from "randomstring";
 import authMiddleware, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
 import User, { UserRole } from "../models/User.model";
+import { notifyUserUpdate } from "../services/userSyncService";
+import { uploadImageToCloudinary } from "../utils/cloudinary";
 
 // Initialisation du routeur
 const router = Router();
+
+// Configuration du stockage temporaire pour Multer
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const uploadDir = path.join(__dirname, "../../uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const extension = path.extname(file.originalname);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${extension}`);
+  },
+});
+
+// Filtre pour n'accepter que les fichiers image
+const fileFilter = (_req: any, file: any, cb: any) => {
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+  ];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Type de fichier non autorisé. Seules les images sont acceptées."
+      )
+    );
+  }
+};
+
+// Configuration de l'instance Multer
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // Limite la taille des fichiers à 5 Mo
+  },
+});
 
 /**
  * @route POST /api/users/test-update
@@ -219,6 +270,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
         role: user.role,
         companyId: user.companyId,
         teamIds: user.teamIds,
+        profileCompleted: user.profileCompleted,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -296,6 +348,170 @@ router.put(
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors du changement de mot de passe",
+      });
+    }
+  }
+);
+
+/**
+ * @route POST /api/users/debug-auth
+ * @desc TEMPORAIRE: Debug l'authentification pour diagnostiquer le problème
+ * @access Authentifié uniquement
+ */
+router.post(
+  "/debug-auth",
+  (req, res, next) => {
+    console.log("🔍 DEBUG AUTH Route - Avant authMiddleware:", {
+      url: req.url,
+      method: req.method,
+      hasCookies: !!req.cookies,
+      cookies: req.cookies,
+      contentType: req.headers['content-type']
+    });
+    next();
+  },
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const requester = req.user;
+      
+      console.log("🔍 DEBUG AUTH - Informations requester:", {
+        hasRequester: !!requester,
+        requesterId: requester?._id,
+        requesterEmail: requester?.email,
+        requesterRole: requester?.role,
+        cookies: req.cookies,
+        headers: req.headers
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: "Authentification réussie",
+        user: requester,
+        debug: {
+          hasRequester: !!requester,
+          requesterId: requester?._id,
+          requesterEmail: requester?.email,
+          requesterRole: requester?.role,
+          hasCookies: !!req.cookies,
+          tokenInCookies: !!req.cookies?.token
+        }
+      });
+      
+    } catch (error) {
+      console.error("❌ Erreur debug auth:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur lors du debug auth"
+      });
+    }
+  }
+);
+
+/**
+ * @route PUT /api/users/:id/photo
+ * @desc Modifie la photo de profil d'un utilisateur
+ * @access Utilisateur lui-même ou admin/manager/directeur
+ */
+router.put(
+  "/:id/photo",
+  (req, res, next) => {
+    console.log("🔍 DEBUG Photo Route - Avant authMiddleware:", {
+      url: req.url,
+      method: req.method,
+      hasCookies: !!req.cookies,
+      cookies: req.cookies,
+      contentType: req.headers['content-type']
+    });
+    next();
+  },
+  authMiddleware,
+  (req, res, next) => {
+    console.log("🔍 DEBUG Photo Route - Après authMiddleware:", {
+      hasUser: !!req.user,
+      userId: req.user?._id
+    });
+    next();
+  },
+  upload.single("file"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userIdToUpdate = req.params.id;
+      const requester = req.user;
+
+      console.log("🔍 DEBUG Photo Update - Requester info:", {
+        hasRequester: !!requester,
+        requesterId: requester?._id,
+        requesterEmail: requester?.email,
+        targetUserId: userIdToUpdate,
+        hasFile: !!req.file
+      });
+
+      if (!requester) {
+        console.log("❌ Utilisateur non authentifié lors de la mise à jour de photo");
+        return res.status(401).json({ 
+          success: false, 
+          message: "Utilisateur non authentifié" 
+        });
+      }
+
+      const isAuthorized =
+        requester.role === "admin" ||
+        requester.role === "manager" ||
+        requester.role === "directeur" ||
+        requester._id.toString() === userIdToUpdate;
+
+      if (!isAuthorized) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Accès non autorisé" 
+        });
+      }
+
+      const localFilePath = req.file?.path;
+      if (!localFilePath) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Aucun fichier fourni" 
+        });
+      }
+
+      const uploadedImageUrl = await uploadImageToCloudinary(localFilePath);
+      if (!uploadedImageUrl) {
+        return res.status(500).json({ 
+          success: false, 
+          message: "Échec de l'upload Cloudinary" 
+        });
+      }
+
+      // Supprimer le fichier temporaire après l'upload réussi
+      if (fs.existsSync(localFilePath)) {
+        fs.unlinkSync(localFilePath);
+      }
+
+      await User.findByIdAndUpdate(userIdToUpdate, { photoUrl: uploadedImageUrl });
+
+      // Notifier la mise à jour de la photo pour synchronisation
+      notifyUserUpdate(userIdToUpdate, requester._id.toString(), { 
+        photoUrl: uploadedImageUrl 
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Photo de profil mise à jour avec succès.",
+        photoUrl: uploadedImageUrl,
+      });
+    } catch (error) {
+      console.error("Erreur mise à jour photo profil :", error);
+      
+      // Supprimer le fichier temporaire en cas d'erreur
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      res.status(500).json({ 
+        success: false, 
+        message: "Erreur serveur lors de la mise à jour de la photo" 
       });
     }
   }

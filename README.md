@@ -554,6 +554,7 @@ Managers :
 - Thomas LAURENT (Logistique) : thomas.laurent@supermarche-plus.fr / Manager2025@
 
 Employés de test :
+maxime.andre@supermarche-plus.fr
 
 - Antoine GARCIA (Vendeur rayon frais) : antoine.garcia@supermarche-plus.fr / Employee2025@
 - Hugo MOREAU (Vendeur vêtements homme) : hugo.moreau@supermarche-plus.fr / Employee2025@

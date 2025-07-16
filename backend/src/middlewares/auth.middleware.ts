@@ -38,7 +38,20 @@ export function authenticateToken(
   
   const token = cookieToken || headerToken;
 
+  // Debug: logguer les informations de token pour diagnostic
+  console.log("🔍 DEBUG Auth Middleware - Token info:", {
+    url: req.url,
+    method: req.method,
+    hasCookieToken: !!cookieToken,
+    hasHeaderToken: !!headerToken,
+    cookieTokenLength: cookieToken?.length,
+    headerTokenLength: headerToken?.length,
+    allCookies: req.cookies,
+    hasTokenInCookies: !!req.cookies?.token
+  });
+
   if (!token) {
+    console.log("❌ Token manquant pour:", req.url);
     return res.status(401).json({ success: false, message: "Token manquant" });
   }
 
@@ -54,8 +67,18 @@ export function authenticateToken(
 
     req.user = user;
 
+    // Debug: logguer les informations utilisateur
+    console.log("✅ DEBUG Auth Middleware - Utilisateur authentifié:", {
+      url: req.url,
+      userId: user._id,
+      userEmail: user.email,
+      userRole: user.role
+    });
+
     next();
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    console.log("❌ Token invalide ou expiré pour:", req.url, errorMessage);
     return res
       .status(403)
       .json({ success: false, message: "Token invalide ou expiré" });

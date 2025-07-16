@@ -31,25 +31,9 @@ interface AuthenticatedRequest extends Request {
 const router = express.Router();
 
 /**
- * Middleware d'authentification pour les routes protégées
+ * Importer le middleware d'authentification centralisé qui gère les cookies
  */
-const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ success: false, message: "Token manquant" });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    req.user = (decoded as any).user;
-    next();
-  } catch (error) {
-    console.error("Erreur JWT:", error);
-    return res.status(403).json({ success: false, message: "Token invalide" });
-  }
-};
+import { authenticateToken } from "../middlewares/auth.middleware";
 
 /**
  * @route POST /api/auth/register
@@ -300,7 +284,7 @@ router.post("/login", async (req: Request, res: Response) => {
  */
 router.get("/me", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const user = await User.findById((req.user as any)?.id).select("-password");
+    const user = await User.findById((req.user as any)?._id).select("-password");
     if (!user) {
       return res
         .status(404)
@@ -319,6 +303,7 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         companyId: user.companyId,
         teamIds: user.teamIds || [],
         photoUrl: user.photoUrl || undefined,
+        profileCompleted: user.profileCompleted || false,
       },
     });
   } catch (error) {

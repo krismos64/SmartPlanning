@@ -49,6 +49,7 @@ export interface IUser {
   photoUrl?: string;
   bio?: string;
   phone?: string;
+  profileCompleted?: boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -196,6 +197,10 @@ const userSchema = new Schema<UserDocument>(
     phone: {
       type: String,
       trim: true,
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

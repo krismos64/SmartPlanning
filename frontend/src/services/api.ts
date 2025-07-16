@@ -1,20 +1,8 @@
 import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 
-// Configuration de base d'axios
-const API_URL =
-  import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api";
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  // Autoriser l'envoi des cookies avec les requêtes cross-origin
-  withCredentials: true,
-});
-
-// Les cookies httpOnly sont automatiquement envoyés grâce à withCredentials: true
-// Plus besoin d'intercepteur pour ajouter manuellement le token
+// Utiliser l'instance axios centralisée
+const api = axiosInstance;
 
 /**
  * Service d'upload d'images vers Cloudinary via notre backend

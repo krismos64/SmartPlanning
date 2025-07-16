@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -18,7 +18,8 @@ interface PrivateRouteProps {
  */
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   // Récupération du contexte d'authentification
-  const { isAuthenticated, loading } = useContext(AuthContext);
+  const { isAuthenticated, loading, user } = useContext(AuthContext);
+  const location = useLocation();
 
   // Affichage du loader pendant la vérification de l'authentification
   if (loading) {
@@ -32,6 +33,12 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   // Redirection vers la page de connexion si l'utilisateur n'est pas authentifié
   if (!isAuthenticated) {
     return <Navigate to="/connexion" replace />;
+  }
+
+  // Vérifier si l'utilisateur doit compléter son profil
+  // Ne pas rediriger si l'utilisateur est déjà sur la page de complétion de profil
+  if (user && user.profileCompleted === false && location.pathname !== "/complete-profile") {
+    return <Navigate to="/complete-profile" replace />;
   }
 
   // Si l'utilisateur est authentifié, afficher le contenu de la route
