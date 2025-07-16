@@ -25,6 +25,7 @@ import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.ro
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
 import incidentsRoutes from "./routes/incidents.route";
 import publicRoutes from "./routes/index";
+import sitemapRoutes from "./routes/sitemap.routes";
 import passwordRoutes from "./routes/password.routes";
 import profileRoutes from "./routes/profile.routes";
 import statsRoutes from "./routes/stats.routes";
@@ -189,6 +190,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes publiques (SEO)
 app.use("/api", publicRoutes);
+app.use("/api", sitemapRoutes);
 
 // Routes
 app.use("/api/auth", authRoutes);

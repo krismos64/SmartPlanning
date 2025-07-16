@@ -11,6 +11,14 @@ interface SEOProps {
   description?: string;
   /** URL canonique de la page (optionnel, généré automatiquement si non fourni) */
   canonicalUrl?: string;
+  /** Mots-clés pour le SEO (optionnel) */
+  keywords?: string;
+  /** Type de page pour Open Graph (optionnel) */
+  ogType?: string;
+  /** Image pour les réseaux sociaux (optionnel) */
+  ogImage?: string;
+  /** Auteur de la page (optionnel) */
+  author?: string;
 }
 
 /**
@@ -32,6 +40,10 @@ const SEO: React.FC<SEOProps> = ({
   title,
   description = "SmartPlanning – Optimisez vos plannings RH simplement grâce à l'IA.",
   canonicalUrl,
+  keywords = "planning, ressources humaines, IA, gestion équipe, horaires, congés, optimisation",
+  ogType = "website",
+  ogImage = "https://smartplanning.fr/images/og-image.jpg",
+  author = "SmartPlanning Team",
 }) => {
   /**
    * Génère l'URL canonique automatiquement si non fournie
@@ -56,6 +68,21 @@ const SEO: React.FC<SEOProps> = ({
 
       {/* Meta description pour le SEO */}
       <meta name="description" content={description} />
+      
+      {/* Mots-clés pour le SEO */}
+      <meta name="keywords" content={keywords} />
+      
+      {/* Auteur de la page */}
+      <meta name="author" content={author} />
+      
+      {/* Langue de la page */}
+      <meta name="language" content="fr-FR" />
+      
+      {/* Robots meta pour l'indexation */}
+      <meta name="robots" content="index, follow" />
+      
+      {/* Viewport optimisé pour mobile */}
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
       {/* URL canonique pour éviter le contenu dupliqué */}
       <link rel="canonical" href={finalCanonicalUrl} />
@@ -64,12 +91,39 @@ const SEO: React.FC<SEOProps> = ({
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={finalCanonicalUrl} />
-      <meta property="og:type" content="website" />
+      <meta property="og:type" content={ogType} />
+      <meta property="og:image" content={ogImage} />
+      <meta property="og:site_name" content="SmartPlanning" />
+      <meta property="og:locale" content="fr_FR" />
 
       {/* Twitter Card meta */}
-      <meta name="twitter:card" content="summary" />
+      <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={ogImage} />
+      <meta name="twitter:site" content="@smartplanning" />
+      
+      {/* Schema.org pour Google */}
+      <script type="application/ld+json">
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "SmartPlanning",
+          "description": description,
+          "url": finalCanonicalUrl,
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web Browser",
+          "offers": {
+            "@type": "Offer",
+            "category": "SaaS"
+          },
+          "provider": {
+            "@type": "Organization",
+            "name": "SmartPlanning",
+            "url": "https://smartplanning.fr"
+          }
+        })}
+      </script>
     </Helmet>
   );
 };
