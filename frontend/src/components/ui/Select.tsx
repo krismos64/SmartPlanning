@@ -284,7 +284,14 @@ const Select: React.FC<SelectProps> = ({
                       hover:bg-indigo-50 dark:hover:bg-indigo-800
                     `}
                     onClick={() => handleSelect(option)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelect(option);
+                      }
+                    }}
                     onMouseEnter={() => setActiveIndex(index)}
+                    tabIndex={0}
                   >
                     <span className="block truncate font-medium">
                       {option.label}

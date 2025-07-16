@@ -129,6 +129,14 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setSidebarOpen(false);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Fermer le menu de navigation"
         />
       )}
 

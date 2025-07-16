@@ -803,50 +803,50 @@ const AdminPlanningPage: React.FC = () => {
               {/* Informations générales */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Employé
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white">
                     {selectedSchedule.employeeName}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Email
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white">
                     {selectedSchedule.employeeEmail}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Entreprise
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white">
                     {selectedSchedule.companyName}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Équipe
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white">
                     {selectedSchedule.teamName || "Non assigné"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Période
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white">
                     Semaine {selectedSchedule.weekNumber},{" "}
                     {selectedSchedule.year}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Temps total
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white">
                     {calculateTotalHours(selectedSchedule.scheduleData)}
                   </p>
@@ -870,9 +870,9 @@ const AdminPlanningPage: React.FC = () => {
                         key={day}
                         className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl border border-blue-200 dark:border-blue-700 min-h-[140px] shadow-sm"
                       >
-                        <label className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-4 block text-center">
+                        <span className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-4 block text-center">
                           {DAYS_OF_WEEK[index]}
-                        </label>
+                        </span>
                         <div className="space-y-3">
                           {selectedSchedule.scheduleData[day]?.length > 0 ? (
                             selectedSchedule.scheduleData[day].map(
@@ -907,9 +907,9 @@ const AdminPlanningPage: React.FC = () => {
                         key={day}
                         className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl border border-green-200 dark:border-green-700 min-h-[140px] shadow-sm"
                       >
-                        <label className="text-lg font-semibold text-green-700 dark:text-green-300 mb-4 block text-center">
+                        <span className="text-lg font-semibold text-green-700 dark:text-green-300 mb-4 block text-center">
                           {DAYS_OF_WEEK[index + 3]}
-                        </label>
+                        </span>
                         <div className="space-y-3">
                           {selectedSchedule.scheduleData[day]?.length > 0 ? (
                             selectedSchedule.scheduleData[day].map(
@@ -937,9 +937,9 @@ const AdminPlanningPage: React.FC = () => {
               {/* Notes */}
               {selectedSchedule.notes && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Notes
-                  </label>
+                  </span>
                   <p className="text-gray-900 dark:text-white mt-1">
                     {selectedSchedule.notes}
                   </p>

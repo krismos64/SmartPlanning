@@ -1,0 +1,10 @@
+dist/
+node_modules/
+**/*.test.ts
+**/*.test.tsx
+vite.config.ts
+tailwind.config.ts
+src/vite-env.d.ts
+src/types/global.d.ts
+src/types/json.d.ts
+src/utils/getEnv.*.ts

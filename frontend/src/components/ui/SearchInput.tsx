@@ -16,7 +16,7 @@ interface SearchInputProps {
   onChange: (value: string) => void;
   onClear?: () => void;
   className?: string;
-  autoFocus?: boolean;
+  autoFocus?: boolean; // Déconseillé pour l'accessibilité
   debounceTime?: number;
   modern?: boolean;
 }
@@ -91,7 +91,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
         value={localValue}
         onChange={handleInputChange}
         placeholder={placeholder}
-        autoFocus={autoFocus}
+        autoFocus={false} // Désactivé pour l'accessibilité
         className={inputClasses}
       />
 

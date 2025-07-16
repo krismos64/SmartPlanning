@@ -200,7 +200,15 @@ const Popover: React.FC<PopoverProps> = ({
       <div
         ref={triggerRef}
         onClick={togglePopover}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            togglePopover();
+          }
+        }}
         className="inline-block cursor-pointer"
+        role="button"
+        tabIndex={0}
         aria-expanded={isOpen}
         aria-haspopup={getAriaHasPopup(role)}
         aria-controls={isOpen ? popoverId : undefined}

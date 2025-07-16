@@ -77,6 +77,7 @@ const Avatar: React.FC<AvatarProps> = ({
           className="w-full h-full object-cover"
           onError={() => setImageError(true)}
           onLoad={() => setImageError(false)}
+          role="img"
         />
       </div>
     );

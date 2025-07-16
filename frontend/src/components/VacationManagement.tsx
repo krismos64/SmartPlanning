@@ -152,10 +152,14 @@ export const VacationActions: React.FC<VacationActionsProps> = ({
       {showApprovalForm && (
         <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
           <div className="mb-2">
-            <label className="block text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+            <label 
+              htmlFor="approval-comment"
+              className="block text-sm font-medium text-green-800 dark:text-green-200 mb-1"
+            >
               Commentaire d'approbation (optionnel)
             </label>
             <textarea
+              id="approval-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Ajouter un commentaire..."
@@ -193,10 +197,14 @@ export const VacationActions: React.FC<VacationActionsProps> = ({
       {showRejectionForm && (
         <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
           <div className="mb-2">
-            <label className="block text-sm font-medium text-red-800 dark:text-red-200 mb-1">
+            <label 
+              htmlFor="rejection-comment"
+              className="block text-sm font-medium text-red-800 dark:text-red-200 mb-1"
+            >
               Raison du rejet (optionnel)
             </label>
             <textarea
+              id="rejection-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Expliquer la raison du rejet..."
