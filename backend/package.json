@@ -21,7 +21,7 @@
     "generate-realistic-schedules": "ts-node src/scripts/generate-realistic-schedules.ts",
     "check-schedules": "ts-node src/scripts/check-schedules.ts",
     "debug-schedules": "ts-node src/scripts/debug-schedules.ts",
-    "test": "jest",
+    "test": "jest --config jest.config.js",
     "test:watch": "jest --watch",
     "test:security": "jest --testPathPattern=security"
   },
