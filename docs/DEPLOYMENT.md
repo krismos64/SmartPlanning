@@ -2,9 +2,11 @@
 
 ## Vue d'ensemble
 
-SmartPlanning utilise une architecture séparée :
-- **Backend** : Déployé sur Render
-- **Frontend** : Déployé sur Hostinger
+SmartPlanning utilise une architecture séparée déployée en production depuis juillet 2025 :
+
+- **Backend** : Déployé sur Render ([https://smartplanning.onrender.com](https://smartplanning.onrender.com))
+- **Frontend** : Déployé sur Hostinger ([https://smartplanning.fr](https://smartplanning.fr))
+- **Base de données** : MongoDB Atlas (cluster cloud sécurisé)
 
 ## Prérequis
 
@@ -32,7 +34,7 @@ OPENAI_API_KEY=votre_clé_api_openai
 # Google OAuth
 GOOGLE_CLIENT_ID=votre_id_client_google
 GOOGLE_CLIENT_SECRET=votre_secret_client_google
-GOOGLE_CALLBACK_URL=https://votre-backend.onrender.com/api/auth/google/callback
+GOOGLE_CALLBACK_URL=https://smartplanning.onrender.com/api/auth/google/callback
 
 # Cloudinary
 CLOUDINARY_CLOUD_NAME=votre_cloud_name
@@ -47,7 +49,7 @@ NODE_ENV=production
 ### Frontend (.env.local)
 
 ```env
-VITE_API_URL=https://votre-backend.onrender.com/api
+VITE_API_URL=https://smartplanning.onrender.com/api
 VITE_GOOGLE_CLIENT_ID=votre_id_client_google
 ```
 
@@ -77,11 +79,13 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client_google
 ### Backend sur Render
 
 1. **Connexion au service**
+
    ```bash
    git push origin main
    ```
 
 2. **Configuration Render**
+
    - Build Command: `cd backend && npm install && npm run build`
    - Start Command: `cd backend && npm start`
    - Environment: Node.js
@@ -93,6 +97,7 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client_google
 ### Frontend sur Hostinger
 
 1. **Build de production**
+
    ```bash
    cd frontend
    npm run build
@@ -105,6 +110,7 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client_google
 ## Health Check
 
 Le backend expose un endpoint de santé :
+
 ```
 GET /api/health
 ```
@@ -112,6 +118,7 @@ GET /api/health
 ## Configuration CORS
 
 En production, CORS est configuré pour :
+
 - Origin: `https://smartplanning.fr`
 - Credentials: true
 - Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH
@@ -155,15 +162,17 @@ mongorestore --uri="votre_mongodb_uri" backup/
 ### Erreurs communes
 
 1. **CORS Error**
+
    - Vérifier la configuration des origins autorisées
    - S'assurer que FRONTEND_URL correspond au domaine de production
 
 2. **MongoDB Connection**
+
    - Vérifier MONGODB_URI
    - Contrôler les IP autorisées dans MongoDB Atlas
 
 3. **Build Frontend**
-   - Vérifier les variables d'environnement VITE_*
+   - Vérifier les variables d'environnement VITE\_\*
    - S'assurer que l'API URL est correcte
 
 ### Debug
@@ -173,7 +182,7 @@ mongorestore --uri="votre_mongodb_uri" backup/
 render logs -s votre-service-id
 
 # Test de connectivité API
-curl https://votre-backend.onrender.com/api/health
+curl https://smartplanning.onrender.com/api/health
 ```
 
 ## Rollback
@@ -181,6 +190,7 @@ curl https://votre-backend.onrender.com/api/health
 En cas de problème :
 
 1. **Revert Git**
+
    ```bash
    git revert HEAD
    git push origin main
@@ -192,8 +202,24 @@ En cas de problème :
 
 ## Sécurité
 
-- Toutes les connexions en HTTPS
-- JWT avec expiration courte
-- Validation stricte des inputs
-- Rate limiting sur l'API
-- Headers de sécurité avec Helmet
+### Mesures de sécurité en production
+
+- **HTTPS** : Toutes les connexions chiffrées
+- **JWT** : Cookies httpOnly sécurisés avec SameSite=none pour cross-origin
+- **CORS** : Configuration stricte pour smartplanning.fr uniquement
+- **Validation** : Contrôle strict des entrées utilisateur
+- **Rate limiting** : Protection contre les attaques par déni de service
+- **Headers** : Sécurité renforcée avec Helmet.js
+- **Authentification** : Support OAuth Google + authentification locale
+- **Base de données** : Connexions chiffrées vers MongoDB Atlas
+
+### Tests de sécurité
+
+Le projet inclut une suite de tests de sécurité automatisés :
+
+```bash
+# Exécuter les tests de sécurité
+npm run test:security
+```
+
+**Résultats actuels :** 14/15 tests réussis (93% de couverture sécuritaire)

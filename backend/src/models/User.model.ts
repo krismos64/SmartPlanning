@@ -228,6 +228,126 @@ userSchema.pre<UserDocument>("save", async function (next) {
   }
 });
 
+// Middleware de validation des références avant sauvegarde
+userSchema.pre<UserDocument>("save", async function (next) {
+  try {
+    // Vérifier que la company existe si companyId est défini
+    if (this.companyId) {
+      const Company = mongoose.model("Company");
+      const company = await Company.findById(this.companyId);
+      if (!company) {
+        return next(new Error(`Company avec l'ID ${this.companyId} n'existe pas`));
+      }
+    }
+
+    // Vérifier que les teams existent si teamIds est défini
+    if (this.teamIds && this.teamIds.length > 0) {
+      const Team = mongoose.model("Team");
+      for (const teamId of this.teamIds) {
+        const team = await Team.findById(teamId);
+        if (!team) {
+          return next(new Error(`Team avec l'ID ${teamId} n'existe pas`));
+        }
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Middleware de cascade pour la suppression d'un utilisateur
+userSchema.pre("deleteOne", { document: true, query: false }, async function (next) {
+  try {
+    const userId = this._id;
+    
+    // Supprimer les Employee liés
+    const Employee = mongoose.model("Employee");
+    await Employee.deleteMany({ userId });
+    
+    // Supprimer les VacationRequest où l'utilisateur est requestedBy ou updatedBy
+    const VacationRequest = mongoose.model("VacationRequest");
+    await VacationRequest.deleteMany({ 
+      $or: [
+        { requestedBy: userId },
+        { updatedBy: userId }
+      ]
+    });
+    
+    // Supprimer les WeeklySchedule où l'utilisateur est updatedBy
+    const WeeklySchedule = mongoose.model("WeeklySchedule");
+    await WeeklySchedule.deleteMany({ updatedBy: userId });
+    
+    // Retirer l'utilisateur des Team.managerIds
+    const Team = mongoose.model("Team");
+    await Team.updateMany(
+      { managerIds: userId },
+      { $pull: { managerIds: userId } }
+    );
+    
+    // Supprimer les Task liées via Employee
+    const Task = mongoose.model("Task");
+    const employees = await Employee.find({ userId });
+    const employeeIds = employees.map(emp => emp._id);
+    await Task.deleteMany({ employeeId: { $in: employeeIds } });
+    
+    // Supprimer les Incident liés via Employee
+    const Incident = mongoose.model("Incident");
+    await Incident.deleteMany({ employeeId: { $in: employeeIds } });
+    
+    console.log(`🗑️ Cascade suppression User ${userId} terminée`);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Middleware de cascade pour findOneAndDelete
+userSchema.pre("findOneAndDelete", async function (next) {
+  try {
+    const user = await this.model.findOne(this.getQuery());
+    if (!user) return next();
+    
+    const userId = user._id;
+    
+    // Même logique que deleteOne
+    const Employee = mongoose.model("Employee");
+    await Employee.deleteMany({ userId });
+    
+    const VacationRequest = mongoose.model("VacationRequest");
+    await VacationRequest.deleteMany({ 
+      $or: [
+        { requestedBy: userId },
+        { updatedBy: userId }
+      ]
+    });
+    
+    const WeeklySchedule = mongoose.model("WeeklySchedule");
+    await WeeklySchedule.deleteMany({ updatedBy: userId });
+    
+    const Team = mongoose.model("Team");
+    await Team.updateMany(
+      { managerIds: userId },
+      { $pull: { managerIds: userId } }
+    );
+    
+    const employees = await Employee.find({ userId });
+    const employeeIds = employees.map(emp => emp._id);
+    
+    const Task = mongoose.model("Task");
+    await Task.deleteMany({ employeeId: { $in: employeeIds } });
+    
+    const Incident = mongoose.model("Incident");
+    await Incident.deleteMany({ employeeId: { $in: employeeIds } });
+    
+    console.log(`🗑️ Cascade suppression User ${userId} terminée`);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 // Méthode pour comparer le mot de passe
 userSchema.methods.comparePassword = async function (
   candidatePassword: string

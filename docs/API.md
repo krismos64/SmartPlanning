@@ -4,14 +4,22 @@
 
 L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
 
-**URL de base**: `https://votre-backend.onrender.com/api`  
-**Version**: 1.3.0
+**URL de base**: `https://smartplanning.onrender.com/api`  
+**Version**: 1.3.1 (Juillet 2025)
 
 ## Authentification
 
-### JWT Token
+### Cookies httpOnly (Recommandé)
 
-La plupart des endpoints nécessitent un token JWT dans l'en-tête Authorization :
+L'API utilise des cookies httpOnly sécurisés pour l'authentification. Après connexion, le token JWT est automatiquement stocké dans un cookie sécurisé.
+
+**Configuration requise :**
+- `credentials: 'include'` dans les requêtes
+- `withCredentials: true` pour axios
+
+### JWT Token (Alternative)
+
+Pour les clients qui ne supportent pas les cookies :
 
 ```http
 Authorization: Bearer <jwt_token>
@@ -25,11 +33,17 @@ Endpoint de redirection pour l'authentification Google :
 GET /api/auth/google
 ```
 
+**Flux OAuth :**
+1. Redirection vers Google
+2. Callback vers `/api/auth/google/callback`
+3. Redirection vers le frontend avec token
+
 ## Endpoints
 
 ### 🔐 Authentification
 
 #### Connexion
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -41,19 +55,26 @@ Content-Type: application/json
 ```
 
 **Réponse :**
+
 ```json
 {
-  "token": "jwt_token_here",
+  "success": true,
   "user": {
-    "id": "user_id",
+    "_id": "user_id",
+    "firstName": "John",
+    "lastName": "Doe",
     "email": "user@example.com",
     "role": "manager",
-    "companyId": "company_id"
+    "companyId": "company_id",
+    "photoUrl": "https://example.com/photo.jpg"
   }
 }
 ```
 
+**Note :** Le token JWT est automatiquement stocké dans un cookie httpOnly sécurisé.
+
 #### Inscription
+
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -70,12 +91,14 @@ Content-Type: application/json
 ### 👥 Utilisateurs
 
 #### Lister les utilisateurs
+
 ```http
 GET /api/users
 Authorization: Bearer <token>
 ```
 
 #### Créer un utilisateur
+
 ```http
 POST /api/users
 Authorization: Bearer <token>
@@ -91,6 +114,7 @@ Content-Type: application/json
 ```
 
 #### Mettre à jour un utilisateur
+
 ```http
 PUT /api/users/:id
 Authorization: Bearer <token>
@@ -103,6 +127,7 @@ Content-Type: application/json
 ```
 
 #### Supprimer un utilisateur
+
 ```http
 DELETE /api/users/:id
 Authorization: Bearer <token>
@@ -111,12 +136,14 @@ Authorization: Bearer <token>
 ### 🏢 Entreprises
 
 #### Lister les entreprises
+
 ```http
 GET /api/companies
 Authorization: Bearer <token>
 ```
 
 #### Créer une entreprise
+
 ```http
 POST /api/companies
 Authorization: Bearer <token>
@@ -133,12 +160,14 @@ Content-Type: application/json
 ### 👥 Équipes
 
 #### Lister les équipes
+
 ```http
 GET /api/teams
 Authorization: Bearer <token>
 ```
 
 #### Créer une équipe
+
 ```http
 POST /api/teams
 Authorization: Bearer <token>
@@ -153,6 +182,7 @@ Content-Type: application/json
 ```
 
 #### Ajouter un membre à l'équipe
+
 ```http
 POST /api/teams/:teamId/members
 Authorization: Bearer <token>
@@ -166,12 +196,14 @@ Content-Type: application/json
 ### 👤 Employés
 
 #### Lister les employés
+
 ```http
 GET /api/employees
 Authorization: Bearer <token>
 ```
 
 #### Créer un employé
+
 ```http
 POST /api/employees
 Authorization: Bearer <token>
@@ -190,17 +222,20 @@ Content-Type: application/json
 ### 📅 Plannings
 
 #### Lister les plannings hebdomadaires
+
 ```http
 GET /api/weekly-schedules
 Authorization: Bearer <token>
 ```
 
 **Paramètres de requête :**
+
 - `week`: Semaine (format ISO)
 - `teamId`: ID de l'équipe
 - `employeeId`: ID de l'employé
 
 #### Créer un planning
+
 ```http
 POST /api/weekly-schedules
 Authorization: Bearer <token>
@@ -223,12 +258,14 @@ Content-Type: application/json
 ### 🏖️ Congés
 
 #### Lister les demandes de congés
+
 ```http
 GET /api/vacations
 Authorization: Bearer <token>
 ```
 
 #### Créer une demande de congé
+
 ```http
 POST /api/vacations
 Authorization: Bearer <token>
@@ -243,6 +280,7 @@ Content-Type: application/json
 ```
 
 #### Approuver/Rejeter une demande
+
 ```http
 PUT /api/vacations/:id/status
 Authorization: Bearer <token>
@@ -257,12 +295,14 @@ Content-Type: application/json
 ### ✅ Tâches
 
 #### Lister les tâches
+
 ```http
 GET /api/tasks
 Authorization: Bearer <token>
 ```
 
 #### Créer une tâche
+
 ```http
 POST /api/tasks
 Authorization: Bearer <token>
@@ -281,12 +321,14 @@ Content-Type: application/json
 ### 🚨 Incidents
 
 #### Lister les incidents
+
 ```http
 GET /api/incidents
 Authorization: Bearer <token>
 ```
 
 #### Créer un incident
+
 ```http
 POST /api/incidents
 Authorization: Bearer <token>
@@ -304,6 +346,7 @@ Content-Type: application/json
 ### 🤖 Intelligence Artificielle
 
 #### Générer un planning avec l'IA
+
 ```http
 POST /api/ai/generate-schedule
 Authorization: Bearer <token>
@@ -326,6 +369,7 @@ Content-Type: application/json
 ```
 
 **Réponse :**
+
 ```json
 {
   "generatedSchedule": {
@@ -345,12 +389,14 @@ Content-Type: application/json
 ### 📊 Statistiques
 
 #### Statistiques globales
+
 ```http
 GET /api/stats
 Authorization: Bearer <token>
 ```
 
 **Réponse :**
+
 ```json
 {
   "users": {
@@ -377,6 +423,7 @@ Authorization: Bearer <token>
 ### 📁 Upload de fichiers
 
 #### Upload de photo de profil
+
 ```http
 POST /api/upload/profile-picture
 Authorization: Bearer <token>
@@ -387,16 +434,16 @@ FormData: file=<image_file>
 
 ## Codes de statut HTTP
 
-| Code | Description |
-|------|-------------|
-| 200  | Succès |
-| 201  | Créé avec succès |
-| 400  | Requête invalide |
-| 401  | Non authentifié |
-| 403  | Accès interdit |
-| 404  | Ressource non trouvée |
+| Code | Description                      |
+| ---- | -------------------------------- |
+| 200  | Succès                           |
+| 201  | Créé avec succès                 |
+| 400  | Requête invalide                 |
+| 401  | Non authentifié                  |
+| 403  | Accès interdit                   |
+| 404  | Ressource non trouvée            |
 | 409  | Conflit (ex: email déjà utilisé) |
-| 500  | Erreur serveur interne |
+| 500  | Erreur serveur interne           |
 
 ## Format d'erreur
 
@@ -417,11 +464,13 @@ FormData: file=<image_file>
 Pour les endpoints qui retournent des listes :
 
 **Paramètres de requête :**
+
 - `page`: Numéro de page (défaut: 1)
 - `limit`: Nombre d'éléments par page (défaut: 20, max: 100)
 - `sort`: Champ de tri (ex: "createdAt", "-createdAt" pour desc)
 
 **Réponse avec pagination :**
+
 ```json
 {
   "data": [...],
@@ -438,6 +487,7 @@ Pour les endpoints qui retournent des listes :
 ## Filtrage et recherche
 
 **Paramètres de requête communs :**
+
 - `search`: Recherche textuelle
 - `status`: Filtrer par statut
 - `role`: Filtrer par rôle
@@ -446,6 +496,7 @@ Pour les endpoints qui retournent des listes :
 - `startDate` / `endDate`: Filtrer par période
 
 Exemple :
+
 ```http
 GET /api/users?search=john&role=manager&companyId=123
 ```
@@ -463,6 +514,7 @@ GET /api/health
 ```
 
 **Réponse :**
+
 ```json
 {
   "status": "OK",

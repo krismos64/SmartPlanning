@@ -11,7 +11,9 @@
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
 ![État](https://img.shields.io/badge/État-En%20développement-orange?style=flat-square)
 
-SmartPlanning est une
+SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, développée en TypeScript pour une gestion optimisée des ressources humaines.
+
+🌐 **Application déployée** : [https://smartplanning.fr](https://smartplanning.fr)
 
 ## Table des matières
 
@@ -19,13 +21,13 @@ SmartPlanning est une
 - [Fonctionnalités clés](#fonctionnalités-clés)
 - [État d'avancement](#état-davancement)
 - [Stack technique](#stack-technique)
+- [Documentation détaillée](#documentation-détaillée)
 - [Installation locale](#installation-locale)
 - [Variables d'environnement](#variables-denvironnement)
 - [Lancer l'application](#lancer-lapplication)
 - [Scripts d'initialisation](#scripts-dinitialisation)
 - [Tests](#tests)
 - [Déploiement](#déploiement)
-- [Auteurs & Crédits](#auteurs--crédits)
 - [Changelog](#changelog)
 
 ## Introduction
@@ -229,9 +231,18 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Intelligence artificielle** | OpenAI API                                                            |
 | **Authentification**          | JWT, Google OAuth, Passport.js                                        |
 | **Upload de fichiers**        | Cloudinary, Multer                                                    |
-| **Déploiement**               | Docker, Vercel/Netlify (Frontend), Heroku/Digital Ocean (Backend)     |
+| **Déploiement**               | Docker, Hostinger (Frontend), Render (Backend)                        |
 | **Tests et sécurité**         | Jest, Supertest, MongoDB Memory Server, Tests de sécurité automatisés |
 | **Outils de développement**   | ESLint, Prettier, React Testing Library                               |
+
+## Documentation détaillée
+
+Pour une documentation complète, consultez le dossier `docs/` :
+
+- **[Guide de la base de données](docs/DATABASE.md)** - Architecture et modèles de données
+- **[Documentation API](docs/API.md)** - Endpoints et schémas de l'API REST
+- **[Guide de déploiement](docs/DEPLOYMENT.md)** - Instructions de déploiement en production
+- **[Guide de développement](docs/DEVELOPMENT.md)** - Configuration et développement local
 
 ## Changelog
 
@@ -514,22 +525,18 @@ Le projet inclut une suite complète de tests de sécurité automatisés :
 
 ## Déploiement
 
-L'application peut être déployée sur différentes plateformes :
+L'application SmartPlanning est déployée en production :
 
-### Backend
+### Architecture de déploiement
 
-- Heroku
-- Digital Ocean
-- AWS
+- **Frontend** : Déployé sur Hostinger à l'adresse [https://smartplanning.fr](https://smartplanning.fr)
+- **Backend** : Déployé sur Render à l'adresse [https://smartplanning.onrender.com](https://smartplanning.onrender.com)
+- **Base de données** : MongoDB Atlas (cluster cloud)
 
-### Frontend
+### Autres options de déploiement
 
-- Vercel
-- Netlify
-- AWS Amplify
+Pour des déploiements alternatifs, consultez le [Guide de déploiement](docs/DEPLOYMENT.md).
 
-Une démo de l'application est disponible sur [https://smartplanning.fr]
-
-Développé dans le cadre d'un projet de gestion innovante des ressources humaines.
+**Juillet 2025** - Application en production stable avec intégration IA et sécurité renforcée.
 
 ---

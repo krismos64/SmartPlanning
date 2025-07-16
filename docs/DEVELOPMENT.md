@@ -12,12 +12,14 @@
 ### Étapes d'installation
 
 1. **Cloner le projet**
+
    ```bash
-   git clone https://github.com/votre-organisation/smartplanning.git
+   git clone https://github.com/krismos64/SmartPlanning
    cd smartplanning
    ```
 
 2. **Installation des dépendances**
+
    ```bash
    # Backend
    cd backend
@@ -29,6 +31,7 @@
    ```
 
 3. **Configuration des variables d'environnement**
+
    ```bash
    # Backend
    cp backend/env.example backend/.env
@@ -40,6 +43,7 @@
    ```
 
 4. **Démarrage en mode développement**
+
    ```bash
    # Terminal 1 - Backend (port 5050)
    cd backend
@@ -98,6 +102,13 @@ npm run lint
 npm run create-admin          # Créer un utilisateur admin
 npm run migrate              # Migration des données
 npm run migrate:employees    # Migration employés
+npm run reset-database       # Réinitialiser complètement la DB
+npm run cleanup-orphaned     # Nettoyer les données orphelines
+
+# Tests
+npm test                     # Tests généraux
+npm run test:security        # Tests de sécurité spécifiques
+npm run test:watch          # Tests en mode watch
 ```
 
 ### Frontend
@@ -183,10 +194,20 @@ cd backend && npm run migrate
 
 ### Authentification
 
+L'API utilise des cookies httpOnly sécurisés (recommandé) ou des tokens JWT :
+
 ```typescript
-// Headers requis
+// Configuration axios avec cookies
+const axiosInstance = axios.create({
+  baseURL: 'http://localhost:5050/api',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Alternative avec token JWT
 Authorization: Bearer <jwt_token>
-Content-Type: application/json
 ```
 
 ### Endpoints principaux
@@ -278,19 +299,21 @@ NODE_ENV=development npm run dev
 
 ### Bonnes pratiques
 
-- Validation stricte des inputs
-- Sanitisation des données
-- Protection CSRF
-- Rate limiting
-- HTTPS en production
-- Variables d'environnement pour les secrets
+- **Validation stricte** des inputs côté client et serveur
+- **Sanitisation** des données utilisateur
+- **Protection CSRF** avec cookies SameSite
+- **Rate limiting** pour prévenir les attaques
+- **HTTPS** obligatoire en production
+- **Variables d'environnement** pour tous les secrets
+- **Intégrité référentielle** avec cascades automatiques
 
-### Authentification
+### Authentification sécurisée
 
-- JWT avec expiration
-- Refresh tokens
-- Google OAuth en option
-- Hashage bcrypt pour les mots de passe
+- **JWT** avec cookies httpOnly sécurisés
+- **Google OAuth** en option
+- **Hashage bcrypt** pour les mots de passe
+- **Validation** des références cross-collections
+- **Tests de sécurité** automatisés (14/15 réussis)
 
 ## Git Workflow
 
@@ -335,19 +358,22 @@ test: ajout des tests unitaires
 ### Problèmes fréquents
 
 1. **Port déjà utilisé**
+
    ```bash
    lsof -ti:5050 | xargs kill -9  # Backend
    lsof -ti:5173 | xargs kill -9  # Frontend
    ```
 
 2. **Problèmes de CORS**
+
    - Vérifier la configuration dans `backend/src/app.ts`
    - S'assurer que l'origine frontend est autorisée
 
 3. **Erreurs MongoDB**
+
    - Vérifier la connexion dans `backend/src/config/db.ts`
    - Contrôler les variables d'environnement
 
 4. **Build frontend échoue**
-   - Vérifier les variables d'environnement VITE_*
+   - Vérifier les variables d'environnement VITE\_\*
    - Nettoyer le cache : `rm -rf node_modules && npm install`

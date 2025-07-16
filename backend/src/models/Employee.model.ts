@@ -246,6 +246,44 @@ employeeSchema.statics.findByCompanyId = function (
 };
 
 /**
+ * Middleware de validation des références avant sauvegarde
+ */
+employeeSchema.pre<EmployeeDocument>("save", async function (next) {
+  try {
+    // Vérifier que la company existe
+    if (this.companyId) {
+      const Company = mongoose.model("Company");
+      const company = await Company.findById(this.companyId);
+      if (!company) {
+        return next(new Error(`Company avec l'ID ${this.companyId} n'existe pas`));
+      }
+    }
+
+    // Vérifier que le user existe si userId est défini
+    if (this.userId) {
+      const User = mongoose.model("User");
+      const user = await User.findById(this.userId);
+      if (!user) {
+        return next(new Error(`User avec l'ID ${this.userId} n'existe pas`));
+      }
+    }
+
+    // Vérifier que la team existe si teamId est défini
+    if (this.teamId) {
+      const Team = mongoose.model("Team");
+      const team = await Team.findById(this.teamId);
+      if (!team) {
+        return next(new Error(`Team avec l'ID ${this.teamId} n'existe pas`));
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+/**
  * Pré-traitement avant la sauvegarde pour normaliser certaines données
  */
 employeeSchema.pre<EmployeeDocument>("save", function (next) {
@@ -261,6 +299,102 @@ employeeSchema.pre<EmployeeDocument>("save", function (next) {
   }
 
   next();
+});
+
+/**
+ * Middleware de synchronisation User ↔ Employee après sauvegarde
+ */
+employeeSchema.post<EmployeeDocument>("save", async function (doc, next) {
+  try {
+    // Si l'employee a un userId et un teamId, synchroniser avec User.teamIds
+    if (doc.userId && doc.teamId) {
+      const User = mongoose.model("User");
+      await User.findByIdAndUpdate(
+        doc.userId,
+        { $addToSet: { teamIds: doc.teamId } },
+        { new: true }
+      );
+    }
+
+    // Si l'employee n'a plus de teamId, le retirer de User.teamIds
+    if (doc.userId && !doc.teamId) {
+      const User = mongoose.model("User");
+      const user = await User.findById(doc.userId);
+      if (user && user.teamIds) {
+        // Récupérer toutes les teams de cet utilisateur via ses autres employés
+        const Employee = mongoose.model("Employee");
+        const employeeTeams = await Employee.find({ 
+          userId: doc.userId, 
+          teamId: { $exists: true, $ne: null } 
+        }).distinct('teamId');
+        
+        // Mettre à jour les teamIds avec seulement les teams actuelles
+        await User.findByIdAndUpdate(
+          doc.userId,
+          { $set: { teamIds: employeeTeams } },
+          { new: true }
+        );
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+/**
+ * Middleware de cascade pour la suppression d'un employé
+ */
+employeeSchema.pre("deleteOne", { document: true, query: false }, async function (next) {
+  try {
+    const employeeId = this._id;
+    
+    // Supprimer les WeeklySchedule liés à cet employé
+    const WeeklySchedule = mongoose.model("WeeklySchedule");
+    await WeeklySchedule.deleteMany({ employeeId });
+    
+    // Supprimer les VacationRequest liés à cet employé
+    const VacationRequest = mongoose.model("VacationRequest");
+    await VacationRequest.deleteMany({ employeeId });
+    
+    // Supprimer les Task liées à cet employé
+    const Task = mongoose.model("Task");
+    await Task.deleteMany({ employeeId });
+    
+    // Supprimer les Incident liés à cet employé
+    const Incident = mongoose.model("Incident");
+    await Incident.deleteMany({ employeeId });
+    
+    // Retirer cet employé des Team.employeeIds
+    const Team = mongoose.model("Team");
+    await Team.updateMany(
+      { employeeIds: employeeId },
+      { $pull: { employeeIds: employeeId } }
+    );
+    
+    // Mettre à jour User.teamIds si nécessaire
+    if (this.userId) {
+      const User = mongoose.model("User");
+      const Employee = mongoose.model("Employee");
+      const remainingTeams = await Employee.find({ 
+        userId: this.userId, 
+        _id: { $ne: employeeId },
+        teamId: { $exists: true, $ne: null } 
+      }).distinct('teamId');
+      
+      await User.findByIdAndUpdate(
+        this.userId,
+        { $set: { teamIds: remainingTeams } },
+        { new: true }
+      );
+    }
+    
+    console.log(`🗑️ Cascade suppression Employee ${employeeId} terminée`);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
 });
 
 /**

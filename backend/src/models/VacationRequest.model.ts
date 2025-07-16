@@ -115,6 +115,42 @@ const vacationRequestSchema = new Schema<VacationRequestDocument>(
 // Index pour faciliter la recherche des demandes par employé
 vacationRequestSchema.index({ employeeId: 1, startDate: -1 });
 
+// Middleware de validation des références avant sauvegarde
+vacationRequestSchema.pre<VacationRequestDocument>("save", async function (next) {
+  try {
+    // Vérifier que l'employé existe
+    if (this.employeeId) {
+      const Employee = mongoose.model("Employee");
+      const employee = await Employee.findById(this.employeeId);
+      if (!employee) {
+        return next(new Error(`Employee avec l'ID ${this.employeeId} n'existe pas`));
+      }
+    }
+
+    // Vérifier que l'utilisateur requestedBy existe
+    if (this.requestedBy) {
+      const User = mongoose.model("User");
+      const user = await User.findById(this.requestedBy);
+      if (!user) {
+        return next(new Error(`User avec l'ID ${this.requestedBy} n'existe pas`));
+      }
+    }
+
+    // Vérifier que l'utilisateur updatedBy existe (si défini)
+    if (this.updatedBy) {
+      const User = mongoose.model("User");
+      const user = await User.findById(this.updatedBy);
+      if (!user) {
+        return next(new Error(`User avec l'ID ${this.updatedBy} n'existe pas`));
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 // Création du modèle
 export const VacationRequestModel: Model<VacationRequestDocument> =
   mongoose.model<VacationRequestDocument>(

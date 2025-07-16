@@ -50,6 +50,24 @@ const taskSchema = new Schema<TaskDocument>(
 // Index pour faciliter la recherche des tâches par employé
 taskSchema.index({ employeeId: 1 });
 
+// Middleware de validation des références avant sauvegarde
+taskSchema.pre<TaskDocument>("save", async function (next) {
+  try {
+    // Vérifier que l'employé existe
+    if (this.employeeId) {
+      const Employee = mongoose.model("Employee");
+      const employee = await Employee.findById(this.employeeId);
+      if (!employee) {
+        return next(new Error(`Employee avec l'ID ${this.employeeId} n'existe pas`));
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 // Création du modèle
 export const TaskModel: Model<TaskDocument> = mongoose.model<TaskDocument>(
   "Task",

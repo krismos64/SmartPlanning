@@ -137,6 +137,33 @@ weeklyScheduleSchema.index(
   { unique: true }
 );
 
+// Middleware de validation des références avant sauvegarde
+weeklyScheduleSchema.pre<IWeeklySchedule>("save", async function (next) {
+  try {
+    // Vérifier que l'employé existe
+    if (this.employeeId) {
+      const Employee = mongoose.model("Employee");
+      const employee = await Employee.findById(this.employeeId);
+      if (!employee) {
+        return next(new Error(`Employee avec l'ID ${this.employeeId} n'existe pas`));
+      }
+    }
+
+    // Vérifier que l'utilisateur updatedBy existe
+    if (this.updatedBy) {
+      const User = mongoose.model("User");
+      const user = await User.findById(this.updatedBy);
+      if (!user) {
+        return next(new Error(`User avec l'ID ${this.updatedBy} n'existe pas`));
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 // Création du modèle
 const WeeklyScheduleModel = mongoose.model<IWeeklySchedule>(
   "WeeklySchedule",
