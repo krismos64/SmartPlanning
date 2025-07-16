@@ -544,10 +544,8 @@ const RegisterPage: React.FC = () => {
       // Envoyer les données au backend
       const response = await api.post("/auth/register", userData);
 
-      // Sauvegarder le token dans le localStorage
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-      }
+      // Avec les cookies httpOnly, le token est automatiquement géré côté serveur
+      // Plus besoin de stocker manuellement le token
 
       console.log("Inscription réussie:", response.data);
 

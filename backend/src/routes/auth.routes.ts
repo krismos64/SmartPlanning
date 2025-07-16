@@ -227,8 +227,7 @@ router.post("/login", async (req: Request, res: Response) => {
         .json({ success: false, message: "Identifiants incorrects" });
     }
 
-    console.log("✅ Utilisateur trouvé:", user._id.toString());
-    console.log("✅ Password hash récupéré :", user.password);
+    console.log("✅ Utilisateur trouvé pour connexion");
 
     if (!user.password) {
       // Vérifier si c'est un employé qui n'a pas encore créé son mot de passe
@@ -265,10 +264,18 @@ router.post("/login", async (req: Request, res: Response) => {
     const token = generateToken((user as UserDocument).toObject());
     console.log("✅ Token JWT généré avec succès");
 
-    // Répondre avec les informations de l'utilisateur
+    // Définir le cookie httpOnly sécurisé
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24 heures
+      path: '/'
+    });
+
+    // Répondre avec les informations de l'utilisateur (sans le token)
     res.status(200).json({
       success: true,
-      token,
       user: {
         _id: user._id,
         firstName: user.firstName,
@@ -322,19 +329,28 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
 
 /**
  * @route POST /api/auth/logout
- * @desc Déconnecte l'utilisateur (côté serveur, le token reste valide)
+ * @desc Déconnecte l'utilisateur en supprimant le cookie httpOnly
  */
 router.post("/logout", (req: Request, res: Response) => {
-  // Note: Comme nous utilisons des JWT, il n'y a pas vraiment de session à invalider
-  // côté serveur. Le client doit simplement supprimer le token.
-  // Mais cette route peut être utilisée pour des logs ou des statistiques.
+  try {
+    // Supprimer le cookie httpOnly
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/'
+    });
 
-  console.log("Déconnexion utilisateur");
+    console.log("✅ Déconnexion utilisateur réussie");
 
-  res.status(200).json({
-    success: true,
-    message: "Déconnexion réussie",
-  });
+    res.status(200).json({
+      success: true,
+      message: "Déconnexion réussie",
+    });
+  } catch (error) {
+    console.error("❌ Erreur logout:", error);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
 });
 
 /**

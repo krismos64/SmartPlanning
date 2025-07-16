@@ -754,7 +754,7 @@ const WeeklySchedulePage: React.FC = () => {
       // Définir les en-têtes manuellement pour s'assurer que tout est correct
       const headers = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        // Les cookies httpOnly sont automatiquement envoyés
       };
 
       console.log("En-têtes utilisés:", headers);
@@ -1202,19 +1202,10 @@ const WeeklySchedulePage: React.FC = () => {
    */
   const confirmDeleteSchedule = async (scheduleId: string) => {
     try {
-      // Vérifier que le token est présent dans localStorage
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Votre session a expiré. Veuillez vous reconnecter.");
-        setShowErrorToast(true);
-        return;
-      }
+      // Avec les cookies httpOnly, pas besoin de vérifier manuellement le token
+      // L'API renverra 401 automatiquement si la session a expiré
 
-      await api.delete(`/weekly-schedules/${scheduleId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await api.delete(`/weekly-schedules/${scheduleId}`);
 
       setSuccess("Planning supprimé avec succès");
       setShowSuccessToast(true);

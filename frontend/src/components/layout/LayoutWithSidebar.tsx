@@ -44,13 +44,7 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
       if (!user?.companyId) return;
 
       try {
-        const token = localStorage.getItem("token");
-        if (token) {
-          axiosInstance.defaults.headers.common[
-            "Authorization"
-          ] = `Bearer ${token}`;
-        }
-
+        // Les cookies httpOnly sont automatiquement envoyés
         const response = await axiosInstance.get("/companies/me");
 
         // Vérifier la structure de la réponse et extraire les données correctement

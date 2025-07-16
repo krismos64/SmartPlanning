@@ -1,4 +1,5 @@
 import cors from "cors";
+const cookieParser = require("cookie-parser");
 import dotenv from "dotenv";
 import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
@@ -9,6 +10,9 @@ import adminTeamRoutes from "./routes/admin/adminTeam.routes";
 import { adminCompaniesRouter } from "./routes/admin/companies.route";
 import adminEmployeesRoutes from "./routes/admin/employees";
 import adminUsersRoutes from "./routes/admin/users.route";
+// Import des middlewares de sécurité
+import { authenticateToken } from "./middlewares/auth.middleware";
+import checkRole from "./middlewares/checkRole.middleware";
 import aiRoutes from "./routes/ai.routes";
 import authRoutes from "./routes/auth.routes";
 import companiesRoutes from "./routes/companies.route";
@@ -112,6 +116,7 @@ const corsConfig = {
 
 app.use(cors(corsConfig));
 app.use(helmet());
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -120,29 +125,36 @@ app.use("/api", publicRoutes);
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/ai", aiRoutes);
+
+// Protection globale pour toutes les routes admin
+app.use("/api/admin/*", authenticateToken, checkRole(["admin"]));
+
+// Routes protégées par authentification (toutes sauf auth et contact)
+app.use("/api/ai", authenticateToken, aiRoutes);
 app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);
 app.use("/api/admin/employees", adminEmployeesRoutes);
-app.use("/api/companies", companiesRoutes);
-app.use("/api/employees/accessible", accessibleEmployeesRoutes);
-app.use("/api/employees", employeeRoutes);
-app.use("/api/employees", employeesByCompanyRoutes);
-app.use("/api/generated-schedules", generatedSchedulesRoutes);
-app.use("/api/incidents", incidentsRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/profile", passwordRoutes);
-app.use("/api/teams", teamRoutes);
-app.use("/api/users", usersRoutes);
-app.use("/api/vacations", vacationRoutes);
-app.use("/api/weekly-schedules", weeklySchedulesRouter);
-app.use("/api/tasks", tasksRoutes);
-app.use("/api/stats", statsRoutes);
+app.use("/api/companies", authenticateToken, companiesRoutes);
+app.use("/api/employees/accessible", authenticateToken, accessibleEmployeesRoutes);
+app.use("/api/employees", authenticateToken, employeeRoutes);
+app.use("/api/employees", authenticateToken, employeesByCompanyRoutes);
+app.use("/api/generated-schedules", authenticateToken, generatedSchedulesRoutes);
+app.use("/api/incidents", authenticateToken, incidentsRoutes);
+app.use("/api/profile", authenticateToken, profileRoutes);
+app.use("/api/profile", authenticateToken, passwordRoutes);
+app.use("/api/teams", authenticateToken, teamRoutes);
+app.use("/api/users", authenticateToken, usersRoutes);
+app.use("/api/vacations", authenticateToken, vacationRoutes);
+app.use("/api/weekly-schedules", authenticateToken, weeklySchedulesRouter);
+app.use("/api/tasks", authenticateToken, tasksRoutes);
+app.use("/api/stats", authenticateToken, statsRoutes);
+
+// Routes publiques
 app.use("/api/contact", contactRoutes);
 
-// Routes d'upload d'images utilisateur
-app.use("/api/upload", uploadRoutes);
+// Routes d'upload d'images utilisateur (protégées)
+app.use("/api/upload", authenticateToken, uploadRoutes);
 
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {

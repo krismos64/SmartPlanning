@@ -31,7 +31,7 @@ const hasAccessToVacationRequest = async (
   vacationRequest: any
 ): Promise<boolean> => {
   console.log("Vérification des droits d'accès");
-  console.log("- Utilisateur:", { id: user._id, role: user.role });
+  console.log("- Vérification des droits utilisateur");
   console.log("- Demande:", {
     id: vacationRequest._id,
     employeeId: vacationRequest.employeeId,

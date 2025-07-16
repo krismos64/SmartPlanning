@@ -127,17 +127,9 @@ const StatsPage: React.FC = () => {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        // Récupérer le token d'authentification depuis le localStorage
-        const token = localStorage.getItem("token");
-
-        // Création des en-têtes avec le token
-        const headers = {
-          Authorization: token ? `Bearer ${token}` : "",
-        };
-
+        // Les cookies httpOnly sont automatiquement envoyés avec axiosInstance
         const response = await axiosInstance.get(
-          `/stats/overview?period=${periodFilter}`,
-          { headers }
+          `/stats/overview?period=${periodFilter}`
         );
         if (response.data.success) {
           setStats(response.data.data);

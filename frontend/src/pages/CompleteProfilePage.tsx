@@ -44,10 +44,8 @@ const CompleteProfilePage: React.FC = () => {
 
   // Vérifier l'authentification au chargement du composant
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    // Si pas de token ou utilisateur déjà complètement configuré, rediriger
-    if (!token) {
+    // Avec les cookies httpOnly, on vérifie l'état d'authentification via le contexte
+    if (!isAuthenticated) {
       navigate("/connexion", { replace: true });
       return;
     }

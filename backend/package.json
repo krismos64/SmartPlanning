@@ -14,13 +14,17 @@
     "create-admin": "ts-node src/scripts/create-admin-user.ts",
     "migrate:employees": "ts-node scripts/migrate-add-email.ts",
     "assign-teams-to-manager": "ts-node scripts/assignTeamsToManager.ts",
-    "reset-chris": "ts-node src/scripts/reset-password-chris.ts"
+    "reset-chris": "ts-node src/scripts/reset-password-chris.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:security": "jest --testPathPattern=security"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.3",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "@types/jsonwebtoken": "^9.0.5",
@@ -35,6 +39,7 @@
     "bcrypt": "^5.1.1",
     "chalk": "^4.1.2",
     "cloudinary": "^1.41.0",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "date-fns": "^4.1.0",
@@ -53,6 +58,12 @@
     "typescript": "^5.8.3"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.1.4",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0"
   },

@@ -25,15 +25,9 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-// Configuration axios avec token
-const setAuthToken = (token: string | null) => {
-  if (token) {
-    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    localStorage.setItem("token", token);
-  } else {
-    delete axiosInstance.defaults.headers.common["Authorization"];
-    localStorage.removeItem("token");
-  }
+// Configuration axios pour les cookies (plus besoin de gérer les tokens manuellement)
+const clearAuthHeaders = () => {
+  delete axiosInstance.defaults.headers.common["Authorization"];
 };
 
 // Création du contexte avec une valeur par défaut undefined
@@ -56,13 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [shouldCompleteProfile, setShouldCompleteProfile] =
     useState<boolean>(false);
 
-  // Charger le token au démarrage
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      setAuthToken(token);
-    }
-  }, []);
+  // Plus besoin de charger le token manuellement - les cookies sont automatiques
 
   // Vérifier l'authentification au chargement du composant
   useEffect(() => {
@@ -70,19 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuth = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          setUser(null);
-          setIsAuthenticated(false);
-          setLoading(false);
-          return;
-        }
-
-        // Configuration du token pour la requête
-        setAuthToken(token);
-
-        // Appel à l'API pour vérifier le token
+        // Appel direct à l'API - le cookie sera automatiquement envoyé
         const response = await axiosInstance.get("/auth/me");
 
         if (response.data.success) {
@@ -91,20 +67,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Ajouter userId qui est attendu par le middleware d'authentification
           setUser({
             ...userData,
-            token,
             userId: userData._id, // Assurer la cohérence avec le format attendu par le backend
             companyId: userData.companyId, // ✅ nécessaire pour filtrage multi-tenant (ex: collaborateurs, plannings)
           });
           setIsAuthenticated(true);
         } else {
           // Token invalide
-          setAuthToken(null);
           setUser(null);
           setIsAuthenticated(false);
         }
       } catch (error) {
         console.error("Erreur de vérification d'authentification:", error);
-        setAuthToken(null);
+        clearAuthHeaders();
         setUser(null);
         setIsAuthenticated(false);
         setError("Session expirée, veuillez vous reconnecter");
@@ -129,14 +103,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Si la connexion est réussie
       if (response.data.success) {
-        // Stocker le token JWT
-        const { token, user } = response.data;
-        setAuthToken(token);
+        // Le token est maintenant automatiquement stocké dans un cookie httpOnly
+        const { user } = response.data;
 
         // Mettre à jour l'état en ajoutant userId pour la cohérence avec le backend
         setUser({
           ...user,
-          token,
           userId: user._id || user.id, // Assurer la cohérence avec le format attendu par le backend
           photoUrl: user.photoUrl, // S'assurer que photoUrl est bien préservé
           companyId: user.companyId, // ✅ nécessaire pour filtrage multi-tenant (ex: collaborateurs, plannings)
@@ -161,11 +133,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     setLoading(true);
     try {
-      // Appel à l'API de déconnexion
+      // Appel à l'API de déconnexion pour supprimer le cookie httpOnly
       await axiosInstance.post("/auth/logout");
 
-      // Supprimer le token
-      setAuthToken(null);
+      // Nettoyer les headers (bien que le cookie soit supprimé côté serveur)
+      clearAuthHeaders();
 
       // Mettre à jour l'état
       setUser(null);
@@ -173,7 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
       // Même si l'API échoue, on déconnecte l'utilisateur localement
-      setAuthToken(null);
+      clearAuthHeaders();
       setUser(null);
       setIsAuthenticated(false);
       setError("Erreur lors de la déconnexion");
@@ -199,15 +171,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Fonction pour rafraîchir les données de l'utilisateur depuis le serveur
   const refreshUser = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
       setLoading(true);
 
-      // Configuration du token pour la requête
-      setAuthToken(token);
-
-      // Appel à l'API pour obtenir les données utilisateur à jour
+      // Appel direct à l'API - les cookies sont automatiquement envoyés
       const response = await axiosInstance.get("/auth/me");
 
       if (response.data.success) {

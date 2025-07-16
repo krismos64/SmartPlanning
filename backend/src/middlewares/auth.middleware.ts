@@ -31,8 +31,12 @@ export function authenticateToken(
   res: Response,
   next: NextFunction
 ) {
+  // Chercher le token dans les cookies d'abord, puis dans les headers (pour compatibilité)
+  const cookieToken = req.cookies?.token;
   const authHeader = req.headers["authorization"];
-  const token = authHeader?.split(" ")[1];
+  const headerToken = authHeader?.split(" ")[1];
+  
+  const token = cookieToken || headerToken;
 
   if (!token) {
     return res.status(401).json({ success: false, message: "Token manquant" });
@@ -49,9 +53,6 @@ export function authenticateToken(
     }
 
     req.user = user;
-
-    // Log pour debug rapide
-    console.log("User authentifié:", req.user);
 
     next();
   } catch (error) {

@@ -18,19 +18,7 @@ const axiosInstance = axios.create({
   },
 });
 
-// Ajouter un intercepteur pour inclure automatiquement le token d'authentification
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token =
-      localStorage.getItem("token") || localStorage.getItem("accessToken");
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Les cookies httpOnly sont automatiquement envoyés grâce à withCredentials: true
+// Plus besoin d'intercepteur pour ajouter manuellement le token
 
 export default axiosInstance;

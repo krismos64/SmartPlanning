@@ -43,8 +43,8 @@ const OAuthCallback: React.FC = () => {
           return;
         }
 
-        // Enregistrer le token dans le localStorage
-        localStorage.setItem("token", token);
+        // TODO: Avec les cookies httpOnly, le token sera automatiquement géré côté serveur
+        // Plus besoin de stocker manuellement le token
 
         // Rafraîchir les données utilisateur
         await refreshUser();

@@ -13,14 +13,8 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Intercepteur pour ajouter le token JWT aux requêtes
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Les cookies httpOnly sont automatiquement envoyés grâce à withCredentials: true
+// Plus besoin d'intercepteur pour ajouter manuellement le token
 
 /**
  * Service d'upload d'images vers Cloudinary via notre backend
