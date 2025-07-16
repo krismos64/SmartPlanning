@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect, lazy } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -8,43 +8,53 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
-import IndexPage from "./pages/LandingPage";
+import LoadingSpinner from "./components/ui/LoadingSpinner";
 
 // Import des composants de gestion des cookies RGPD
 import { CookieConsentBanner } from "./components/cookies/CookieConsentBanner";
 import { CookieManager } from "./components/cookies/CookieManager";
 
-// Import des composants de pages
-import CollaboratorManagementPage from "./pages/CollaboratorManagementPage";
-import CompanyManagementPage from "./pages/CompanyManagementPage";
-import CompleteProfilePage from "./pages/CompleteProfilePage";
-import ContactPage from "./pages/ContactPage";
-import CreatePasswordPage from "./pages/CreatePasswordPage";
-import DashboardPage from "./pages/DashboardPage";
-import DatePickerDemoPage from "./pages/DatePickerDemoPage";
-import DirectorUserManagementPage from "./pages/DirectorUserManagementPage";
-import EmployeeSchedulePage from "./pages/EmployeeSchedulePage";
-import EmployeeTasksPage from "./pages/EmployeeTasksPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import IncidentTrackingPage from "./pages/IncidentTrackingPage";
-import LoginPage from "./pages/LoginPage";
-import ManagerPlanningValidationPage from "./pages/ManagerPlanningValidationPage";
-import OAuthCallback from "./pages/OAuthCallback";
-import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
-import RegisterPage from "./pages/RegisterPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import StatsPage from "./pages/StatsPage";
-import TermsOfUsePage from "./pages/TermsOfUsePage";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
-import UserManagementPage from "./pages/UserManagementPage";
-import UserProfilePage from "./pages/UserProfilePage";
-import VacationsPage from "./pages/VacationsPage";
-import WeeklySchedulePage from "./pages/WeeklySchedulePage";
-// Import des composants d'administration
-import AdminPlanningPage from "./pages/admin/AdminPlanningPage";
-import AdminTeamViewer from "./pages/admin/AdminTeamViewer";
-// Import du layout avec sidebar
+// Import du layout avec sidebar (garde en import direct car critique)
 import LayoutWithSidebar from "./components/layout/LayoutWithSidebar";
+
+// Lazy loading des pages pour code-splitting automatique
+const IndexPage = lazy(() => import("./pages/LandingPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const CreatePasswordPage = lazy(() => import("./pages/CreatePasswordPage"));
+const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
+const CompleteProfilePage = lazy(() => import("./pages/CompleteProfilePage"));
+const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
+
+// Pages principales (chargées à la demande)
+const UserProfilePage = lazy(() => import("./pages/UserProfilePage"));
+const WeeklySchedulePage = lazy(() => import("./pages/WeeklySchedulePage"));
+const VacationsPage = lazy(() => import("./pages/VacationsPage"));
+const EmployeeTasksPage = lazy(() => import("./pages/EmployeeTasksPage"));
+const IncidentTrackingPage = lazy(() => import("./pages/IncidentTrackingPage"));
+const StatsPage = lazy(() => import("./pages/StatsPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+
+// Pages de gestion (management)
+const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
+const DirectorUserManagementPage = lazy(() => import("./pages/DirectorUserManagementPage"));
+const CompanyManagementPage = lazy(() => import("./pages/CompanyManagementPage"));
+const CollaboratorManagementPage = lazy(() => import("./pages/CollaboratorManagementPage"));
+const ManagerPlanningValidationPage = lazy(() => import("./pages/ManagerPlanningValidationPage"));
+const EmployeeSchedulePage = lazy(() => import("./pages/EmployeeSchedulePage"));
+
+// Pages d'administration (lazy car moins utilisées)
+const AdminPlanningPage = lazy(() => import("./pages/admin/AdminPlanningPage"));
+const AdminTeamViewer = lazy(() => import("./pages/admin/AdminTeamViewer"));
+
+// Pages légales et utilitaires
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsOfUsePage = lazy(() => import("./pages/TermsOfUsePage"));
+const DatePickerDemoPage = lazy(() => import("./pages/DatePickerDemoPage"));
+
 
 /**
  * Composant de vérification du profil pour la redirection conditionnelle
@@ -175,7 +185,12 @@ const AppRouter: React.FC = () => {
       <DirectorRedirect />
       <CookieManager />
       <CookieConsentBanner />
-      <Routes>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      }>
+        <Routes>
         {/* Route par défaut - Page d'accueil */}
         <Route path="/" element={<IndexPage />} />
 
@@ -336,7 +351,8 @@ const AppRouter: React.FC = () => {
 
         {/* Route 404 pour toutes les autres URL */}
         <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };

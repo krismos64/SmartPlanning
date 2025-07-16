@@ -1,3 +1,4 @@
+import compression from "compression";
 import cors from "cors";
 const cookieParser = require("cookie-parser");
 import dotenv from "dotenv";
@@ -53,6 +54,23 @@ if (process.env.NODE_ENV !== 'test') {
 // Middlewares
 app.use(morgan("dev"));
 
+// 🗜️ Compression pour améliorer les performances
+app.use(compression({
+  // Compresser seulement les réponses > 1KB
+  threshold: 1024,
+  // Niveau de compression (1-9, 6 par défaut)
+  level: 6,
+  // Types MIME à compresser
+  filter: (req, res) => {
+    // Ne pas compresser les réponses avec un en-tête 'no-transform'
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Compresser par défaut selon les types MIME
+    return compression.filter(req, res);
+  }
+}));
+
 // 🔒 Rate limiting pour prévenir les attaques par déni de service
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -73,6 +91,31 @@ const limiter = rateLimit({
 
 // Appliquer le rate limiting à toutes les routes API
 app.use('/api/', limiter);
+
+// 📦 Cache Control pour optimiser les performances
+app.use((req, res, next) => {
+  // Cache statique pour les assets
+  if (req.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 an
+    res.setHeader('Expires', new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString());
+  } 
+  // Cache court pour les API publiques (sitemap, health check)
+  else if (req.url.match(/\/(sitemap|health|public)/)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 heure
+  }
+  // Pas de cache pour les API privées
+  else if (req.url.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  // Cache par défaut pour les autres ressources
+  else {
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 heure
+  }
+  
+  next();
+});
 
 // 🔒 Configuration CORS sécurisée selon l'environnement
 const corsConfig = {
