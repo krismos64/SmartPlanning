@@ -1,7 +1,5 @@
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
-import auth from "../../middlewares/auth.middleware";
-import checkRole from "../../middlewares/checkRole.middleware";
 import EmployeeModel from "../../models/Employee.model";
 import User from "../../models/User.model";
 import { generateTemporaryPassword } from "../../utils/password";
@@ -75,8 +73,6 @@ const syncUserToEmployee = async (
  */
 router.post(
   "/",
-  auth,
-  checkRole("admin"),
   async (req: Request, res: Response) => {
     try {
       const {
@@ -191,8 +187,6 @@ router.post(
  */
 router.put(
   "/:id",
-  auth,
-  checkRole("admin"),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -255,8 +249,6 @@ router.put(
  */
 router.get(
   "/",
-  auth,
-  checkRole("admin"),
   async (req: Request, res: Response, next: express.NextFunction) => {
     const { role, companyId } = req.query;
 
@@ -294,8 +286,6 @@ router.get(
  */
 router.get(
   "/",
-  auth,
-  checkRole("admin"),
   async (req: Request, res: Response) => {
     try {
       const users = await User.find().sort({ createdAt: -1 });
@@ -319,8 +309,6 @@ router.get(
  */
 router.delete(
   "/:id",
-  auth,
-  checkRole("admin"),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

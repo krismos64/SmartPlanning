@@ -1,6 +1,4 @@
 import express, { Request, Response } from "express";
-import { authenticateToken } from "../../middlewares/auth.middleware";
-import checkRole from "../../middlewares/checkRole.middleware";
 import { Company } from "../../models/Company.model";
 
 const router = express.Router();
@@ -12,8 +10,6 @@ const router = express.Router();
  */
 router.get(
   "/",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const companies = await Company.find();
@@ -38,8 +34,6 @@ router.get(
  */
 router.post(
   "/",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { name, logoUrl } = req.body;
@@ -70,8 +64,6 @@ router.post(
  */
 router.put(
   "/:id",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -111,8 +103,6 @@ router.put(
  */
 router.delete(
   "/:id",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -147,8 +137,6 @@ router.delete(
  */
 router.get(
   "/:id",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

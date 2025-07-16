@@ -3,48 +3,8 @@ import mongoose from "mongoose";
 
 // Import du modèle Employee
 import EmployeeModel from "../../models/Employee.model";
-
-// Interface pour la requête d'admin authentifiée
-interface AdminAuthRequest extends Request {
-  user: {
-    _id: string;
-    email: string;
-    role: string;
-    companyId: mongoose.Types.ObjectId;
-  };
-}
-
-// Middleware d'authentification pour transformer Request en AdminAuthRequest
-const authenticateToken = (
-  req: Request,
-  res: Response,
-  next: express.NextFunction
-) => {
-  // Dans une implémentation réelle, vérifier le token JWT
-  // Pour cet exemple, on simule simplement un utilisateur admin
-  (req as any).user = {
-    _id: "admin123",
-    email: "admin@example.com",
-    role: "admin",
-    companyId: new mongoose.Types.ObjectId(),
-  };
-  next();
-};
-
-// Middleware de vérification de rôle
-const requireRole = (roles: string[]) => {
-  return (req: Request, res: Response, next: express.NextFunction) => {
-    const user = (req as any).user;
-    if (user && roles.includes(user.role)) {
-      next();
-    } else {
-      res.status(403).json({
-        success: false,
-        message: "Accès refusé - Rôle insuffisant",
-      });
-    }
-  };
-};
+// Import du type AuthRequest
+import { AuthRequest } from "../../middlewares/auth.middleware";
 
 const router = express.Router();
 
@@ -55,9 +15,7 @@ const router = express.Router();
  */
 router.get(
   "/",
-  authenticateToken,
-  requireRole(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { companyId } = req.query;
 
@@ -110,9 +68,7 @@ router.get(
  */
 router.get(
   "/withteams",
-  authenticateToken,
-  requireRole(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { companyId } = req.query;
 
@@ -208,9 +164,7 @@ router.get(
  */
 router.get(
   "/team/:teamId",
-  authenticateToken,
-  requireRole(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { teamId } = req.params;
 
@@ -270,9 +224,7 @@ router.get(
  */
 router.patch(
   "/:id",
-  authenticateToken,
-  requireRole(["admin"]),
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
       const { teamId, status } = req.body;

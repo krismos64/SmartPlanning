@@ -1,7 +1,5 @@
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
-import { authenticateToken } from "../../middlewares/auth.middleware";
-import checkRole from "../../middlewares/checkRole.middleware";
 import Team from "../../models/Team.model";
 
 // Import des modèles depuis les fichiers du dossier models/
@@ -32,8 +30,6 @@ const router = express.Router();
  */
 router.get(
   "/",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.query;
@@ -76,8 +72,6 @@ router.get(
  */
 router.get(
   "/company/:companyId",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.params;
@@ -116,8 +110,6 @@ router.get(
  */
 router.post(
   "/",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { name, companyId } = req.body;
@@ -164,8 +156,6 @@ router.post(
  */
 router.patch(
   "/:id",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -311,8 +301,6 @@ router.patch(
  */
 router.delete(
   "/:id",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -370,8 +358,6 @@ router.delete(
  */
 router.patch(
   "/:id/employees",
-  authenticateToken,
-  checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
