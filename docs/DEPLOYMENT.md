@@ -94,13 +94,24 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client_google
 3. **Variables d'environnement**
    - Configurer toutes les variables listées ci-dessus
 
+4. **Optimisations performance intégrées**
+   - **Compression gzip/brotli** : Niveau 6, seuil 1KB, -70% données transférées
+   - **Cache HTTP intelligent** :
+     - Assets statiques : 1 an (immutable)
+     - API publiques (health, sitemap) : 1 heure
+     - API privées : no-cache (sécurité)
+   - **Rate limiting** : 100 requêtes/15min par IP avec exemptions tests/health
+   - **Headers de sécurité** : Helmet avec CORS strict pour smartplanning.fr
+
 ### Frontend sur Hostinger
 
-1. **Build de production**
+1. **Build de production optimisé**
 
    ```bash
    cd frontend
    npm run build
+   # Build avec code-splitting : 1.9MB → 389KB (-80%)
+   # 70+ chunks avec lazy loading automatique
    ```
 
 2. **Upload des fichiers**

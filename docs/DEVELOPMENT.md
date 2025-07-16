@@ -117,7 +117,7 @@ npm run test:watch          # Tests en mode watch
 # Développement
 npm run dev
 
-# Build de production
+# Build de production (optimisé avec code-splitting)
 npm run build
 
 # Aperçu du build
@@ -125,6 +125,48 @@ npm run preview
 
 # Tests
 npm test
+```
+
+## 🚀 Optimisations Performance
+
+### Bundle Splitting et Code-Splitting
+
+Le projet utilise des optimisations avancées pour les performances :
+
+#### Configuration Vite optimisée
+
+- **Code-splitting automatique** : Chaque page est chargée à la demande (lazy loading)
+- **Chunks manuels** : Bibliothèques séparées par fonction (react-vendor, ui-motion, pdf, lottie)
+- **Suspense** : Loading spinner pendant les chargements
+- **Organisation des assets** : JS, CSS, images dans des dossiers séparés
+
+#### Résultats des optimisations
+
+- **Bundle principal** : Réduit de 1.9MB → 389KB (**-80%**)
+- **70+ chunks** : Pages individuelles de 1-86KB
+- **Chargement initial** : Considérablement plus rapide
+- **Navigation** : Pages secondaires non bloquantes
+
+### Compression et Cache
+
+#### Backend
+- **Compression gzip/brotli** : Niveau 6 pour équilibrer performance/CPU
+- **Rate limiting** : 100 requêtes/15min par IP
+- **Cache HTTP intelligent** :
+  - Assets statiques : 1 an (immutable)
+  - API publiques : 1 heure
+  - API privées : Pas de cache (sécurité)
+
+#### Commandes de build optimisé
+
+```bash
+# Frontend - Build avec métriques détaillées
+cd frontend && npm run build
+# Affiche la taille de chaque chunk et compression gzip
+
+# Backend - Build avec compression
+cd backend && npm run build
+# Inclut middleware de compression et cache
 ```
 
 ## Conventions de code
