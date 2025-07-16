@@ -47,4 +47,30 @@ Thumbs.db
 
 # Fichiers spécifiques au projet
 backend/uploads/*
-!backend/uploads/.gitkeep 
+!backend/uploads/.gitkeep
+
+# Fichiers temporaires et de documentation obsolètes
+*.tmp
+*.temp
+teams-data.json
+server.log
+*.zip
+
+# Documentation temporaire (pattern pour éviter la réapparition)
+*-FINAL.md
+*-URGENT.md
+*-QUICK.md
+*-STATUS.md
+*-FIX*.md
+*-SOLUTION*.md
+URGENT-*.md
+READY-TO-*.md
+
+# Scripts de déploiement temporaires (pattern)
+*-deployment-*.sh
+*-oauth-*.sh
+*-render-*.sh
+fix-*.sh
+verifier-*.sh
+test-*.sh
+monitor-*.sh 
