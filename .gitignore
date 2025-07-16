@@ -79,3 +79,28 @@ monitor-*.sh
 
 # Scripts de déploiement spécifiques
 scripts/deploy/check-deployment.sh 
+
+# IDE et outils de développement supplémentaires
+.vscode/settings.json
+*.sublime-*
+
+# Fichiers de développement/debug
+*.debug.js
+*.test.js.map
+*.spec.js.map
+
+# Fichiers de monitoring/logs de production
+*.access.log
+*.error.log
+pm2.json
+
+# Fichiers de configuration locale
+.env.backup
+config.local.js
+
+# Fichiers générés par les scripts
+backend/src/scripts/output/
+backend/src/scripts/logs/
+
+# Scripts de maintenance (non nécessaires en production)
+backend/src/scripts/

@@ -17,6 +17,10 @@
     "reset-chris": "ts-node src/scripts/reset-password-chris.ts",
     "reset-database": "ts-node src/scripts/reset-database.ts",
     "cleanup-orphaned": "ts-node src/scripts/cleanup-orphaned-data.ts",
+    "create-retail-data": "ts-node src/scripts/create-retail-company-data.ts",
+    "generate-realistic-schedules": "ts-node src/scripts/generate-realistic-schedules.ts",
+    "check-schedules": "ts-node src/scripts/check-schedules.ts",
+    "debug-schedules": "ts-node src/scripts/debug-schedules.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:security": "jest --testPathPattern=security"

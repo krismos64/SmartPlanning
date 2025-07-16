@@ -540,3 +540,23 @@ Pour des déploiements alternatifs, consultez le [Guide de déploiement](docs/DE
 **Juillet 2025** - Application en production stable avec intégration IA et sécurité renforcée.
 
 ---
+
+🔑 Comptes de test disponibles :
+
+Directeur : marie.dubois@supermarche-plus.fr /
+
+Managers :
+
+- Pierre MARTIN (Rayon Alimentaire) : pierre.martin@supermarche-plus.fr / Manager2025@
+- Sophie BERNARD (Rayon Textile) : sophie.bernard@supermarche-plus.fr / Manager2025@
+- Jean ROUSSEAU (Caisse et Accueil) : jean.rousseau@supermarche-plus.fr / Manager2025@
+- Isabelle MOREAU (Électroménager) : isabelle.moreau@supermarche-plus.fr / Manager2025@
+- Thomas LAURENT (Logistique) : thomas.laurent@supermarche-plus.fr / Manager2025@
+
+Employés de test :
+
+- Antoine GARCIA (Vendeur rayon frais) : antoine.garcia@supermarche-plus.fr / Employee2025@
+- Hugo MOREAU (Vendeur vêtements homme) : hugo.moreau@supermarche-plus.fr / Employee2025@
+- Quentin MARTIN (Caissier) : quentin.martin@supermarche-plus.fr / Employee2025@
+- Adrien FONTAINE (Vendeur électroménager) : adrien.fontaine@supermarche-plus.fr / Employee2025@
+- Guillaume BOYER (Magasinier) : guillaume.boyer@supermarche-plus.fr / Employee2025@
