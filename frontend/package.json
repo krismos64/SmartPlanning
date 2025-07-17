@@ -9,7 +9,8 @@
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
-    "a11y:audit": "eslint src/components src/pages --ext .tsx --max-warnings 0"
+    "a11y:audit": "eslint src/components src/pages --ext .tsx --max-warnings 0 --quiet --rule 'jsx-a11y/*: error'",
+    "a11y:report": "eslint src/components src/pages --ext .tsx --format json --output-file accessibility-report.json"
   },
   "dependencies": {
     "@types/i18next": "^12.1.0",
@@ -48,6 +49,7 @@
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
+    "axe-core": "^4.10.3",
     "ci-info": "^4.2.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "identity-obj-proxy": "^3.0.0",

@@ -98,15 +98,19 @@ const VacationTable: React.FC<VacationTableProps> = ({
     field: SortField;
     children: React.ReactNode;
   }> = ({ field, children }) => (
-    <th
-      className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-left
-                 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700
-                 transition-colors duration-200 select-none"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center justify-between">
+    <th className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-left">
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className="flex items-center justify-between w-full
+                   cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700
+                   transition-colors duration-200 select-none
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                   dark:focus:ring-offset-gray-800 rounded px-2 py-1"
+        aria-label={`Trier par ${children} ${sortField === field ? (sortDirection === 'asc' ? 'ordre décroissant' : 'ordre croissant') : 'ordre croissant'}`}
+      >
         <span>{children}</span>
-        <div className="ml-2 flex flex-col">
+        <div className="ml-2 flex flex-col" aria-hidden="true">
           {sortField === field ? (
             sortDirection === "asc" ? (
               <ChevronUp size={14} className="text-blue-500" />
@@ -120,7 +124,7 @@ const VacationTable: React.FC<VacationTableProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </button>
     </th>
   );
 
@@ -263,10 +267,14 @@ const VacationTable: React.FC<VacationTableProps> = ({
               Trier par:
             </span>
             <button
+              type="button"
               onClick={() =>
                 setSortDirection(sortDirection === "asc" ? "desc" : "asc")
               }
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                         dark:focus:ring-offset-gray-800 rounded px-2 py-1"
+              aria-label={`Changer l'ordre de tri : ${sortDirection === "asc" ? "croissant" : "décroissant"}`}
             >
               {sortDirection === "asc" ? "↑ Croissant" : "↓ Décroissant"}
             </button>
@@ -274,32 +282,41 @@ const VacationTable: React.FC<VacationTableProps> = ({
 
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={() => handleSort("employee")}
-              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+              className={`px-3 py-1 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                 sortField === "employee"
                   ? "bg-blue-600 text-white"
                   : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
+              aria-label={`Trier par employé ${sortField === "employee" ? '(actuellement sélectionné)' : ''}`}
+              aria-pressed={sortField === "employee"}
             >
               Employé
             </button>
             <button
+              type="button"
               onClick={() => handleSort("period")}
-              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+              className={`px-3 py-1 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                 sortField === "period"
                   ? "bg-blue-600 text-white"
                   : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
+              aria-label={`Trier par période ${sortField === "period" ? '(actuellement sélectionné)' : ''}`}
+              aria-pressed={sortField === "period"}
             >
               Période
             </button>
             <button
+              type="button"
               onClick={() => handleSort("status")}
-              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+              className={`px-3 py-1 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                 sortField === "status"
                   ? "bg-blue-600 text-white"
                   : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
               }`}
+              aria-label={`Trier par statut ${sortField === "status" ? '(actuellement sélectionné)' : ''}`}
+              aria-pressed={sortField === "status"}
             >
               Statut
             </button>
@@ -321,17 +338,17 @@ const VacationTable: React.FC<VacationTableProps> = ({
 
       {/* Affichage en tableau pour desktop (md et plus) */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full border-collapse border border-gray-200 dark:border-gray-700">
+        <table className="w-full border-collapse border border-gray-200 dark:border-gray-700" role="table" aria-label="Tableau des demandes de congés">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800">
               {/* Colonne Employé - toujours affichée */}
               <SortableHeader field="employee">Employé</SortableHeader>
               <SortableHeader field="period">Période</SortableHeader>
               <SortableHeader field="status">Statut</SortableHeader>
-              <th className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-left">
+              <th className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-left" scope="col">
                 Motif
               </th>
-              <th className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-left">
+              <th className="border border-gray-200 dark:border-gray-700 px-4 py-2 text-left" scope="col">
                 Actions
               </th>
             </tr>

@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
+import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 
 // Import des composants de gestion des cookies RGPD
 import { CookieConsentBanner } from "./components/cookies/CookieConsentBanner";
@@ -175,6 +176,14 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
 };
 
 /**
+ * Composant pour activer la navigation clavier globale
+ */
+const KeyboardNavigationProvider: React.FC = () => {
+  useKeyboardNavigation();
+  return null;
+};
+
+/**
  * Routeur principal de l'application SmartPlanning
  * Définit toutes les routes accessibles dans l'application avec des URLs en français
  */
@@ -186,6 +195,7 @@ const AppRouter: React.FC = () => {
         v7_relativeSplatPath: true
       }}
     >
+      <KeyboardNavigationProvider />
       <ProfileChecker />
       <DirectorRedirect />
       <CookieManager />

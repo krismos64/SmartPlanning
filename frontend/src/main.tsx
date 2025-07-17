@@ -8,6 +8,8 @@ import { UserSyncProvider } from "./components/providers/UserSyncProvider";
 import { setupAxiosInterceptors } from "./api/axiosInterceptors";
 // Configuration styled-components pour filtrer les props Framer Motion
 import { StyleSheetManager } from "styled-components";
+// Import du hook de navigation clavier pour l'accessibilité
+import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 
 // Import des styles globaux (à créer selon les besoins du projet)
 import "./styles/index.css";

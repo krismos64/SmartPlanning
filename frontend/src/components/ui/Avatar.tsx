@@ -64,6 +64,13 @@ const Avatar: React.FC<AvatarProps> = ({
 
   const initials = getInitials(fallbackName);
   const backgroundColorClass = getBackgroundColor(fallbackName);
+  
+  // Générer un alt text descriptif approprié
+  const generateAltText = (): string => {
+    if (alt) return alt;
+    if (fallbackName) return `Photo de profil de ${fallbackName}`;
+    return "Photo de profil";
+  };
 
   // Si on a une image valide et qu'elle ne pose pas de problème
   if (src && !imageError) {
@@ -73,7 +80,7 @@ const Avatar: React.FC<AvatarProps> = ({
       >
         <img
           src={src}
-          alt={alt || fallbackName || "Avatar"}
+          alt={generateAltText()}
           className="w-full h-full object-cover"
           onError={() => setImageError(true)}
           onLoad={() => setImageError(false)}
@@ -84,14 +91,28 @@ const Avatar: React.FC<AvatarProps> = ({
   }
 
   // Fallback : afficher les initiales ou l'icône
+  const fallbackAltText = fallbackName 
+    ? `Initiales de ${fallbackName} : ${initials}`
+    : "Avatar générique";
+
   return (
     <div
       className={`${sizeClasses[size]} rounded-full flex items-center justify-center ${backgroundColorClass} ${className}`}
+      role="img"
+      aria-label={fallbackAltText}
     >
       {initials ? (
-        <span className="text-white font-medium text-sm">{initials}</span>
+        <span 
+          className="text-white font-medium text-sm"
+          aria-hidden="true"
+        >
+          {initials}
+        </span>
       ) : (
-        <User className={`${iconSizes[size]} text-white`} />
+        <User 
+          className={`${iconSizes[size]} text-white`} 
+          aria-hidden="true"
+        />
       )}
     </div>
   );

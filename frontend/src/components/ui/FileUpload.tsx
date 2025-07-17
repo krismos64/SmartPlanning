@@ -97,41 +97,61 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  // Générer un ID unique pour l'input file
+  const inputId = `file-upload-${Math.random().toString(36).substr(2, 9)}`;
+
   return (
     <div className={`w-full ${className}`}>
       {label && (
-        <label className="block text-sm font-medium mb-2">{label}</label>
+        <label 
+          htmlFor={inputId}
+          className="block text-sm font-medium mb-2"
+        >
+          {label}
+        </label>
       )}
 
       <div className="flex items-center space-x-3">
         <input
           type="file"
+          id={inputId}
           ref={fileInputRef}
-          className="hidden"
+          className="sr-only"
           accept={acceptedTypes}
           onChange={handleFileChange}
+          aria-describedby={`${inputId}-description`}
         />
 
-        {/* Utiliser un bouton direct au lieu d'un label */}
+        {/* Utiliser un bouton avec association claire */}
         <Button
           type="button"
           variant="secondary"
-          icon={<Upload size={16} />}
+          icon={<Upload size={16} aria-hidden="true" />}
           onClick={handleButtonClick}
           className={buttonClassName}
+          aria-describedby={`${inputId}-description`}
+          aria-label={`${buttonText} - ${acceptedTypes}, maximum ${maxSizeMB}MB`}
         >
           {buttonText}
         </Button>
 
         {!hideNoFileText && (
-          <div className="text-sm truncate max-w-xs">
+          <div 
+            id={`${inputId}-description`}
+            className="text-sm truncate max-w-xs"
+            aria-live="polite"
+          >
             {selectedFileName || "Aucun fichier sélectionné"}
           </div>
         )}
       </div>
 
       {(fileError || error) && (
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+        <p 
+          className="mt-1 text-sm text-red-600 dark:text-red-400"
+          role="alert"
+          aria-live="polite"
+        >
           {fileError || error}
         </p>
       )}

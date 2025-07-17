@@ -257,10 +257,11 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         className="mb-2"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        onClick={() => onNavigate(item.route)}
       >
-        <motion.div
+        <motion.button
+          type="button"
           data-menu-item={item.id}
+          onClick={() => onNavigate(item.route)}
           className={`relative flex items-center w-full p-3 rounded-lg text-left transition-all duration-200 ease-in-out ${
             isActive
               ? "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-l-4 border-violet-600 dark:border-violet-400"
@@ -269,6 +270,8 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
           whileHover={{ scale: 1.02, x: 4 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          aria-label={`Naviguer vers ${item.label}`}
+          aria-current={isActive ? "page" : undefined}
         >
           <motion.div
             whileHover={{ rotate: isActive ? 0 : 5 }}
@@ -277,17 +280,18 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
           >
             <item.icon
               size={20}
-              className={`$${
+              className={`${
                 isActive
                   ? "text-violet-600 dark:text-violet-400"
                   : "text-gray-500 dark:text-gray-400"
               }`}
+              aria-hidden="true"
             />
           </motion.div>
           <span className="text-[15px] font-medium tracking-wide">
             {item.label}
           </span>
-        </motion.div>
+        </motion.button>
       </motion.li>
     );
   };
@@ -311,10 +315,12 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
     >
       <div className="p-4 border-b border-violet-200 dark:border-violet-800 bg-gradient-to-r from-violet-100/70 to-violet-50/70 dark:from-violet-900/30 dark:to-violet-950/30">
         <div className="flex items-center space-x-3">
-          <motion.div
+          <motion.button
+            type="button"
             whileHover={{ scale: 1.05, rotate: 5 }}
             className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-violet-500 to-indigo-600 dark:from-violet-400 dark:to-indigo-500 rounded-md flex items-center justify-center cursor-pointer"
             onClick={() => (window.location.href = "/")}
+            aria-label="Retour à la page d'accueil SmartPlanning"
           >
             <Suspense
               fallback={
@@ -327,7 +333,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
                 style={{ width: "100%", height: "100%" }}
               />
             </Suspense>
-          </motion.div>
+          </motion.button>
           <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -345,7 +351,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
       {/* Contenu du menu */}
       <div className="flex-grow overflow-y-auto p-4">
-        <nav>
+        <nav role="navigation" aria-label="Menu principal">
           <ul className="space-y-1">{dynamicMenuItems.map(renderMenuItem)}</ul>
         </nav>
 
@@ -353,20 +359,22 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
         <div className="my-6 border-t border-violet-200 dark:border-violet-800/40"></div>
 
         {/* Menu utilisateur */}
-        <nav>
+        <nav role="navigation" aria-label="Menu utilisateur">
           <ul className="space-y-1">
             {userMenuItems.map(renderMenuItem)}
             <motion.li
               className="mb-2"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              onClick={handleLogout}
             >
-              <motion.div
+              <motion.button
+                type="button"
+                onClick={handleLogout}
                 className="relative flex items-center w-full p-3 rounded-lg text-left transition-all duration-200 ease-in-out text-gray-700 hover:bg-red-50/50 hover:text-red-700 dark:text-gray-300 dark:hover:bg-red-900/20 dark:hover:text-red-300 border-l-4 border-transparent"
                 whileHover={{ scale: 1.02, x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                aria-label="Se déconnecter de l'application"
               >
                 <motion.div
                   whileHover={{ rotate: 5 }}
@@ -376,12 +384,13 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
                   <LogOut
                     size={20}
                     className="text-gray-500 dark:text-gray-400"
+                    aria-hidden="true"
                   />
                 </motion.div>
                 <span className="text-[15px] font-medium tracking-wide">
                   Déconnexion
                 </span>
-              </motion.div>
+              </motion.button>
             </motion.li>
           </ul>
         </nav>

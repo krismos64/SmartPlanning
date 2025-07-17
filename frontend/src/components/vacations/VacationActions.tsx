@@ -89,6 +89,7 @@ const VacationActions: React.FC<VacationActionsProps> = ({
           request.status === "pending" && (
             <>
               <button
+                type="button"
                 onClick={() => setShowApprovalForm(true)}
                 disabled={isLoading}
                 title="Approuver la demande"
@@ -96,10 +97,12 @@ const VacationActions: React.FC<VacationActionsProps> = ({
                           bg-green-600 hover:bg-green-700 focus:ring-2 focus:ring-green-500/40
                           text-white transition-colors duration-200
                           disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Approuver cette demande de congé"
               >
-                <CheckCircle2 size={16} />
+                <CheckCircle2 size={16} aria-hidden="true" />
               </button>
               <button
+                type="button"
                 onClick={() => setShowRejectionForm(true)}
                 disabled={isLoading}
                 title="Refuser la demande"
@@ -107,8 +110,9 @@ const VacationActions: React.FC<VacationActionsProps> = ({
                           bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-500/40
                           text-white transition-colors duration-200
                           disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Refuser cette demande de congé"
               >
-                <XCircle size={16} />
+                <XCircle size={16} aria-hidden="true" />
               </button>
             </>
           )}
@@ -116,6 +120,7 @@ const VacationActions: React.FC<VacationActionsProps> = ({
         {/* Bouton Modifier - pour tous si ils ont la permission */}
         {canEditDelete && (
           <button
+            type="button"
             onClick={() => onEdit(request)}
             title={
               userRole === "employee"
@@ -126,14 +131,16 @@ const VacationActions: React.FC<VacationActionsProps> = ({
                       bg-gray-600 hover:bg-gray-700 focus:ring-2 focus:ring-gray-500/40
                       dark:bg-gray-700 dark:hover:bg-gray-600
                       text-white transition-colors duration-200"
+            aria-label={userRole === "employee" ? "Modifier cette demande de congé" : "Modifier/Gérer cette demande de congé"}
           >
-            <Calendar size={16} />
+            <Calendar size={16} aria-hidden="true" />
           </button>
         )}
 
         {/* Bouton Supprimer - pour tous si ils ont la permission */}
         {canDelete && (
           <button
+            type="button"
             onClick={() => onDelete(request._id)}
             disabled={isLoading}
             title="Supprimer la demande"
@@ -141,8 +148,9 @@ const VacationActions: React.FC<VacationActionsProps> = ({
                       bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-500/40
                       text-white transition-colors duration-200
                       disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Supprimer cette demande de congé"
           >
-            <XCircle size={16} />
+            <XCircle size={16} aria-hidden="true" />
           </button>
         )}
       </div>
@@ -151,10 +159,11 @@ const VacationActions: React.FC<VacationActionsProps> = ({
       {showApprovalForm && (
         <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
           <div className="mb-2">
-            <label className="block text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+            <label htmlFor="approval-comment" className="block text-sm font-medium text-green-800 dark:text-green-200 mb-1">
               Commentaire d'approbation (optionnel)
             </label>
             <textarea
+              id="approval-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Ajouter un commentaire..."
@@ -162,7 +171,11 @@ const VacationActions: React.FC<VacationActionsProps> = ({
                          bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                          focus:outline-none focus:ring-2 focus:ring-green-500"
               rows={2}
+              aria-describedby="approval-comment-help"
             />
+            <span id="approval-comment-help" className="sr-only">
+              Saisissez un commentaire optionnel pour l'approbation de cette demande de congé
+            </span>
           </div>
           <div className="flex justify-end gap-2">
             <Button
@@ -192,10 +205,11 @@ const VacationActions: React.FC<VacationActionsProps> = ({
       {showRejectionForm && (
         <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
           <div className="mb-2">
-            <label className="block text-sm font-medium text-red-800 dark:text-red-200 mb-1">
+            <label htmlFor="rejection-comment" className="block text-sm font-medium text-red-800 dark:text-red-200 mb-1">
               Raison du rejet (optionnel)
             </label>
             <textarea
+              id="rejection-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Expliquer la raison du rejet..."
@@ -203,7 +217,11 @@ const VacationActions: React.FC<VacationActionsProps> = ({
                          bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                          focus:outline-none focus:ring-2 focus:ring-red-500"
               rows={2}
+              aria-describedby="rejection-comment-help"
             />
+            <span id="rejection-comment-help" className="sr-only">
+              Saisissez une raison optionnelle pour le rejet de cette demande de congé
+            </span>
           </div>
           <div className="flex justify-end gap-2">
             <Button
