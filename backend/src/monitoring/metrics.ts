@@ -101,9 +101,15 @@ class MetricsService {
     this.metrics.set('validation_errors_total', totalErrors + 1);
     
     // Stocker les erreurs par route
-    const routeKey = `validation_errors_route_${route.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, '')}`;
+    const cleanRoute = route.replace(/[^a-zA-Z0-9_/]/g, '');
+    const routeKey = `validation_errors_route_${cleanRoute.replace(/\//g, '_')}`;
     const routeCount = this.metrics.get(routeKey) || 0;
     this.metrics.set(routeKey, routeCount + 1);
+    
+    // Stocker les erreurs par route et type
+    const routeTypeKey = `validation_errors_${validationType}_${cleanRoute.replace(/\//g, '_')}`;
+    const routeTypeCount = this.metrics.get(routeTypeKey) || 0;
+    this.metrics.set(routeTypeKey, routeTypeCount + 1);
     
     console.log(`🔍 Validation error: ${validationType} on ${route} - Total: ${totalErrors + 1}`);
   }
@@ -130,6 +136,7 @@ class MetricsService {
         body_errors: this.metrics.get('validation_errors_body') || 0,
         params_errors: this.metrics.get('validation_errors_params') || 0,
         query_errors: this.metrics.get('validation_errors_query') || 0,
+        by_route: this.getValidationErrorsByRoute(),
       },
       system: {
         active_users: this.metrics.get('active_users') || Math.floor(Math.random() * 50) + 10,
@@ -217,13 +224,34 @@ class MetricsService {
 
   // Obtenir les erreurs de validation par route
   getValidationErrorsByRoute() {
-    const routeErrors = new Map<string, number>();
+    const routeErrors = new Map<string, any>();
     
     // Parcourir toutes les métriques pour trouver les erreurs par route
     for (const [key, value] of this.metrics.entries()) {
       if (key.startsWith('validation_errors_route_')) {
         const route = key.replace('validation_errors_route_', '').replace(/_/g, '/');
-        routeErrors.set(route, value as number);
+        
+        // Initialiser la structure si elle n'existe pas
+        if (!routeErrors.has(route)) {
+          routeErrors.set(route, {
+            body: 0,
+            params: 0,
+            query: 0,
+            total: 0
+          });
+        }
+        
+        const routeData = routeErrors.get(route);
+        routeData.total = value as number;
+        
+        // Ajouter les détails par type si disponibles
+        const bodyKey = `validation_errors_body_${route.replace(/\//g, '_')}`;
+        const paramsKey = `validation_errors_params_${route.replace(/\//g, '_')}`;
+        const queryKey = `validation_errors_query_${route.replace(/\//g, '_')}`;
+        
+        routeData.body = this.metrics.get(bodyKey) || 0;
+        routeData.params = this.metrics.get(paramsKey) || 0;
+        routeData.query = this.metrics.get(queryKey) || 0;
       }
     }
     

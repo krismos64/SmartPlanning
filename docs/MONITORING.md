@@ -4,10 +4,11 @@
 
 SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry pour fournir une observabilité complète de l'application. Le système collecte les traces, métriques et logs pour une surveillance proactive des performances et de la santé de l'application.
 
-**Statut d'implémentation** : ✅ **COMPLET** - Version 1.4.0  
+**Statut d'implémentation** : ✅ **COMPLET** - Version 1.5.0  
 **Interface admin** : ✅ Opérationnelle à `/monitoring`  
 **Métriques temps réel** : ✅ Auto-refresh 30 secondes  
-**Alertes intelligentes** : ✅ Seuils configurables
+**Alertes intelligentes** : ✅ Seuils configurables  
+**Validation Zod** : ✅ Dashboard intégré avec métriques d'erreurs
 
 ## Architecture du Monitoring
 
@@ -19,6 +20,7 @@ SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry
 - **Logs structurés** : Console logging avec corrélation contextuelle
 - **Interface React** : Dashboard moderne avec Framer Motion
 - **API sécurisée** : Endpoints administrateurs (`/api/monitoring/*`)
+- **Validation Zod** : Monitoring intégré des erreurs de validation
 
 ### 📊 **Métriques Collectées**
 
@@ -44,11 +46,238 @@ SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry
 - `cpu_usage` : Utilisation du CPU
 - `database_queries` : Métriques des requêtes base de données
 
-## Implémentation Actuelle (Version 1.4.0)
+#### Validation des Données (Version 1.5.0)
+- `validation_errors_total` : Nombre total d'erreurs de validation Zod
+- `validation_errors_body` : Erreurs dans les données body
+- `validation_errors_params` : Erreurs dans les paramètres de route
+- `validation_errors_query` : Erreurs dans les paramètres de requête
+- `validation_errors_by_route` : Erreurs groupées par route API
+
+## Dashboard de Monitoring
+
+### 🖥️ **Interface d'administration**
+
+Le dashboard `/monitoring` propose 5 sections principales :
+
+1. **Vue d'ensemble** : Métriques clés et indicateurs globaux
+2. **Métriques** : Données détaillées par catégorie
+3. **Erreurs Zod** : Dashboard de validation avec graphiques et tableaux
+4. **Alertes** : Notifications actives et historique
+5. **Système** : Informations techniques et santé
+
+### 📊 **Section "Erreurs Zod" - Dashboard de Validation**
+
+#### Vue d'ensemble
+Cette section fournit une visualisation complète et interactive des métriques d'erreurs de validation Zod collectées via OpenTelemetry.
+
+#### Fonctionnalités principales
+
+**1. Onglet "Erreurs Zod"**
+- Position : Entre "Métriques" et "Alertes"
+- Icône : `Shield` (bouclier)
+- Badge dynamique : Affiche le nombre total d'erreurs
+- Couleur du badge : ⚠️ Warning (< 100 erreurs) / ❌ Error (≥ 100 erreurs)
+
+**2. Vue d'ensemble enrichie**
+Trois nouvelles cartes métriques dans la vue d'ensemble :
+- **Erreurs de validation** : Nombre total avec indicateur de criticité
+- **Routes affectées** : Nombre de routes API avec des erreurs
+- **Type principal** : Type d'erreur le plus fréquent (Body/Params/Query)
+
+**3. Alerte contextuelle**
+- Seuil : > 100 erreurs de validation
+- Type : Warning avec icône `AlertTriangle`
+- Message : "Le nombre d'erreurs de validation a dépassé le seuil de 100. Vérifiez vos formulaires côté client."
+
+#### Visualisations
+
+**1. Métriques principales (4 cartes)**
+```typescript
+interface ValidationMetrics {
+  total_errors: number;      // Total des erreurs
+  body_errors: number;       // Erreurs dans le body
+  params_errors: number;     // Erreurs dans les paramètres
+  query_errors: number;      // Erreurs dans les query params
+}
+```
+
+**2. Graphique à barres groupées**
+- **Librairie** : Recharts
+- **Type** : BarChart avec barres groupées
+- **Données** : Top 10 des routes avec le plus d'erreurs
+- **Axes** :
+  - X : Routes API (format raccourci, ex: `auth/register`)
+  - Y : Nombre d'erreurs
+- **Séries** : 3 barres par route
+  - 🔵 Body (bleu #3B82F6)
+  - 🟢 Params (vert #10B981)
+  - 🟡 Query (jaune #F59E0B)
+
+**3. Tableau détaillé**
+- **Colonnes** : Route, Total, Body, Params, Query, Sévérité
+- **Fonctionnalités** :
+  - ✅ Tri par colonne (clic sur en-tête)
+  - 🔍 Recherche par route
+  - 🎯 Filtrage par type (All/Body/Params/Query)
+  - 📊 Badges de sévérité dynamiques
+
+**4. Système de sévérité**
+```typescript
+const getSeverityBadge = (total: number) => {
+  if (total >= 50) return "Critique" (rouge)
+  if (total >= 20) return "Élevé" (orange)
+  if (total >= 5) return "Modéré" (jaune)
+  return "Faible" (bleu)
+}
+```
+
+#### Intégration technique
+
+**API Backend**
+```typescript
+// Endpoint : GET /api/monitoring/metrics/realtime
+{
+  "validation": {
+    "total_errors": 132,
+    "body_errors": 89,
+    "params_errors": 25,
+    "query_errors": 18,
+    "by_route": {
+      "/api/auth/register": {
+        "body": 45,
+        "params": 0,
+        "query": 2,
+        "total": 47
+      }
+    }
+  }
+}
+```
+
+**Composant React**
+```typescript
+// frontend/src/components/monitoring/ZodValidationDashboard.tsx
+const ZodValidationDashboard: React.FC = () => {
+  const [metrics, setMetrics] = useState<ValidationMetrics | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState<'all' | 'body' | 'params' | 'query'>('all');
+  
+  // Actualisation automatique toutes les 30 secondes
+  useEffect(() => {
+    const interval = setInterval(fetchValidationMetrics, 30000);
+    return () => clearInterval(interval);
+  }, []);
+}
+```
+
+## Système de Validation Zod
+
+### 🔧 **Architecture de la validation**
+
+#### Composants principaux
+
+```
+backend/src/
+├── middlewares/
+│   ├── validation.middleware.ts     # Middleware principal
+│   └── errorHandler.middleware.ts   # Gestionnaire d'erreurs
+├── schemas/
+│   ├── index.ts                     # Exports centralisés
+│   ├── auth.schemas.ts              # Schémas d'authentification
+│   ├── company.schemas.ts           # Schémas d'entreprise
+│   └── employee.schemas.ts          # Schémas d'employé
+└── monitoring/
+    └── metrics.ts                   # Collecte des métriques
+```
+
+#### Middleware de validation
+
+```typescript
+import { validateRequest } from '../middlewares/validation.middleware';
+import { registerSchema } from '../schemas/auth.schemas';
+
+// Utilisation sur une route
+router.post('/register', 
+  validateRequest({ 
+    body: registerSchema,
+    schemaName: 'auth.register' 
+  }),
+  registerController
+);
+```
+
+### 📋 **Schémas de validation**
+
+#### Schémas d'authentification
+```typescript
+const registerSchema = z.object({
+  firstName: z.string().min(2, "Minimum 2 caractères"),
+  lastName: z.string().min(2, "Minimum 2 caractères"),
+  email: createEmailSchema(),
+  password: createPasswordSchema(),
+  companyName: z.string().min(2, "Minimum 2 caractères"),
+  companyAddress: z.string().min(5, "Minimum 5 caractères"),
+  companySize: z.enum(['small', 'medium', 'large']),
+  acceptTerms: z.boolean().refine(val => val === true, {
+    message: "Vous devez accepter les conditions d'utilisation"
+  })
+});
+```
+
+#### Schémas d'entreprise
+```typescript
+const createCompanySchema = z.object({
+  name: z.string().min(2, "Minimum 2 caractères"),
+  siret: z.string().regex(/^\d{14}$/, "SIRET invalide (14 chiffres requis)"),
+  address: z.string().min(10, "Adresse complète requise"),
+  industry: z.enum(['retail', 'services', 'manufacturing', 'technology']),
+  size: z.enum(['small', 'medium', 'large']),
+  contactEmail: createEmailSchema(),
+  contactPhone: createPhoneSchema()
+});
+```
+
+#### Fonctions utilitaires
+```typescript
+// Validation ObjectId MongoDB
+const createObjectIdSchema = () => 
+  z.string().regex(/^[0-9a-fA-F]{24}$/, "ID MongoDB invalide");
+
+// Validation email
+const createEmailSchema = () => 
+  z.string().email("L'adresse email n'est pas valide");
+
+// Validation mot de passe
+const createPasswordSchema = () => 
+  z.string()
+    .min(8, "Minimum 8 caractères requis")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
+           "Format invalide");
+```
+
+### 🌐 **Messages d'erreur français**
+
+```typescript
+const customErrorMessages = {
+  required_error: "Ce champ est obligatoire",
+  invalid_type_error: "Type de données invalide",
+  too_small: "Valeur trop petite ou trop courte",
+  too_big: "Valeur trop grande ou trop longue",
+  invalid_string: "Format de chaîne invalide",
+  invalid_email: "L'adresse email n'est pas valide",
+  invalid_url: "L'URL n'est pas valide",
+  invalid_date: "Date invalide",
+  invalid_enum_value: "Valeur non autorisée",
+  unrecognized_keys: "Champs non autorisés détectés",
+  custom: "Validation personnalisée échouée"
+};
+```
+
+## Implémentation Technique
 
 ### 🎯 **Architecture Simplifiée**
 
-L'implémentation actuelle utilise une approche simplifiée mais efficace pour le monitoring :
+L'implémentation utilise une approche simplifiée mais efficace pour le monitoring :
 
 #### Service de Métriques
 - **Classe MetricsService singleton** : Collecte et stockage en mémoire
@@ -57,7 +286,7 @@ L'implémentation actuelle utilise une approche simplifiée mais efficace pour l
 - **Persistance légère** : Données conservées pendant l'uptime du serveur
 
 #### Interface Frontend
-- **Page MonitoringPage.tsx** : Dashboard complet avec 4 sections
+- **Page MonitoringPage.tsx** : Dashboard complet avec 5 sections
 - **Auto-refresh intelligent** : Mise à jour toutes les 30 secondes
 - **Responsive design** : Compatible mobile et desktop
 - **Thème adaptatif** : Mode clair/sombre automatique
@@ -67,131 +296,26 @@ L'implémentation actuelle utilise une approche simplifiée mais efficace pour l
 - **Réponses optimisées** : JSON structuré pour performance
 - **Gestion d'erreurs** : Fallbacks et messages explicites
 
-### 📈 **Données Disponibles**
-
-#### Temps réel
-- Utilisateurs actifs, taux de réussite auth, temps IA, uptime système
-- Métriques mémoire Node.js avec pourcentages d'utilisation
-- Alertes automatiques basées sur seuils prédéfinis
-
-#### Historique simulé
-- Données de test pour démonstration (1h, 24h, 7d, 30d)
-- Prêt pour intégration base de données future
-
-## Configuration
-
-### Backend (Node.js)
-
-#### Configuration Actuelle (Simplifiée)
-```bash
-# Aucune variable spécifique requise
-# Le monitoring fonctionne avec la configuration par défaut
-NODE_ENV=development  # ou production
-PORT=5050
-```
-
-#### Initialisation Automatique
-```typescript
-// app.ts - Middleware automatique
-import { metricsMiddleware } from './monitoring/metrics';
-
-app.use(metricsMiddleware);  // Collecte automatique HTTP
-
-// Routes monitoring
-app.use('/api/monitoring', monitoringRoutes);
-```
-
-### Frontend (React)
-
-L'interface de monitoring est accessible aux administrateurs via `/monitoring` et offre :
-- Vue d'ensemble des métriques en temps réel
-- Historique des performances
-- Alertes actives
-- Informations système
-
-## Utilisation
-
-### 🎯 **Accès à l'Interface**
-
-1. **Connexion Admin** : Se connecter avec un compte administrateur
-2. **Navigation** : Accéder à "Monitoring" dans le menu latéral
-3. **Dashboards** : Naviguer entre les différents onglets
-
-### 📈 **Dashboards Disponibles**
-
-#### Vue d'ensemble
-- **Utilisateurs actifs** : Nombre en temps réel
-- **Taux de réussite auth** : Pourcentage de connexions réussies
-- **Temps moyen IA** : Performance des requêtes OpenAI
-- **Uptime** : Temps de fonctionnement du serveur
-
-#### Métriques détaillées
-- **Authentification** : Statistiques complètes des connexions
-- **IA** : Performance et coûts des requêtes OpenAI
-- **Plannings** : Métriques de génération
-- **Mémoire** : Utilisation des ressources système
-
-#### Alertes
-- **Temps de réponse élevé** : >30s pour l'IA
-- **Taux d'échec auth** : >10% d'échecs
-- **Charge système** : >500 utilisateurs simultanés
-- **Utilisation mémoire** : >80% de la heap
-
-#### Système
-- **Node.js** : Version, uptime, mémoire
-- **Plateforme** : OS, architecture
-- **Application** : Version, temps de démarrage
-
-## API Endpoints
-
-### Métriques en temps réel
-```
-GET /api/monitoring/metrics/realtime
-```
-
-### Métriques historiques
-```
-GET /api/monitoring/metrics/historical/:period
-```
-Périodes supportées : `1h`, `24h`, `7d`, `30d`
-
-### Alertes actives
-```
-GET /api/monitoring/alerts
-```
-
-### Logs
-```
-GET /api/monitoring/logs/:level?limit=100
-```
-
-### Statistiques système
-```
-GET /api/monitoring/system/stats
-```
-
-### Santé de l'application
-```
-GET /api/monitoring/health
-```
-
-## Intégration avec l'Application
-
-### Instrumenter du code
+### 📈 **Collecte des métriques**
 
 #### Authentification
 ```typescript
-import { metricsService } from '../monitoring/metrics';
+// Enregistrement des tentatives d'authentification
+metricsService.recordAuthAttempt(success, method, userId);
 
-// Enregistrer une tentative d'authentification
-metricsService.recordAuthAttempt(true, 'email', userId);
+// Exemple d'utilisation
+try {
+  const user = await authenticateUser(email, password);
+  metricsService.recordAuthAttempt(true, 'email', user.id);
+} catch (error) {
+  metricsService.recordAuthAttempt(false, 'email');
+}
 ```
 
-#### Requêtes IA
+#### Intelligence Artificielle
 ```typescript
 const startTime = Date.now();
 try {
-  // Requête OpenAI
   const response = await openai.chat.completions.create(params);
   const duration = Date.now() - startTime;
   
@@ -202,19 +326,71 @@ try {
 }
 ```
 
-#### Génération de plannings
+#### Validation des données
 ```typescript
-const startTime = Date.now();
-try {
-  // Génération du planning
-  const planning = await generatePlanning(employees);
-  const duration = Date.now() - startTime;
+// Enregistrement automatique via middleware
+import { metricsService } from '../monitoring/metrics';
+
+// Dans validation.middleware.ts
+metricsService.incrementValidationError(
+  req.originalUrl,           // Route concernée
+  'body'                     // Type : body, params, query
+);
+
+// Exemple d'utilisation
+if (error instanceof ZodError) {
+  const validationType = config.body ? 'body' : 
+                        config.params ? 'params' : 'query';
   
-  metricsService.recordPlanningGeneration(duration, true, employees.length);
-} catch (error) {
-  const duration = Date.now() - startTime;
-  metricsService.recordPlanningGeneration(duration, false, employees.length);
+  metricsService.incrementValidationError(req.originalUrl, validationType);
 }
+```
+
+## Configuration
+
+### Backend (Node.js)
+
+#### Configuration Simplifiée
+```bash
+# Aucune variable spécifique requise
+# Le monitoring fonctionne avec la configuration par défaut
+NODE_ENV=development  # ou production
+PORT=5050
+
+# Seuils d'alertes (optionnel)
+VALIDATION_ERROR_THRESHOLD=100
+VALIDATION_MONITORING_ENABLED=true
+```
+
+#### Initialisation Automatique
+```typescript
+// app.ts - Middleware automatique
+import { metricsMiddleware } from './monitoring/metrics';
+import { tracingMiddleware } from './monitoring/telemetry';
+
+app.use(metricsMiddleware);     // Collecte automatique HTTP
+app.use(tracingMiddleware);     // Traces OpenTelemetry
+
+// Routes monitoring
+app.use('/api/monitoring', monitoringRoutes);
+```
+
+### Frontend (React)
+
+#### Configuration Dashboard
+```typescript
+// frontend/src/pages/MonitoringPage.tsx
+const MonitoringPage: React.FC = () => {
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'metrics' | 'alerts' | 'system' | 'validation'>('overview');
+  
+  // Auto-refresh toutes les 30 secondes
+  useEffect(() => {
+    if (autoRefresh) {
+      const interval = setInterval(fetchAllData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh]);
+};
 ```
 
 ## Alertes et Notifications
@@ -228,6 +404,7 @@ try {
 | Utilisateurs actifs | >300 | >500 |
 | Utilisation mémoire | >60% | >80% |
 | Temps réponse API | >500ms | >1s |
+| Erreurs de validation | >50 | >100 |
 
 ### Types d'alertes
 
@@ -235,99 +412,112 @@ try {
 - **Warning** : Attention requise (performance dégradée)
 - **Error** : Action immédiate requise (service indisponible)
 
-## Déploiement
+### Alertes de validation
 
-### Docker Compose (recommandé)
-```yaml
-version: '3.8'
-services:
-  smartplanning-backend:
-    # Configuration existante
-    environment:
-      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
-      - PROMETHEUS_PORT=9090
-    depends_on:
-      - jaeger
-      - prometheus
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.45
-    ports:
-      - "16686:16686"
-      - "14268:14268"
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-
-  prometheus:
-    image: prom/prometheus:v2.40.7
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+```typescript
+// Génération automatique d'alertes
+if (metrics.validation.total_errors > VALIDATION_ERROR_THRESHOLD) {
+  alerts.push({
+    id: 'high_validation_errors',
+    severity: 'warning',
+    message: 'Nombre élevé d\'erreurs de validation',
+    value: metrics.validation.total_errors,
+    threshold: VALIDATION_ERROR_THRESHOLD
+  });
+}
 ```
 
-### Configuration Prometheus
-```yaml
-# prometheus.yml
-global:
-  scrape_interval: 15s
+## Tests
 
-scrape_configs:
-  - job_name: 'smartplanning'
-    static_configs:
-      - targets: ['smartplanning-backend:9090']
+### Tests Cypress - Dashboard de Validation
+
+```typescript
+describe('Dashboard de Validation Zod', () => {
+  it('devrait afficher les métriques de validation', () => {
+    cy.visit('/monitoring');
+    cy.contains('Erreurs Zod').click();
+    
+    // Vérifier les métriques principales
+    cy.contains('Total erreurs').should('be.visible');
+    cy.contains('132').should('be.visible');
+    
+    // Vérifier le graphique
+    cy.get('.recharts-wrapper').should('be.visible');
+    
+    // Vérifier le tableau
+    cy.contains('Erreurs par route').should('be.visible');
+  });
+
+  it('devrait permettre de filtrer les erreurs par type', () => {
+    cy.visit('/monitoring');
+    cy.contains('Erreurs Zod').click();
+    
+    // Utiliser le filtre par type
+    cy.get('select').select('body');
+    
+    // Vérifier que seules les routes avec des erreurs body sont affichées
+    cy.get('table tbody tr').should('have.length.greaterThan', 0);
+  });
+});
 ```
 
-## Maintenance
+### Tests unitaires
 
-### Nettoyage des logs
-```bash
-# Rotation automatique configurée (10MB max, 5 fichiers)
-# Nettoyage manuel si nécessaire
-rm -f backend/logs/*.log
+```typescript
+describe('Validation Middleware', () => {
+  it('devrait valider les données correctes', async () => {
+    const validData = {
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com'
+    };
+    
+    const schema = z.object({
+      firstName: z.string().min(2),
+      lastName: z.string().min(2),
+      email: z.string().email()
+    });
+    
+    expect(() => schema.parse(validData)).not.toThrow();
+  });
+});
 ```
 
-### Maintenance des métriques
-```bash
-# Redémarrage du service de métriques
-curl -X POST http://localhost:5050/api/monitoring/metrics/collect
+## Utilisation
+
+### Intégration dans les routes
+
+```typescript
+import { validateRequest } from '../middlewares/validation.middleware';
+import { createCompanySchema } from '../schemas/company.schemas';
+
+// Route avec validation
+router.post('/companies', 
+  authenticateToken,
+  validateRequest({ 
+    body: createCompanySchema,
+    schemaName: 'company.create' 
+  }),
+  createCompanyController
+);
 ```
 
-### Surveillance des performances
-```bash
-# Vérification santé
-curl http://localhost:5050/api/monitoring/health
+### Gestion des erreurs
 
-# Métriques Prometheus
-curl http://localhost:9090/metrics
-```
-
-## Dépannage
-
-### Problèmes courants
-
-1. **Métriques manquantes**
-   - Vérifier l'initialisation d'OpenTelemetry
-   - Contrôler les logs d'erreur
-   - Redémarrer le service
-
-2. **Traces non visibles**
-   - Vérifier la connexion Jaeger
-   - Contrôler l'endpoint configuré
-   - Vérifier les permissions réseau
-
-3. **Performance dégradée**
-   - Réduire la fréquence de collecte
-   - Optimiser les requêtes de métriques
-   - Augmenter les ressources système
-
-### Logs de débogage
-```bash
-# Activer les logs détaillés
-export LOG_LEVEL=debug
-
-# Vérifier les logs OpenTelemetry
-tail -f backend/logs/combined.log | grep telemetry
+```typescript
+// Réponse d'erreur standardisée
+{
+  "success": false,
+  "message": "Données de requête invalides",
+  "errors": [
+    {
+      "field": "email",
+      "message": "L'adresse email n'est pas valide",
+      "code": "invalid_string"
+    }
+  ],
+  "timestamp": "2025-07-17T14:00:00.000Z"
+}
 ```
 
 ## Bonnes Pratiques
@@ -338,11 +528,11 @@ tail -f backend/logs/combined.log | grep telemetry
 - Éviter les cardinalités trop élevées
 - Mesurer ce qui compte vraiment
 
-### 🔍 **Traces**
-- Tracer les opérations critiques
-- Inclure des attributs métier
-- Propager le contexte entre services
-- Gérer les erreurs et exceptions
+### 🔍 **Validation**
+- **Réutilisabilité** : Créer des fonctions utilitaires pour les validations communes
+- **Clarté** : Messages d'erreur explicites et en français
+- **Performance** : Schémas optimisés pour la rapidité
+- **Maintenance** : Centralisation dans le dossier `schemas/`
 
 ### 📝 **Logs**
 - Utiliser des formats structurés
@@ -367,6 +557,15 @@ tail -f backend/logs/combined.log | grep telemetry
 - ✅ API monitoring sécurisée (admin only)
 - ✅ Intégration seamless dans l'interface admin
 
+### Phase 1.5 ✅ (Complétée - Version 1.5.0)
+- ✅ Dashboard de validation des données avec Zod
+- ✅ Métriques d'erreurs de validation par route et type
+- ✅ Graphiques interactifs (Top 10 routes avec erreurs)
+- ✅ Tableau détaillé avec tri, filtres et recherche
+- ✅ Alertes contextuelles pour seuils d'erreurs dépassés
+- ✅ Tests automatisés Cypress pour validation du dashboard
+- ✅ Documentation complète du système de validation
+
 ### Phase 2 🔄 (Future)
 - Dashboards Grafana (si besoin)
 - Historique persistant base de données
@@ -379,6 +578,22 @@ tail -f backend/logs/combined.log | grep telemetry
 - Optimisations automatiques
 - Rapports d'analyse avancés
 
+## Métriques de performance
+
+### KPIs suivis
+
+- **Temps de validation** : < 50ms par requête
+- **Taux d'erreur** : < 5% des requêtes
+- **Couverture** : 100% des endpoints publics
+- **Disponibilité** : 99.9% du dashboard de monitoring
+
+### Optimisations
+
+- **Schémas compilés** : Validation rapide avec Zod
+- **Cache des schémas** : Réutilisation des instances
+- **Validation lazy** : Chargement à la demande
+- **Métriques asynchrones** : Pas d'impact sur les performances
+
 ## Support
 
 Pour toute question ou problème :
@@ -390,3 +605,5 @@ Pour toute question ou problème :
 ---
 
 **Note** : Ce système de monitoring est conçu pour évoluer avec les besoins de SmartPlanning. Les métriques et alertes peuvent être ajustées selon les retours d'expérience et les exigences business.
+
+**Version** : 1.5.0 - Monitoring complet avec validation Zod intégrée

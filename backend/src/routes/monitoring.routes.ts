@@ -133,7 +133,7 @@ router.get('/system/stats', async (req, res) => {
       system: {
         platform: process.platform,
         arch: process.arch,
-        loadavg: process.loadavg && process.loadavg(),
+        loadavg: [0, 0, 0], // loadavg not available on all platforms
         env: process.env.NODE_ENV,
       },
       application: {

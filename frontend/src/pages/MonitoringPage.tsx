@@ -12,7 +12,8 @@ import {
   Cpu,
   MemoryStick,
   Network,
-  Brain
+  Brain,
+  Shield
 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -21,6 +22,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import axiosInstance from '../api/axiosInstance';
 import SEO from '../components/layout/SEO';
 import { toast } from 'react-hot-toast';
+import ZodValidationDashboard from '../components/monitoring/ZodValidationDashboard';
 
 interface MetricData {
   timestamp: string;
@@ -36,6 +38,20 @@ interface MetricData {
   planning: {
     total_generations: number;
     avg_duration: number;
+  };
+  validation: {
+    total_errors: number;
+    body_errors: number;
+    params_errors: number;
+    query_errors: number;
+    by_route: {
+      [route: string]: {
+        body: number;
+        params: number;
+        query: number;
+        total: number;
+      };
+    };
   };
   system: {
     active_users: number;
@@ -86,7 +102,7 @@ const MonitoringPage: React.FC = () => {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'metrics' | 'alerts' | 'system'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'metrics' | 'alerts' | 'system' | 'validation'>('overview');
 
   const fetchMetrics = async () => {
     try {
@@ -228,25 +244,40 @@ const MonitoringPage: React.FC = () => {
             {[
               { id: 'overview', label: 'Vue d\'ensemble', icon: TrendingUp },
               { id: 'metrics', label: 'Métriques', icon: Activity },
+              { id: 'validation', label: 'Erreurs Zod', icon: Shield },
               { id: 'alerts', label: 'Alertes', icon: AlertTriangle },
               { id: 'system', label: 'Système', icon: Server }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedTab(tab.id as any)}
-                className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
-                  selectedTab === tab.id
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-                {tab.id === 'alerts' && alerts.length > 0 && (
-                  <Badge label={alerts.length.toString()} type="error" />
-                )}
-              </button>
-            ))}
+            ].map(tab => {
+              let badge = undefined;
+              let badgeType: 'error' | 'warning' | 'info' = 'error';
+              
+              if (tab.id === 'alerts' && alerts.length > 0) {
+                badge = alerts.length.toString();
+                badgeType = 'error';
+              } else if (tab.id === 'validation' && metrics?.validation?.total_errors > 0) {
+                badge = metrics.validation.total_errors.toString();
+                badgeType = metrics.validation.total_errors > 100 ? 'error' : 'warning';
+              }
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedTab(tab.id as any)}
+                  data-testid={tab.id === 'validation' ? 'validation-tab' : undefined}
+                  className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
+                    selectedTab === tab.id
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                  {badge && (
+                    <Badge label={badge} type={badgeType} />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Content based on selected tab */}
@@ -471,6 +502,10 @@ const MonitoringPage: React.FC = () => {
                 </div>
               )}
             </Card>
+          )}
+
+          {selectedTab === 'validation' && (
+            <ZodValidationDashboard />
           )}
 
           {selectedTab === 'system' && systemStats && (
