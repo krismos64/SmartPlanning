@@ -4,10 +4,13 @@
 
 ### Prérequis
 
-- Node.js >= 18.0.0
-- npm ou yarn
-- MongoDB (local ou Atlas)
-- Git
+- **Node.js** >= 18.0.0 (recommandé: 18.x ou 20.x LTS)
+- **npm** >= 8.0.0 ou **yarn** >= 1.22.0
+- **MongoDB** (local ou MongoDB Atlas recommandé)
+- **Git** pour le versioning
+- **Compte Google Cloud** (pour OAuth - optionnel)
+- **Compte OpenAI** (pour les fonctionnalités IA - optionnel)
+- **Compte Cloudinary** (pour l'upload d'images - optionnel)
 
 ### Étapes d'installation
 
@@ -48,10 +51,24 @@
    # Terminal 1 - Backend (port 5050)
    cd backend
    npm run dev
+   # Accessible sur http://localhost:5050
+   # API disponible sur http://localhost:5050/api
 
-   # Terminal 2 - Frontend (port 5173)
+   # Terminal 2 - Frontend (port 5173)  
    cd frontend
    npm run dev
+   # Accessible sur http://localhost:5173
+   # Redirection automatique des appels API vers le backend
+   ```
+
+5. **Vérification de l'installation**
+
+   ```bash
+   # Tester le backend
+   curl http://localhost:5050/api/health
+   
+   # Ouvrir le frontend dans le navigateur
+   open http://localhost:5173
    ```
 
 ## Structure du projet

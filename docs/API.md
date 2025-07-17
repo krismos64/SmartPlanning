@@ -5,7 +5,9 @@
 L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
 
 **URL de base**: `https://smartplanning.onrender.com/api`  
-**Version**: 1.3.1 (Juillet 2025)
+**Version**: 1.3.1 (Juillet 2025)  
+**Documentation interactive**: Consultez Postman ou utilisez curl pour tester les endpoints  
+**Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)
 
 ## Authentification
 

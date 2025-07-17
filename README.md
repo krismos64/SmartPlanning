@@ -11,9 +11,11 @@
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
 ![État](https://img.shields.io/badge/État-En%20développement-orange?style=flat-square)
 
-SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, développée en TypeScript pour une gestion optimisée des ressources humaines.
+SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, développée en TypeScript pour une gestion optimisée des ressources humaines. L'application utilise une architecture moderne séparée (frontend React/backend Node.js) avec des fonctionnalités d'IA avancées pour l'optimisation automatique des plannings.
 
-🌐 **Application déployée** : [https://smartplanning.fr](https://smartplanning.fr)
+🌐 **Application déployée** : [https://smartplanning.fr](https://smartplanning.fr)  
+🔧 **API Backend** : [https://smartplanning.onrender.com](https://smartplanning.onrender.com)  
+📚 **Documentation technique** : Consultez le dossier `docs/` pour les guides détaillés
 
 ## Table des matières
 
@@ -261,16 +263,20 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 | Catégorie                     | Technologies                                                          |
 | ----------------------------- | --------------------------------------------------------------------- |
-| **Frontend**                  | React.js, TypeScript, TailwindCSS, Framer Motion, React Router        |
-| **Backend**                   | Node.js, Express.js, TypeScript, JWT                                  |
-| **Base de données**           | MongoDB Atlas, Mongoose                                               |
-| **Intelligence artificielle** | OpenAI API                                                            |
-| **Authentification**          | JWT, Google OAuth, Passport.js                                        |
-| **Upload de fichiers**        | Cloudinary, Multer                                                    |
-| **Déploiement**               | Docker, Hostinger (Frontend), Render (Backend)                        |
-| **Tests et sécurité**         | Jest, Supertest, MongoDB Memory Server, Tests de sécurité automatisés |
-| **Performance et optimisation** | Code-splitting, Lazy loading, Compression gzip/brotli, Cache HTTP intelligent |
-| **Outils de développement**   | ESLint, Prettier, React Testing Library                               |
+| **Frontend**                  | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie |
+| **Backend**                   | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet             |
+| **Base de données**           | MongoDB Atlas, Mongoose (ODM), Index optimisés                       |
+| **Intelligence artificielle** | OpenAI API, GPT-4 pour génération de plannings                       |
+| **Authentification**          | JWT (cookies httpOnly), Google OAuth 2.0, Passport.js               |
+| **Upload de fichiers**        | Cloudinary (images), Multer (middleware)                             |
+| **Déploiement**               | Docker, Hostinger (Frontend), Render (Backend), MongoDB Atlas        |
+| **Tests et sécurité**         | Jest, Supertest, MongoDB Memory Server, Tests de sécurité (14/15)    |
+| **Performance**               | Code-splitting Vite, Lazy loading, Compression gzip/brotli (-70%)    |
+| **Monitoring & Logs**         | Morgan (HTTP logs), Health checks, Uptime monitoring                 |
+| **Outils de développement**   | ESLint, Prettier, React Testing Library, TypeScript strict           |
+| **UI/UX**                     | Lucide React (icônes), React Hot Toast, Styled Components, Thèmes    |
+| **Internationalisation**      | i18next, react-i18next (support multilingue)                         |
+| **PDF & Export**              | jsPDF, jsPDF-autotable (génération de rapports)                      |
 
 ## Documentation détaillée
 
@@ -454,37 +460,56 @@ npm install
 
 Créez un fichier `.env` dans le dossier `backend` avec les variables suivantes :
 
-```
+```bash
 # Base de données
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/smartplanning
 
-# Authentification
-JWT_SECRET=votre_secret_jwt_très_sécurisé
+# Authentification JWT
+JWT_SECRET=votre_secret_jwt_très_sécurisé_minimum_32_caractères
 JWT_EXPIRATION=1d
 REFRESH_TOKEN_SECRET=votre_refresh_secret_très_sécurisé
 REFRESH_TOKEN_EXPIRATION=7d
 
-# API OpenAI
-OPENAI_API_KEY=votre_clé_api_openai
+# Intelligence artificielle
+OPENAI_API_KEY=sk-votre_clé_api_openai
 
 # Authentification Google OAuth
-GOOGLE_CLIENT_ID=votre_id_client_google
+GOOGLE_CLIENT_ID=votre_id_client_google.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=votre_secret_client_google
-GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:5050/api/auth/google/callback
 
-# Configuration serveur
-PORT=5000
+# Upload de fichiers (Cloudinary)
+CLOUDINARY_CLOUD_NAME=votre_cloud_name
+CLOUDINARY_API_KEY=votre_api_key
+CLOUDINARY_API_SECRET=votre_api_secret
+
+# Configuration serveur (IMPORTANT: port 5050)
+PORT=5050
 NODE_ENV=development
+
+# Email (optionnel - pour notifications)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=votre_email@gmail.com
+SMTP_PASS=votre_mot_de_passe_app
 ```
 
 ### Frontend (.env.local)
 
 Créez un fichier `.env.local` dans le dossier `frontend` avec les variables suivantes :
 
+```bash
+# URL de l'API backend (IMPORTANT: port 5050)
+VITE_API_URL=http://localhost:5050/api
+
+# Google OAuth (même client ID que le backend)
+VITE_GOOGLE_CLIENT_ID=votre_id_client_google.apps.googleusercontent.com
+
+# Environnement
+VITE_NODE_ENV=development
 ```
-VITE_API_URL=http://localhost:5000/api
-VITE_GOOGLE_CLIENT_ID=votre_id_client_google
-```
+
+**Note importante** : Le backend utilise le port **5050** (pas 5000) pour éviter les conflits avec d'autres services.
 
 ## Lancer l'application
 
@@ -617,23 +642,38 @@ Pour des déploiements alternatifs, consultez le [Guide de déploiement](docs/DE
 
 ---
 
-🔑 Comptes de test disponibles :
+## Comptes de test disponibles
 
-Directeur : marie.dubois@supermarche-plus.fr /
+Pour tester l'application, vous pouvez utiliser les comptes suivants :
 
-Managers :
+### 👑 Directeur
+- **Marie DUBOIS** : `marie.dubois@supermarche-plus.fr` / `Directeur2025@`
+  - Accès complet à toutes les fonctionnalités administratives
+  - Gestion des entreprises, utilisateurs et équipes
 
-- Pierre MARTIN (Rayon Alimentaire) : pierre.martin@supermarche-plus.fr / Manager2025@
-- Sophie BERNARD (Rayon Textile) : sophie.bernard@supermarche-plus.fr / Manager2025@
-- Jean ROUSSEAU (Caisse et Accueil) : jean.rousseau@supermarche-plus.fr / Manager2025@
-- Isabelle MOREAU (Électroménager) : isabelle.moreau@supermarche-plus.fr / Manager2025@
-- Thomas LAURENT (Logistique) : thomas.laurent@supermarche-plus.fr / Manager2025@
+### 👥 Managers
+- **Pierre MARTIN** (Rayon Alimentaire) : `pierre.martin@supermarche-plus.fr` / `Manager2025@`
+- **Sophie BERNARD** (Rayon Textile) : `sophie.bernard@supermarche-plus.fr` / `Manager2025@`
+- **Jean ROUSSEAU** (Caisse et Accueil) : `jean.rousseau@supermarche-plus.fr` / `Manager2025@`
+- **Isabelle MOREAU** (Électroménager) : `isabelle.moreau@supermarche-plus.fr` / `Manager2025@`
+- **Thomas LAURENT** (Logistique) : `thomas.laurent@supermarche-plus.fr` / `Manager2025@`
 
-Employés de test :
-maxime.andre@supermarche-plus.fr
+### 👤 Employés
+- **Maxime ANDRE** : `maxime.andre@supermarche-plus.fr` / `Employee2025@`
+- **Antoine GARCIA** (Vendeur rayon frais) : `antoine.garcia@supermarche-plus.fr` / `Employee2025@`
+- **Hugo MOREAU** (Vendeur vêtements homme) : `hugo.moreau@supermarche-plus.fr` / `Employee2025@`
+- **Quentin MARTIN** (Caissier) : `quentin.martin@supermarche-plus.fr` / `Employee2025@`
+- **Adrien FONTAINE** (Vendeur électroménager) : `adrien.fontaine@supermarche-plus.fr` / `Employee2025@`
+- **Guillaume BOYER** (Magasinier) : `guillaume.boyer@supermarche-plus.fr` / `Employee2025@`
 
-- Antoine GARCIA (Vendeur rayon frais) : antoine.garcia@supermarche-plus.fr / Employee2025@
-- Hugo MOREAU (Vendeur vêtements homme) : hugo.moreau@supermarche-plus.fr / Employee2025@
-- Quentin MARTIN (Caissier) : quentin.martin@supermarche-plus.fr / Employee2025@
-- Adrien FONTAINE (Vendeur électroménager) : adrien.fontaine@supermarche-plus.fr / Employee2025@
-- Guillaume BOYER (Magasinier) : guillaume.boyer@supermarche-plus.fr / Employee2025@
+### 🔐 Administrateur système
+Pour créer un compte administrateur, utilisez le script :
+```bash
+cd backend && npm run create-admin
+```
+
+---
+
+**💡 Conseil** : Commencez par vous connecter avec le compte directeur pour avoir une vue d'ensemble de l'application, puis testez les différents rôles pour comprendre les permissions.
+
+**🚀 Déploiement** : L'application est disponible en production sur [https://smartplanning.fr](https://smartplanning.fr) avec les mêmes comptes de test.

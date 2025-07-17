@@ -94,7 +94,13 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client_google
 3. **Variables d'environnement**
    - Configurer toutes les variables listées ci-dessus
 
-4. **Optimisations performance intégrées**
+4. **Configuration des variables d'environnement sur Render**
+   - Configurer toutes les variables listées dans la section Variables d'environnement
+   - **IMPORTANT** : Utiliser NODE_ENV=production
+   - Configurer MONGODB_URI avec votre cluster MongoDB Atlas
+   - Ajouter les domaines autorisés pour CORS (smartplanning.fr)
+
+5. **Optimisations performance intégrées**
    - **Compression gzip/brotli** : Niveau 6, seuil 1KB, -70% données transférées
    - **Cache HTTP intelligent** :
      - Assets statiques : 1 an (immutable)
@@ -102,6 +108,7 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client_google
      - API privées : no-cache (sécurité)
    - **Rate limiting** : 100 requêtes/15min par IP avec exemptions tests/health
    - **Headers de sécurité** : Helmet avec CORS strict pour smartplanning.fr
+   - **Auto-scaling** : Render gère automatiquement la montée en charge
 
 ### Frontend sur Hostinger
 
