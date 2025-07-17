@@ -52,13 +52,13 @@ const CheckboxContainer = styled.div`
   gap: 0.5rem;
 `;
 
-const CheckboxLabel = styled.label<{ isDarkMode?: boolean }>`
+const CheckboxLabel = styled.label<{ $isDarkMode?: boolean }>`
   font-size: 0.875rem;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
   cursor: pointer;
 `;
 
-const ForgotPassword = styled(Link)<{ isDarkMode?: boolean }>`
+const ForgotPassword = styled(Link)<{ $isDarkMode?: boolean }>`
   font-size: 0.875rem;
   color: #4f46e5;
   text-decoration: none;
@@ -74,7 +74,7 @@ const StyledButton = styled(Button)`
   width: 100%;
 `;
 
-const Divider = styled.div<{ isDarkMode?: boolean }>`
+const Divider = styled.div<{ $isDarkMode?: boolean }>`
   display: flex;
   align-items: center;
   margin: 1.5rem 0;
@@ -84,17 +84,17 @@ const Divider = styled.div<{ isDarkMode?: boolean }>`
     content: "";
     flex: 1;
     border-bottom: 1px solid
-      ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
+      ${({ $isDarkMode }) => ($isDarkMode ? "#2D3748" : "#E2E8F0")};
   }
 
   span {
     padding: 0 1rem;
     font-size: 0.875rem;
-    color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+    color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
   }
 `;
 
-const GoogleButton = styled.button<{ isDarkMode?: boolean }>`
+const GoogleButton = styled.button<{ $isDarkMode?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,25 +102,25 @@ const GoogleButton = styled.button<{ isDarkMode?: boolean }>`
   width: 100%;
   padding: 0.75rem;
   border-radius: 0.5rem;
-  background-color: ${({ isDarkMode }) => (isDarkMode ? "#1A2234" : "#FFFFFF")};
-  border: 1px solid ${({ isDarkMode }) => (isDarkMode ? "#2D3748" : "#E2E8F0")};
-  color: ${({ isDarkMode }) => (isDarkMode ? "#F1F5F9" : "#1A202C")};
+  background-color: ${({ $isDarkMode }) => ($isDarkMode ? "#1A2234" : "#FFFFFF")};
+  border: 1px solid ${({ $isDarkMode }) => ($isDarkMode ? "#2D3748" : "#E2E8F0")};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#F1F5F9" : "#1A202C")};
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background-color: ${({ isDarkMode }) =>
-      isDarkMode ? "#242f48" : "#F8F9FA"};
+    background-color: ${({ $isDarkMode }) =>
+      $isDarkMode ? "#242f48" : "#F8F9FA"};
   }
 `;
 
-const RegisterLink = styled.div<{ isDarkMode?: boolean }>`
+const RegisterLink = styled.div<{ $isDarkMode?: boolean }>`
   margin-top: 1.5rem;
   text-align: center;
   font-size: 0.875rem;
-  color: ${({ isDarkMode }) => (isDarkMode ? "#94A3B8" : "#6b7280")};
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
 
   a {
     color: #4f46e5;
@@ -350,12 +350,12 @@ const LoginPage: React.FC = () => {
                     checked={formData.rememberMe}
                     onChange={handleChange}
                   />
-                  <CheckboxLabel htmlFor="rememberMe" isDarkMode={isDarkMode}>
+                  <CheckboxLabel htmlFor="rememberMe" $isDarkMode={isDarkMode}>
                     Se souvenir de moi
                   </CheckboxLabel>
                 </CheckboxContainer>
 
-                <ForgotPassword to="/forgot-password" isDarkMode={isDarkMode}>
+                <ForgotPassword to="/forgot-password" $isDarkMode={isDarkMode}>
                   Mot de passe oublié ?
                 </ForgotPassword>
               </RememberForgotRow>
@@ -378,7 +378,7 @@ const LoginPage: React.FC = () => {
             </motion.div>
           </Form>
 
-          <Divider isDarkMode={isDarkMode}>
+          <Divider $isDarkMode={isDarkMode}>
             <span>ou</span>
           </Divider>
 
@@ -390,7 +390,7 @@ const LoginPage: React.FC = () => {
             <GoogleButton
               type="button"
               onClick={handleGoogleLogin}
-              isDarkMode={isDarkMode}
+              $isDarkMode={isDarkMode}
             >
               <svg
                 width="18"
@@ -420,7 +420,7 @@ const LoginPage: React.FC = () => {
             </GoogleButton>
           </motion.div>
 
-          <RegisterLink isDarkMode={isDarkMode}>
+          <RegisterLink $isDarkMode={isDarkMode}>
             Pas encore inscrit ?<Link to="/inscription">Créer un compte</Link>
           </RegisterLink>
         </FormContainer>

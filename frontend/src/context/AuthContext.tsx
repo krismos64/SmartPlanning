@@ -56,6 +56,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Fonction pour vérifier si l'utilisateur est connecté
     const checkAuth = async () => {
+      // Vérifier si on est sur une page publique où l'authentification n'est pas requise
+      const publicPages = [
+        '/',
+        '/connexion',
+        '/inscription',
+        '/forgot-password',
+        '/reset-password',
+        '/create-password',
+        '/contact',
+        '/politique-de-confidentialite',
+        '/mentions-legales',
+        '/oauth/callback'
+      ];
+      
+      const currentPath = window.location.pathname;
+      const isPublicPage = publicPages.includes(currentPath);
+      
+      // Sur les pages publiques, ne pas faire la vérification automatique
+      if (isPublicPage) {
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       try {
         // Appel direct à l'API - le cookie sera automatiquement envoyé
