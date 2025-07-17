@@ -248,14 +248,25 @@ router.post("/login", async (req: Request, res: Response) => {
     const token = generateToken((user as UserDocument).toObject());
     console.log("✅ Token JWT généré avec succès");
 
-    // Définir le cookie httpOnly sécurisé
-    res.cookie('token', token, {
+    // Configuration des cookies pour cross-origin
+    const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production', // HTTPS requis en production
+      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       maxAge: 24 * 60 * 60 * 1000, // 24 heures
-      path: '/'
+      path: '/',
+      // Pas de domaine spécifié pour permettre le cross-origin
+    };
+
+    console.log("🍪 Configuration du cookie:", {
+      secure: cookieOptions.secure,
+      sameSite: cookieOptions.sameSite,
+      httpOnly: cookieOptions.httpOnly,
+      nodeEnv: process.env.NODE_ENV
     });
+
+    // Définir le cookie httpOnly sécurisé
+    res.cookie('token', token, cookieOptions);
 
     // Répondre avec les informations de l'utilisateur (sans le token)
     res.status(200).json({
@@ -318,13 +329,18 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
  */
 router.post("/logout", (req: Request, res: Response) => {
   try {
-    // Supprimer le cookie httpOnly
-    res.clearCookie('token', {
+    // Configuration identique à celle du login pour supprimer le cookie
+    const clearCookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
       path: '/'
-    });
+    };
+
+    console.log("🍪 Suppression du cookie avec options:", clearCookieOptions);
+
+    // Supprimer le cookie httpOnly
+    res.clearCookie('token', clearCookieOptions);
 
     console.log("✅ Déconnexion utilisateur réussie");
 
