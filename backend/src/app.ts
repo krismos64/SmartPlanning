@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import morgan from "morgan";
+import { metricsMiddleware } from "./monitoring/metrics";
 
 import adminTeamRoutes from "./routes/admin/adminTeam.routes";
 import { adminCompaniesRouter } from "./routes/admin/companies.route";
@@ -35,6 +36,7 @@ import { uploadRoutes } from "./routes/upload.routes";
 import usersRoutes from "./routes/users.routes";
 import vacationRoutes from "./routes/vacations.routes";
 import weeklySchedulesRouter from "./routes/weeklySchedules.route";
+import monitoringRoutes from "./routes/monitoring.routes";
 // Charger les variables d'environnement
 dotenv.config();
 
@@ -54,6 +56,9 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Middlewares
 app.use(morgan("dev"));
+
+// 📊 Monitoring et métriques
+app.use(metricsMiddleware);
 
 // 🗜️ Compression pour améliorer les performances
 app.use(compression({
@@ -224,6 +229,7 @@ app.use("/api/vacations", authenticateToken, vacationRoutes);
 app.use("/api/weekly-schedules", authenticateToken, weeklySchedulesRouter);
 app.use("/api/tasks", authenticateToken, tasksRoutes);
 app.use("/api/stats", authenticateToken, statsRoutes);
+app.use("/api/monitoring", monitoringRoutes);
 
 // Routes publiques
 app.use("/api/contact", contactRoutes);

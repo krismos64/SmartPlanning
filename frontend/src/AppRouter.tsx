@@ -55,6 +55,7 @@ const AdminTeamViewer = lazy(() => import("./pages/admin/AdminTeamViewer"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const TermsOfUsePage = lazy(() => import("./pages/TermsOfUsePage"));
 const DatePickerDemoPage = lazy(() => import("./pages/DatePickerDemoPage"));
+const MonitoringPage = lazy(() => import("./pages/MonitoringPage"));
 
 
 /**
@@ -351,6 +352,22 @@ const AppRouter: React.FC = () => {
           element={
             <RoleProtectedRoute
               element={<AdminPlanningPage />}
+              allowedRoles={["admin"]}
+            />
+          }
+        />
+        <Route
+          path="/monitoring"
+          element={
+            <RoleProtectedRoute
+              element={
+                <LayoutWithSidebar
+                  activeItem="monitoring"
+                  pageTitle="Monitoring"
+                >
+                  <MonitoringPage />
+                </LayoutWithSidebar>
+              }
               allowedRoles={["admin"]}
             />
           }

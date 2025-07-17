@@ -1,0 +1,25 @@
+{
+  "reporter": ["html", "text", "json", "lcov"],
+  "report-dir": "coverage",
+  "all": true,
+  "include": [
+    "src/**/*.{ts,tsx}"
+  ],
+  "exclude": [
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.spec.{ts,tsx}",
+    "src/**/*.stories.{ts,tsx}",
+    "src/**/*.d.ts",
+    "src/setupTests.ts",
+    "src/main.tsx",
+    "src/index.tsx",
+    "src/vite-env.d.ts",
+    "src/__mocks__/**",
+    "src/types/global.d.ts"
+  ],
+  "check-coverage": true,
+  "lines": 70,
+  "functions": 70,
+  "branches": 60,
+  "statements": 70
+}

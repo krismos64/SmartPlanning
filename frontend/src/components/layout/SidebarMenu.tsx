@@ -11,6 +11,7 @@ import {
   Sparkles,
   User as UserIcon,
   Users,
+  Activity,
 } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
@@ -114,6 +115,13 @@ const planningsAiMenuItem = {
   route: "/validation-plannings",
 };
 
+const monitoringMenuItem = {
+  id: "monitoring",
+  label: "Monitoring",
+  icon: Activity,
+  route: "/monitoring",
+};
+
 const SidebarMenu: React.FC<SidebarMenuProps> = ({
   activeItem,
   onNavigate,
@@ -201,7 +209,8 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
       items.push(
         adminMenuItem,
         companyManagementMenuItem,
-        adminPlanningMenuItem
+        adminPlanningMenuItem,
+        monitoringMenuItem
       );
     }
 

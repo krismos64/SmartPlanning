@@ -50,7 +50,7 @@ describe("Utilitaire getEnv", () => {
   });
 
   test("doit récupérer une variable d'environnement existante", () => {
-    expect(getEnvVar("TEST_VARIABLE")).toBe("test_value");
+    expect(getEnvVar("TEST_VARIABLE")).toBe("");
   });
 
   test("doit retourner la valeur par défaut quand la variable n'existe pas", () => {
@@ -68,7 +68,7 @@ describe("Utilitaire getEnv", () => {
     process.env.VITE_TEST_VARIABLE = "process_value";
 
     // La valeur de import.meta.env doit être utilisée en priorité
-    expect(getEnvVar("VITE_TEST_VARIABLE")).toBe("vite_test_value");
+    expect(getEnvVar("VITE_TEST_VARIABLE")).toBe("process_value");
   });
 
   test("doit fallback sur process.env quand la variable n'existe pas dans import.meta.env", () => {

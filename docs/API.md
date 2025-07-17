@@ -5,7 +5,7 @@
 L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
 
 **URL de base**: `https://smartplanning.onrender.com/api`  
-**Version**: 1.3.1 (Juillet 2025)  
+**Version**: 1.4.0 (Janvier 2025)  
 **Documentation interactive**: Consultez Postman ou utilisez curl pour tester les endpoints  
 **Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)
 
@@ -421,6 +421,226 @@ Authorization: Bearer <token>
   }
 }
 ```
+
+### 📊 Monitoring et Observabilité
+
+**Note**: Tous les endpoints de monitoring nécessitent un rôle administrateur.
+
+#### Métriques temps réel
+
+```http
+GET /api/monitoring/metrics/realtime
+Authorization: Bearer <admin_token>
+```
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": {
+    "timestamp": "2025-01-17T10:30:00.000Z",
+    "auth": {
+      "total_attempts": 156,
+      "success_rate": 0.95
+    },
+    "ai": {
+      "total_requests": 23,
+      "avg_duration": 2450,
+      "success_rate": 0.96
+    },
+    "planning": {
+      "total_generations": 8,
+      "avg_duration": 1200
+    },
+    "system": {
+      "active_users": 42,
+      "memory_usage": {
+        "heapUsed": 128000000,
+        "heapTotal": 256000000,
+        "external": 32000000,
+        "arrayBuffers": 8000000
+      },
+      "uptime": 86400
+    }
+  }
+}
+```
+
+#### Métriques historiques
+
+```http
+GET /api/monitoring/metrics/historical/:period
+Authorization: Bearer <admin_token>
+```
+
+**Paramètres :**
+- `period`: `1h`, `24h`, `7d`, `30d`
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "timestamp": "2025-01-17T09:30:00.000Z",
+      "auth_attempts": 45,
+      "ai_requests": 12,
+      "active_users": 38,
+      "response_time": 120,
+      "error_rate": 0.02
+    }
+  ],
+  "period": "1h"
+}
+```
+
+#### Alertes actives
+
+```http
+GET /api/monitoring/alerts
+Authorization: Bearer <admin_token>
+```
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "ai_slow_response",
+      "severity": "warning",
+      "message": "Temps de réponse IA élevé",
+      "value": 32000,
+      "threshold": 30000,
+      "timestamp": "2025-01-17T10:25:00.000Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### Logs système
+
+```http
+GET /api/monitoring/logs/:level?limit=100
+Authorization: Bearer <admin_token>
+```
+
+**Paramètres :**
+- `level`: `info`, `warn`, `error`, `all` (optionnel, défaut: `info`)
+- `limit`: Nombre de logs (query param, défaut: 100)
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "timestamp": "2025-01-17T10:30:00.000Z",
+      "level": "info",
+      "message": "Log message",
+      "component": "auth",
+      "userId": "user_123",
+      "metadata": {
+        "operation": "login",
+        "duration": 150
+      }
+    }
+  ],
+  "level": "info"
+}
+```
+
+#### Statistiques système
+
+```http
+GET /api/monitoring/system/stats
+Authorization: Bearer <admin_token>
+```
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": {
+    "nodejs": {
+      "version": "v18.17.0",
+      "uptime": 86400,
+      "memory": {
+        "heapUsed": 128000000,
+        "heapTotal": 256000000
+      }
+    },
+    "system": {
+      "platform": "linux",
+      "arch": "x64",
+      "env": "production"
+    },
+    "application": {
+      "version": "1.4.0",
+      "startTime": "2025-01-16T10:30:00.000Z"
+    }
+  }
+}
+```
+
+#### Health check monitoring
+
+```http
+GET /api/monitoring/health
+Authorization: Bearer <admin_token>
+```
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "timestamp": "2025-01-17T10:30:00.000Z",
+    "uptime": 86400,
+    "checks": {
+      "database": {
+        "status": "healthy",
+        "responseTime": 75
+      },
+      "openai": {
+        "status": "healthy",
+        "responseTime": 1250
+      },
+      "memory": {
+        "status": "healthy",
+        "usage": {
+          "heapUsed": 128000000,
+          "heapTotal": 256000000
+        }
+      }
+    }
+  }
+}
+```
+
+#### Collecter des métriques manuellement
+
+```http
+POST /api/monitoring/metrics/collect
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "type": "auth",
+  "data": {
+    "success": true,
+    "method": "email",
+    "userId": "user_123"
+  }
+}
+```
+
+**Types supportés :**
+- `auth`: Tentatives d'authentification
+- `ai`: Requêtes IA  
+- `planning`: Génération de plannings
 
 ### 📁 Upload de fichiers
 
