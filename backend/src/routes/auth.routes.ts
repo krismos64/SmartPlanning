@@ -14,6 +14,24 @@ import {
   validatePasswordComplexity,
 } from "../utils/password";
 
+// Import des schémas de validation et middleware
+import { 
+  registerSchema, 
+  loginSchema, 
+  forgotPasswordSchema, 
+  resetPasswordSchema,
+  changePasswordSchema,
+  validateBody,
+  validateParams
+} from "../schemas";
+import { 
+  asyncHandler, 
+  ValidationError, 
+  AuthenticationError, 
+  ConflictError,
+  NotFoundError 
+} from "../middlewares/errorHandler.middleware";
+
 // Types personnalisés pour la requête Express avec utilisateur
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -40,257 +58,190 @@ import { authenticateToken } from "../middlewares/auth.middleware";
  * @desc Inscription d'un directeur avec création d'entreprise
  * @access Public
  */
-router.post("/register", async (req: Request, res: Response) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      email,
-      password,
-      phone,
-      companyName,
-      profilePicture,
-      companyLogo,
-    } = req.body;
+router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(async (req: Request, res: Response) => {
+  // Les données sont maintenant validées et typées
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    phone,
+    companyName,
+    companyAddress,
+    companySize,
+    acceptTerms,
+    acceptMarketing
+  } = req.body;
 
-    // Validation des champs obligatoires
-    if (!firstName || !lastName || !email || !password || !companyName) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Champs requis manquants. Prénom, nom, email, mot de passe et nom d'entreprise sont obligatoires.",
-      });
-    }
-
-    // Validation de l'email
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Format d'email invalide" });
-    }
-
-    // Validation du mot de passe RGPD
-    if (!validatePasswordComplexity(password)) {
-      return res
-        .status(422)
-        .json({ success: false, message: passwordRequirementsMessage });
-    }
-
-    // Validation des URLs des images si présentes
-    if (profilePicture && !isValidUrl(profilePicture)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "URL de photo de profil invalide" });
-    }
-
-    if (companyLogo && !isValidUrl(companyLogo)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "URL de logo d'entreprise invalide" });
-    }
-
-    // Validation du numéro de téléphone si présent
-    if (phone) {
-      const phoneRegex = /^(\+\d{1,3}\s?)?(\d{9,15})$/;
-      if (!phoneRegex.test(phone)) {
-        return res.status(400).json({
-          success: false,
-          message: "Format de numéro de téléphone invalide",
-        });
-      }
-    }
-
-    // Vérification de l'unicité de l'email
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: "Cette adresse email est déjà utilisée",
-      });
-    }
-
-    // Vérification de l'unicité du nom d'entreprise
-    const existingCompany = await Company.findOne({ name: companyName });
-    if (existingCompany) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
-      });
-    }
-
-    // Création de l'entreprise
-    const newCompany = await Company.create({
-      name: companyName,
-      logoUrl: companyLogo || null,
-    });
-
-    // Création de l'utilisateur directeur
-    const newUser = await User.create({
-      firstName,
-      lastName,
-      email,
-      password, // Le hashage est géré par le middleware pre-save dans User.model.ts
-      phone,
-      photoUrl: profilePicture || undefined,
-      role: "directeur", // Rôle fixé en dur à "directeur"
-      companyId: newCompany._id,
-      isEmailVerified: true, // On considère l'email vérifié à l'inscription
-      status: "active",
-    });
-
-    // Génération du token JWT
-    const token = generateToken(newUser.toObject());
-
-    // Réponse avec les données minimales de l'utilisateur (sans mot de passe)
-    res.status(201).json({
-      success: true,
-      message: "Inscription réussie",
-      token,
-      user: {
-        id: newUser._id,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        role: newUser.role,
-        companyId: newUser.companyId,
-        profilePicture: newUser.photoUrl || undefined,
-      },
-      company: {
-        id: newCompany._id,
-        name: newCompany.name,
-        logo: newCompany.logoUrl || undefined,
-      },
-    });
-  } catch (error: any) {
-    console.error("Erreur lors de l'inscription:", error);
-
-    // Gestion des erreurs spécifiques de MongoDB
-    if (error.name === "MongoServerError" && error.code === 11000) {
-      // Gestion des violations de contrainte d'unicité
-      if (error.keyPattern?.name) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
-        });
-      }
-      if (error.keyPattern?.email) {
-        return res.status(409).json({
-          success: false,
-          message: "Cette adresse email est déjà utilisée",
-        });
-      }
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "Une erreur est survenue lors de l'inscription",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  // Vérifier si l'utilisateur existe déjà
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new ConflictError("Un utilisateur avec cet email existe déjà");
   }
-});
+
+  // Vérifier l'unicité du nom d'entreprise
+  const existingCompany = await Company.findOne({ name: companyName });
+  if (existingCompany) {
+    throw new ConflictError(
+      "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier."
+    );
+  }
+
+  // Créer l'entreprise d'abord
+  const company = new Company({
+    name: companyName,
+    address: companyAddress,
+    size: companySize,
+    createdBy: null // Sera mis à jour après création de l'utilisateur
+  });
+
+  const savedCompany = await company.save();
+
+  // Créer l'utilisateur directeur
+  const newUser = await User.create({
+    firstName,
+    lastName,
+    email,
+    password, // Le hashage est géré par le middleware pre-save dans User.model.ts
+    phone,
+    role: "directeur", // Rôle fixé en dur à "directeur"
+    companyId: savedCompany._id,
+    isEmailVerified: true, // On considère l'email vérifié à l'inscription
+    status: "active",
+  });
+
+  // Mettre à jour l'entreprise avec l'ID du créateur
+  await Company.findByIdAndUpdate(savedCompany._id, { createdBy: newUser._id });
+
+  // Génération du token JWT avec cookies sécurisés
+  const token = generateToken(newUser.toObject());
+  
+  // Configuration des cookies
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
+    maxAge: 24 * 60 * 60 * 1000, // 24 heures
+  };
+
+  res.cookie('token', token, cookieOptions);
+
+  // Réponse avec les données minimales de l'utilisateur (sans mot de passe)
+  res.status(201).json({
+    success: true,
+    message: "Inscription réussie",
+    user: {
+      id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      role: newUser.role,
+      companyId: newUser.companyId,
+      phone: newUser.phone
+    },
+    company: {
+      id: savedCompany._id,
+      name: savedCompany.name,
+      address: (savedCompany as any).address,
+      size: (savedCompany as any).size
+    },
+  });
+}));
 
 /**
  * @route POST /api/auth/login
  * @desc Connexion par email/mot de passe
+ * @access Public
  */
-router.post("/login", async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-    console.log("🔐 Tentative de connexion pour:", email);
+router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (req: Request, res: Response) => {
+  const { email, password, rememberMe } = req.body;
+  
+  console.log("🔐 Tentative de connexion pour:", email);
 
-    // Récupérer l'utilisateur avec son mot de passe
-    const user = await User.findOne({ email }).select("+password");
+  // Récupérer l'utilisateur avec son mot de passe
+  const user = await User.findOne({ email }).select("+password");
 
-    if (!user) {
-      console.warn("❌ Utilisateur non trouvé pour l'email :", email);
-      return res
-        .status(401)
-        .json({ success: false, message: "Identifiants incorrects" });
-    }
-
-    console.log("✅ Utilisateur trouvé pour connexion");
-
-    if (!user.password) {
-      // Vérifier si c'est un employé qui n'a pas encore créé son mot de passe
-      if (user.role === "employee" && user.resetPasswordToken) {
-        console.log("ℹ️ Employé n'a pas encore créé son mot de passe");
-        return res.status(403).json({
-          success: false,
-          message:
-            "Veuillez créer votre mot de passe en utilisant le lien reçu par email.",
-          code: "PASSWORD_NOT_CREATED",
-        });
-      }
-
-      console.error("❌ Champ 'password' manquant malgré .select('+password')");
-      return res.status(500).json({
-        success: false,
-        message: "Mot de passe non disponible. Contact support.",
-      });
-    }
-
-    // Vérifier le mot de passe
-    const isValidPassword = await bcrypt.compare(password, user.password);
-
-    if (!isValidPassword) {
-      console.warn("❌ Mot de passe incorrect pour l'utilisateur :", email);
-      return res
-        .status(401)
-        .json({ success: false, message: "Identifiants incorrects" });
-    }
-
-    console.log("✅ Mot de passe vérifié avec succès pour:", email);
-
-    // Générer le token JWT
-    const token = generateToken((user as UserDocument).toObject());
-    console.log("✅ Token JWT généré avec succès");
-
-    // Configuration des cookies pour cross-origin
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS requis en production
-      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 heures
-      path: '/',
-      // Pas de domaine spécifié pour permettre le cross-origin
-    };
-
-    console.log("🍪 Configuration du cookie:", {
-      secure: cookieOptions.secure,
-      sameSite: cookieOptions.sameSite,
-      httpOnly: cookieOptions.httpOnly,
-      nodeEnv: process.env.NODE_ENV
-    });
-
-    // Définir le cookie httpOnly sécurisé
-    res.cookie('token', token, cookieOptions);
-
-    // Répondre avec les informations de l'utilisateur (avec le token pour fallback)
-    res.status(200).json({
-      success: true,
-      user: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        companyId: user.companyId,
-        photoUrl: user.photoUrl || undefined,
-      },
-      // Envoyer aussi le token pour le fallback côté frontend
-      // En cas d'échec des cookies cross-origin
-      token: token
-    });
-
-    console.log("✅ Connexion réussie pour:", email);
-  } catch (error) {
-    console.error("❌ Erreur login:", error);
-    res.status(500).json({ success: false, message: "Erreur serveur" });
+  if (!user) {
+    console.warn("❌ Utilisateur non trouvé pour l'email :", email);
+    throw new AuthenticationError("Email ou mot de passe incorrect");
   }
-});
+
+  console.log("✅ Utilisateur trouvé pour connexion");
+
+  // Vérifier que l'utilisateur est actif
+  if (user.status !== 'active') {
+    throw new AuthenticationError("Compte désactivé. Contactez l'administrateur.");
+  }
+
+  if (!user.password) {
+    // Vérifier si c'est un employé qui n'a pas encore créé son mot de passe
+    if (user.role === "employee" && user.resetPasswordToken) {
+      console.log("ℹ️ Employé n'a pas encore créé son mot de passe");
+      throw new AuthenticationError(
+        "Veuillez créer votre mot de passe en utilisant le lien reçu par email."
+      );
+    }
+
+    console.error("❌ Champ 'password' manquant malgré .select('+password')");
+    throw new AuthenticationError("Problème d'authentification. Contactez le support.");
+  }
+
+  // Vérifier le mot de passe
+  const isValidPassword = await bcrypt.compare(password, user.password);
+
+  if (!isValidPassword) {
+    console.warn("❌ Mot de passe incorrect pour l'utilisateur :", email);
+    throw new AuthenticationError("Email ou mot de passe incorrect");
+  }
+
+  console.log("✅ Mot de passe vérifié avec succès pour:", email);
+
+  // Générer le token JWT
+  const token = generateToken((user as UserDocument).toObject());
+  console.log("✅ Token JWT généré avec succès");
+
+  // Configuration des cookies pour cross-origin
+  const maxAge = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 7 jours ou 24h
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
+    maxAge,
+    path: '/',
+  };
+
+  console.log("🍪 Configuration du cookie:", {
+    secure: cookieOptions.secure,
+    sameSite: cookieOptions.sameSite,
+    httpOnly: cookieOptions.httpOnly,
+    maxAge: cookieOptions.maxAge,
+    rememberMe,
+    nodeEnv: process.env.NODE_ENV
+  });
+
+  // Définir le cookie httpOnly sécurisé
+  res.cookie('token', token, cookieOptions);
+
+  // Répondre avec les informations de l'utilisateur (sans le token pour sécurité)
+  res.status(200).json({
+    success: true,
+    message: "Connexion réussie",
+    user: {
+        id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+      photoUrl: user.photoUrl,
+      phone: user.phone,
+    },
+    // Token pour fallback localStorage si cookies cross-origin échouent
+    token: token
+  });
+
+  console.log("✅ Connexion réussie pour:", email);
+}));
 
 /**
  * @route GET /api/auth/me

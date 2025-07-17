@@ -90,6 +90,24 @@ class MetricsService {
     console.log(`❌ Error in ${context}: ${error.message} - User: ${userId || 'unknown'}`);
   }
 
+  // Métriques de validation
+  incrementValidationError(route: string, validationType: 'body' | 'params' | 'query') {
+    const key = `validation_errors_${validationType}`;
+    const currentCount = this.metrics.get(key) || 0;
+    this.metrics.set(key, currentCount + 1);
+    
+    // Compteur global
+    const totalErrors = this.metrics.get('validation_errors_total') || 0;
+    this.metrics.set('validation_errors_total', totalErrors + 1);
+    
+    // Stocker les erreurs par route
+    const routeKey = `validation_errors_route_${route.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, '')}`;
+    const routeCount = this.metrics.get(routeKey) || 0;
+    this.metrics.set(routeKey, routeCount + 1);
+    
+    console.log(`🔍 Validation error: ${validationType} on ${route} - Total: ${totalErrors + 1}`);
+  }
+
   // Obtenir les métriques en temps réel
   async getRealTimeMetrics() {
     return {
@@ -106,6 +124,12 @@ class MetricsService {
       planning: {
         total_generations: this.metrics.get('planning_generations') || 0,
         avg_duration: this.metrics.get('planning_avg_duration') || 0,
+      },
+      validation: {
+        total_errors: this.metrics.get('validation_errors_total') || 0,
+        body_errors: this.metrics.get('validation_errors_body') || 0,
+        params_errors: this.metrics.get('validation_errors_params') || 0,
+        query_errors: this.metrics.get('validation_errors_query') || 0,
       },
       system: {
         active_users: this.metrics.get('active_users') || Math.floor(Math.random() * 50) + 10,
@@ -130,6 +154,7 @@ class MetricsService {
         active_users: Math.floor(Math.random() * 100) + 20,
         response_time: Math.floor(Math.random() * 200) + 100,
         error_rate: Math.random() * 0.1,
+        validation_errors: Math.floor(Math.random() * 10),
       });
     }
     
@@ -175,7 +200,34 @@ class MetricsService {
       });
     }
 
+    // Alerte pour erreurs de validation élevées
+    if (metrics.validation.total_errors > 100) {
+      alerts.push({
+        id: 'high_validation_errors',
+        severity: 'warning',
+        message: 'Nombre élevé d\'erreurs de validation',
+        value: metrics.validation.total_errors,
+        threshold: 100,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return alerts;
+  }
+
+  // Obtenir les erreurs de validation par route
+  getValidationErrorsByRoute() {
+    const routeErrors = new Map<string, number>();
+    
+    // Parcourir toutes les métriques pour trouver les erreurs par route
+    for (const [key, value] of this.metrics.entries()) {
+      if (key.startsWith('validation_errors_route_')) {
+        const route = key.replace('validation_errors_route_', '').replace(/_/g, '/');
+        routeErrors.set(route, value as number);
+      }
+    }
+    
+    return Object.fromEntries(routeErrors);
   }
 }
 

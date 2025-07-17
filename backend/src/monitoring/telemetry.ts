@@ -90,6 +90,11 @@ const setupCustomMetrics = () => {
     description: 'Nombre d\'utilisateurs actifs',
   });
   
+  // Métriques de validation
+  const validationErrorsCounter = meter.createCounter('validation_errors_total', {
+    description: 'Nombre total d\'erreurs de validation Zod',
+  });
+  
   // Export des métriques pour utilisation dans l'application
   global.telemetryMetrics = {
     authCounter,
@@ -97,6 +102,7 @@ const setupCustomMetrics = () => {
     aiRequestDuration,
     planningGenerationCounter,
     activeUsersGauge,
+    validationErrorsCounter,
   };
 };
 
@@ -147,5 +153,6 @@ declare global {
     aiRequestDuration: any;
     planningGenerationCounter: any;
     activeUsersGauge: any;
+    validationErrorsCounter: any;
   };
 }
