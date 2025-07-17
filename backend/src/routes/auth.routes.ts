@@ -268,7 +268,7 @@ router.post("/login", async (req: Request, res: Response) => {
     // Définir le cookie httpOnly sécurisé
     res.cookie('token', token, cookieOptions);
 
-    // Répondre avec les informations de l'utilisateur (sans le token)
+    // Répondre avec les informations de l'utilisateur (avec le token pour fallback)
     res.status(200).json({
       success: true,
       user: {
@@ -280,6 +280,9 @@ router.post("/login", async (req: Request, res: Response) => {
         companyId: user.companyId,
         photoUrl: user.photoUrl || undefined,
       },
+      // Envoyer aussi le token pour le fallback côté frontend
+      // En cas d'échec des cookies cross-origin
+      token: token
     });
 
     console.log("✅ Connexion réussie pour:", email);

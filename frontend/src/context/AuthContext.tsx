@@ -25,9 +25,10 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-// Configuration axios pour les cookies (plus besoin de gérer les tokens manuellement)
+// Configuration axios pour les cookies et fallback localStorage
 const clearAuthHeaders = () => {
   delete axiosInstance.defaults.headers.common["Authorization"];
+  localStorage.removeItem('token'); // Supprimer le token du localStorage
 };
 
 // Création du contexte avec une valeur par défaut undefined
@@ -80,8 +81,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       setLoading(true);
+      
+      // Vérifier si on a un token dans localStorage (fallback)
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      }
+      
       try {
-        // Appel direct à l'API - le cookie sera automatiquement envoyé
+        // Appel direct à l'API - le cookie sera automatiquement envoyé OU utiliser le header Authorization
         const response = await axiosInstance.get("/auth/me");
 
         if (response.data.success) {
@@ -143,7 +151,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Si la connexion est réussie
       if (response.data.success) {
         // Le token est maintenant automatiquement stocké dans un cookie httpOnly
-        const { user } = response.data;
+        const { user, token } = response.data;
+
+        // Fallback : si les cookies ne fonctionnent pas, utiliser localStorage + headers
+        if (token) {
+          localStorage.setItem('token', token);
+          // Ajouter le token aux headers par défaut pour les futures requêtes
+          axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
 
         // Mettre à jour l'état en ajoutant userId pour la cohérence avec le backend
         setUser({
@@ -175,7 +190,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Appel à l'API de déconnexion pour supprimer le cookie httpOnly
       await axiosInstance.post("/auth/logout");
 
-      // Nettoyer les headers (bien que le cookie soit supprimé côté serveur)
+      // Nettoyer les headers et localStorage
       clearAuthHeaders();
 
       // Mettre à jour l'état
