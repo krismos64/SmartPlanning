@@ -4,11 +4,12 @@
 
 SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry pour fournir une observabilité complète de l'application. Le système collecte les traces, métriques et logs pour une surveillance proactive des performances et de la santé de l'application.
 
-**Statut d'implémentation** : ✅ **COMPLET** - Version 1.5.0  
+**Statut d'implémentation** : ✅ **COMPLET** - Version 1.6.0  
 **Interface admin** : ✅ Opérationnelle à `/monitoring`  
 **Métriques temps réel** : ✅ Auto-refresh 30 secondes  
 **Alertes intelligentes** : ✅ Seuils configurables  
-**Validation Zod** : ✅ Dashboard intégré avec métriques d'erreurs
+**Validation Zod** : ✅ Dashboard intégré avec métriques d'erreurs  
+**Assistant IA** : ✅ Monitoring des performances et usage de l'IA
 
 ## Architecture du Monitoring
 
@@ -29,11 +30,15 @@ SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry
 - `auth_success_rate` : Taux de réussite des connexions
 - `auth_duration` : Temps de traitement des authentifications
 
-#### Intelligence Artificielle
-- `ai_requests_total` : Nombre de requêtes vers l'API OpenAI
+#### 🚀 Intelligence Artificielle (Assistant IA Planning)
+- `ai_requests_total` : Nombre de requêtes vers OpenRouter/OpenAI
 - `ai_request_duration_seconds` : Temps de réponse des requêtes IA
 - `ai_success_rate` : Taux de réussite des requêtes IA
 - `ai_tokens_used` : Nombre de tokens consommés
+- `ai_wizard_sessions_total` : Nombre de sessions Assistant IA démarrées
+- `ai_wizard_completions_total` : Nombre de générations réussies
+- `ai_wizard_step_duration` : Temps passé par étape du wizard
+- `ai_wizard_abandonment_rate` : Taux d'abandon par étape
 
 #### Génération de Plannings
 - `planning_generations_total` : Nombre de plannings générés

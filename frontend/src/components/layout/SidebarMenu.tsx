@@ -12,6 +12,7 @@ import {
   User as UserIcon,
   Users,
   Activity,
+  Brain,
 } from "lucide-react";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
@@ -47,6 +48,12 @@ const menuItems = [
     label: "Plannings",
     icon: Calendar,
     route: "/plannings-hebdomadaires",
+  },
+  {
+    id: "planning-wizard",
+    label: "Assistant IA Planning",
+    icon: Brain,
+    route: "/planning-wizard",
   },
   {
     id: "conges",

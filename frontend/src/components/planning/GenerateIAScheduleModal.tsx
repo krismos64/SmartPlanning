@@ -1,12 +1,11 @@
 /**
- * Wrapper pour maintenir la compatibilité avec l'ancienne interface
- * TODO: À supprimer une fois WeeklySchedulePage refactorisé
+ * Nouveau composant de génération IA qui redirige vers le wizard
+ * Remplace l'ancien système modal par le nouveau wizard
  */
 
-import { getISOWeek } from "date-fns";
-import React, { useState } from "react";
-import AIScheduleGeneratorModal from "../modals/AIScheduleGeneratorModal";
-import AITeamSelectorModal from "../modals/AITeamSelectorModal";
+import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useToast } from "../../hooks/useToast";
 
 interface Team {
   value: string;
@@ -26,60 +25,17 @@ const GenerateIAScheduleModal: React.FC<GenerateIAScheduleModalProps> = ({
   onSuccess,
   teams,
 }) => {
-  const [selectedTeam, setSelectedTeam] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [selectedWeek] = useState({
-    year: new Date().getFullYear(),
-    weekNumber: getISOWeek(new Date()),
-  });
+  const navigate = useNavigate();
+  const { showToast } = useToast();
 
-  const handleTeamSelected = (
-    teamId: string,
-    teamName: string,
-    year: number,
-    weekNumber: number
-  ) => {
-    setSelectedTeam({ id: teamId, name: teamName });
-  };
-
-  const handleScheduleGenerated = (scheduleData: any) => {
-    console.log("Planning généré (wrapper):", scheduleData);
-    onSuccess();
-    handleClose();
-  };
-
-  const handleClose = () => {
-    setSelectedTeam(null);
-    onClose();
-  };
-
-  // Si aucune équipe sélectionnée, afficher le sélecteur
-  if (isOpen && !selectedTeam) {
-    return (
-      <AITeamSelectorModal
-        isOpen={true}
-        onClose={handleClose}
-        onTeamSelected={handleTeamSelected}
-      />
-    );
-  }
-
-  // Si équipe sélectionnée, afficher le générateur
-  if (isOpen && selectedTeam) {
-    return (
-      <AIScheduleGeneratorModal
-        isOpen={true}
-        onClose={handleClose}
-        teamId={selectedTeam.id}
-        teamName={selectedTeam.name}
-        year={selectedWeek.year}
-        weekNumber={selectedWeek.weekNumber}
-        onScheduleGenerated={handleScheduleGenerated}
-      />
-    );
-  }
+  useEffect(() => {
+    if (isOpen) {
+      // Rediriger vers le nouveau wizard
+      showToast('Redirection vers le nouveau Assistant IA Planning...', 'info');
+      navigate('/planning-wizard');
+      onClose();
+    }
+  }, [isOpen, navigate, onClose, showToast]);
 
   return null;
 };

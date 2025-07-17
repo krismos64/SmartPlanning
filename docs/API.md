@@ -5,7 +5,7 @@
 L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
 
 **URL de base**: `https://smartplanning.onrender.com/api`  
-**Version**: 1.4.0 (Janvier 2025)  
+**Version**: 1.6.0 (Janvier 2025)  
 **Documentation interactive**: Consultez Postman ou utilisez curl pour tester les endpoints  
 **Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)
 
@@ -347,7 +347,90 @@ Content-Type: application/json
 
 ### 🤖 Intelligence Artificielle
 
-#### Générer un planning avec l'IA
+#### 🚀 Assistant IA Planning Futuriste
+
+##### Génération via contraintes (Nouveau)
+
+```http
+POST /api/ai/schedule/generate-from-constraints
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "teamId": "673b123456789abcdef12345",
+  "weekNumber": 4,
+  "year": 2025,
+  "employees": [
+    {
+      "id": "emp_001",
+      "name": "Marie Dupont",
+      "email": "marie.dupont@company.fr",
+      "weeklyHours": 35,
+      "restDay": "sunday",
+      "allowSplitShifts": false,
+      "preferredHours": ["09:00-17:00"]
+    }
+  ],
+  "companyConstraints": {
+    "openingDays": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    "openingHours": [
+      {
+        "day": "monday",
+        "hours": ["09:00-12:00", "14:00-18:00"]
+      }
+    ],
+    "minStaffSimultaneously": 2
+  },
+  "preferences": {
+    "favorSplit": false,
+    "favorUniformity": true,
+    "balanceWorkload": true,
+    "prioritizeEmployeePreferences": true
+  }
+}
+```
+
+**Réponse (Succès) :**
+
+```json
+{
+  "success": true,
+  "schedule": [
+    {
+      "employeeId": "emp_001",
+      "employeeName": "Marie Dupont",
+      "day": "monday",
+      "slots": [
+        {
+          "start": "09:00",
+          "end": "12:00",
+          "duration": 3
+        },
+        {
+          "start": "14:00",
+          "end": "18:00",
+          "duration": 4
+        }
+      ],
+      "totalHours": 7
+    }
+  ],
+  "message": "Planning généré avec succès par l'IA",
+  "processingTime": 1250
+}
+```
+
+**Réponse (Erreur) :**
+
+```json
+{
+  "success": false,
+  "error": "Contraintes incompatibles : impossible de générer un planning optimal",
+  "details": "Nombre d'employés insuffisant pour couvrir tous les créneaux requis"
+}
+```
+
+##### Génération classique (Déprécié)
 
 ```http
 POST /api/ai/generate-schedule
@@ -370,23 +453,15 @@ Content-Type: application/json
 }
 ```
 
-**Réponse :**
+**Note :** Cette endpoint est maintenant dépréciée. Utilisez la nouvelle version `/api/ai/schedule/generate-from-constraints` qui offre une interface plus granulaire et moderne via l'Assistant IA Planning.
 
-```json
-{
-  "generatedSchedule": {
-    "week": "2024-01-15",
-    "teamId": "team_id",
-    "schedules": [...],
-    "confidence": 0.95,
-    "optimizationScore": 8.7
-  },
-  "recommendations": [
-    "Équilibrer la charge de travail entre les équipes",
-    "Prévoir des créneaux de formation"
-  ]
-}
-```
+**Fonctionnalités de l'Assistant IA :**
+
+- 🎨 **Interface futuriste** : Wizard en 6 étapes avec animations Framer Motion
+- ⚡ **Configuration granulaire** : Contraintes détaillées par employé et entreprise
+- 🧠 **IA avancée** : Intégration OpenRouter avec modèle DeepSeek R1 optimisé
+- 📊 **Feedback temps réel** : Progression visuelle avec particules d'énergie IA
+- 🌓 **Mode adaptatif** : Interface optimisée pour thèmes light et dark
 
 ### 📊 Statistiques
 

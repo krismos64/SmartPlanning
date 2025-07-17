@@ -10,6 +10,7 @@
 - **Git** pour le versioning
 - **Compte Google Cloud** (pour OAuth - optionnel)
 - **Compte OpenAI** (pour les fonctionnalités IA - optionnel)
+- **Compte OpenRouter** (pour l'Assistant IA Planning futuriste - recommandé)
 - **Compte Cloudinary** (pour l'upload d'images - optionnel)
 
 ### Étapes d'installation
@@ -216,6 +217,14 @@ cd backend && npm run build
 - Responsive mobile-first
 - Support thème clair/sombre
 
+### Assistant IA Planning Futuriste
+
+- **Framer Motion** : Animations avancées et micro-interactions
+- **Glassmorphism** : Effets de verre avec backdrop-blur
+- **Particules animées** : Système de particules flottantes
+- **Mode adaptatif** : Optimisation automatique light/dark
+- **TypeScript strict** : Typage complet avec interfaces dédiées
+
 ## Base de données
 
 ### Modèles principaux
@@ -399,18 +408,37 @@ test: ajout des tests unitaires
 
 ## Intégration IA
 
-### OpenAI API
+### 🚀 Assistant IA Planning Futuriste (Version 1.6.0)
 
-- Configuration dans `backend/src/config/openai.ts`
-- Routes dédiées dans `backend/src/routes/ai.routes.ts`
-- Interface utilisateur dans `frontend/src/components/modals/AI*.tsx`
+**Architecture moderne** :
+- **Frontend** : `frontend/src/pages/PlanningWizard.tsx` - Interface wizard futuriste
+- **Types** : `frontend/src/types/PlanningConstraints.ts` - Types TypeScript complets
+- **Backend** : `backend/src/routes/ai.routes.ts` - API `/ai/schedule/generate-from-constraints`
 
-### Fonctionnalités
+**Technologies utilisées** :
+- **OpenRouter** : Intégration avec modèle DeepSeek R1 optimisé
+- **Framer Motion** : Animations avancées et particules flottantes
+- **Glassmorphism** : Design moderne avec effets de transparence
+- **Zod validation** : Validation robuste des contraintes de planification
 
-- Génération automatique de plannings
-- Assistant conversationnel
-- Optimisation des ressources
-- Prédiction des besoins
+**Développement local** :
+```bash
+# Variables d'environnement requises
+OPENROUTER_API_KEY=sk-or-v1-your-api-key
+OPENAI_API_KEY=sk-your-openai-key  # Fallback
+
+# Test de l'interface
+cd frontend && npm run dev
+# Naviguer vers /planning-wizard
+```
+
+### Fonctionnalités IA
+
+- **🎯 Génération intelligente** : Plannings optimisés avec contraintes granulaires
+- **💫 Interface immersive** : Wizard en 6 étapes avec animations fluides
+- **⚡ Temps réel** : Feedback progressif avec particules d'énergie
+- **🧠 Assistant conversationnel** : Configuration intuitive des préférences IA
+- **📊 Optimisation avancée** : Équilibrage charge, préférences employés, contraintes entreprise
 
 ## Débogage commun
 
@@ -436,3 +464,21 @@ test: ajout des tests unitaires
 4. **Build frontend échoue**
    - Vérifier les variables d'environnement VITE\_\*
    - Nettoyer le cache : `rm -rf node_modules && npm install`
+
+5. **Assistant IA Planning ne fonctionne pas**
+   ```bash
+   # Vérifier les clés API
+   echo $OPENROUTER_API_KEY
+   echo $OPENAI_API_KEY
+   
+   # Tester l'endpoint API
+   curl -X POST http://localhost:5050/api/ai/schedule/generate-from-constraints \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <your-jwt-token>" \
+     -d '{"teamId": "test", "weekNumber": 1, "year": 2025, "employees": []}'
+   ```
+
+6. **Animations lentes ou saccadées**
+   - Désactiver les particules en mode développement
+   - Réduire le nombre d'éléments animés simultanément
+   - Vérifier les performances avec React DevTools

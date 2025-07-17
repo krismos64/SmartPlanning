@@ -329,4 +329,72 @@ router.get(
   }
 );
 
+/**
+ * @route   GET /api/teams/:id/employees
+ * @desc    Récupérer les employés d'une équipe spécifique
+ * @access  Private - Manager, Directeur, Admin
+ */
+router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur", "admin"]), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié",
+      });
+    }
+
+    // Validation de l'ID de l'équipe
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID d'équipe invalide",
+      });
+    }
+
+    // Récupération de l'équipe avec ses employés
+    const team = await TeamModel.findById(id)
+      .populate("employeeIds", "firstName lastName email photoUrl")
+      .lean();
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: "Équipe non trouvée",
+      });
+    }
+
+    // Vérification des droits d'accès
+    const userIsManager = team.managerIds.some(
+      (managerId) => managerId.toString() === req.user._id.toString()
+    );
+    const userIsDirecteur =
+      req.user.role === "directeur" &&
+      req.user.companyId === team.companyId?.toString();
+    const userIsAdmin = req.user.role === "admin";
+
+    if (!userIsManager && !userIsDirecteur && !userIsAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Vous n'êtes pas autorisé à accéder aux employés de cette équipe",
+      });
+    }
+
+    console.log(`[GET /teams/${id}/employees] ${team.employeeIds.length} employés trouvés`);
+
+    return res.status(200).json({
+      success: true,
+      data: team.employeeIds,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des employés:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erreur serveur lors de la récupération des employés",
+      error: (error as Error).message,
+    });
+  }
+});
+
 export default router;

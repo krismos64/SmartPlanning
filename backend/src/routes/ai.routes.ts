@@ -13,6 +13,7 @@ import express, { Response } from "express";
 import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
+import { validateRequest } from "../middlewares/validation.middleware";
 import { IEmployee } from "../models/Employee.model";
 import {
   GeneratedScheduleModel,
@@ -20,6 +21,7 @@ import {
 } from "../models/GeneratedSchedule.model";
 import { TeamModel } from "../models/Team.model";
 import WeeklyScheduleModel from "../models/WeeklySchedule.model";
+import { planningConstraintsSchema, PlanningConstraints } from "../schemas/planning.schemas";
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -323,8 +325,12 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "mistralai/devstral-small:free",
+            model: "deepseek/deepseek-r1-0528-free",
             messages: [
+              {
+                role: "system",
+                content: "Tu es un expert en organisation RH. Génère un planning hebdomadaire clair et équilibré à partir de contraintes."
+              },
               {
                 role: "user",
                 content: prompt,
@@ -1296,8 +1302,12 @@ FORMAT DE RÉPONSE :
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "mistralai/devstral-small:free",
+            model: "deepseek/deepseek-r1-0528-free",
             messages: [
+              {
+                role: "system",
+                content: "Tu es un expert en organisation RH. Génère un planning hebdomadaire clair et équilibré à partir de contraintes."
+              },
               {
                 role: "user",
                 content: conversationPrompt,
@@ -1407,14 +1417,18 @@ FORMAT DE RÉPONSE :
 );
 
 /**
- * @route   POST /api/ai/generate-with-context
- * @desc    Générer un planning avec le contexte enrichi de la conversation
+ * @route   POST /api/ai/schedule/generate-from-constraints
+ * @desc    Générer un planning avec les contraintes du wizard
  * @access  Private - Manager, Directeur, Admin uniquement
  */
 router.post(
-  "/generate-with-context",
+  "/schedule/generate-from-constraints",
   authenticateToken,
   checkRole(["manager", "directeur", "admin"]),
+  validateRequest({ 
+    body: planningConstraintsSchema,
+    schemaName: 'planning.constraints' 
+  }),
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
@@ -1425,40 +1439,15 @@ router.post(
         });
       }
 
-      const {
-        teamId,
-        year,
-        weekNumber,
-        constraints,
-        notes,
-        conversationSummary,
-        additionalRequirements,
-      } = req.body;
+      const startTime = Date.now();
+      const constraints: PlanningConstraints = req.body;
 
       console.log(
-        `[AI Enhanced] Génération de planning avec contexte enrichi pour l'équipe ${teamId}`
+        `[AI Wizard] Génération de planning avec contraintes structurées pour l'équipe ${constraints.teamId}`
       );
-      console.log(
-        `[AI Enhanced] Conversation summary length: ${
-          conversationSummary?.length || 0
-        }`
-      );
-      console.log(
-        `[AI Enhanced] Additional requirements: ${
-          additionalRequirements || "None"
-        }`
-      );
-
-      // ✅ Validation des champs obligatoires
-      if (!teamId || !year || !weekNumber || !constraints) {
-        return res.status(400).json({
-          success: false,
-          message: "Champs obligatoires manquants",
-        });
-      }
 
       // 🔍 Récupération de l'équipe
-      const team = await TeamModel.findById(teamId)
+      const team = await TeamModel.findById(constraints.teamId)
         .populate("employeeIds")
         .lean();
 
@@ -1481,116 +1470,100 @@ router.post(
       if (!userIsManager && !userIsDirecteur && !userIsAdmin) {
         return res.status(403).json({
           success: false,
-          message: "Accès non autorisé",
+          message: "Accès non autorisé à cette équipe",
         });
       }
 
       const employees = team.employeeIds as unknown as IEmployee[];
 
-      // 🧠 Construction du prompt enrichi avec le contexte conversationnel
+      // 🧠 Construction du prompt structuré pour DeepSeek
+      const weekDate = new Date(constraints.year, 0, 1 + (constraints.weekNumber - 1) * 7);
+      const weekInfo = `Semaine ${constraints.weekNumber}/${constraints.year} (${weekDate.toLocaleDateString("fr-FR")})`;
+
       let employeeDetails = "";
-      let totalContractHours = 0;
-
-      employees.forEach((employee: IEmployee) => {
-        const preferredDays =
-          employee.preferences?.preferredDays?.join(", ") || "Flexible";
-        const preferredHours =
-          employee.preferences?.preferredHours?.join(", ") || "Flexible";
-        const contractHours = employee.contractHoursPerWeek || 0;
-        totalContractHours += contractHours;
-
-        const anciennete = employee.startDate
-          ? `${
-              new Date().getFullYear() -
-              new Date(employee.startDate).getFullYear()
-            } ans`
-          : "Nouvelle embauche";
-
-        employeeDetails += `- ${employee.firstName} ${employee.lastName}:
-  * Contrat: ${contractHours}h/semaine
-  * Jours préférés: ${preferredDays}
-  * Horaires préférés: ${preferredHours}
-  * Ancienneté: ${anciennete}
-  * Statut: ${employee.status}
+      constraints.employees.forEach((emp) => {
+        const employee = employees.find(e => (e as any)._id.toString() === emp.id);
+        if (employee) {
+          employeeDetails += `- ${emp.name} (${emp.email}):
+  * Contrat: ${emp.weeklyHours || 35}h/semaine
+  * Jour de repos souhaité: ${emp.restDay || 'Flexible'}
+  * Coupures autorisées: ${emp.allowSplitShifts ? 'Oui' : 'Non'}
+  * Exceptions: ${emp.exceptions?.length ? emp.exceptions.map(e => `${e.date} (${e.reason})`).join(', ') : 'Aucune'}
 `;
+        }
       });
 
-      const weekDate = new Date(year, 0, 1 + (weekNumber - 1) * 7);
-      const weekInfo = `Semaine ${weekNumber}/${year} (${weekDate.toLocaleDateString(
-        "fr-FR"
-      )})`;
+      const openingDaysDetails = constraints.companyConstraints.openingDays.map(day => {
+        const dayFr = {
+          monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',
+          thursday: 'Jeudi', friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche'
+        }[day];
+        const hours = constraints.companyConstraints.openingHours.find(h => h.day === day);
+        return `${dayFr}: ${hours?.hours.join(', ') || 'Horaires standards'}`;
+      }).join('\n');
 
-      const enhancedPrompt = `🤖 ASSISTANT PLANIFICATION RH - GÉNÉRATION FINALE
+      const prompt = `Tu es un expert en planification RH. Génère un planning hebdomadaire optimisé et équilibré.
 
-📋 MISSION: Créer le planning optimal pour l'équipe "${team.name}"
-📅 PÉRIODE: ${weekInfo}
+📋 ÉQUIPE "${team.name}" - ${weekInfo}
 
-👥 ÉQUIPE (${employees.length} employés - ${totalContractHours}h total/semaine):
+👥 EMPLOYÉS (${constraints.employees.length} personnes):
 ${employeeDetails}
 
-⚠️ CONTRAINTES OBLIGATOIRES:
-${constraints.map((c: string) => `- ${c}`).join("\n")}
+🏢 CONTRAINTES ENTREPRISE:
+Jours d'ouverture:
+${openingDaysDetails}
 
-${
-  conversationSummary
-    ? `💬 CONTEXTE CONVERSATIONNEL PRIORITAIRE:
-${conversationSummary}
+Personnel minimum simultané: ${constraints.companyConstraints.minStaffSimultaneously || 1}
 
-🎯 INSTRUCTION CRITIQUE: Vous DEVEZ analyser et respecter SCRUPULEUSEMENT toutes les consignes et préférences mentionnées dans cette conversation. Ces informations sont PRIORITAIRES et doivent être appliquées dans le planning généré.
+⚙️ PRÉFÉRENCES IA:
+- Favoriser les coupures: ${constraints.preferences.favorSplit ? 'Oui' : 'Non'}
+- Uniformité des horaires: ${constraints.preferences.favorUniformity ? 'Oui' : 'Non'}
+- Équilibrer la charge: ${constraints.preferences.balanceWorkload ? 'Oui' : 'Non'}
+- Prioriser préférences employés: ${constraints.preferences.prioritizeEmployeePreferences ? 'Oui' : 'Non'}
 
-`
-    : ""
-}
+🎯 OBJECTIFS DE PLANIFICATION:
+1. RESPECTER les heures contractuelles de chaque employé
+2. APPLIQUER les jours de repos souhaités
+3. ASSURER une couverture de service appropriée
+4. RESPECTER le repos hebdomadaire légal (minimum 35h consécutives)
+5. ÉVITER les journées trop longues (maximum 10h/jour)
+6. GÉRER les exceptions et contraintes individuelles
 
-${
-  additionalRequirements
-    ? `🔥 EXIGENCES SPÉCIALES À RESPECTER ABSOLUMENT:
-${additionalRequirements}
+🔧 RÈGLES TECHNIQUES:
+- Format horaire: "HH:MM-HH:MM" (ex: "08:00-12:00")
+- Pauses déjeuner: 1h minimum entre créneaux matin/après-midi
+- Repos quotidien: 11h minimum entre deux services
+- Horaires d'ouverture: respecter les créneaux définis
 
-`
-    : ""
-}
-
-${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
-
-🔧 RÈGLES DE PLANIFICATION STRICTES:
-1. ✅ RESPECTER les heures contractuelles exactes
-2. ✅ APPLIQUER TOUTES les consignes de la conversation
-3. ✅ PRIORISER les préférences employés mentionnées
-4. ✅ ASSURER repos hebdomadaire minimum 35h consécutives
-5. ✅ LIMITER journées à 10h maximum
-6. ✅ GARANTIR repos quotidien 11h entre services
-7. ✅ PRÉVOIR pauses déjeuner 1h minimum
-8. ✅ ÉQUILIBRER charge travail dans l'équipe
-
-💡 MÉTHODOLOGIE DE PLANIFICATION:
-1. Analyser d'abord TOUS les éléments de conversation
-2. Identifier les contraintes spécifiques mentionnées
-3. Appliquer ces contraintes en priorité
-4. Optimiser le planning selon les règles standards
-5. Vérifier que toutes les consignes sont respectées
-
-⚡ EXEMPLE D'APPLICATION:
-- Si conversation mentionne "Jean ne peut pas travailler le mardi" → Jean ne doit PAS être planifié le mardi
-- Si conversation dit "besoin de plus de personnel le vendredi" → prioriser plus d'employés le vendredi
-- Si conversation précise "éviter les horaires de nuit pour Marie" → Marie ne doit pas avoir d'horaires tardifs
-
-⚡ FORMAT JSON OBLIGATOIRE (AUCUN TEXTE AVANT/APRÈS):
+FORMAT JSON STRICT (pas de texte avant/après):
 {
-  "lundi": { "Prénom Nom": ["HH:MM-HH:MM", "HH:MM-HH:MM"] },
-  "mardi": { "Prénom Nom": ["HH:MM-HH:MM"] },
-  "mercredi": { "Prénom Nom": [] },
-  "jeudi": { "Prénom Nom": ["HH:MM-HH:MM"] },
-  "vendredi": { "Prénom Nom": ["HH:MM-HH:MM"] },
+  "lundi": { 
+    "Alice Martin": ["08:00-12:00", "13:00-17:00"],
+    "Jean Dupont": ["09:00-13:00"]
+  },
+  "mardi": { 
+    "Alice Martin": ["08:00-12:00"],
+    "Jean Dupont": ["14:00-18:00"]
+  },
+  "mercredi": { 
+    "Alice Martin": ["08:00-12:00", "13:00-17:00"],
+    "Jean Dupont": []
+  },
+  "jeudi": { 
+    "Alice Martin": ["09:00-13:00"],
+    "Jean Dupont": ["14:00-18:00"]
+  },
+  "vendredi": { 
+    "Alice Martin": [],
+    "Jean Dupont": ["08:00-12:00", "13:00-17:00"]
+  },
   "samedi": {},
   "dimanche": {}
 }
 
-🎯 RAPPEL CRITIQUE: Le planning généré doit IMPÉRATIVEMENT refléter et respecter TOUTES les consignes données dans la conversation. C'est votre PRIORITÉ ABSOLUE!
+⚡ GÉNÈRE LE PLANNING OPTIMAL EN RESPECTANT TOUTES CES DIRECTIVES.`;
 
-🚀 GÉNÉRER LE PLANNING MAINTENANT!`;
-
-      // 🌐 Appel à l'API OpenRouter avec prompt enrichi
+      // 🌐 Appel à l'API OpenRouter avec DeepSeek
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
       if (!openRouterApiKey) {
@@ -1609,36 +1582,34 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "mistralai/devstral-small:free",
+            model: "deepseek/deepseek-r1-0528-free",
             messages: [
               {
                 role: "system",
-                content:
-                  "Tu es un expert en planification RH. Tu dois absolument respecter et appliquer toutes les consignes données dans la conversation avec le manager. C'est ta priorité numéro 1. Analyse soigneusement chaque instruction et applique-la dans le planning généré.",
+                content: "Tu es un expert en organisation RH. Génère un planning hebdomadaire clair et équilibré à partir de contraintes."
               },
               {
                 role: "user",
-                content: enhancedPrompt,
+                content: prompt,
               },
             ],
-            temperature: 0.3, // Plus bas pour plus de précision et cohérence
+            temperature: 0.3,
             max_tokens: 2000,
-            top_p: 0.9,
           }),
         }
       );
 
       if (!openRouterResponse.ok) {
         const errorText = await openRouterResponse.text();
-        console.error(`[AI Enhanced] Erreur OpenRouter:`, errorText);
+        console.error(`[AI Wizard] Erreur OpenRouter:`, errorText);
         return res.status(500).json({
           success: false,
-          message: "Erreur API de génération",
+          message: "Erreur lors de l'appel à l'API OpenRouter",
+          error: errorText,
         });
       }
 
-      const openRouterData: OpenRouterResponse =
-        await openRouterResponse.json();
+      const openRouterData: OpenRouterResponse = await openRouterResponse.json();
       const aiResponseContent = openRouterData.choices[0].message.content;
 
       // 📊 Parse et validation de la réponse
@@ -1650,30 +1621,24 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
           .trim();
         generatedScheduleData = JSON.parse(cleanedResponse);
       } catch (parseError) {
-        console.error(`[AI Enhanced] Erreur parsing:`, parseError);
+        console.error(`[AI Wizard] Erreur parsing:`, parseError);
         return res.status(500).json({
           success: false,
-          message: "Réponse IA invalide",
+          message: "Impossible de parser la réponse de l'IA",
+          error: (parseError as Error).message,
           aiResponse: aiResponseContent,
         });
       }
 
-      // 💾 Sauvegarde avec métadonnées enrichies
+      // 💾 Sauvegarde des plannings générés
       const savedSchedules: IGeneratedSchedule[] = [];
 
       for (const employee of employees) {
         const employeeFullName = `${employee.firstName} ${employee.lastName}`;
-        const employeeScheduleData: { [day: string]: { slots?: string[] } } =
-          {};
+        const employeeScheduleData: { [day: string]: { slots?: string[] } } = {};
 
         const daysOfWeek = [
-          "lundi",
-          "mardi",
-          "mercredi",
-          "jeudi",
-          "vendredi",
-          "samedi",
-          "dimanche",
+          "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche",
         ];
 
         for (const day of daysOfWeek) {
@@ -1696,12 +1661,11 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
           generatedBy: req.user._id,
           timestamp: new Date(),
           status: "draft",
-          weekNumber: weekNumber,
-          year: year,
+          weekNumber: constraints.weekNumber,
+          year: constraints.year,
           metadata: {
-            conversationSummary,
-            additionalRequirements,
-            enhancedGeneration: true,
+            wizardGeneration: true,
+            constraints: constraints,
           },
         });
 
@@ -1709,20 +1673,29 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
         savedSchedules.push(savedSchedule);
       }
 
+      const processingTime = Date.now() - startTime;
+
       console.log(
-        `[AI Enhanced] Planning enrichi généré pour ${employees.length} employés`
+        `[AI Wizard] Planning généré avec succès en ${processingTime}ms pour ${employees.length} employés`
       );
 
       return res.status(201).json({
         success: true,
-        message: `Planning enrichi généré avec succès`,
+        message: `Planning généré avec succès pour ${employees.length} employés de l'équipe ${team.name}`,
+        schedule: savedSchedules.map((schedule) => ({
+          employeeId: schedule.employeeId,
+          employeeName: employees.find(e => (e as any)._id.toString() === schedule.employeeId.toString())?.firstName + ' ' + employees.find(e => (e as any)._id.toString() === schedule.employeeId.toString())?.lastName,
+          day: 'mixed',
+          slots: [],
+          totalHours: 0
+        })),
+        processingTime,
         data: {
           teamId: team._id,
           teamName: team.name,
-          weekNumber,
-          year,
+          weekNumber: constraints.weekNumber,
+          year: constraints.year,
           employeesCount: employees.length,
-          totalContractHours,
           generatedSchedules: savedSchedules.map((schedule) => ({
             id: (schedule as any)._id,
             employeeId: schedule.employeeId,
@@ -1730,14 +1703,13 @@ ${notes ? `📝 NOTES COMPLÉMENTAIRES:\n${notes}\n\n` : ""}
             timestamp: schedule.timestamp,
           })),
           rawScheduleData: generatedScheduleData,
-          enhanced: true,
         },
       });
     } catch (error) {
-      console.error("[AI Enhanced] Erreur:", error);
+      console.error("[AI Wizard] Erreur:", error);
       return res.status(500).json({
         success: false,
-        message: "Erreur serveur",
+        message: "Erreur serveur lors de la génération du planning",
         error: error instanceof Error ? error.message : String(error),
       });
     }

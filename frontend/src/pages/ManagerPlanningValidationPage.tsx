@@ -50,12 +50,8 @@ import Toast from "../components/ui/Toast";
 // Hooks
 import { useAuth } from "../hooks/useAuth";
 
-// Composants IA
-import AIScheduleGeneratorModal from "../components/modals/AIScheduleGeneratorModal";
-import AITeamSelectorModal from "../components/modals/AITeamSelectorModal";
-import AIGenerationGuide from "../components/ui/AIGenerationGuide";
-import { useAIGuide } from "../hooks/useAIGuide";
-import { useAIScheduleModal } from "../hooks/useAIScheduleModal";
+// Composants IA - Redirection vers le nouveau wizard
+import { useToast } from "../hooks/useToast";
 
 // Types et interfaces
 interface Employee {
@@ -169,6 +165,7 @@ const getWeekDates = (year: number, weekNumber: number) => {
 const ManagerPlanningValidationPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // Vérification des autorisations
   useEffect(() => {
@@ -212,51 +209,17 @@ const ManagerPlanningValidationPage: React.FC = () => {
     employeeName: "",
   });
 
-  // États pour les modals IA
-  const [isAISelectorOpen, setIsAISelectorOpen] = useState<boolean>(false);
+  // Navigation vers le nouveau wizard IA (hooks obsolètes supprimés)
 
-  // Hook pour gérer l'affichage du guide IA
-  const aiGuide = useAIGuide(2000); // Délai de 2 secondes
-
-  // Gestion de la génération IA
-  const handleAIScheduleGenerated = (scheduleData: any) => {
-    console.log("Planning IA généré:", scheduleData);
-    setSuccess(
-      `Planning généré avec succès pour l'équipe ${scheduleData.teamName} !`
-    );
-    setShowSuccessToast(true);
-
-    // Afficher le guide visuel vers les plannings IA
-    aiGuide.showGuide();
-
-    // Recharger les plannings pour voir le nouveau planning généré
-    fetchGeneratedSchedules();
-  };
-
-  const aiScheduleModal = useAIScheduleModal({
-    onScheduleGenerated: handleAIScheduleGenerated,
-  });
+  // Fonctions obsolètes supprimées - redirection vers le wizard
 
   const handleOpenAISelector = () => {
-    console.log("Debug - Bouton IA cliqué, ouverture du sélecteur");
-    setIsAISelectorOpen(true);
+    console.log("Debug - Redirection vers le wizard IA");
+    showToast('Redirection vers le nouveau Assistant IA Planning...', 'info');
+    navigate('/planning-wizard');
   };
 
-  const handleTeamSelected = (
-    teamId: string,
-    teamName: string,
-    year: number,
-    weekNumber: number
-  ) => {
-    console.log("Debug - handleTeamSelected appelé avec:", {
-      teamId,
-      teamName,
-      year,
-      weekNumber,
-    });
-    setIsAISelectorOpen(false);
-    aiScheduleModal.openModal(teamId, teamName, year, weekNumber);
-  };
+  // Fonction obsolète supprimée - redirection vers le wizard
 
   /**
    * Récupérer tous les plannings générés par l'IA avec le statut "draft"
@@ -1069,31 +1032,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
           </div>
         </Modal>
 
-        {/* Modals IA */}
-        <AITeamSelectorModal
-          isOpen={isAISelectorOpen}
-          onClose={() => setIsAISelectorOpen(false)}
-          onTeamSelected={handleTeamSelected}
-        />
-
-        {/* Modal de génération IA */}
-        {aiScheduleModal.selectedTeam && aiScheduleModal.selectedTeam.id && (
-          <AIScheduleGeneratorModal
-            isOpen={aiScheduleModal.isOpen}
-            onClose={aiScheduleModal.closeModal}
-            teamId={aiScheduleModal.selectedTeam.id}
-            teamName={aiScheduleModal.selectedTeam.name}
-            year={aiScheduleModal.selectedWeek.year}
-            weekNumber={aiScheduleModal.selectedWeek.weekNumber}
-            onScheduleGenerated={aiScheduleModal.handleScheduleGenerated}
-          />
-        )}
-
-        {/* Guide visuel vers plannings IA */}
-        <AIGenerationGuide
-          isVisible={aiGuide.isVisible}
-          onClose={aiGuide.hideGuide}
-        />
+        {/* Anciens modals IA supprimés - redirection vers le wizard */}
       </PageWrapper>
     </LayoutWithSidebar>
   );

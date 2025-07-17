@@ -4,7 +4,7 @@
 
 SmartPlanning utilise une architecture séparée moderne (découplée) avec un backend Node.js/Express et un frontend React, déployés sur des serveurs différents mais communicant via une API REST sécurisée.
 
-**Mise à jour** : Juillet 2025 - Version 1.3.1
+**Mise à jour** : Janvier 2025 - Version 1.6.0
 
 ## Architecture générale
 
@@ -37,10 +37,16 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 
 **Composants et UI :**
 - **Lucide React** : Icônes modernes et cohérentes
-- **Framer Motion** : Animations fluides et performantes  
+- **Framer Motion** : Animations fluides et performantes (Assistant IA Planning)
 - **Lottie React** : Animations complexes (JSON)
 - **React Hot Toast** : Notifications élégantes
 - **React Helmet Async** : Gestion SEO et meta tags
+
+**Assistant IA Planning Futuriste (v1.6.0) :**
+- **Glassmorphism Design** : Effets de verre avec backdrop-blur
+- **Particules animées** : Système de particules flottantes
+- **Wizard moderne** : Interface 6 étapes avec navigation progressive
+- **Mode adaptatif** : Optimisation automatique light/dark
 
 **État et données :**
 - **React Context** : Gestion d'état global (auth, thème)
@@ -201,19 +207,37 @@ admin > directeur > manager > employee
 
 ## Intégrations externes
 
-### Intelligence artificielle (OpenAI)
+### 🚀 Intelligence Artificielle (Assistant IA Planning Futuriste)
 
-**Architecture IA :**
+**Architecture IA modernisée (v1.6.0) :**
 ```
-Frontend → Backend → OpenAI API → GPT-4 → Response
-    ↓         ↓
-UI Guide   Processing & Validation
+┌─────────────────────┐    API REST     ┌─────────────────────┐    AI API    ┌─────────────────────┐
+│   Frontend Wizard   │◄───────────────►│   Backend + Zod     │◄─────────────►│  OpenRouter/OpenAI  │
+│  (6 étapes + UX)    │   Constraints   │   (Validation)      │  JSON Prompt │   (DeepSeek R1)     │
+│  Framer Motion      │                 │  /ai/schedule/      │              │                     │
+│  Glassmorphism      │                 │  generate-from-     │              │                     │
+│  Particules         │                 │  constraints        │              │                     │
+└─────────────────────┘                 └─────────────────────┘              └─────────────────────┘
 ```
 
-**Fonctionnalités :**
-- **Génération plannings** : Optimisation automatique
-- **Assistant conversationnel** : Support utilisateur
-- **Analyse prédictive** : Tendances et recommandations
+**🎨 Interface Futuriste :**
+- **Wizard 6 étapes** : Navigation progressive avec validation
+- **Glassmorphism** : Design moderne avec effets de transparence
+- **Particules animées** : Système immersif avec Framer Motion
+- **Mode adaptatif** : Light/Dark avec optimisations automatiques
+- **Feedback temps réel** : Progression IA avec animations d'énergie
+
+**🧠 IA Avancée :**
+- **OpenRouter + DeepSeek R1** : Modèle optimisé pour génération de plannings
+- **Configuration granulaire** : Contraintes par employé et entreprise
+- **Validation Zod** : Schémas TypeScript pour données robustes
+- **Optimisation intelligente** : Équilibrage charge, préférences, contraintes
+
+**📊 Fonctionnalités :**
+- **Génération optimisée** : Plannings avec contraintes complexes
+- **Interface immersive** : Expérience utilisateur futuriste
+- **Performance temps réel** : Feedback progressif et animations fluides
+- **Types complets** : Interface TypeScript avec PlanningConstraints
 
 ### Upload et assets (Cloudinary)
 

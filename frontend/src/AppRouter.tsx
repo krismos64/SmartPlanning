@@ -56,6 +56,7 @@ const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const TermsOfUsePage = lazy(() => import("./pages/TermsOfUsePage"));
 const DatePickerDemoPage = lazy(() => import("./pages/DatePickerDemoPage"));
 const MonitoringPage = lazy(() => import("./pages/MonitoringPage"));
+const PlanningWizard = lazy(() => import("./pages/PlanningWizard"));
 
 
 /**
@@ -291,6 +292,17 @@ const AppRouter: React.FC = () => {
           }
         />
         <Route path="/composants/datepicker" element={<DatePickerDemoPage />} />
+
+        {/* Route pour le wizard de génération IA */}
+        <Route
+          path="/planning-wizard"
+          element={
+            <RoleProtectedRoute
+              element={<PlanningWizard />}
+              allowedRoles={["admin", "manager", "directeur"]}
+            />
+          }
+        />
 
         {/* Route pour la gestion des utilisateurs par un directeur */}
         <Route

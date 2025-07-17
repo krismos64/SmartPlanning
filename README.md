@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.5.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.6.0-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
 ![E2E Tests](https://img.shields.io/badge/E2E%20Tests-Cypress-brightgreen?style=flat-square)
@@ -100,7 +100,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 1.5.0 (Stable - Production)
+### Version actuelle : 1.6.0 (Stable - Production)
 
 **Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN  
 **Statut déploiement** : ✅ **Production stable** - Déployé et opérationnel sur smartplanning.fr  
@@ -261,13 +261,23 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
   - Validation des seuils d'alertes et badges de sévérité
   - Couverture complète des cas d'usage (erreurs/pas d'erreurs)
 
+✅ **Assistant IA Planning Futuriste (Janvier 2025)**
+
+- **🚀 Interface wizard moderne** : Expérience utilisateur futuriste avec 6 étapes intuitives
+- **✨ Design glassmorphism** : Effets de verre avec transparences et backdrop-blur
+- **🎨 Animations avancées** : Framer Motion avec particules flottantes et micro-interactions
+- **🌓 Mode adaptatif** : Interface optimisée pour les thèmes light et dark
+- **🧠 Génération IA intelligente** : Intégration OpenRouter avec modèle DeepSeek R1
+- **⚡ Contraintes granulaires** : Configuration détaillée par employé et entreprise
+- **📊 Feedback visuel** : Progression temps réel avec animations d'énergie IA
+
 **Fonctionnalités en cours de développement :**
 
-🔄 **Intelligence artificielle**
+🔄 **Intelligence artificielle avancée**
 
-- Algorithmes d'optimisation des plannings
-- Assistant virtuel pour la gestion d'équipe
-- Prédiction des besoins en personnel
+- Algorithmes d'optimisation prédictive des plannings
+- Assistant virtuel conversationnel pour la gestion d'équipe
+- Analyse prédictive des besoins en personnel
 
 🔄 **Intégrations**
 
@@ -284,6 +294,24 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - Internationalisation complète (i18n)
 
 ### Dernières mises à jour
+
+**🚀 Assistant IA Planning Futuriste (Version 1.6.0 - Janvier 2025)**
+
+- **🎨 Refonte complète de l'interface de génération IA**
+  - Interface wizard moderne avec 6 étapes intuitives et navigation fluide
+  - Design glassmorphism avec effets de verre et transparences
+  - Animations Framer Motion avancées : particules flottantes, micro-interactions
+  - Mode adaptatif optimisé pour thèmes light et dark automatique
+- **⚡ Expérience utilisateur futuriste**
+  - Sélection d'équipes avec cartes interactives et avatars holographiques
+  - Configuration granulaire des contraintes par employé avec feedback visuel
+  - Progression temps réel avec animations d'énergie IA pendant la génération
+  - Boutons avec effets de brillance et interactions 3D au survol
+- **🧠 Intégration IA avancée**
+  - Génération intelligente avec OpenRouter et modèle DeepSeek R1
+  - Configuration des préférences IA avec interface intuitive
+  - Validation et génération de plannings optimisés en temps réel
+  - Feedback utilisateur immersif avec particules d'énergie animées
 
 **🔍 Validation des données avec Zod (Version 1.5.0 - Juillet 2025)**
 
@@ -411,7 +439,40 @@ Pour une documentation complète, consultez le dossier `docs/` :
 
 ## Changelog
 
-### Version 1.5.0 (Nouvelle version - Validation des données avec Zod)
+### Version 1.6.0 (Assistant IA Planning Futuriste - Janvier 2025)
+
+- **🚀 Refonte complète de l'interface de génération IA**
+
+  - **Interface wizard moderne** : 6 étapes intuitives avec navigation fluide et progressive
+  - **Design glassmorphism** : Effets de verre avec backdrop-blur-xl et transparences
+  - **Animations Framer Motion avancées** : Particules flottantes, micro-interactions, effets 3D
+  - **Mode adaptatif** : Interface optimisée pour thèmes light et dark automatique
+  - **Navigation futuriste** : Stepper avec icônes animées et progression visuelle
+
+- **⚡ Expérience utilisateur immersive**
+
+  - **Cartes interactives** : Sélection d'équipes et employés avec avatars holographiques
+  - **Feedback visuel temps réel** : Indicateurs de sélection avec animations spring
+  - **Configuration granulaire** : Contraintes détaillées par employé et entreprise
+  - **Progression IA** : Animations d'énergie avec particules pendant la génération
+  - **Boutons futuristes** : Effets de brillance et interactions 3D au survol
+
+- **🧠 Intégration IA avancée**
+
+  - **Génération intelligente** : OpenRouter avec modèle DeepSeek R1 optimisé
+  - **Configuration intuitive** : Interface pour préférences IA avec switches animés
+  - **Validation temps réel** : Génération de plannings optimisés avec feedback immédiat
+  - **Types TypeScript** : Interface PlanningWizardStep mise à jour avec icônes
+  - **Performance optimisée** : Animations fluides sans impact sur les performances
+
+- **🎨 Optimisations visuelles**
+  - **Fond animé** : Particules flottantes et dégradés dynamiques
+  - **Glassmorphism moderne** : Cartes avec transparences et effets de profondeur
+  - **Couleurs adaptatives** : Palette cohérente pour modes light/dark
+  - **Typography moderne** : Titres 3D avec effets de parallax
+  - **Responsive design** : Adaptation parfaite mobile/tablette/desktop
+
+### Version 1.5.0 (Validation des données avec Zod - Juillet 2025)
 
 - **🔍 Système de validation TypeScript-first avec Zod**
 
