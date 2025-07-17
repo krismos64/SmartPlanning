@@ -43,14 +43,21 @@ export function setupAxiosInterceptors(): void {
           }
 
           if (!isLoginPage && !isLoginRequest) {
-            // Délai avant redirection pour permettre au composant de gérer l'erreur
-            setTimeout(() => {
-              // Vérifier si on est toujours sur la même page (l'utilisateur n'a pas navigué)
-              if (window.location.pathname !== "/connexion") {
-                console.warn("Redirection vers la page de connexion après délai");
-                window.location.href = "/connexion";
-              }
-            }, 2000); // 2 secondes de délai
+            // Ne pas rediriger automatiquement si on est sur la page d'accueil
+            // et que l'utilisateur n'a pas encore tenté de se connecter
+            const isHomePage = window.location.pathname === "/" || 
+                              window.location.pathname === "/accueil";
+            
+            if (!isHomePage) {
+              // Délai avant redirection pour permettre au composant de gérer l'erreur
+              setTimeout(() => {
+                // Vérifier si on est toujours sur la même page (l'utilisateur n'a pas navigué)
+                if (window.location.pathname !== "/connexion") {
+                  console.warn("Redirection vers la page de connexion après délai");
+                  window.location.href = "/connexion";
+                }
+              }, 2000); // 2 secondes de délai
+            }
           }
         }
       }

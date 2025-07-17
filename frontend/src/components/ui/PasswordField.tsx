@@ -120,6 +120,7 @@ const PasswordField: React.FC<PasswordFieldProps> = ({
             fontSize: isActive ? "0.75rem" : "1rem",
           }}
           transition={{ duration: 0.2 }}
+          style={{}}
         >
           {label}
           {required && <span className="text-red-400 ml-1">*</span>}
