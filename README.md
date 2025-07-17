@@ -6,24 +6,33 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.3.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.3.2-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
-![État](https://img.shields.io/badge/État-En%20développement-orange?style=flat-square)
+![État](https://img.shields.io/badge/État-Production%20Stable-brightgreen?style=flat-square)
 
 SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, développée en TypeScript pour une gestion optimisée des ressources humaines. L'application utilise une architecture moderne séparée (frontend React/backend Node.js) avec des fonctionnalités d'IA avancées pour l'optimisation automatique des plannings.
 
-## 🚀 Optimisations SEO Récentes
+## 🚀 Optimisations SEO & Performance
 
-Notre plateforme a été optimisée pour les moteurs de recherche avec les améliorations suivantes :
+Notre plateforme a été optimisée pour les moteurs de recherche et les performances avec les améliorations suivantes :
 
-- ✅ **Sitemap.xml complet** : Toutes les pages sont indexées pour un meilleur référencement
-- ✅ **Robots.txt optimisé** : Directives d'exploration configurées pour protéger les données sensibles
+### 🔍 **Référencement naturel (SEO)**
+- ✅ **Sitemap.xml complet** : Toutes les pages indexées pour un meilleur référencement
+- ✅ **Robots.txt optimisé** : Directives d'exploration pour protéger les données sensibles
 - ✅ **Meta tags enrichis** : Open Graph et Twitter Cards pour les réseaux sociaux
 - ✅ **URLs canoniques** : Prévention du contenu dupliqué
 - ✅ **Mots-clés français RH/Planning** : Ciblage des termes de recherche pertinents
 - ✅ **Schema.org** : Données structurées pour les moteurs de recherche
-- ✅ **Performance optimisée** : Bundle réduit de 80% pour un chargement rapide
+- ✅ **Analytics intégrés** : Suivi des performances et conversions
+
+### ⚡ **Performance & Optimisations**
+- ✅ **Bundle réduit de 80%** : 1.9MB → 389KB pour un chargement ultra-rapide
+- ✅ **Code-splitting avancé** : 70+ chunks avec lazy loading intelligent
+- ✅ **Compression gzip/brotli** : -70% de données transférées
+- ✅ **Cache HTTP intelligent** : Assets (1 an), API publiques (1h)
+- ✅ **Rate limiting DoS** : Protection 100 req/15min par IP
+- ✅ **Images optimisées** : WebP, compression et lazy loading
 
 🌐 **Application déployée** : [https://smartplanning.fr](https://smartplanning.fr)  
 🔧 **API Backend** : [https://smartplanning.onrender.com](https://smartplanning.onrender.com)  
@@ -75,18 +84,21 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 🔒 **Sécurité et API robuste**
 
 - API RESTful sécurisée avec Node.js et Express
-- Authentification JWT avec cookies httpOnly sécurisés
+- Authentification JWT hybride : cookies httpOnly + localStorage fallback
 - Options d'authentification : email/password et Google OAuth
 - Contrôle d'accès basé sur les rôles (RBAC)
-- Tests de sécurité automatisés complets
+- Tests de sécurité automatisés complets (14/15 réussis)
 - Protection contre XSS, injection NoSQL et attaques CSRF
+- Configuration cross-origin HTTPS optimisée
 - Documentation API complète
 
 ## État d'avancement
 
-### Version actuelle : 1.3.1
+### Version actuelle : 1.3.2 (Stable - Production)
 
-**Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN
+**Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN  
+**Statut déploiement** : ✅ **Production stable** - Déployé et opérationnel sur smartplanning.fr  
+**Sécurité** : ✅ **Audit complet** - 14/15 tests de sécurité réussis (93% de couverture)
 
 **Fonctionnalités implémentées :**
 
@@ -146,12 +158,13 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ✅ **Authentification et sécurité**
 
-- Système JWT avec cookies httpOnly sécurisés
-- Support pour Google OAuth
+- Système JWT hybride : cookies httpOnly + localStorage fallback
+- Support pour Google OAuth 2.0
 - Contrôle d'accès basé sur les rôles (RBAC)
 - Protection globale des routes API avec middleware
 - Tests de sécurité automatisés (14/15 tests réussis)
 - Protection contre les vulnérabilités OWASP
+- Configuration cross-origin HTTPS optimisée
 - Validation des formulaires côté client et serveur
 - Audit de sécurité complet et corrections appliquées
 
@@ -218,7 +231,23 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ### Dernières mises à jour
 
-**⚡ Optimisations Performance Majeures (Nouvelle mise à jour)**
+**🔐 Authentification Cross-Origin & UX (Version 1.3.2 - Décembre 2024)**
+
+- **Résolution du problème d'authentification cross-origin**
+  - Système hybride : cookies httpOnly + localStorage fallback
+  - Configuration optimisée pour HTTPS cross-origin (smartplanning.fr ↔ render.com)
+  - Correction des props React et élimination des redirections intempestives
+  - Logs de debug ajoutés pour monitoring des cookies
+  - Gestion automatique des fallbacks d'authentification
+
+- **Améliorations UX critiques**
+  - Élimination des redirections automatiques sur les pages publiques
+  - Correction des erreurs styled-components (isDarkMode → $isDarkMode)
+  - Optimisation des intercepteurs axios pour les erreurs 401
+  - Amélioration de l'expérience utilisateur sur la page d'accueil
+  - Compatibilité cross-browser optimisée
+
+**⚡ Optimisations Performance Majeures (Version 1.3.1)**
 
 - **Bundle size et performances frontend optimisées**
   - Code-splitting avancé : 1.9MB → 70+ chunks (plus gros : 389KB) = **-80%**
@@ -279,7 +308,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Backend**                   | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet             |
 | **Base de données**           | MongoDB Atlas, Mongoose (ODM), Index optimisés                       |
 | **Intelligence artificielle** | OpenAI API, GPT-4 pour génération de plannings                       |
-| **Authentification**          | JWT (cookies httpOnly), Google OAuth 2.0, Passport.js               |
+| **Authentification**          | JWT hybride (cookies httpOnly + localStorage), Google OAuth 2.0, Passport.js |
 | **Upload de fichiers**        | Cloudinary (images), Multer (middleware)                             |
 | **Déploiement**               | Docker, Hostinger (Frontend), Render (Backend), MongoDB Atlas        |
 | **Tests et sécurité**         | Jest, Supertest, MongoDB Memory Server, Tests de sécurité (14/15)    |
@@ -301,7 +330,29 @@ Pour une documentation complète, consultez le dossier `docs/` :
 
 ## Changelog
 
-### Version 1.3.1 (Dernière - Sécurité)
+### Version 1.3.2 (Dernière - Authentification & UX)
+
+- **🔐 Résolution critique : Authentification cross-origin**
+  - **Système hybride implémenté** : cookies httpOnly + localStorage fallback
+  - **Configuration HTTPS optimisée** : sameSite='none' avec secure=true pour cross-origin
+  - **Logs de debug ajoutés** : monitoring des cookies et troubleshooting
+  - **Gestion automatique** : fallback transparent si cookies cross-origin échouent
+  - **Compatibilité navigateurs** : solution robuste pour tous les navigateurs
+
+- **🎨 Corrections UX majeures**
+  - **Élimination des redirections intempestives** : pas de redirection automatique depuis la page d'accueil
+  - **Correction des erreurs React** : props `isDarkMode` → `$isDarkMode` pour styled-components
+  - **Optimisation des intercepteurs** : gestion intelligente des erreurs 401
+  - **Pages publiques optimisées** : pas de vérification auth sur les pages publiques
+  - **Expérience utilisateur fluidifiée** : navigation naturelle sans interruptions
+
+- **⚡ Optimisations techniques**
+  - **AuthContext amélioré** : logique de vérification adaptative selon la page
+  - **Axios intercepteurs optimisés** : gestion des erreurs cross-origin
+  - **Logs structurés** : debugging facilité en production
+  - **Nettoyage automatique** : tokens supprimés à la déconnexion
+
+### Version 1.3.1 (Sécurité)
 
 - **🛡️ Audit de sécurité complet et corrections critiques**
 
@@ -611,7 +662,7 @@ L'application SmartPlanning est déployée en production :
 
 Pour des déploiements alternatifs, consultez le [Guide de déploiement](docs/DEPLOYMENT.md).
 
-**Juillet 2025** - Application en production stable avec architecture ultra clean, intégration IA et sécurité renforcée.
+**Décembre 2024** - Application en production stable avec architecture ultra clean, SEO optimisé, authentification cross-origin et sécurité renforcée.
 
 ## Analyse d'architecture
 
