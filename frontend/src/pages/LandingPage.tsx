@@ -241,13 +241,13 @@ const FeaturesGrid = styled.div`
   margin: 0 auto;
 `;
 
-const FeatureCard = styled(motion.div).attrs({
+const FeatureCard = styled(motion.div).attrs(({ theme }) => ({
   whileHover: { translateY: -10 },
   initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true },
   transition: { duration: 0.5 },
-})`
+}))`
   background-color: ${({ theme }) => theme.colors.background};
   border-radius: 1rem;
   padding: 2rem;
@@ -1739,26 +1739,25 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       <Helmet>
         {/* SEO optimisé pour SmartPlanning */}
         <title>
-          SmartPlanning - SaaS de gestion de plannings et d'équipes pour
-          entreprises
+          🥇 SmartPlanning - N°1 Logiciel Planning RH France | SaaS Gestion Équipes IA | Automatisation Horaires
         </title>
         <meta
           name="description"
-          content="Optimisez vos plannings, gérez vos équipes et automatisez vos RH avec SmartPlanning. SaaS intelligent, intuitif et rapide. Version bêta gratuite disponible."
+          content="🚀 Solution N°1 française de gestion automatique plannings RH avec IA. Logiciel planning entreprise pour optimiser horaires travail, congés et ressources humaines. SaaS planning français gratuit."
         />
         <meta
           name="keywords"
-          content="smartplanning, gestion plannings, saas planning, IA RH, planning manager, gestion équipe, automatisation plannings, smart planning, gestion des congés, liste des équipes, liste d'employés, export PDF, planning PDF"
+          content="logiciel gestion planning, logiciel planning RH, logiciel planning entreprise, logiciel planning équipe, gestion planning, planning RH, planning équipe, planification automatique, planification horaires travail, logiciel ressources humaines, logiciel RH, RH planning, planning automatique IA, gestion congés employés, planification équipe, logiciel RH français, SaaS planning, SaaS RH, optimisation planning, gestion horaires personnel, planning intelligent, logiciel planification, gestion temps travail, planning collaborateurs, solution RH entreprise, automatisation planning, gestion équipe IA, planning hebdomadaire, logiciel horaires, gestion absences, planning manager, outil planification RH, SmartPlanning France"
         />
 
         {/* Open Graph optimisé */}
         <meta
           property="og:title"
-          content="SmartPlanning - SaaS de gestion de plannings et d'équipes pour entreprises"
+          content="🥇 SmartPlanning - N°1 Logiciel Planning RH France | SaaS Gestion Équipes IA"
         />
         <meta
           property="og:description"
-          content="Optimisez vos plannings, gérez vos équipes et automatisez vos RH avec SmartPlanning. SaaS intelligent, intuitif et rapide."
+          content="🚀 Solution N°1 française de gestion automatique plannings RH avec IA. Logiciel planning entreprise pour optimiser horaires travail, congés et ressources humaines. SaaS planning français."
         />
         <meta
           property="og:image"
@@ -1772,11 +1771,11 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         <meta name="twitter:card" content="summary_large_image" />
         <meta
           name="twitter:title"
-          content="SmartPlanning - SaaS de gestion de plannings"
+          content="🥇 SmartPlanning - N°1 Logiciel Planning RH France | SaaS IA"
         />
         <meta
           name="twitter:description"
-          content="Optimisez vos plannings et gérez vos équipes avec notre SaaS intelligent"
+          content="🚀 Solution française de gestion automatique plannings RH avec IA. Logiciel planning entreprise gratuit."
         />
         <meta
           name="twitter:image"

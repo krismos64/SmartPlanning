@@ -75,7 +75,7 @@ app.use(compression({
 // 🔒 Rate limiting pour prévenir les attaques par déni de service
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Maximum 100 requêtes par IP par fenêtre
+  max: process.env.NODE_ENV === 'development' ? 500 : 100, // Plus permissif en développement
   message: {
     success: false,
     message: "Trop de requêtes depuis cette IP, veuillez réessayer dans 15 minutes"
@@ -85,6 +85,12 @@ const limiter = rateLimit({
   skip: (req) => {
     // Exemptions pour les tests et certaines routes
     if (process.env.NODE_ENV === 'test') return true;
+    if (process.env.NODE_ENV === 'development') {
+      // En développement, exemptions pour les routes d'auth fréquentes
+      if (req.url?.startsWith('/api/health')) return true;
+      if (req.url?.startsWith('/api/auth/me')) return true;
+      if (req.url?.includes('localhost')) return true;
+    }
     if (req.url?.startsWith('/api/health')) return true;
     return false;
   }

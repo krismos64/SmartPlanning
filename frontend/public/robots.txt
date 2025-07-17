@@ -1,7 +1,122 @@
-User-agent: *
-Allow: /
-Disallow: /dashboard
-Disallow: /admin
-Disallow: /api
+# robots.txt pour SmartPlanning - Logiciel de gestion planning RH
+# Politique d'exploration optimisée pour le SEO
 
-Sitemap: https://smartplanning.onrender.com/api/sitemap.xml 
+User-agent: *
+
+# Pages autorisées pour l'indexation
+Allow: /
+Allow: /connexion
+Allow: /inscription
+Allow: /contact
+Allow: /politique-de-confidentialite
+Allow: /mentions-legales
+
+# Autorise les assets publics (images, CSS, JS)
+Allow: /assets/
+Allow: /images/
+Allow: /static/
+Allow: /*.css
+Allow: /*.js
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.png
+Allow: /*.webp
+Allow: /*.svg
+Allow: /*.gif
+Allow: /*.ico
+
+# Bloque les pages privées nécessitant une authentification
+Disallow: /tableau-de-bord
+Disallow: /plannings-hebdomadaires
+Disallow: /mes-plannings
+Disallow: /gestion-des-conges
+Disallow: /taches-employes
+Disallow: /suivi-des-incidents
+Disallow: /incidents
+Disallow: /gestion-des-utilisateurs
+Disallow: /gestion-des-entreprises
+Disallow: /collaborateurs
+Disallow: /validation-plannings
+Disallow: /statistiques
+Disallow: /mon-profil
+
+# Bloque les pages d'administration
+Disallow: /admin/
+Disallow: /director/
+
+# Bloque les pages d'authentification sensibles
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /create-password
+Disallow: /complete-profile
+Disallow: /oauth/
+Disallow: /unauthorized
+
+# Bloque les pages de développement et test
+Disallow: /composants/
+Disallow: /dev/
+Disallow: /test/
+Disallow: /debug/
+
+# Bloque les fichiers et dossiers système
+Disallow: /api/
+Disallow: /*.json
+Disallow: /src/
+Disallow: /node_modules/
+Disallow: /build/
+Disallow: /dist/
+Disallow: /.env
+Disallow: /.git/
+Disallow: /package.json
+Disallow: /package-lock.json
+
+# Bloque les paramètres d'URL sensibles
+Disallow: /*?token=
+Disallow: /*?password=
+Disallow: /*?auth=
+Disallow: /*?session=
+
+# Délai d'exploration (1 seconde entre les requêtes)
+Crawl-delay: 1
+
+# Sitemap XML pour faciliter l'indexation
+Sitemap: https://smartplanning.fr/sitemap.xml
+
+# Règles spécifiques pour les principaux moteurs de recherche
+
+# Google
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /tableau-de-bord
+Crawl-delay: 1
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /tableau-de-bord
+Crawl-delay: 1
+
+# Yahoo
+User-agent: Slurp
+Allow: /
+Disallow: /admin/
+Disallow: /tableau-de-bord
+Crawl-delay: 2
+
+# Bloque les bots malveillants et scraping agressif
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+User-agent: MajesticSEO
+Crawl-delay: 10 

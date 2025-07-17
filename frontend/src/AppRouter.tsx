@@ -180,7 +180,12 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
  */
 const AppRouter: React.FC = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter 
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <ProfileChecker />
       <DirectorRedirect />
       <CookieManager />

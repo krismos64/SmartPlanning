@@ -13,6 +13,18 @@
 
 SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, développée en TypeScript pour une gestion optimisée des ressources humaines. L'application utilise une architecture moderne séparée (frontend React/backend Node.js) avec des fonctionnalités d'IA avancées pour l'optimisation automatique des plannings.
 
+## 🚀 Optimisations SEO Récentes
+
+Notre plateforme a été optimisée pour les moteurs de recherche avec les améliorations suivantes :
+
+- ✅ **Sitemap.xml complet** : Toutes les pages sont indexées pour un meilleur référencement
+- ✅ **Robots.txt optimisé** : Directives d'exploration configurées pour protéger les données sensibles
+- ✅ **Meta tags enrichis** : Open Graph et Twitter Cards pour les réseaux sociaux
+- ✅ **URLs canoniques** : Prévention du contenu dupliqué
+- ✅ **Mots-clés français RH/Planning** : Ciblage des termes de recherche pertinents
+- ✅ **Schema.org** : Données structurées pour les moteurs de recherche
+- ✅ **Performance optimisée** : Bundle réduit de 80% pour un chargement rapide
+
 🌐 **Application déployée** : [https://smartplanning.fr](https://smartplanning.fr)  
 🔧 **API Backend** : [https://smartplanning.onrender.com](https://smartplanning.onrender.com)  
 📚 **Documentation technique** : Consultez le dossier `docs/` pour les guides détaillés

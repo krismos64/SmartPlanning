@@ -76,12 +76,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(null);
           setIsAuthenticated(false);
         }
-      } catch (error) {
-        console.error("Erreur de vérification d'authentification:", error);
+      } catch (error: any) {
+        // Gestion plus fine des erreurs pour éviter les redirections intempestives
+        if (error?.response?.status === 429) {
+          console.warn("Rate limit atteint, retry dans quelques secondes...");
+          // Ne pas déconnecter l'utilisateur pour un rate limit
+          setError("Trop de requêtes, veuillez patienter un moment");
+          return;
+        }
+        
+        if (error?.response?.status === 401) {
+          console.log("Session expirée ou non authentifié");
+        } else if (error?.code === 'ERR_NETWORK') {
+          console.warn("Problème de connexion au serveur");
+          setError("Vérifiez que le serveur backend est démarré (port 5050)");
+          return; // Ne pas déconnecter pour un problème réseau
+        } else {
+          console.error("Erreur de vérification d'authentification:", error);
+        }
+        
         clearAuthHeaders();
         setUser(null);
         setIsAuthenticated(false);
-        setError("Session expirée, veuillez vous reconnecter");
       } finally {
         setLoading(false);
       }
