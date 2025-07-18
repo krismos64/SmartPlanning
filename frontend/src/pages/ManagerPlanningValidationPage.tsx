@@ -227,7 +227,7 @@ const ManagerPlanningValidationPage: React.FC = () => {
    * Récupérer tous les plannings générés par l'IA avec le statut "draft"
    */
   const fetchGeneratedSchedules = useCallback(async () => {
-    if (!user?._id) {
+    if (!user?.id) {
       console.log('❌ [VALIDATION PAGE] User non défini, arrêt de la requête');
       return;
     }

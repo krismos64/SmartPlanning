@@ -1439,6 +1439,25 @@ FORMAT DE RÉPONSE :
   }
 );
 
+// Fonction utilitaire pour calculer les dates de la semaine
+function getWeekDateRange(weekNumber: number, year: number) {
+  const firstDayOfYear = new Date(year, 0, 1);
+  const daysOffset = (weekNumber - 1) * 7;
+  const mondayOfWeek = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+  
+  // Ajuster pour que Monday soit le premier jour de la semaine
+  const dayOfWeek = mondayOfWeek.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  mondayOfWeek.setDate(mondayOfWeek.getDate() + mondayOffset);
+  
+  const sundayOfWeek = new Date(mondayOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000);
+  
+  return {
+    start: mondayOfWeek,
+    end: sundayOfWeek
+  };
+}
+
 /**
  * @route   POST /api/ai/schedule/generate-from-constraints
  * @desc    Générer un planning avec les contraintes du wizard
@@ -1678,19 +1697,86 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
             cleanedResponse = jsonMatch[0].trim();
             console.log('🎯 [AI GENERATION] JSON extrait:', cleanedResponse.substring(0, 200) + '...');
           } else {
-            // Fallback: Générer un planning basique automatiquement
+            // Fallback: Générer un planning basique automatiquement pour TOUS les employés
             console.log('🔄 [AI GENERATION] Génération automatique de planning fallback');
-            const employeeName = constraints.employees[0]?.name || 'Employé';
             generatedScheduleData = {
-              lundi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
-              mardi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
-              mercredi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
-              jeudi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
-              vendredi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
+              lundi: {},
+              mardi: {},
+              mercredi: {},
+              jeudi: {},
+              vendredi: {},
               samedi: {},
               dimanche: {}
             };
-            console.log('✅ [AI GENERATION] Planning fallback généré');
+            
+            // Générer des horaires par défaut selon les horaires d'ouverture ou des valeurs par défaut
+            const defaultHours = constraints.companyConstraints.openingHours && constraints.companyConstraints.openingHours.length > 0 
+              ? constraints.companyConstraints.openingHours
+              : [
+                  { day: 'monday', hours: ['08:00-12:00', '13:00-17:00'] },
+                  { day: 'tuesday', hours: ['08:00-12:00', '13:00-17:00'] },
+                  { day: 'wednesday', hours: ['08:00-12:00', '13:00-17:00'] },
+                  { day: 'thursday', hours: ['08:00-12:00', '13:00-17:00'] },
+                  { day: 'friday', hours: ['08:00-12:00', '13:00-17:00'] }
+                ];
+            
+            // Distribuer équitablement les employés
+            const workingDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+            constraints.employees.forEach((emp, index) => {
+              workingDays.forEach((day, dayIndex) => {
+                // Vérifier les absences exceptionnelles
+                const dayEn = {
+                  lundi: 'monday',
+                  mardi: 'tuesday', 
+                  mercredi: 'wednesday',
+                  jeudi: 'thursday',
+                  vendredi: 'friday'
+                }[day];
+                
+                const dayHours = defaultHours.find(h => h.day === dayEn);
+                
+                // Vérifier les absences exceptionnelles pour ce jour
+                const weekRange = getWeekDateRange(constraints.weekNumber, constraints.year);
+                const dayDate = new Date(weekRange.start);
+                dayDate.setDate(dayDate.getDate() + dayIndex);
+                const dayDateString = dayDate.toISOString().split('T')[0];
+                
+                // Vérifier les absences exceptionnelles pour ce jour (support multi-absences)
+                const hasUnavailableException = emp.exceptions && emp.exceptions.some(exc => 
+                  exc.date === dayDateString && 
+                  (exc.type === 'unavailable' || exc.type === 'sick' || exc.type === 'vacation')
+                );
+                
+                const hasReducedHours = emp.exceptions && emp.exceptions.some(exc => 
+                  exc.date === dayDateString && exc.type === 'reduced'
+                );
+                
+                // Alterner les jours de repos pour équilibrer
+                const isRestDay = (index + dayIndex) % 5 === 4; // 1 jour de repos par semaine par employé
+                
+                if (!isRestDay && !hasUnavailableException && dayHours && dayHours.hours.length > 0) {
+                  if (hasReducedHours) {
+                    // Horaires réduits : prendre seulement le matin
+                    const morningHours = dayHours.hours.filter(h => h.startsWith('08:') || h.startsWith('09:'));
+                    generatedScheduleData[day][emp.name] = morningHours.length > 0 ? morningHours : ['08:00-12:00'];
+                    console.log(`🔄 [AI GENERATION] Horaires réduits pour ${emp.name} le ${day}: ${JSON.stringify(generatedScheduleData[day][emp.name])}`);
+                  } else {
+                    generatedScheduleData[day][emp.name] = dayHours.hours;
+                  }
+                } else {
+                  generatedScheduleData[day][emp.name] = [];
+                  if (hasUnavailableException) {
+                    console.log(`❌ [AI GENERATION] Absence pour ${emp.name} le ${day}: ${dayDateString}`);
+                  }
+                }
+              });
+              
+              // Weekends vides par défaut
+              generatedScheduleData.samedi[emp.name] = [];
+              generatedScheduleData.dimanche[emp.name] = [];
+            });
+            
+            console.log('✅ [AI GENERATION] Planning fallback généré pour tous les employés:', Object.keys(generatedScheduleData.lundi || {}));
           }
         } else {
           generatedScheduleData = JSON.parse(cleanedResponse);
@@ -1709,6 +1795,11 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
 
       // 💾 Sauvegarde des plannings générés
       const savedSchedules: IGeneratedSchedule[] = [];
+      
+      console.log('🔍 [AI GENERATION] Données générées pour analyse:');
+      console.log('📊 [AI GENERATION] Planning brut:', JSON.stringify(generatedScheduleData, null, 2));
+      console.log('👥 [AI GENERATION] Employés à traiter:', employees.map(e => `${e.firstName} ${e.lastName}`));
+      console.log('🏷️ [AI GENERATION] Contraintes employés:', constraints.employees.map(e => `${e.name} (ID: ${e.id})`));
 
       for (const employee of employees) {
         const employeeFullName = `${employee.firstName} ${employee.lastName}`;
@@ -1719,13 +1810,43 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
         ];
 
         for (const day of daysOfWeek) {
-          if (
-            generatedScheduleData[day] &&
-            generatedScheduleData[day][employeeFullName] &&
-            generatedScheduleData[day][employeeFullName].length > 0
-          ) {
+          let employeeSlots: string[] = [];
+          
+          // Essayer plusieurs variantes du nom pour la correspondance
+          if (generatedScheduleData[day]) {
+            const dayData = generatedScheduleData[day];
+            
+            // 1. Correspondance exacte
+            if (dayData[employeeFullName] && dayData[employeeFullName].length > 0) {
+              employeeSlots = dayData[employeeFullName];
+            }
+            // 2. Correspondance avec le nom des contraintes (cas du fallback)
+            else {
+              const constraintEmployee = constraints.employees.find(emp => 
+                emp.id === ((employee as any)._id || employee.userId)?.toString()
+              );
+              if (constraintEmployee && dayData[constraintEmployee.name] && dayData[constraintEmployee.name].length > 0) {
+                employeeSlots = dayData[constraintEmployee.name];
+              }
+              // 3. Correspondance partielle (prénom seul, nom seul)
+              else {
+                const keys = Object.keys(dayData);
+                const matchingKey = keys.find(key => 
+                  key.includes(employee.firstName) || 
+                  key.includes(employee.lastName) ||
+                  employee.firstName.includes(key) ||
+                  employee.lastName.includes(key)
+                );
+                if (matchingKey && dayData[matchingKey] && dayData[matchingKey].length > 0) {
+                  employeeSlots = dayData[matchingKey];
+                }
+              }
+            }
+          }
+          
+          if (employeeSlots.length > 0) {
             employeeScheduleData[day] = {
-              slots: generatedScheduleData[day][employeeFullName],
+              slots: employeeSlots,
             };
           } else {
             employeeScheduleData[day] = {};
@@ -1748,6 +1869,13 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
 
         const savedSchedule = await generatedSchedule.save();
         savedSchedules.push(savedSchedule);
+        
+        // Log du planning sauvegardé pour cet employé
+        const totalSlots = Object.values(employeeScheduleData).reduce((total, day) => total + (day.slots?.length || 0), 0);
+        console.log(`✅ [AI GENERATION] Planning sauvegardé pour ${employeeFullName}: ${totalSlots} créneaux au total`);
+        if (totalSlots === 0) {
+          console.log(`⚠️ [AI GENERATION] ATTENTION: Aucun créneau pour ${employeeFullName}!`);
+        }
       }
 
       const processingTime = Date.now() - startTime;

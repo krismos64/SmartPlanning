@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Calendar, Users, Settings, Brain, CheckCircle, Clock, AlertCircle, Sparkles, Zap, Star, Rocket } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Users, Settings, Brain, CheckCircle, Clock, AlertCircle, Sparkles, Zap, Star, Rocket, UserX, Plus, Trash2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
 import axiosInstance from '../api/axiosInstance';
@@ -27,7 +28,13 @@ const PlanningWizard: React.FC = () => {
     employees: [],
     companyConstraints: {
       openingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      openingHours: [],
+      openingHours: [
+        { day: 'monday', hours: ['08:00-12:00', '13:00-17:00'] },
+        { day: 'tuesday', hours: ['08:00-12:00', '13:00-17:00'] },
+        { day: 'wednesday', hours: ['08:00-12:00', '13:00-17:00'] },
+        { day: 'thursday', hours: ['08:00-12:00', '13:00-17:00'] },
+        { day: 'friday', hours: ['08:00-12:00', '13:00-17:00'] }
+      ],
       minStaffSimultaneously: 2
     },
     preferences: {
@@ -42,6 +49,7 @@ const PlanningWizard: React.FC = () => {
   const [availableEmployees, setAvailableEmployees] = useState<any[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [employeeExceptions, setEmployeeExceptions] = useState<{[key: string]: any[]}>({});
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
 
   // Fonction pour calculer les dates de la semaine
@@ -108,35 +116,43 @@ const PlanningWizard: React.FC = () => {
     },
     {
       id: 2,
-      title: 'Configuration Individuelle',
-      description: 'Définissez les contraintes personnelles',
-      icon: Settings,
+      title: 'Absences & Contraintes',
+      description: 'Gérez les absences exceptionnelles',
+      icon: UserX,
       isCompleted: currentStep > 2,
       isActive: currentStep === 2
     },
     {
       id: 3,
-      title: 'Contraintes Globales',
-      description: 'Paramétrez les règles de l\'entreprise',
-      icon: Clock,
+      title: 'Configuration Individuelle',
+      description: 'Définissez les contraintes personnelles',
+      icon: Settings,
       isCompleted: currentStep > 3,
       isActive: currentStep === 3
     },
     {
       id: 4,
-      title: 'Préférences IA',
-      description: 'Configurez l\'intelligence artificielle',
-      icon: Brain,
+      title: 'Contraintes Globales',
+      description: 'Paramétrez les règles de l\'entreprise',
+      icon: Clock,
       isCompleted: currentStep > 4,
       isActive: currentStep === 4
     },
     {
       id: 5,
+      title: 'Préférences IA',
+      description: 'Configurez l\'intelligence artificielle',
+      icon: Brain,
+      isCompleted: currentStep > 5,
+      isActive: currentStep === 5
+    },
+    {
+      id: 6,
       title: 'Résumé et Génération',
       description: 'Vérifiez et lancez la génération',
       icon: Rocket,
       isCompleted: false,
-      isActive: currentStep === 5
+      isActive: currentStep === 6
     }
   ];
 
@@ -221,31 +237,76 @@ const PlanningWizard: React.FC = () => {
     }, 500);
 
     try {
+      // Intégrer les absences dans les contraintes des employés
+      const employeesWithExceptions = constraints.employees.map(emp => {
+        const exceptions = employeeExceptions[emp.id] || [];
+        return {
+          ...emp,
+          exceptions: exceptions.filter(ex => ex.date && ex.type) // Filtrer les exceptions valides
+        };
+      });
+
+      const constraintsWithExceptions = {
+        ...constraints,
+        employees: employeesWithExceptions
+      };
+
       // Validate constraints before sending
-      console.log('🚀 Sending constraints:', JSON.stringify(constraints, null, 2));
+      console.log('🚀 Sending constraints:', JSON.stringify(constraintsWithExceptions, null, 2));
       
       // Ensure all required fields are present
-      if (!constraints.teamId) {
+      if (!constraintsWithExceptions.teamId) {
         throw new Error('Équipe non sélectionnée');
       }
-      if (!constraints.employees || constraints.employees.length === 0) {
+      if (!constraintsWithExceptions.employees || constraintsWithExceptions.employees.length === 0) {
         throw new Error('Aucun employé sélectionné');
       }
-      if (!constraints.companyConstraints) {
+      if (!constraintsWithExceptions.companyConstraints) {
         throw new Error('Contraintes d\'entreprise manquantes');
       }
-      if (!constraints.preferences) {
+      if (!constraintsWithExceptions.preferences) {
         throw new Error('Préférences de planification manquantes');
       }
 
-      const response = await axiosInstance.post<AIGenerationResponse>('/ai/schedule/generate-from-constraints', constraints);
+      const response = await axiosInstance.post<AIGenerationResponse>('/ai/schedule/generate-from-constraints', constraintsWithExceptions);
       
       setGenerationProgress(100);
       clearInterval(progressInterval);
       
       if (response.data.success) {
-        showToast('Planning généré avec succès!', 'success');
-        navigate('/validation-plannings', { state: { generatedSchedule: response.data.schedule } });
+        // 🎉 Déclencher les confettis de célébration
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444']
+        });
+        
+        // Animation de confettis en cascade
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#10B981', '#3B82F6', '#8B5CF6']
+          });
+          
+          confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#F59E0B', '#EF4444', '#8B5CF6']
+          });
+        }, 300);
+        
+        showToast('Planning généré avec succès! 🎉', 'success');
+        
+        // Attendre un peu avant de naviguer pour laisser voir l'animation
+        setTimeout(() => {
+          navigate('/validation-plannings', { state: { generatedSchedule: response.data.schedule } });
+        }, 1500);
       } else {
         showToast(response.data.error || 'Erreur lors de la génération', 'error');
       }
@@ -612,6 +673,225 @@ const PlanningWizard: React.FC = () => {
               transition={{ duration: 0.3 }}
             >
               {/* Fond animé avec particules */}
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-orange-500/5 to-yellow-600/10 dark:from-red-400/20 dark:via-orange-400/10 dark:to-yellow-500/20"></div>
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-2 h-2 bg-gradient-to-r from-red-400 to-orange-600 rounded-full opacity-30"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    y: [-10, 10, -10],
+                    opacity: [0.3, 0.8, 0.3],
+                    scale: [1, 1.2, 1],
+                  }}
+                  transition={{
+                    duration: 4 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                  }}
+                />
+              ))}
+              
+              <div className="relative z-10">
+                <motion.h3 
+                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
+                  initial={{ x: -20 }}
+                  animate={{ x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <motion.div 
+                    className="mr-4 p-3 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ rotate: 360, scale: 1.1 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <UserX className="w-6 h-6" />
+                  </motion.div>
+                  Absences & Contraintes
+                  <AlertCircle className="ml-2 w-5 h-5 text-red-500 animate-pulse" />
+                </motion.h3>
+                
+                <div className="space-y-6">
+                  {constraints.employees.length > 0 ? constraints.employees.map((employee, index) => (
+                    <motion.div 
+                      key={employee.id} 
+                      className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
+                      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: index * 0.1, duration: 0.4 }}
+                      whileHover={{ scale: 1.02, y: -2 }}
+                    >
+                      {/* Effet holographique */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-orange-500/5 to-yellow-500/5 dark:from-red-400/10 dark:via-orange-400/10 dark:to-yellow-400/10"></div>
+                      
+                      <div className="relative z-10">
+                        <motion.h4 
+                          className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                          initial={{ x: -10 }}
+                          animate={{ x: 0 }}
+                          transition={{ delay: index * 0.1 + 0.2 }}
+                        >
+                          <motion.div 
+                            className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm mr-4 shadow-lg"
+                            whileHover={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {employee.name?.charAt(0) || '?'}
+                          </motion.div>
+                          {employee.name}
+                          <UserX className="ml-2 w-4 h-4 text-red-500" />
+                        </motion.h4>
+                        
+                        <div className="space-y-4">
+                          {/* Affichage des absences existantes */}
+                          {(employeeExceptions[employee.id] || []).map((exception, exceptionIndex) => (
+                            <motion.div
+                              key={exceptionIndex}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: exceptionIndex * 0.1 }}
+                              className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-700/50"
+                            >
+                              <div className="flex items-center justify-between mb-4">
+                                <h5 className="text-sm font-medium text-red-700 dark:text-red-300">
+                                  Absence #{exceptionIndex + 1}
+                                </h5>
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => {
+                                    const newExceptions = { ...employeeExceptions };
+                                    newExceptions[employee.id] = newExceptions[employee.id].filter((_, i) => i !== exceptionIndex);
+                                    if (newExceptions[employee.id].length === 0) {
+                                      delete newExceptions[employee.id];
+                                    }
+                                    setEmployeeExceptions(newExceptions);
+                                  }}
+                                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </motion.button>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Type d'absence
+                                  </label>
+                                  <select
+                                    className="w-full px-4 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 shadow-sm backdrop-blur-sm"
+                                    value={exception.type || ''}
+                                    onChange={(e) => {
+                                      const newExceptions = { ...employeeExceptions };
+                                      newExceptions[employee.id][exceptionIndex].type = e.target.value;
+                                      setEmployeeExceptions(newExceptions);
+                                    }}
+                                  >
+                                    <option value="">Sélectionner un type</option>
+                                    <option value="sick">Arrêt maladie</option>
+                                    <option value="vacation">Congés</option>
+                                    <option value="training">Formation</option>
+                                    <option value="unavailable">Indisponible</option>
+                                    <option value="reduced">Horaires réduits</option>
+                                  </select>
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Date d'absence
+                                  </label>
+                                  <input
+                                    type="date"
+                                    className="w-full px-4 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 shadow-sm backdrop-blur-sm"
+                                    min={new Date().toISOString().split('T')[0]}
+                                    value={exception.date || ''}
+                                    onChange={(e) => {
+                                      const newExceptions = { ...employeeExceptions };
+                                      newExceptions[employee.id][exceptionIndex].date = e.target.value;
+                                      setEmployeeExceptions(newExceptions);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Raison / Commentaire
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  className="w-full px-4 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 shadow-sm backdrop-blur-sm resize-none"
+                                  placeholder="Décrivez la raison de l'absence..."
+                                  value={exception.reason || ''}
+                                  onChange={(e) => {
+                                    const newExceptions = { ...employeeExceptions };
+                                    newExceptions[employee.id][exceptionIndex].reason = e.target.value;
+                                    setEmployeeExceptions(newExceptions);
+                                  }}
+                                />
+                              </div>
+                            </motion.div>
+                          ))}
+                          
+                          {/* Bouton pour ajouter une absence */}
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              const newExceptions = { ...employeeExceptions };
+                              if (!newExceptions[employee.id]) {
+                                newExceptions[employee.id] = [];
+                              }
+                              newExceptions[employee.id].push({
+                                type: '',
+                                date: '',
+                                reason: ''
+                              });
+                              setEmployeeExceptions(newExceptions);
+                            }}
+                            className="w-full p-4 border-2 border-dashed border-red-300 dark:border-red-600 rounded-xl hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 font-medium"
+                          >
+                            <Plus className="w-5 h-5" />
+                            Ajouter une absence
+                          </motion.button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )) : (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-center py-12"
+                    >
+                      <UserX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Aucun employé sélectionné pour cette semaine
+                      </p>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        );
+
+      case 4:
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-8"
+          >
+            <motion.div 
+              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Fond animé avec particules */}
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-purple-600/10 dark:from-emerald-400/20 dark:via-blue-400/10 dark:to-purple-500/20"></div>
               {[...Array(8)].map((_, i) => (
                 <motion.div
@@ -803,7 +1083,7 @@ const PlanningWizard: React.FC = () => {
           </motion.div>
         );
 
-      case 3:
+      case 4:
         return (
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -1033,7 +1313,7 @@ const PlanningWizard: React.FC = () => {
           </motion.div>
         );
 
-      case 4:
+      case 5:
         return (
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -1294,7 +1574,7 @@ const PlanningWizard: React.FC = () => {
           </motion.div>
         );
 
-      case 5:
+      case 6:
         return (
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}

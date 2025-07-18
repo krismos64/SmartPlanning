@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.6.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.7.0-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
 ![E2E Tests](https://img.shields.io/badge/E2E%20Tests-Cypress-brightgreen?style=flat-square)
@@ -100,7 +100,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 1.6.0 (Stable - Production)
+### Version actuelle : 1.7.0 (Stable - Production)
 
 **Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN  
 **Statut déploiement** : ✅ **Production stable** - Déployé et opérationnel sur smartplanning.fr  
@@ -261,15 +261,18 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
   - Validation des seuils d'alertes et badges de sévérité
   - Couverture complète des cas d'usage (erreurs/pas d'erreurs)
 
-✅ **Assistant IA Planning Futuriste (Janvier 2025)**
+✅ **Assistant IA Planning Futuriste (Juillet 2025)**
 
-- **🚀 Interface wizard moderne** : Expérience utilisateur futuriste avec 6 étapes intuitives
+- **🚀 Interface wizard moderne** : Expérience utilisateur futuriste avec 7 étapes intuitives
 - **✨ Design glassmorphism** : Effets de verre avec transparences et backdrop-blur
 - **🎨 Animations avancées** : Framer Motion avec particules flottantes et micro-interactions
 - **🌓 Mode adaptatif** : Interface optimisée pour les thèmes light et dark
 - **🧠 Génération IA intelligente** : Intégration OpenRouter avec modèle DeepSeek R1
 - **⚡ Contraintes granulaires** : Configuration détaillée par employé et entreprise
 - **📊 Feedback visuel** : Progression temps réel avec animations d'énergie IA
+- **🎉 Confettis de célébration** : Animation spectaculaire lors du succès de génération
+- **❌ Gestion des absences** : Système complet de gestion des absences exceptionnelles
+- **📅 Absences multiples** : Support de plusieurs absences par employé avec types variés
 
 **Fonctionnalités en cours de développement :**
 
@@ -414,7 +417,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Frontend**                   | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie |
 | **Backend**                    | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet                     |
 | **Base de données**            | MongoDB Atlas, Mongoose (ODM), Index optimisés                               |
-| **Intelligence artificielle**  | OpenAI API, GPT-4 pour génération de plannings                               |
+| **Intelligence artificielle**  | OpenAI API, GPT-4, Canvas-confetti pour animations                           |
 | **Authentification**           | JWT hybride (cookies httpOnly + localStorage), Google OAuth 2.0, Passport.js |
 | **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                     |
 | **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), MongoDB Atlas                |
@@ -438,6 +441,46 @@ Pour une documentation complète, consultez le dossier `docs/` :
 - **[Guide de monitoring](docs/MONITORING.md)** - Surveillance, observabilité et validation des données avec Zod
 
 ## Changelog
+
+### Version 1.7.0 (Gestion des Absences & Confettis - Juillet 2025)
+
+- **🎉 Animations de succès spectaculaires**
+
+  - **Confettis de célébration** : Animation canvas-confetti lors de génération réussie
+  - **Cascade de confettis** : Séquence d'animations colorées depuis les coins
+  - **Délai d'attente** : 1.5 secondes pour profiter de l'animation avant redirection
+  - **Toast amélioré** : Message avec emoji 🎉 et feedback visuel
+
+- **❌ Gestion complète des absences exceptionnelles**
+
+  - **Nouvelle étape wizard** : "Absences & Contraintes" ajoutée entre employés et configuration
+  - **Types d'absences multiples** : Maladie, congés, formation, indisponible, horaires réduits
+  - **Interface dynamique** : Ajout/suppression d'absences avec animations fluides
+  - **Validation par employé** : Chaque absence avec type, date, raison et commentaire
+  - **Design cohérent** : Cartes d'absence rouge avec effets glassmorphism
+
+- **📅 Support des absences multiples**
+
+  - **Gestion par employé** : Possibilité d'ajouter plusieurs absences par personne
+  - **Boutons intuitifs** : Plus/Corbeille avec hover effects et animations
+  - **Validation backend** : Logique améliorée pour traiter les absences multiples
+  - **Types d'absences** : Absence complète, horaires réduits, formation
+  - **Logs détaillés** : Debugging facilité avec traces d'absences
+
+- **🔧 Améliorations techniques**
+
+  - **Calcul de dates** : Fonction getWeekDateRange pour correspondance date/absence
+  - **Horaires par défaut** : 8h-12h et 13h-17h pré-remplis automatiquement
+  - **Génération fallback** : Système robuste garantissant des plannings même en cas d'échec IA
+  - **Correspondance des noms** : Logique flexible pour associer employés et plannings générés
+  - **Wizard 7 étapes** : Numérotation corrigée avec nouvelle étape d'absences
+
+- **🎨 Améliorations UX**
+  - **Feedback visuel** : Animations lors ajout/suppression d'absences
+  - **Couleurs thématiques** : Palette rouge pour absences, cohérente avec le design
+  - **Responsive design** : Interface adaptée mobile/tablette/desktop
+  - **Accessibilité** : ARIA labels et navigation clavier optimisées
+  - **Performance** : Animations fluides sans impact sur les performances
 
 ### Version 1.6.0 (Assistant IA Planning Futuriste - Janvier 2025)
 

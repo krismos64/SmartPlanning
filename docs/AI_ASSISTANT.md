@@ -2,18 +2,19 @@
 
 ## Vue d'ensemble
 
-L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings grâce à une interface futuriste moderne et une intelligence artificielle avancée. Cette version 1.6.0 introduit un wizard interactif en 6 étapes avec des animations immersives et une expérience utilisateur sans précédent.
+L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings grâce à une interface futuriste moderne et une intelligence artificielle avancée. Cette version 1.7.0 introduit un wizard interactif en 7 étapes avec des animations immersives, la gestion des absences exceptionnelles et des confettis de célébration.
 
-**Version** : 1.6.0 (Janvier 2025)  
+**Version** : 1.7.0 (Juillet 2025)  
 **Status** : ✅ Production stable  
 **Interface** : Wizard futuriste avec animations Framer Motion  
-**IA** : OpenRouter + DeepSeek R1 optimisé
+**IA** : OpenRouter + DeepSeek R1 optimisé  
+**Nouvelles fonctionnalités** : Gestion des absences multiples + Confettis de célébration
 
 ## 🎨 Fonctionnalités Principales
 
 ### Interface Futuriste
 
-- **🚀 Wizard moderne** : 6 étapes intuitives avec navigation progressive
+- **🚀 Wizard moderne** : 7 étapes intuitives avec navigation progressive
 - **✨ Design glassmorphism** : Effets de verre avec backdrop-blur et transparences
 - **🎭 Animations avancées** : Particules flottantes, micro-interactions, effets 3D
 - **🌓 Mode adaptatif** : Optimisé pour thèmes light et dark automatique
@@ -26,6 +27,8 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - **🎯 Configuration granulaire** : Contraintes détaillées par employé et entreprise
 - **🤖 Progression IA** : Animations d'énergie avec particules pendant génération
 - **💫 Boutons futuristes** : Effets de brillance et interactions 3D au survol
+- **🎉 Confettis de célébration** : Animation spectaculaire lors du succès de génération
+- **❌ Gestion des absences** : Interface complète pour absences exceptionnelles
 
 ### Intelligence Artificielle Avancée
 
@@ -33,6 +36,8 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - **⚙️ Configuration intuitive** : Interface pour préférences IA
 - **✅ Validation temps réel** : Génération optimisée avec feedback immédiat
 - **📈 Performance optimisée** : Animations fluides sans impact performances
+- **🎯 Gestion des absences** : Prise en compte automatique des absences exceptionnelles
+- **📅 Support multi-absences** : Plusieurs absences par employé avec types variés
 
 ## 📋 Guide d'Utilisation
 
@@ -69,7 +74,34 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - Badge de sélection animé (effet spring)
 - Particules d'énergie en arrière-plan
 
-### Étape 3 : Configuration Individuelle
+### Étape 3 : Absences & Contraintes
+
+**Objectif** : Gérer les absences exceptionnelles pour la semaine planifiée
+
+**Interface** :
+
+- Cartes d'absences avec design glassmorphism rouge
+- Ajout/suppression d'absences dynamique
+- Formulaires par employé avec validation temps réel
+
+**Fonctionnalités** :
+
+- **Types d'absences** : Maladie, congés, formation, indisponible, horaires réduits
+- **Absences multiples** : Plusieurs absences par employé
+- **Validation par date** : Vérification des conflits de dates
+- **Commentaires** : Raison et contexte pour chaque absence
+- **Animations fluides** : Ajout/suppression avec effets visuels
+- **Boutons intuitifs** : Plus (ajout) et Corbeille (suppression)
+
+**Types d'absences disponibles** :
+
+- **Arrêt maladie** : Absence complète pour raison médicale
+- **Congés** : Absence prévue pour vacances ou repos
+- **Formation** : Absence pour formation professionnelle
+- **Indisponible** : Absence pour raison personnelle
+- **Horaires réduits** : Travail en matinée uniquement
+
+### Étape 4 : Configuration Individuelle
 
 **Objectif** : Définir les contraintes personnelles de chaque employé
 
@@ -86,7 +118,7 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - Autorisation des coupures journalières
 - Heures préférées (à venir)
 
-### Étape 4 : Contraintes Globales
+### Étape 5 : Contraintes Globales
 
 **Objectif** : Paramétrer les règles de l'entreprise
 
@@ -102,7 +134,7 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - Slider pour personnel minimum simultané
 - Validation cohérence contraintes
 
-### Étape 5 : Préférences IA
+### Étape 6 : Préférences IA
 
 **Objectif** : Configurer l'intelligence artificielle
 
@@ -119,7 +151,7 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - Équilibrage de la charge
 - Priorité aux préférences employés
 
-### Étape 6 : Résumé et Génération
+### Étape 7 : Résumé et Génération
 
 **Objectif** : Vérifier la configuration et lancer la génération IA
 
@@ -134,6 +166,9 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 - Validation finale des contraintes
 - Animation de génération avec particules
 - Feedback progressif (analyse → optimisation → finalisation)
+- **Confettis de célébration** : Animation spectaculaire lors du succès
+- **Cascade d'animations** : Confettis colorés depuis les coins
+- **Délai d'attente** : 1.5 secondes pour profiter de l'animation
 - Redirection automatique vers les résultats
 
 ## 🔧 Architecture Technique
@@ -149,6 +184,23 @@ interface PlanningConstraints {
   employees: EmployeeConstraint[];
   companyConstraints: CompanyConstraints;
   preferences: PlanningPreferences;
+}
+
+interface EmployeeConstraint {
+  id: string;
+  name: string;
+  email: string;
+  restDay?: string;
+  weeklyHours?: number;
+  preferredHours?: string[];
+  exceptions?: EmployeeException[];
+  allowSplitShifts?: boolean;
+}
+
+interface EmployeeException {
+  date: string;
+  reason: string;
+  type: 'unavailable' | 'reduced' | 'training' | 'sick' | 'vacation';
 }
 
 interface PlanningWizardStep {
@@ -267,21 +319,21 @@ const planningConstraintsSchema = z.object({
 
 ## 🔮 Roadmap Futur
 
-### Version 1.7.0 (Q2 2025)
+### Version 1.8.0 (Q1 2026)
 
 - **🎯 Contraintes avancées** : Heures préférées, formations, compétences
 - **📈 Analytics** : Métriques détaillées de génération IA
 - **🌍 Multi-langues** : Support international
 - **🔄 Templates** : Sauvegarde configurations populaires
 
-### Version 1.8.0 (Q3 2025)
+### Version 1.9.0 (Q2 2026)
 
 - **🤖 IA conversationnelle** : Assistant chat pour ajustements
 - **📱 PWA** : Application mobile progressive
 - **🔗 Intégrations** : Google Calendar, Outlook, Slack
 - **⚡ Performance** : Génération sub-seconde
 
-### Version 2.0.0 (Q4 2025)
+### Version 2.0.0 (Q3 2026)
 
 - **🧠 Machine Learning** : Apprentissage automatique des préférences
 - **📊 Prédictif** : Anticipation des besoins en personnel
