@@ -572,217 +572,697 @@ const PlanningWizard: React.FC = () => {
       case 2:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-8"
           >
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-4 flex items-center">
-                <Settings className="mr-2" />
-                Configuration individuelle
-              </h3>
-              <div className="space-y-6">
-                {constraints.employees.map(employee => (
-                  <div key={employee.id} className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-semibold mb-3">{employee.name}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Jour de repos souhaité</label>
-                        <select
-                          value={employee.restDay || ''}
-                          onChange={(e) => handleEmployeeConstraintChange(employee.id, 'restDay', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+            <motion.div 
+              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Fond animé avec particules */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-purple-600/10 dark:from-emerald-400/20 dark:via-blue-400/10 dark:to-purple-500/20"></div>
+              {[...Array(8)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-2 h-2 bg-gradient-to-r from-emerald-400 to-blue-600 rounded-full opacity-30"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    y: [-10, 10, -10],
+                    opacity: [0.3, 0.8, 0.3],
+                    scale: [1, 1.2, 1],
+                  }}
+                  transition={{
+                    duration: 4 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                  }}
+                />
+              ))}
+              
+              <div className="relative z-10">
+                <motion.h3 
+                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
+                  initial={{ x: -20 }}
+                  animate={{ x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <motion.div 
+                    className="mr-4 p-3 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ rotate: 360, scale: 1.1 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <Settings className="w-6 h-6" />
+                  </motion.div>
+                  Configuration individuelle
+                  <Sparkles className="ml-2 w-5 h-5 text-yellow-500 animate-pulse" />
+                </motion.h3>
+                
+                <div className="space-y-6">
+                  {constraints.employees.length > 0 ? constraints.employees.map((employee, index) => (
+                    <motion.div 
+                      key={employee.id} 
+                      className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
+                      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: index * 0.1, duration: 0.4 }}
+                      whileHover={{ scale: 1.02, y: -2 }}
+                    >
+                      {/* Effet holographique */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-emerald-500/5 dark:from-blue-400/10 dark:via-purple-400/10 dark:to-emerald-400/10"></div>
+                      <motion.div
+                        className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-emerald-600/20 rounded-full blur-2xl"
+                        animate={{ opacity: [0.5, 0.8, 0.5] }}
+                        transition={{ duration: 3, repeat: Infinity }}
+                      />
+                      
+                      <div className="relative z-10">
+                        <motion.h4 
+                          className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                          initial={{ x: -10 }}
+                          animate={{ x: 0 }}
+                          transition={{ delay: index * 0.1 + 0.2 }}
                         >
-                          <option value="">Aucune préférence</option>
-                          <option value="monday">Lundi</option>
-                          <option value="tuesday">Mardi</option>
-                          <option value="wednesday">Mercredi</option>
-                          <option value="thursday">Jeudi</option>
-                          <option value="friday">Vendredi</option>
-                          <option value="saturday">Samedi</option>
-                          <option value="sunday">Dimanche</option>
-                        </select>
+                          <motion.div 
+                            className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm mr-4 shadow-lg"
+                            whileHover={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {employee.name?.charAt(0) || '?'}
+                          </motion.div>
+                          {employee.name}
+                          <Star className="ml-2 w-4 h-4 text-yellow-500 animate-spin" style={{ animationDuration: '3s' }} />
+                        </motion.h4>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 + 0.3 }}
+                          >
+                            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                              🏖️ Jour de repos souhaité
+                            </label>
+                            <motion.select
+                              value={employee.restDay || ''}
+                              onChange={(e) => handleEmployeeConstraintChange(employee.id, 'restDay', e.target.value)}
+                              className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                              whileFocus={{ scale: 1.02 }}
+                            >
+                              <option value="">✨ Aucune préférence</option>
+                              <option value="monday">🌙 Lundi</option>
+                              <option value="tuesday">🔥 Mardi</option>
+                              <option value="wednesday">⚡ Mercredi</option>
+                              <option value="thursday">🌟 Jeudi</option>
+                              <option value="friday">🎉 Vendredi</option>
+                              <option value="saturday">🌊 Samedi</option>
+                              <option value="sunday">☀️ Dimanche</option>
+                            </motion.select>
+                          </motion.div>
+                          
+                          <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 + 0.4 }}
+                          >
+                            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                              ⏰ Heures hebdomadaires
+                            </label>
+                            <motion.input
+                              type="number"
+                              min="10"
+                              max="60"
+                              placeholder="Ex: 35 heures"
+                              value={employee.weeklyHours || 35}
+                              onChange={(e) => handleEmployeeConstraintChange(employee.id, 'weeklyHours', parseInt(e.target.value))}
+                              className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner placeholder-gray-400 dark:placeholder-gray-500"
+                              whileFocus={{ scale: 1.02 }}
+                            />
+                          </motion.div>
+                          
+                          <motion.div 
+                            className="lg:col-span-2"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 + 0.5 }}
+                          >
+                            <motion.label 
+                              className="group flex items-center cursor-pointer p-4 bg-white/30 dark:bg-gray-800/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30 hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-300"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <motion.input
+                                type="checkbox"
+                                checked={employee.allowSplitShifts || false}
+                                onChange={(e) => handleEmployeeConstraintChange(employee.id, 'allowSplitShifts', e.target.checked)}
+                                className="w-5 h-5 text-blue-500 bg-white/50 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 mr-4"
+                                whileHover={{ scale: 1.1 }}
+                              />
+                              <div>
+                                <div className="font-semibold text-gray-900 dark:text-white">
+                                  🔄 Autoriser les coupures dans la journée
+                                </div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                  Permet des pauses déjeuner et horaires fractionnés
+                                </div>
+                              </div>
+                              {employee.allowSplitShifts && (
+                                <motion.div
+                                  className="ml-auto"
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: "spring", stiffness: 300 }}
+                                >
+                                  <CheckCircle className="w-6 h-6 text-green-500" />
+                                </motion.div>
+                              )}
+                            </motion.label>
+                          </motion.div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Heures hebdomadaires</label>
-                        <input
-                          type="number"
-                          min="10"
-                          max="60"
-                          value={employee.weeklyHours || 35}
-                          onChange={(e) => handleEmployeeConstraintChange(employee.id, 'weeklyHours', parseInt(e.target.value))}
-                          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        />
+                    </motion.div>
+                  )) : (
+                    <motion.div
+                      className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 p-12 rounded-3xl text-center"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        className="inline-block mb-4"
+                      >
+                        <AlertCircle className="w-16 h-16 text-gray-400" />
+                      </motion.div>
+                      <div className="text-xl text-gray-600 dark:text-gray-400 mb-2">
+                        ⚠️ Aucun employé sélectionné
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={employee.allowSplitShifts || false}
-                            onChange={(e) => handleEmployeeConstraintChange(employee.id, 'allowSplitShifts', e.target.checked)}
-                            className="mr-2"
-                          />
-                          Autoriser les coupures dans la journée
-                        </label>
+                      <div className="text-sm text-gray-500 dark:text-gray-500">
+                        Veuillez d'abord sélectionner des employés à l'étape précédente
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  )}
+                </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         );
 
       case 3:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-8"
           >
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-4 flex items-center">
-                <Clock className="mr-2" />
-                Contraintes globales
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Jours d'ouverture</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                      <label key={day} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={constraints.companyConstraints.openingDays.includes(day)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setConstraints(prev => ({
-                                ...prev,
-                                companyConstraints: {
-                                  ...prev.companyConstraints,
-                                  openingDays: [...prev.companyConstraints.openingDays, day]
+            <motion.div 
+              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Fond animé avec effet de temps */}
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-pink-600/10 dark:from-orange-400/20 dark:via-red-400/10 dark:to-pink-500/20"></div>
+              {[...Array(10)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-gradient-to-r from-orange-400 to-pink-600 rounded-full opacity-40"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    x: [0, Math.random() * 30 - 15],
+                    y: [0, Math.random() * 30 - 15],
+                    opacity: [0.4, 0.8, 0.4],
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 5 + Math.random() * 3,
+                    repeat: Infinity,
+                    delay: Math.random() * 3,
+                  }}
+                />
+              ))}
+              
+              <div className="relative z-10">
+                <motion.h3 
+                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
+                  initial={{ x: -20 }}
+                  animate={{ x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <motion.div 
+                    className="mr-4 p-3 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ rotate: 360, scale: 1.1 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <Clock className="w-6 h-6" />
+                  </motion.div>
+                  Contraintes globales
+                  <Zap className="ml-2 w-5 h-5 text-yellow-500 animate-bounce" />
+                </motion.h3>
+                
+                <div className="space-y-8">
+                  {/* Jours d'ouverture */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
+                  >
+                    <motion.h4 
+                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                      initial={{ x: -10 }}
+                      animate={{ x: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <Calendar className="w-5 h-5 mr-3 text-blue-500" />
+                      🗓️ Jours d'ouverture
+                    </motion.h4>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                      {[
+                        { key: 'monday', label: 'Lundi', icon: '🌙', color: 'from-blue-500 to-indigo-600' },
+                        { key: 'tuesday', label: 'Mardi', icon: '🔥', color: 'from-red-500 to-pink-600' },
+                        { key: 'wednesday', label: 'Mercredi', icon: '⚡', color: 'from-yellow-500 to-orange-600' },
+                        { key: 'thursday', label: 'Jeudi', icon: '🌟', color: 'from-green-500 to-teal-600' },
+                        { key: 'friday', label: 'Vendredi', icon: '🎉', color: 'from-purple-500 to-violet-600' },
+                        { key: 'saturday', label: 'Samedi', icon: '🌊', color: 'from-cyan-500 to-blue-600' },
+                        { key: 'sunday', label: 'Dimanche', icon: '☀️', color: 'from-amber-500 to-yellow-600' }
+                      ].map((day, index) => {
+                        const isSelected = constraints.companyConstraints.openingDays.includes(day.key);
+                        return (
+                          <motion.label 
+                            key={day.key}
+                            className="group cursor-pointer"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.1 + 0.5, duration: 0.3 }}
+                            whileHover={{ scale: 1.05, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setConstraints(prev => ({
+                                    ...prev,
+                                    companyConstraints: {
+                                      ...prev.companyConstraints,
+                                      openingDays: [...prev.companyConstraints.openingDays, day.key]
+                                    }
+                                  }));
+                                } else {
+                                  setConstraints(prev => ({
+                                    ...prev,
+                                    companyConstraints: {
+                                      ...prev.companyConstraints,
+                                      openingDays: prev.companyConstraints.openingDays.filter(d => d !== day.key)
+                                    }
+                                  }));
                                 }
-                              }));
-                            } else {
-                              setConstraints(prev => ({
-                                ...prev,
-                                companyConstraints: {
-                                  ...prev.companyConstraints,
-                                  openingDays: prev.companyConstraints.openingDays.filter(d => d !== day)
-                                }
-                              }));
-                            }
-                          }}
-                          className="mr-2"
-                        />
-                        {day === 'monday' && 'Lun'}
-                        {day === 'tuesday' && 'Mar'}
-                        {day === 'wednesday' && 'Mer'}
-                        {day === 'thursday' && 'Jeu'}
-                        {day === 'friday' && 'Ven'}
-                        {day === 'saturday' && 'Sam'}
-                        {day === 'sunday' && 'Dim'}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Nombre minimum d'employés présents simultanément</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={constraints.companyConstraints.minStaffSimultaneously || 2}
-                    onChange={(e) => setConstraints(prev => ({
-                      ...prev,
-                      companyConstraints: {
-                        ...prev.companyConstraints,
-                        minStaffSimultaneously: parseInt(e.target.value)
-                      }
-                    }))}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  />
+                              }}
+                              className="sr-only"
+                            />
+                            
+                            <motion.div 
+                              className={`relative p-4 rounded-xl transition-all duration-300 ${
+                                isSelected
+                                  ? `bg-gradient-to-br ${day.color} text-white shadow-lg transform shadow-${day.color.split('-')[1]}-500/25`
+                                  : 'bg-white/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                              } backdrop-blur-sm border border-white/30 dark:border-gray-600/30`}
+                            >
+                              {/* Indicateur de sélection */}
+                              {isSelected && (
+                                <motion.div
+                                  className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg"
+                                  initial={{ scale: 0, rotate: -180 }}
+                                  animate={{ scale: 1, rotate: 0 }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                >
+                                  <CheckCircle className="w-4 h-4 text-white" />
+                                </motion.div>
+                              )}
+                              
+                              <div className="text-center">
+                                <motion.div 
+                                  className="text-2xl mb-2"
+                                  animate={isSelected ? { rotate: [0, 10, -10, 0] } : {}}
+                                  transition={{ duration: 0.5 }}
+                                >
+                                  {day.icon}
+                                </motion.div>
+                                <div className="text-sm font-semibold">{day.label}</div>
+                              </div>
+                              
+                              {/* Effet de brillance */}
+                              {isSelected && (
+                                <motion.div
+                                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-xl"
+                                  animate={{ x: ['-100%', '100%'] }}
+                                  transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+                                />
+                              )}
+                            </motion.div>
+                          </motion.label>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                  
+                  {/* Nombre minimum d'employés */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
+                  >
+                    <motion.h4 
+                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                      initial={{ x: -10 }}
+                      animate={{ x: 0 }}
+                      transition={{ delay: 0.7 }}
+                    >
+                      <Users className="w-5 h-5 mr-3 text-emerald-500" />
+                      👥 Nombre minimum d'employés présents simultanément
+                    </motion.h4>
+                    
+                    <div className="flex items-center space-x-4">
+                      <motion.input
+                        type="number"
+                        min="1"
+                        max="10"
+                        placeholder="Ex: 2 employés"
+                        value={constraints.companyConstraints.minStaffSimultaneously || 2}
+                        onChange={(e) => setConstraints(prev => ({
+                          ...prev,
+                          companyConstraints: {
+                            ...prev.companyConstraints,
+                            minStaffSimultaneously: parseInt(e.target.value)
+                          }
+                        }))}
+                        className="flex-1 p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner placeholder-gray-400 dark:placeholder-gray-500"
+                        whileFocus={{ scale: 1.02 }}
+                      />
+                      
+                      <motion.div 
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 rounded-xl border border-emerald-500/30"
+                        animate={{ opacity: [0.7, 1, 0.7] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                          {constraints.companyConstraints.minStaffSimultaneously || 2} min
+                        </span>
+                      </motion.div>
+                    </div>
+                    
+                    <motion.div 
+                      className="mt-4 p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-700/30"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.8 }}
+                    >
+                      <div className="text-sm text-blue-700 dark:text-blue-300 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Garantit qu'il y aura toujours au moins ce nombre d'employés en même temps
+                      </div>
+                    </motion.div>
+                  </motion.div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         );
 
       case 4:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-8"
           >
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-4 flex items-center">
-                <Brain className="mr-2" />
-                Préférences IA
-              </h3>
-              <div className="space-y-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={constraints.preferences.favorSplit || false}
-                    onChange={(e) => setConstraints(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, favorSplit: e.target.checked }
-                    }))}
-                    className="mr-3"
-                  />
-                  <div>
-                    <div className="font-medium">Favoriser les coupures</div>
-                    <div className="text-sm text-gray-500">Privilégier les journées avec pause déjeuner</div>
+            <motion.div 
+              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Fond animé avec effet IA/neural */}
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-indigo-600/10 dark:from-purple-400/20 dark:via-pink-400/10 dark:to-indigo-500/20"></div>
+              {[...Array(12)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-600 rounded-full opacity-50"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    scale: [1, 2, 1],
+                    opacity: [0.5, 1, 0.5],
+                    x: [0, Math.random() * 40 - 20],
+                    y: [0, Math.random() * 40 - 20],
+                  }}
+                  transition={{
+                    duration: 3 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                  }}
+                />
+              ))}
+              
+              <div className="relative z-10">
+                <motion.h3 
+                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
+                  initial={{ x: -20 }}
+                  animate={{ x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <motion.div 
+                    className="mr-4 p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ rotate: 360, scale: 1.1 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <Brain className="w-6 h-6" />
+                  </motion.div>
+                  Préférences IA
+                  <Sparkles className="ml-2 w-5 h-5 text-purple-500 animate-pulse" />
+                </motion.h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {[
+                    {
+                      key: 'favorSplit',
+                      title: 'Favoriser les coupures',
+                      description: 'Privilégier les journées avec pause déjeuner',
+                      icon: '🍽️',
+                      color: 'from-orange-500 to-red-600',
+                      bgColor: 'from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20'
+                    },
+                    {
+                      key: 'favorUniformity',
+                      title: 'Uniformité des horaires',
+                      description: 'Horaires similaires pour tous les employés',
+                      icon: '⚖️',
+                      color: 'from-blue-500 to-cyan-600',
+                      bgColor: 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20'
+                    },
+                    {
+                      key: 'balanceWorkload',
+                      title: 'Équilibrer la charge',
+                      description: 'Répartir équitablement les heures',
+                      icon: '⚡',
+                      color: 'from-green-500 to-emerald-600',
+                      bgColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20'
+                    },
+                    {
+                      key: 'prioritizeEmployeePreferences',
+                      title: 'Priorité aux préférences employés',
+                      description: 'Respecter au maximum les souhaits individuels',
+                      icon: '❤️',
+                      color: 'from-purple-500 to-pink-600',
+                      bgColor: 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20'
+                    }
+                  ].map((preference, index) => {
+                    const isChecked = constraints.preferences[preference.key as keyof typeof constraints.preferences] || false;
+                    
+                    return (
+                      <motion.label 
+                        key={preference.key}
+                        className="group cursor-pointer"
+                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ delay: index * 0.1 + 0.3, duration: 0.4 }}
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => setConstraints(prev => ({
+                            ...prev,
+                            preferences: { ...prev.preferences, [preference.key]: e.target.checked }
+                          }))}
+                          className="sr-only"
+                        />
+                        
+                        <motion.div 
+                          className={`relative p-6 rounded-2xl transition-all duration-300 ${
+                            isChecked
+                              ? `bg-gradient-to-br ${preference.bgColor} border-2 border-opacity-50 shadow-lg`
+                              : 'bg-white/50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-600/50 hover:bg-white/70 dark:hover:bg-gray-800/70'
+                          } backdrop-blur-sm overflow-hidden`}
+                        >
+                          {/* Effet holographique pour les préférences activées */}
+                          {isChecked && (
+                            <motion.div
+                              className={`absolute inset-0 bg-gradient-to-br ${preference.color} opacity-10`}
+                              animate={{ opacity: [0.05, 0.15, 0.05] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                            />
+                          )}
+                          
+                          {/* Indicateur de sélection */}
+                          {isChecked && (
+                            <motion.div
+                              className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg"
+                              initial={{ scale: 0, rotate: -180 }}
+                              animate={{ scale: 1, rotate: 0 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                            >
+                              <CheckCircle className="w-5 h-5 text-white" />
+                            </motion.div>
+                          )}
+                          
+                          <div className="relative z-10">
+                            <div className="flex items-start space-x-4">
+                              <motion.div 
+                                className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg ${
+                                  isChecked
+                                    ? `bg-gradient-to-br ${preference.color} text-white`
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                                }`}
+                                animate={isChecked ? { rotate: [0, 10, -10, 0] } : {}}
+                                transition={{ duration: 0.5 }}
+                              >
+                                {preference.icon}
+                              </motion.div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <motion.h4 
+                                  className={`text-lg font-bold mb-2 ${
+                                    isChecked ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'
+                                  }`}
+                                  animate={isChecked ? { x: [0, 2, -2, 0] } : {}}
+                                  transition={{ duration: 0.3 }}
+                                >
+                                  {preference.title}
+                                </motion.h4>
+                                <p className={`text-sm ${
+                                  isChecked ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-500'
+                                }`}>
+                                  {preference.description}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {/* Status indicator */}
+                            <motion.div 
+                              className={`mt-4 flex items-center justify-between p-3 rounded-xl ${
+                                isChecked 
+                                  ? `bg-gradient-to-r ${preference.color} text-white`
+                                  : 'bg-gray-100/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400'
+                              }`}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: index * 0.1 + 0.5 }}
+                            >
+                              <span className="text-sm font-medium">
+                                {isChecked ? '✅ Activé' : '⭕ Désactivé'}
+                              </span>
+                              {isChecked && (
+                                <motion.div
+                                  animate={{ scale: [1, 1.2, 1] }}
+                                  transition={{ duration: 1, repeat: Infinity }}
+                                  className="w-2 h-2 bg-white rounded-full"
+                                />
+                              )}
+                            </motion.div>
+                          </div>
+                          
+                          {/* Effet de brillance */}
+                          {isChecked && (
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded-2xl"
+                              animate={{ x: ['-100%', '100%'] }}
+                              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                            />
+                          )}
+                        </motion.div>
+                      </motion.label>
+                    );
+                  })}
+                </div>
+                
+                {/* Résumé des préférences sélectionnées */}
+                <motion.div
+                  className="mt-8 p-6 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-200/50 dark:border-purple-700/30"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                >
+                  <div className="flex items-center mb-4">
+                    <Brain className="w-6 h-6 mr-3 text-purple-600 dark:text-purple-400" />
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      🧠 Résumé des préférences IA
+                    </h4>
                   </div>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={constraints.preferences.favorUniformity || false}
-                    onChange={(e) => setConstraints(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, favorUniformity: e.target.checked }
-                    }))}
-                    className="mr-3"
-                  />
-                  <div>
-                    <div className="font-medium">Uniformité des horaires</div>
-                    <div className="text-sm text-gray-500">Horaires similaires pour tous les employés</div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Object.entries(constraints.preferences).map(([key, value]) => {
+                      const labels = {
+                        favorSplit: '🍽️ Coupures',
+                        favorUniformity: '⚖️ Uniformité',
+                        balanceWorkload: '⚡ Équilibrage',
+                        prioritizeEmployeePreferences: '❤️ Préférences'
+                      };
+                      
+                      return (
+                        <motion.div 
+                          key={key}
+                          className={`text-center p-3 rounded-xl ${
+                            value 
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                              : 'bg-gray-100 dark:bg-gray-700/30 text-gray-500 dark:text-gray-400'
+                          }`}
+                          animate={value ? { scale: [1, 1.05, 1] } : {}}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <div className="text-sm font-medium">
+                            {labels[key as keyof typeof labels]}
+                          </div>
+                          <div className="text-xs mt-1">
+                            {value ? 'Activé' : 'Désactivé'}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={constraints.preferences.balanceWorkload || false}
-                    onChange={(e) => setConstraints(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, balanceWorkload: e.target.checked }
-                    }))}
-                    className="mr-3"
-                  />
-                  <div>
-                    <div className="font-medium">Équilibrer la charge</div>
-                    <div className="text-sm text-gray-500">Répartir équitablement les heures</div>
-                  </div>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={constraints.preferences.prioritizeEmployeePreferences || false}
-                    onChange={(e) => setConstraints(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, prioritizeEmployeePreferences: e.target.checked }
-                    }))}
-                    className="mr-3"
-                  />
-                  <div>
-                    <div className="font-medium">Priorité aux préférences employés</div>
-                    <div className="text-sm text-gray-500">Respecter au maximum les souhaits individuels</div>
-                  </div>
-                </label>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         );
 
