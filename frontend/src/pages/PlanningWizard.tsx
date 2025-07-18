@@ -44,6 +44,51 @@ const PlanningWizard: React.FC = () => {
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
 
+  // Fonction pour calculer les dates de la semaine
+  const getWeekDateRange = (weekNumber: number, year: number) => {
+    if (!weekNumber || !year || weekNumber < 1 || weekNumber > 52) {
+      return null;
+    }
+
+    // Calcul du premier jour de l'année
+    const firstDayOfYear = new Date(year, 0, 1);
+    const firstWeekDay = firstDayOfYear.getDay(); // 0 = dimanche, 1 = lundi, etc.
+    
+    // Ajustement pour commencer la semaine le lundi
+    const daysToFirstMonday = firstWeekDay === 0 ? 1 : (8 - firstWeekDay);
+    const firstMonday = new Date(year, 0, 1 + daysToFirstMonday);
+    
+    // Calcul du début de la semaine demandée
+    const startOfWeek = new Date(firstMonday);
+    startOfWeek.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+    
+    // Calcul de la fin de la semaine (dimanche)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    return {
+      start: startOfWeek,
+      end: endOfWeek,
+      weekNumber: weekNumber
+    };
+  };
+
+  const formatDateRange = (weekNumber: number, year: number) => {
+    const range = getWeekDateRange(weekNumber, year);
+    if (!range) return '';
+    
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    };
+    
+    const startStr = range.start.toLocaleDateString('fr-FR', options);
+    const endStr = range.end.toLocaleDateString('fr-FR', options);
+    
+    return `Du ${startStr} au ${endStr}`;
+  };
+
   const steps: PlanningWizardStep[] = [
     {
       id: 0,
@@ -277,20 +322,42 @@ const PlanningWizard: React.FC = () => {
                   <Star className="inline ml-2 w-5 h-5 text-yellow-500 animate-spin" style={{ animationDuration: '3s' }} />
                 </motion.h3>
                 
+                {/* Affichage de la période sélectionnée */}
+                {constraints.weekNumber > 0 && constraints.year && (
+                  <motion.div
+                    className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200/50 dark:border-blue-700/30 rounded-2xl"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <div className="text-center">
+                      <div className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">
+                        📅 Semaine {constraints.weekNumber} de {constraints.year}
+                      </div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-white">
+                        {formatDateRange(constraints.weekNumber, constraints.year)}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4 }}
                   >
-                    <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">📅 Numéro de semaine</label>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                      📅 Numéro de semaine (1-52)
+                    </label>
                     <motion.input
                       type="number"
                       min="1"
                       max="52"
-                      value={constraints.weekNumber}
-                      onChange={(e) => setConstraints(prev => ({ ...prev, weekNumber: parseInt(e.target.value) }))}
-                      className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                      placeholder="Ex: 15 pour la 15ème semaine"
+                      value={constraints.weekNumber || ''}
+                      onChange={(e) => setConstraints(prev => ({ ...prev, weekNumber: parseInt(e.target.value) || 0 }))}
+                      className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner placeholder-gray-400 dark:placeholder-gray-500"
                       whileFocus={{ scale: 1.05 }}
                     />
                   </motion.div>
@@ -300,14 +367,17 @@ const PlanningWizard: React.FC = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 }}
                   >
-                    <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">🎯 Année</label>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                      🎯 Année (2024-2030)
+                    </label>
                     <motion.input
                       type="number"
                       min="2024"
                       max="2030"
-                      value={constraints.year}
-                      onChange={(e) => setConstraints(prev => ({ ...prev, year: parseInt(e.target.value) }))}
-                      className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                      placeholder={`Ex: ${new Date().getFullYear()}`}
+                      value={constraints.year || ''}
+                      onChange={(e) => setConstraints(prev => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
+                      className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner placeholder-gray-400 dark:placeholder-gray-500"
                       whileFocus={{ scale: 1.05 }}
                     />
                   </motion.div>
