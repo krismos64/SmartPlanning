@@ -167,6 +167,8 @@ const ManagerPlanningValidationPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
+  console.log('🏁 [VALIDATION PAGE] Composant chargé - User:', user);
+
   // Vérification des autorisations
   useEffect(() => {
     if (!user) return;
@@ -225,24 +227,59 @@ const ManagerPlanningValidationPage: React.FC = () => {
    * Récupérer tous les plannings générés par l'IA avec le statut "draft"
    */
   const fetchGeneratedSchedules = useCallback(async () => {
-    if (!user?._id) return;
+    if (!user?._id) {
+      console.log('❌ [VALIDATION PAGE] User non défini, arrêt de la requête');
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
+      // Construction des paramètres selon le rôle
+      const params: any = { status: "draft" };
+      if (user.role === "manager") {
+        params.managerId = user._id;
+      }
+      // Le backend filtre automatiquement selon req.user.companyId pour les directeurs
+      // Pas besoin d'envoyer companyId en paramètre
+      
+      console.log('🔎 [VALIDATION PAGE] Paramètres API:', params);
+      console.log('🔎 [VALIDATION PAGE] User companyId:', user.companyId);
+      console.log('🔎 [VALIDATION PAGE] User role:', user.role);
+      console.log('🔎 [VALIDATION PAGE] User _id:', user._id);
+      console.log('🔎 [VALIDATION PAGE] URL complète:', `/ai/generated-schedules?${new URLSearchParams(params).toString()}`);
+
+      // Test de l'authentification avant l'appel principal
+      try {
+        const authTest = await axiosInstance.get("/auth/me");
+        console.log('✅ [VALIDATION PAGE] Test d\'authentification réussi:', authTest.data);
+      } catch (authErr: any) {
+        console.error('❌ [VALIDATION PAGE] Échec du test d\'authentification:', authErr);
+        console.error('❌ [VALIDATION PAGE] Status:', authErr.response?.status);
+        console.error('❌ [VALIDATION PAGE] Message:', authErr.response?.data?.message);
+        
+        // Si l'authentification échoue, afficher une erreur appropriée
+        if (authErr.response?.status === 401) {
+          setError("Session expirée. Veuillez vous reconnecter.");
+          setShowErrorToast(true);
+          return;
+        }
+      }
+
       // Appel à l'API pour récupérer les plannings IA en draft
-      const response = await axiosInstance.get("/ai/generated-schedules", {
-        params: {
-          status: "draft",
-          // Filtrer selon le rôle de l'utilisateur
-          ...(user.role === "manager" && { managerId: user._id }),
-          ...(user.role === "directeur" && { companyId: user.companyId }),
-        },
-      });
+      console.log('🚀 [VALIDATION PAGE] Début de l\'appel API...');
+      const response = await axiosInstance.get("/ai/generated-schedules", { params });
+
+      console.log('📊 [VALIDATION PAGE] Réponse complète:', response.data);
+      console.log('📊 [VALIDATION PAGE] Status de la réponse:', response.status);
+      console.log('📊 [VALIDATION PAGE] Headers de la réponse:', response.headers);
 
       if (response.data.success) {
         const schedules = response.data.data || [];
+        console.log('📊 [VALIDATION PAGE] Plannings récupérés:', schedules.length);
+        console.log('📊 [VALIDATION PAGE] Premier planning:', schedules[0]);
+        console.log('📊 [VALIDATION PAGE] Tous les plannings:', schedules);
         setGeneratedSchedules(schedules);
 
         // Initialiser les états d'édition
@@ -257,15 +294,21 @@ const ManagerPlanningValidationPage: React.FC = () => {
         setEditingStates(initialEditingStates);
         setEditedSchedules(initialEditedSchedules);
       } else {
+        console.log('❌ [VALIDATION PAGE] Erreur dans la réponse:', response.data);
         setError("Erreur lors de la récupération des plannings");
         setShowErrorToast(true);
       }
     } catch (err: any) {
-      console.error("Erreur lors de la récupération des plannings IA:", err);
-      setError(
-        err.response?.data?.message ||
-          "Erreur lors de la récupération des plannings"
-      );
+      console.error("💥 [VALIDATION PAGE] Erreur lors de la récupération des plannings IA:", err);
+      console.error("💥 [VALIDATION PAGE] Status:", err.response?.status);
+      console.error("💥 [VALIDATION PAGE] Data:", err.response?.data);
+      console.error("💥 [VALIDATION PAGE] Headers:", err.response?.headers);
+      console.error("💥 [VALIDATION PAGE] Config:", err.config);
+      
+      const errorMessage = err.response?.data?.message || "Erreur lors de la récupération des plannings";
+      console.error("💥 [VALIDATION PAGE] Message d'erreur final:", errorMessage);
+      
+      setError(errorMessage);
       setShowErrorToast(true);
     } finally {
       setLoading(false);
@@ -274,6 +317,8 @@ const ManagerPlanningValidationPage: React.FC = () => {
 
   // Charger les plannings au montage du composant
   useEffect(() => {
+    console.log('🎯 [VALIDATION PAGE] useEffect - Début du chargement des plannings');
+    console.log('🎯 [VALIDATION PAGE] useEffect - User:', user);
     fetchGeneratedSchedules();
   }, [fetchGeneratedSchedules]);
 
@@ -529,7 +574,12 @@ const ManagerPlanningValidationPage: React.FC = () => {
           <div className="flex justify-center items-center py-16">
             <LoadingSpinner size="lg" />
           </div>
-        ) : generatedSchedules.length > 0 ? (
+        ) : (() => {
+          console.log('🔍 [VALIDATION PAGE] Rendu - Nombre de plannings:', generatedSchedules.length);
+          console.log('🔍 [VALIDATION PAGE] Rendu - Loading:', loading);
+          console.log('🔍 [VALIDATION PAGE] Rendu - Premier planning:', generatedSchedules[0]);
+          return generatedSchedules.length > 0;
+        })() ? (
           <div className="space-y-6">
             <AnimatePresence>
               {generatedSchedules.map((schedule, index) => {

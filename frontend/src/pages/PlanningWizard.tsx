@@ -221,6 +221,23 @@ const PlanningWizard: React.FC = () => {
     }, 500);
 
     try {
+      // Validate constraints before sending
+      console.log('🚀 Sending constraints:', JSON.stringify(constraints, null, 2));
+      
+      // Ensure all required fields are present
+      if (!constraints.teamId) {
+        throw new Error('Équipe non sélectionnée');
+      }
+      if (!constraints.employees || constraints.employees.length === 0) {
+        throw new Error('Aucun employé sélectionné');
+      }
+      if (!constraints.companyConstraints) {
+        throw new Error('Contraintes d\'entreprise manquantes');
+      }
+      if (!constraints.preferences) {
+        throw new Error('Préférences de planification manquantes');
+      }
+
       const response = await axiosInstance.post<AIGenerationResponse>('/ai/schedule/generate-from-constraints', constraints);
       
       setGenerationProgress(100);
@@ -228,13 +245,24 @@ const PlanningWizard: React.FC = () => {
       
       if (response.data.success) {
         showToast('Planning généré avec succès!', 'success');
-        navigate('/schedules', { state: { generatedSchedule: response.data.schedule } });
+        navigate('/validation-plannings', { state: { generatedSchedule: response.data.schedule } });
       } else {
         showToast(response.data.error || 'Erreur lors de la génération', 'error');
       }
-    } catch (error) {
+    } catch (error: any) {
       clearInterval(progressInterval);
-      showToast('Erreur lors de la génération du planning', 'error');
+      console.error('❌ Erreur génération:', error);
+      
+      let errorMessage = 'Erreur lors de la génération du planning';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors?.length > 0) {
+        errorMessage = `Erreur de validation: ${error.response.data.errors[0].message}`;
+      }
+      
+      showToast(errorMessage, 'error');
     } finally {
       setIsGenerating(false);
       setGenerationProgress(0);
@@ -1269,35 +1297,283 @@ const PlanningWizard: React.FC = () => {
       case 5:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="space-y-8"
           >
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-4 flex items-center">
-                <CheckCircle className="mr-2" />
-                Résumé de la configuration
-              </h3>
-              <div className="space-y-4">
-                <div className="border-l-4 border-blue-500 pl-4">
-                  <h4 className="font-semibold">Équipe sélectionnée</h4>
-                  <p className="text-gray-600">Semaine {constraints.weekNumber} de {constraints.year}</p>
-                  <p className="text-gray-600">{constraints.employees.length} employés sélectionnés</p>
-                </div>
-                <div className="border-l-4 border-green-500 pl-4">
-                  <h4 className="font-semibold">Contraintes configurées</h4>
-                  <p className="text-gray-600">Jours d'ouverture: {constraints.companyConstraints.openingDays.length} jours</p>
-                  <p className="text-gray-600">Minimum simultané: {constraints.companyConstraints.minStaffSimultaneously} employés</p>
-                </div>
-                <div className="border-l-4 border-purple-500 pl-4">
-                  <h4 className="font-semibold">Préférences IA</h4>
-                  <p className="text-gray-600">
-                    {constraints.preferences.favorUniformity ? 'Uniformité activée' : 'Variabilité activée'}
-                    {constraints.preferences.favorSplit ? ', Coupures favorisées' : ', Journées continues'}
-                  </p>
+            <motion.div 
+              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Fond animé avec effet de validation/succès */}
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-blue-500/5 to-purple-600/10 dark:from-green-400/20 dark:via-blue-400/10 dark:to-purple-500/20"></div>
+              {[...Array(15)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-gradient-to-r from-green-400 to-blue-600 rounded-full opacity-40"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    scale: [1, 1.8, 1],
+                    opacity: [0.4, 0.9, 0.4],
+                    rotate: [0, 180, 360],
+                  }}
+                  transition={{
+                    duration: 4 + Math.random() * 3,
+                    repeat: Infinity,
+                    delay: Math.random() * 3,
+                  }}
+                />
+              ))}
+              
+              <div className="relative z-10">
+                <motion.h3 
+                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
+                  initial={{ x: -20 }}
+                  animate={{ x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <motion.div 
+                    className="mr-4 p-3 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ rotate: 360, scale: 1.1 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <CheckCircle className="w-6 h-6" />
+                  </motion.div>
+                  Résumé de la configuration
+                  <Rocket className="ml-2 w-5 h-5 text-orange-500 animate-bounce" />
+                </motion.h3>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Équipe sélectionnée */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 0.3, duration: 0.4 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                  >
+                    {/* Effet holographique bleu */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 dark:from-blue-400/20 dark:to-cyan-400/20"></div>
+                    <motion.div
+                      className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/30 to-cyan-600/30 rounded-full blur-2xl"
+                      animate={{ opacity: [0.5, 0.8, 0.5] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                    />
+                    
+                    <div className="relative z-10">
+                      <motion.div 
+                        className="flex items-center mb-4"
+                        initial={{ x: -10 }}
+                        animate={{ x: 0 }}
+                        transition={{ delay: 0.4 }}
+                      >
+                        <motion.div 
+                          className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white mr-4 shadow-lg"
+                          whileHover={{ rotate: [0, 15, -15, 0] }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <Users className="w-6 h-6" />
+                        </motion.div>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                          🏢 Équipe sélectionnée
+                        </h4>
+                      </motion.div>
+                      
+                      <div className="space-y-3">
+                        {formatDateRange(constraints.weekNumber, constraints.year) && (
+                          <motion.div 
+                            className="p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-700/30"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.5 }}
+                          >
+                            <div className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                              📅 Semaine {constraints.weekNumber} de {constraints.year}
+                            </div>
+                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                              {formatDateRange(constraints.weekNumber, constraints.year)}
+                            </div>
+                          </motion.div>
+                        )}
+                        
+                        <motion.div 
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-blue-400/20 dark:to-cyan-400/20 rounded-lg"
+                          animate={{ opacity: [0.8, 1, 0.8] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            👥 Employés sélectionnés
+                          </span>
+                          <motion.span 
+                            className="text-lg font-bold text-blue-600 dark:text-blue-400"
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {constraints.employees.length}
+                          </motion.span>
+                        </motion.div>
+                      </div>
+                    </div>
+                  </motion.div>
+                  
+                  {/* Contraintes configurées */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 0.4, duration: 0.4 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                  >
+                    {/* Effet holographique vert */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 dark:from-green-400/20 dark:to-emerald-400/20"></div>
+                    <motion.div
+                      className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-400/30 to-emerald-600/30 rounded-full blur-2xl"
+                      animate={{ opacity: [0.5, 0.8, 0.5] }}
+                      transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+                    />
+                    
+                    <div className="relative z-10">
+                      <motion.div 
+                        className="flex items-center mb-4"
+                        initial={{ x: -10 }}
+                        animate={{ x: 0 }}
+                        transition={{ delay: 0.5 }}
+                      >
+                        <motion.div 
+                          className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white mr-4 shadow-lg"
+                          whileHover={{ rotate: [0, 15, -15, 0] }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <Clock className="w-6 h-6" />
+                        </motion.div>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                          ⚙️ Contraintes configurées
+                        </h4>
+                      </motion.div>
+                      
+                      <div className="space-y-3">
+                        <motion.div 
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 dark:from-green-400/20 dark:to-emerald-400/20 rounded-lg"
+                          animate={{ opacity: [0.8, 1, 0.8] }}
+                          transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                        >
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            📅 Jours d'ouverture
+                          </span>
+                          <motion.span 
+                            className="text-lg font-bold text-green-600 dark:text-green-400"
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {constraints.companyConstraints.openingDays.length}
+                          </motion.span>
+                        </motion.div>
+                        
+                        <motion.div 
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-400/20 dark:to-teal-400/20 rounded-lg"
+                          animate={{ opacity: [0.8, 1, 0.8] }}
+                          transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+                        >
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            👥 Minimum simultané
+                          </span>
+                          <motion.span 
+                            className="text-lg font-bold text-emerald-600 dark:text-emerald-400"
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {constraints.companyConstraints.minStaffSimultaneously}
+                          </motion.span>
+                        </motion.div>
+                      </div>
+                    </div>
+                  </motion.div>
+                  
+                  {/* Préférences IA */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 0.5, duration: 0.4 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                  >
+                    {/* Effet holographique violet */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 dark:from-purple-400/20 dark:to-pink-400/20"></div>
+                    <motion.div
+                      className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400/30 to-pink-600/30 rounded-full blur-2xl"
+                      animate={{ opacity: [0.5, 0.8, 0.5] }}
+                      transition={{ duration: 3, repeat: Infinity, delay: 2 }}
+                    />
+                    
+                    <div className="relative z-10">
+                      <motion.div 
+                        className="flex items-center mb-4"
+                        initial={{ x: -10 }}
+                        animate={{ x: 0 }}
+                        transition={{ delay: 0.6 }}
+                      >
+                        <motion.div 
+                          className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white mr-4 shadow-lg"
+                          whileHover={{ rotate: [0, 15, -15, 0] }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <Brain className="w-6 h-6" />
+                        </motion.div>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                          🧠 Préférences IA
+                        </h4>
+                      </motion.div>
+                      
+                      <div className="space-y-2">
+                        {Object.entries(constraints.preferences).map(([key, value], index) => {
+                          const labels = {
+                            favorSplit: '🍽️ Coupures',
+                            favorUniformity: '⚖️ Uniformité',
+                            balanceWorkload: '⚡ Équilibrage',
+                            prioritizeEmployeePreferences: '❤️ Préférences'
+                          };
+                          
+                          return (
+                            <motion.div 
+                              key={key}
+                              className={`flex items-center justify-between p-2 rounded-lg text-sm ${
+                                value 
+                                  ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 dark:from-green-400/20 dark:to-emerald-400/20 text-green-700 dark:text-green-300'
+                                  : 'bg-gradient-to-r from-gray-500/10 to-gray-600/10 dark:from-gray-600/20 dark:to-gray-700/20 text-gray-500 dark:text-gray-400'
+                              }`}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.7 + index * 0.1 }}
+                            >
+                              <span className="font-medium">
+                                {labels[key as keyof typeof labels]}
+                              </span>
+                              <motion.span 
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  value 
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                    : 'bg-gray-100 dark:bg-gray-700/30 text-gray-400 dark:text-gray-500'
+                                }`}
+                                animate={value ? { scale: [1, 1.05, 1] } : {}}
+                                transition={{ duration: 0.5 }}
+                              >
+                                {value ? '✓ ON' : '✗ OFF'}
+                              </motion.span>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {isGenerating && (
               <motion.div 

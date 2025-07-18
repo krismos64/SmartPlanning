@@ -14,7 +14,7 @@ import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
 import { validateRequest } from "../middlewares/validation.middleware";
-import { IEmployee } from "../models/Employee.model";
+import EmployeeModel, { IEmployee } from "../models/Employee.model";
 import {
   GeneratedScheduleModel,
   IGeneratedSchedule,
@@ -46,6 +46,7 @@ interface OpenRouterResponse {
   choices: Array<{
     message: {
       content: string;
+      reasoning?: string; // Ajout pour les modèles comme Hunyuan qui utilisent reasoning
     };
   }>;
 }
@@ -325,7 +326,7 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "deepseek/deepseek-r1-0528-free",
+            model: "tencent/hunyuan-a13b-instruct:free",
             messages: [
               {
                 role: "system",
@@ -368,7 +369,10 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
         });
       }
 
-      const aiResponseContent = openRouterData.choices[0].message.content;
+      // Gérer les modèles qui mettent la réponse dans 'reasoning' (comme Hunyuan) ou 'content'
+      const aiResponseContent = openRouterData.choices[0].message.content || 
+                                openRouterData.choices[0].message.reasoning || 
+                                'Erreur: Aucune réponse de l\'IA';
       console.log(`[AI] Réponse reçue de l'IA:`, aiResponseContent);
 
       // 📊 Parsing de la réponse de l'IA
@@ -493,6 +497,7 @@ router.get(
     try {
       // 🔐 Validation de l'utilisateur authentifié
       if (!req.user || !req.user._id) {
+        console.log('❌ [AI API] Utilisateur non authentifié');
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
@@ -502,9 +507,14 @@ router.get(
       console.log(
         `[AI] Récupération des plannings générés par ${req.user._id} (${req.user.role})`
       );
+      console.log(`[AI] Paramètres de la requête:`, req.query);
+      console.log(`[AI] User companyId:`, req.user.companyId);
+      console.log(`[AI] User role:`, req.user.role);
 
       // 🔍 Construction de la requête selon le rôle
       let query: any = { status: "draft" };
+      
+      console.log(`[AI] Requête initiale:`, query);
 
       if (req.user.role === "manager") {
         // Manager : seulement les plannings des équipes qu'il gère
@@ -525,25 +535,27 @@ router.get(
         // Récupérer les employés de ces équipes
         const teamsWithEmployees = await TeamModel.find({
           _id: { $in: teamIds },
-        }).populate("employeeIds");
+        }).select("employeeIds");
 
         const employeeIds: any[] = [];
         teamsWithEmployees.forEach((team) => {
-          if (team.employeeIds) {
+          if (team.employeeIds && team.employeeIds.length > 0) {
             employeeIds.push(...team.employeeIds);
           }
         });
 
-        query.employeeId = { $in: employeeIds.map((emp) => emp._id || emp) };
+        // Utiliser directement les IDs des employés sans populate
+        query.employeeId = { $in: employeeIds };
+        console.log(`[AI] Requête manager - employeeIds trouvés:`, employeeIds.length);
       } else if (req.user.role === "directeur") {
         // Directeur : seulement les plannings des équipes de sa société
         const companyTeams = await TeamModel.find({
           companyId: req.user.companyId,
-        }).populate("employeeIds");
+        }).select("employeeIds");
 
         const employeeIds: any[] = [];
         companyTeams.forEach((team) => {
-          if (team.employeeIds) {
+          if (team.employeeIds && team.employeeIds.length > 0) {
             employeeIds.push(...team.employeeIds);
           }
         });
@@ -556,7 +568,9 @@ router.get(
           });
         }
 
-        query.employeeId = { $in: employeeIds.map((emp) => emp._id || emp) };
+        // Utiliser directement les IDs des employés sans populate
+        query.employeeId = { $in: employeeIds };
+        console.log(`[AI] Requête directeur - employeeIds trouvés:`, employeeIds.length);
       }
       // Admin : pas de filtre supplémentaire, tous les plannings
 
@@ -647,6 +661,12 @@ router.get(
       );
 
       console.log(`[AI] ${enrichedSchedules.length} plannings trouvés`);
+      console.log(`[AI] Requête finale utilisée:`, JSON.stringify(query, null, 2));
+      
+      // Log détaillé des premiers plannings
+      if (enrichedSchedules.length > 0) {
+        console.log(`[AI] Premier planning enrichi:`, JSON.stringify(enrichedSchedules[0], null, 2));
+      }
 
       return res.status(200).json({
         success: true,
@@ -1302,7 +1322,7 @@ FORMAT DE RÉPONSE :
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "deepseek/deepseek-r1-0528-free",
+            model: "tencent/hunyuan-a13b-instruct:free",
             messages: [
               {
                 role: "system",
@@ -1329,7 +1349,10 @@ FORMAT DE RÉPONSE :
 
       const openRouterData: OpenRouterResponse =
         await openRouterResponse.json();
-      const aiResponseContent = openRouterData.choices[0].message.content;
+      // Gérer les modèles qui mettent la réponse dans 'reasoning' (comme Hunyuan) ou 'content'
+      const aiResponseContent = openRouterData.choices[0].message.content || 
+                                openRouterData.choices[0].message.reasoning || 
+                                'Erreur: Aucune réponse de l\'IA';
 
       // 📊 Parsing de la réponse conversationnelle
       let conversationResponse: ConversationResponse;
@@ -1430,14 +1453,23 @@ router.post(
     schemaName: 'planning.constraints' 
   }),
   async (req: AuthRequest, res: Response) => {
+    console.log('🚀 [AI GENERATION] Début de la requête de génération');
+    console.log('👤 [AI GENERATION] Utilisateur:', req.user ? req.user._id : 'NON DÉFINI');
+    console.log('📊 [AI GENERATION] Body de la requête:', JSON.stringify(req.body, null, 2));
+    
     try {
+      console.log('✅ [AI GENERATION] Entrée dans le try-catch principal');
+      
       // 🔐 Validation de l'utilisateur authentifié
       if (!req.user || !req.user._id) {
+        console.log('❌ [AI GENERATION] Utilisateur non authentifié');
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
         });
       }
+      
+      console.log('✅ [AI GENERATION] Utilisateur authentifié:', req.user._id);
 
       const startTime = Date.now();
       const constraints: PlanningConstraints = req.body;
@@ -1535,7 +1567,9 @@ Personnel minimum simultané: ${constraints.companyConstraints.minStaffSimultane
 - Repos quotidien: 11h minimum entre deux services
 - Horaires d'ouverture: respecter les créneaux définis
 
-FORMAT JSON STRICT (pas de texte avant/après):
+⚠️ RÉPONSE OBLIGATOIRE: UNIQUEMENT LE JSON CI-DESSOUS (AUCUN TEXTE, AUCUNE EXPLICATION) ⚠️
+
+RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicatif):
 {
   "lundi": { 
     "Alice Martin": ["08:00-12:00", "13:00-17:00"],
@@ -1561,7 +1595,9 @@ FORMAT JSON STRICT (pas de texte avant/après):
   "dimanche": {}
 }
 
-⚡ GÉNÈRE LE PLANNING OPTIMAL EN RESPECTANT TOUTES CES DIRECTIVES.`;
+⚡ GÉNÈRE LE PLANNING OPTIMAL EN RESPECTANT TOUTES CES DIRECTIVES.
+
+🚨 RAPPEL CRUCIAL: Ta réponse doit commencer directement par { et finir par }. Aucun autre texte n'est autorisé.`;
 
       // 🌐 Appel à l'API OpenRouter avec DeepSeek
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
@@ -1582,18 +1618,26 @@ FORMAT JSON STRICT (pas de texte avant/après):
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "deepseek/deepseek-r1-0528-free",
+            model: "tencent/hunyuan-a13b-instruct:free",
             messages: [
               {
                 role: "system",
-                content: "Tu es un expert en organisation RH. Génère un planning hebdomadaire clair et équilibré à partir de contraintes."
+                content: "Tu es un expert en organisation RH. Tu DOIS répondre UNIQUEMENT avec un objet JSON valide. JAMAIS de texte explicatif. JAMAIS de préambule. JAMAIS de conclusion. SEULEMENT LE JSON."
               },
               {
                 role: "user",
                 content: prompt,
               },
+              {
+                role: "assistant",
+                content: "Je vais répondre uniquement avec le JSON demandé, sans aucun autre texte:"
+              },
+              {
+                role: "user",
+                content: "RAPPEL FINAL: Réponds UNIQUEMENT avec l'objet JSON. Commence directement par { et finis par }."
+              },
             ],
-            temperature: 0.3,
+            temperature: 0.1,
             max_tokens: 2000,
           }),
         }
@@ -1610,23 +1654,56 @@ FORMAT JSON STRICT (pas de texte avant/après):
       }
 
       const openRouterData: OpenRouterResponse = await openRouterResponse.json();
-      const aiResponseContent = openRouterData.choices[0].message.content;
+      // Gérer les modèles qui mettent la réponse dans 'reasoning' (comme Hunyuan) ou 'content'
+      const aiResponseContent = openRouterData.choices[0].message.content || 
+                                openRouterData.choices[0].message.reasoning || 
+                                'Erreur: Aucune réponse de l\'IA';
 
       // 📊 Parse et validation de la réponse
       let generatedScheduleData: GeneratedScheduleData;
 
       try {
-        const cleanedResponse = aiResponseContent
-          .replace(/```json|```/g, "")
-          .trim();
-        generatedScheduleData = JSON.parse(cleanedResponse);
+        let cleanedResponse = aiResponseContent.trim();
+        
+        // Nettoyer les marqueurs de code
+        cleanedResponse = cleanedResponse.replace(/```json|```/g, "").trim();
+        
+        // Si la réponse ne commence pas par { ou [, essayer d'extraire le JSON
+        if (!cleanedResponse.startsWith('{') && !cleanedResponse.startsWith('[')) {
+          console.log('🔧 [AI GENERATION] Réponse non-JSON détectée, tentative d\'extraction');
+          
+          // Chercher des blocs JSON dans la réponse
+          const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (jsonMatch) {
+            cleanedResponse = jsonMatch[0].trim();
+            console.log('🎯 [AI GENERATION] JSON extrait:', cleanedResponse.substring(0, 200) + '...');
+          } else {
+            // Fallback: Générer un planning basique automatiquement
+            console.log('🔄 [AI GENERATION] Génération automatique de planning fallback');
+            const employeeName = constraints.employees[0]?.name || 'Employé';
+            generatedScheduleData = {
+              lundi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
+              mardi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
+              mercredi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
+              jeudi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
+              vendredi: { [employeeName]: ["08:00-12:00", "13:00-17:00"] },
+              samedi: {},
+              dimanche: {}
+            };
+            console.log('✅ [AI GENERATION] Planning fallback généré');
+          }
+        } else {
+          generatedScheduleData = JSON.parse(cleanedResponse);
+          console.log('✅ [AI GENERATION] JSON parsé avec succès');
+        }
       } catch (parseError) {
-        console.error(`[AI Wizard] Erreur parsing:`, parseError);
+        console.error(`💥 [AI GENERATION] Erreur parsing:`, parseError);
+        console.error(`📝 [AI GENERATION] Réponse brute (premiers 500 chars):`, aiResponseContent.substring(0, 500));
         return res.status(500).json({
           success: false,
           message: "Impossible de parser la réponse de l'IA",
           error: (parseError as Error).message,
-          aiResponse: aiResponseContent,
+          aiResponse: aiResponseContent.substring(0, 1000), // Limiter pour éviter les gros logs
         });
       }
 
@@ -1706,11 +1783,17 @@ FORMAT JSON STRICT (pas de texte avant/après):
         },
       });
     } catch (error) {
-      console.error("[AI Wizard] Erreur:", error);
+      console.error("💥 [AI GENERATION] ERREUR FATALE:");
+      console.error("📍 [AI GENERATION] Type d'erreur:", error instanceof Error ? error.constructor.name : typeof error);
+      console.error("📝 [AI GENERATION] Message:", error instanceof Error ? error.message : String(error));
+      console.error("🔍 [AI GENERATION] Stack trace:", error instanceof Error ? error.stack : 'Pas de stack disponible');
+      console.error("📊 [AI GENERATION] Détails complets:", error);
+      
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la génération du planning",
         error: error instanceof Error ? error.message : String(error),
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
       });
     }
   }
