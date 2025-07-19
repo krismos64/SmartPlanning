@@ -326,7 +326,7 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "tencent/hunyuan-a13b-instruct:free",
+            model: "google/gemini-flash-1.5:free",
             messages: [
               {
                 role: "system",
@@ -1322,7 +1322,7 @@ FORMAT DE RÉPONSE :
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "tencent/hunyuan-a13b-instruct:free",
+            model: "google/gemini-flash-1.5:free",
             messages: [
               {
                 role: "system",
@@ -1536,10 +1536,11 @@ router.post(
         const employee = employees.find(e => (e as any)._id.toString() === emp.id);
         if (employee) {
           employeeDetails += `- ${emp.name} (${emp.email}):
-  * Contrat: ${emp.weeklyHours || 35}h/semaine
-  * Jour de repos souhaité: ${emp.restDay || 'Flexible'}
-  * Coupures autorisées: ${emp.allowSplitShifts ? 'Oui' : 'Non'}
-  * Exceptions: ${emp.exceptions?.length ? emp.exceptions.map(e => `${e.date} (${e.reason})`).join(', ') : 'Aucune'}
+  * Contrat: ${emp.weeklyHours || 35}h/semaine (OBLIGATION CONTRACTUELLE)
+  * Jour de repos souhaité: ${emp.restDay || 'Flexible'} ${emp.restDay ? '(PRIORITÉ ABSOLUE)' : ''}
+  * Créneaux préférés: ${emp.preferredHours?.length ? emp.preferredHours.join(', ') : 'Aucune préférence'}
+  * Coupures autorisées: ${emp.allowSplitShifts ? 'Oui' : 'Non - service continu obligatoire'}
+  * Exceptions: ${emp.exceptions?.length ? emp.exceptions.map(e => `${e.date} (${e.type}: ${e.reason})`).join(', ') : 'Aucune'}
 `;
         }
       });
@@ -1553,93 +1554,110 @@ router.post(
         return `${dayFr}: ${hours?.hours.join(', ') || 'Horaires standards'}`;
       }).join('\n');
 
-      const prompt = `Tu es un expert en planification RH. Génère un planning hebdomadaire optimisé et équilibré.
+      // Contraintes de rôles si elles existent
+      let roleConstraintsDetails = "";
+      if (constraints.companyConstraints.roleConstraints?.length) {
+        roleConstraintsDetails = `\n🎭 CONTRAINTES DE RÔLES OBLIGATOIRES:
+${constraints.companyConstraints.roleConstraints.map(rc => 
+  `- Rôle "${rc.role}" REQUIS aux créneaux: ${rc.requiredAt.join(', ')}`
+).join('\n')}
+ATTENTION: Ces rôles doivent être présents aux créneaux spécifiés EN PLUS du personnel minimum.
+`;
+      }
 
-📋 ÉQUIPE "${team.name}" - ${weekInfo}
+      // Construire les horaires d'ouverture détaillés
+      const detailedOpeningHours = constraints.companyConstraints.openingHours.map(dayHours => {
+        const dayFr = {
+          monday: 'LUNDI', tuesday: 'MARDI', wednesday: 'MERCREDI',
+          thursday: 'JEUDI', friday: 'VENDREDI', saturday: 'SAMEDI', sunday: 'DIMANCHE'
+        }[dayHours.day];
+        return `- ${dayFr}: ${dayHours.hours.join(' et ')} (COUVERTURE OBLIGATOIRE INTEGRALE)`;
+      }).join('\n');
 
-👥 EMPLOYÉS (${constraints.employees.length} personnes):
+      const prompt = `Tu es un expert en planification RH. Genere un planning hebdomadaire optimise et equilibre.
+
+EQUIPE "${team.name}" - ${weekInfo}
+
+EMPLOYES (${constraints.employees.length} personnes):
 ${employeeDetails}
 
-🏢 CONTRAINTES ENTREPRISE OBLIGATOIRES:
+CONTRAINTES ENTREPRISE OBLIGATOIRES:
 Jours d'ouverture:
-${openingDaysDetails}
+${openingDaysDetails}${roleConstraintsDetails}
 
-🕐 HORAIRES D'OUVERTURE QUOTIDIENNE:
-- Ouverture: ${constraints.companyConstraints.dailyOpeningTime || '08:00'}
-- Fermeture: ${constraints.companyConstraints.dailyClosingTime || '18:00'}
-- IL FAUT ASSURER UNE COUVERTURE COMPLÈTE DE ${constraints.companyConstraints.dailyOpeningTime || '08:00'} à ${constraints.companyConstraints.dailyClosingTime || '18:00'}
+HORAIRES D'OUVERTURE PRECIS PAR JOUR (OBLIGATION ABSOLUE):
+${detailedOpeningHours}
 
-👥 PERSONNEL MINIMUM SIMULTANÉ: ${constraints.companyConstraints.minStaffSimultaneously || 2} employés présents EN PERMANENCE pendant les heures d'ouverture
+ATTENTION CRITIQUE: Tu DOIS respecter EXACTEMENT ces horaires jour par jour. 
+- PAS de 17h par defaut si fermeture a 20h !
+- PAS de fermeture 12h-13h si creneau continu !
+- UTILISE les creneaux EXACTS ci-dessus pour chaque jour !
 
-⏰ LIMITES DE TRAVAIL QUOTIDIEN:
+PERSONNEL MINIMUM SIMULTANE: ${constraints.companyConstraints.minStaffSimultaneously || 2} employes presents EN PERMANENCE pendant les heures d'ouverture
+
+LIMITES DE TRAVAIL QUOTIDIEN:
 - Heures MINIMUM par jour: ${constraints.companyConstraints.minHoursPerDay || 4}h
 - Heures MAXIMUM par jour: ${constraints.companyConstraints.maxHoursPerDay || 10}h
 
-🍽️ GESTION DES PAUSES DÉJEUNER:
-- Durée: ${constraints.companyConstraints.lunchBreakDuration || 60} minutes
-- Obligatoire: ${constraints.companyConstraints.mandatoryLunchBreak ? 'OUI - pour tout créneau > 6h' : 'NON'}
-- ROTATION OBLIGATOIRE: Les pauses déjeuner doivent être échelonnées pour maintenir le personnel minimum
+GESTION DES PAUSES DEJEUNER:
+- Duree: ${constraints.companyConstraints.lunchBreakDuration || 60} minutes
+- Obligatoire: ${constraints.companyConstraints.mandatoryLunchBreak ? 'OUI - pour tout creneau > 6h' : 'NON'}
+- ROTATION OBLIGATOIRE: Les pauses dejeuner doivent etre echelonnees pour maintenir le personnel minimum
 
-⚙️ PRÉFÉRENCES IA:
+PREFERENCES IA:
 - Favoriser les coupures: ${constraints.preferences.favorSplit ? 'Oui' : 'Non'}
-- Uniformité des horaires: ${constraints.preferences.favorUniformity ? 'Oui' : 'Non'}
-- Équilibrer la charge: ${constraints.preferences.balanceWorkload ? 'Oui' : 'Non'}
-- Prioriser préférences employés: ${constraints.preferences.prioritizeEmployeePreferences ? 'Oui' : 'Non'}
+- Uniformite des horaires: ${constraints.preferences.favorUniformity ? 'Oui' : 'Non'}
+- Equilibrer la charge: ${constraints.preferences.balanceWorkload ? 'Oui' : 'Non'}
+- Prioriser preferences employes: ${constraints.preferences.prioritizeEmployeePreferences ? 'Oui' : 'Non'}
 
-🎯 OBJECTIFS CRITIQUES (RESPECT ABSOLU REQUIS):
-1. MAINTENIR ${constraints.companyConstraints.minStaffSimultaneously || 2} employés présents EN PERMANENCE de ${constraints.companyConstraints.dailyOpeningTime || '08:00'} à ${constraints.companyConstraints.dailyClosingTime || '18:00'}
-2. ÉCHELONNER les pauses déjeuner (12h-14h) pour éviter que tous soient absents simultanément
-3. COUVRIR INTÉGRALEMENT les horaires d'ouverture (pas de trous dans la couverture)
-4. RESPECTER les heures contractuelles de chaque employé
-5. APPLIQUER les jours de repos souhaités
-6. RESPECTER les limites quotidiennes (${constraints.companyConstraints.minHoursPerDay || 4}h-${constraints.companyConstraints.maxHoursPerDay || 10}h par jour)
-7. GÉRER les exceptions et contraintes individuelles
+OBJECTIFS CRITIQUES (RESPECT ABSOLU REQUIS):
+1. MAINTENIR ${constraints.companyConstraints.minStaffSimultaneously || 2} employes presents EN PERMANENCE pendant TOUS les creneaux d'ouverture definis ci-dessus
+2. RESPECTER EXACTEMENT les horaires specifies pour chaque jour (pas d'horaires par defaut !)
+3. ECHELONNER les pauses dejeuner UNIQUEMENT quand il y a une coupure definie (ex: 08:00-12:00, 13:00-20:00)
+4. COUVRIR INTEGRALEMENT chaque creneau d'ouverture defini (pas de trous dans la couverture)
+5. RESPECTER STRICTEMENT les heures contractuelles de chaque employe (pas plus, pas moins)
+6. APPLIQUER OBLIGATOIREMENT les jours de repos souhaites (priorite absolue)
+7. RESPECTER les creneaux horaires preferes de chaque employe quand possible
+8. RESPECTER les limites quotidiennes (${constraints.companyConstraints.minHoursPerDay || 4}h-${constraints.companyConstraints.maxHoursPerDay || 10}h par jour)
+9. GERER toutes les exceptions individuelles (conges, formations, indisponibilites)
+10. RESPECTER les preferences de coupures/services continus de chaque employe
+11. EQUILIBRER la charge de travail entre les employes selon les preferences activees
 
-🔧 RÈGLES TECHNIQUES STRICTES:
+REGLES TECHNIQUES STRICTES:
 - Format horaire: "HH:MM-HH:MM" (ex: "08:00-12:00")
-- Pauses déjeuner OBLIGATOIRES: ${constraints.companyConstraints.lunchBreakDuration || 60}min minimum entre créneaux matin/après-midi
+- Pauses dejeuner OBLIGATOIRES: ${constraints.companyConstraints.lunchBreakDuration || 60}min minimum entre creneaux matin/apres-midi
 - Repos quotidien: 11h minimum entre deux services
-- JAMAIS moins de ${constraints.companyConstraints.minStaffSimultaneously || 2} employés présents simultanément
-- Étaler les pauses sur 12h-14h pour maintenir la continuité de service
+- JAMAIS moins de ${constraints.companyConstraints.minStaffSimultaneously || 2} employes presents simultanement
+- Etaler les pauses sur 12h-14h pour maintenir la continuite de service
+- Jours de repos: Un employe avec restDay = "lundi" NE TRAVAILLE PAS le lundi ([] vide obligatoire)
+- Heures contractuelles: Calculer precisement pour atteindre exactement les heures/semaine de chaque employe
+- Creneaux preferes: Si un employe prefere "08:00-16:00", privilegier ces horaires quand possible
+- Service continu: Si allowSplitShifts = false, donner UN SEUL creneau par jour (ex: "08:00-16:00")
+- Exceptions: Si un employe a une exception "unavailable" le mercredi, mercredi = []
 
-⚠️ RÉPONSE OBLIGATOIRE: UNIQUEMENT LE JSON CI-DESSOUS (AUCUN TEXTE, AUCUNE EXPLICATION) ⚠️
+REPONSE OBLIGATOIRE: UNIQUEMENT LE JSON CI-DESSOUS (AUCUN TEXTE, AUCUNE EXPLICATION)
 
-RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicatif):
+REPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicatif):
 
-EXEMPLE CORRECT avec couverture ${constraints.companyConstraints.dailyOpeningTime || '08:00'}-${constraints.companyConstraints.dailyClosingTime || '18:00'} et rotation des pauses:
+EXEMPLE avec les creneaux definis ci-dessus:
 {
   "lundi": { 
-    "Alice Martin": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:00", "13:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
-    "Jean Dupont": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:30", "13:30-17:00"],
-    "Sophie Bernard": ["09:00-13:00", "14:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"]
+    "Alice Martin": ["08:00-12:00", "13:00-20:00"],
+    "Jean Dupont": ["08:00-12:30", "13:30-18:00"],
+    "Sophie Bernard": ["09:00-13:00", "14:00-20:00"]
   },
   "mardi": { 
-    "Alice Martin": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-13:00", "14:00-17:30"],
-    "Jean Dupont": ["09:30-12:00", "13:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
+    "Alice Martin": ["08:00-13:00", "14:00-19:00"],
+    "Jean Dupont": ["09:30-12:00", "13:00-20:00"],
     "Sophie Bernard": []
   },
-  "mercredi": { 
-    "Alice Martin": [],
-    "Jean Dupont": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:30", "13:30-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
-    "Sophie Bernard": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-13:00", "14:00-17:00"]
-  },
-  "jeudi": { 
-    "Alice Martin": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:00", "13:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
-    "Jean Dupont": ["09:00-12:30", "13:30-17:30"],
-    "Sophie Bernard": ["10:00-14:00", "15:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"]
-  },
-  "vendredi": { 
-    "Alice Martin": ["09:00-13:30", "14:30-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
-    "Jean Dupont": [],
-    "Sophie Bernard": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:00", "13:00-17:00"]
-  },
-  "samedi": {},
-  "dimanche": {}
+  "samedi": { "Alice Martin": ["08:00-12:00", "13:00-20:00"] },
+  "dimanche": { "Alice Martin": ["08:00-12:00"] }
 }
 
-⚡ GÉNÈRE LE PLANNING OPTIMAL EN RESPECTANT TOUTES CES DIRECTIVES.
+GENERE LE PLANNING OPTIMAL EN RESPECTANT TOUTES CES DIRECTIVES.
 
-🚨 RAPPEL CRUCIAL: Ta réponse doit commencer directement par { et finir par }. Aucun autre texte n'est autorisé.`;
+RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucun autre texte n'est autorise.`;
 
       // 🌐 Appel à l'API OpenRouter avec DeepSeek
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
@@ -1660,11 +1678,11 @@ EXEMPLE CORRECT avec couverture ${constraints.companyConstraints.dailyOpeningTim
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "tencent/hunyuan-a13b-instruct:free",
+            model: "google/gemini-flash-1.5:free",
             messages: [
               {
                 role: "system",
-                content: "Tu es un expert en organisation RH. Tu DOIS respecter ABSOLUMENT ces règles critiques: 1) Maintenir le personnel minimum en permanence pendant les heures d'ouverture, 2) Échelonner les pauses déjeuner pour éviter que tous soient absents, 3) Couvrir INTÉGRALEMENT les horaires d'ouverture. Tu DOIS répondre UNIQUEMENT avec un objet JSON valide. JAMAIS de texte explicatif."
+                content: "Tu es un expert en organisation RH. Tu DOIS respecter ABSOLUMENT ces règles critiques: 1) UTILISER EXACTEMENT les horaires d'ouverture spécifiés pour chaque jour (pas d'horaires par défaut !), 2) Maintenir le personnel minimum en permanence pendant les heures d'ouverture, 3) Échelonner les pauses déjeuner pour éviter que tous soient absents, 4) Couvrir INTÉGRALEMENT les horaires d'ouverture, 5) RESPECTER les jours de repos obligatoires (restDay), 6) RESPECTER les préférences horaires individuelles, 7) GÉRER les exceptions d'indisponibilité, 8) RESPECTER les heures contractuelles de chaque employé. Tu DOIS répondre UNIQUEMENT avec un objet JSON valide, PAS de markdown, PAS de texte explicatif."
               },
               {
                 role: "user",
@@ -1676,7 +1694,7 @@ EXEMPLE CORRECT avec couverture ${constraints.companyConstraints.dailyOpeningTim
               },
               {
                 role: "user",
-                content: "RAPPEL FINAL CRITIQUE: 1) COUVRE de ${constraints.companyConstraints.dailyOpeningTime || '08:00'} à ${constraints.companyConstraints.dailyClosingTime || '18:00'} avec ${constraints.companyConstraints.minStaffSimultaneously || 2} employés minimum, 2) ÉCHELONNE les pauses 12h-14h, 3) Réponds UNIQUEMENT avec l'objet JSON."
+                content: "RAPPEL FINAL CRITIQUE: 1) UTILISE EXACTEMENT les horaires définis pour chaque jour ci-dessus (PAS de valeurs par défaut !), 2) MAINTIENS ${constraints.companyConstraints.minStaffSimultaneously || 2} employés minimum en permanence, 3) ÉCHELONNE les pauses uniquement si coupure définie, 4) Réponds UNIQUEMENT avec l'objet JSON pur (pas de ```json, pas de texte)."
               },
             ],
             temperature: 0.05,
@@ -1816,6 +1834,102 @@ EXEMPLE CORRECT avec couverture ${constraints.companyConstraints.dailyOpeningTim
         });
       }
 
+      // 🔍 VALIDATION COMPLÈTE DU PLANNING GÉNÉRÉ
+      const validationErrors: string[] = [];
+      const dayMapping = {
+        lundi: 'monday', mardi: 'tuesday', mercredi: 'wednesday',
+        jeudi: 'thursday', vendredi: 'friday', samedi: 'saturday', dimanche: 'sunday'
+      };
+
+      // Validation 1: Vérifier les jours de repos obligatoires
+      constraints.employees.forEach((emp) => {
+        if (emp.restDay) {
+          const dayFr = Object.keys(dayMapping).find(key => dayMapping[key] === emp.restDay);
+          if (dayFr && generatedScheduleData[dayFr] && generatedScheduleData[dayFr][emp.name] && 
+              generatedScheduleData[dayFr][emp.name].length > 0) {
+            validationErrors.push(`❌ ${emp.name} doit avoir repos le ${dayFr} mais a des créneaux: ${generatedScheduleData[dayFr][emp.name]}`);
+          }
+        }
+      });
+
+      // Validation 2: Vérifier les exceptions d'indisponibilité
+      constraints.employees.forEach((emp) => {
+        if (emp.exceptions?.length) {
+          emp.exceptions.forEach((exception) => {
+            if (exception.type === 'unavailable' || exception.type === 'sick' || exception.type === 'vacation') {
+              const weekRange = getWeekDateRange(constraints.weekNumber, constraints.year);
+              const exceptionDate = new Date(exception.date);
+              
+              // Vérifier si l'exception tombe dans la semaine planifiée
+              if (exceptionDate >= weekRange.start && exceptionDate <= weekRange.end) {
+                const dayOfWeek = exceptionDate.getDay();
+                const dayName = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][dayOfWeek];
+                
+                if (generatedScheduleData[dayName] && generatedScheduleData[dayName][emp.name] && 
+                    generatedScheduleData[dayName][emp.name].length > 0) {
+                  validationErrors.push(`❌ ${emp.name} indisponible le ${dayName} (${exception.reason}) mais a des créneaux: ${generatedScheduleData[dayName][emp.name]}`);
+                }
+              }
+            }
+          });
+        }
+      });
+
+      // Validation 3: Vérifier la couverture minimale
+      const workingDays = constraints.companyConstraints.openingDays.filter(day => 
+        ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(day)
+      );
+      
+      workingDays.forEach((dayEn) => {
+        const dayFr = Object.keys(dayMapping).find(key => dayMapping[key] === dayEn);
+        if (dayFr && generatedScheduleData[dayFr]) {
+          const workingEmployees = Object.values(generatedScheduleData[dayFr]).filter(slots => 
+            Array.isArray(slots) && slots.length > 0
+          ).length;
+          
+          const minStaff = constraints.companyConstraints.minStaffSimultaneously || 2;
+          if (workingEmployees < minStaff) {
+            validationErrors.push(`❌ ${dayFr}: seulement ${workingEmployees} employé(s) mais ${minStaff} minimum requis`);
+          }
+        }
+      });
+
+      // Validation 4: Vérifier les heures contractuelles (tolérance ±10%)
+      constraints.employees.forEach((emp) => {
+        const contractualHours = emp.weeklyHours || 35;
+        let totalHours = 0;
+        
+        Object.keys(generatedScheduleData).forEach((day) => {
+          if (generatedScheduleData[day][emp.name]) {
+            const slots = generatedScheduleData[day][emp.name];
+            if (Array.isArray(slots)) {
+              slots.forEach((slot: string) => {
+                const [start, end] = slot.split('-');
+                if (start && end) {
+                  const startTime = new Date(`2000-01-01T${start}:00`);
+                  const endTime = new Date(`2000-01-01T${end}:00`);
+                  totalHours += (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+                }
+              });
+            }
+          }
+        });
+        
+        const tolerance = contractualHours * 0.1; // 10% de tolérance
+        if (Math.abs(totalHours - contractualHours) > tolerance) {
+          validationErrors.push(`⚠️ ${emp.name}: ${totalHours.toFixed(1)}h planifiées vs ${contractualHours}h contractuelles (tolérance: ±${tolerance.toFixed(1)}h)`);
+        }
+      });
+
+      // Si des erreurs critiques sont détectées, loguer mais continuer
+      if (validationErrors.length > 0) {
+        console.warn('⚠️ [AI VALIDATION] Contraintes non respectées:');
+        validationErrors.forEach(error => console.warn(error));
+        
+        // Ajouter les erreurs comme contraintes non respectées dans la réponse
+        // mais ne pas bloquer la création du planning (l'utilisateur peut corriger)
+      }
+
       // 💾 Sauvegarde des plannings générés
       const savedSchedules: IGeneratedSchedule[] = [];
       
@@ -1931,6 +2045,7 @@ EXEMPLE CORRECT avec couverture ${constraints.companyConstraints.dailyOpeningTim
             timestamp: schedule.timestamp,
           })),
           rawScheduleData: generatedScheduleData,
+          validationWarnings: validationErrors.length > 0 ? validationErrors : undefined,
         },
       });
     } catch (error) {

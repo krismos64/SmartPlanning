@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Calendar, Users, Settings, Brain, CheckCircl
 import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../hooks/useAuth';
 import axiosInstance from '../api/axiosInstance';
 import { PlanningConstraints, PlanningWizardStep, AIGenerationResponse } from '../types/PlanningConstraints';
 import LayoutWithSidebar from '../components/layout/LayoutWithSidebar';
@@ -11,6 +12,27 @@ import LayoutWithSidebar from '../components/layout/LayoutWithSidebar';
 const PlanningWizard: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  // Vérification de l'authentification
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      showToast('Vous devez être connecté pour accéder au wizard IA', 'error');
+      navigate('/connexion');
+    }
+  }, [user, authLoading, navigate, showToast]);
+  
+  // Si l'utilisateur n'est pas encore vérifié, attendre
+  if (authLoading) {
+    return <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>;
+  }
+  
+  // Si l'utilisateur n'est pas connecté, ne rien afficher (redirection en cours)
+  if (!user) {
+    return null;
+  }
   
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -27,17 +49,19 @@ const PlanningWizard: React.FC = () => {
     year: new Date().getFullYear(),
     employees: [],
     companyConstraints: {
-      openingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      openingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
       openingHours: [
-        { day: 'monday', hours: ['08:00-12:00', '13:00-17:00'] },
-        { day: 'tuesday', hours: ['08:00-12:00', '13:00-17:00'] },
-        { day: 'wednesday', hours: ['08:00-12:00', '13:00-17:00'] },
-        { day: 'thursday', hours: ['08:00-12:00', '13:00-17:00'] },
-        { day: 'friday', hours: ['08:00-12:00', '13:00-17:00'] }
+        { day: 'monday', hours: ['08:00-12:00', '13:00-20:00'] },
+        { day: 'tuesday', hours: ['08:00-12:00', '13:00-20:00'] },
+        { day: 'wednesday', hours: ['08:00-12:00', '13:00-20:00'] },
+        { day: 'thursday', hours: ['08:00-12:00', '13:00-20:00'] },
+        { day: 'friday', hours: ['08:00-12:00', '13:00-20:00'] },
+        { day: 'saturday', hours: ['08:00-12:00', '13:00-20:00'] },
+        { day: 'sunday', hours: ['08:00-12:00'] }
       ],
       minStaffSimultaneously: 2,
       dailyOpeningTime: '08:00',
-      dailyClosingTime: '18:00',
+      dailyClosingTime: '20:00',
       maxHoursPerDay: 10,
       minHoursPerDay: 4,
       lunchBreakDuration: 60,
@@ -313,13 +337,31 @@ const PlanningWizard: React.FC = () => {
       console.error('❌ Erreur génération:', error);
       
       let errorMessage = 'Erreur lors de la génération du planning';
+      
+      // Gestion spécifique des erreurs d'authentification
+      if (error.response?.status === 401) {
+        errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+        showToast(errorMessage, 'error');
+        setTimeout(() => navigate('/connexion'), 2000);
+        return;
+      }
+      
       if (error.message) {
         errorMessage = error.message;
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors?.length > 0) {
         errorMessage = `Erreur de validation: ${error.response.data.errors[0].message}`;
+      } else if (error.response?.status) {
+        errorMessage = `Erreur serveur (${error.response.status}): ${error.response.statusText || 'Erreur inconnue'}`;
       }
+      
+      console.error('📊 Détails de l\'erreur:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
       
       showToast(errorMessage, 'error');
     } finally {
@@ -931,7 +973,7 @@ const PlanningWizard: React.FC = () => {
                 </motion.h3>
                 
                 <div className="space-y-8">
-                  {/* Section Horaires d'ouverture/fermeture */}
+                  {/* Section Horaires jour par jour */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -944,56 +986,105 @@ const PlanningWizard: React.FC = () => {
                       animate={{ x: 0 }}
                       transition={{ delay: 0.4 }}
                     >
-                      <Clock className="w-5 h-5 mr-3 text-orange-500" />
-                      🕐 Horaires d'ouverture
+                      <Calendar className="w-5 h-5 mr-3 text-purple-500" />
+                      📅 Horaires d'ouverture par jour
                     </motion.h4>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
-                      >
-                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                          🌅 Heure d'ouverture quotidienne
-                        </label>
-                        <motion.input
-                          type="time"
-                          value={constraints.companyConstraints.dailyOpeningTime || '08:00'}
-                          onChange={(e) => setConstraints(prev => ({
-                            ...prev,
-                            companyConstraints: {
-                              ...prev.companyConstraints,
-                              dailyOpeningTime: e.target.value
-                            }
-                          }))}
-                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
-                          whileFocus={{ scale: 1.02 }}
-                        />
-                      </motion.div>
-                      
-                      <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.6 }}
-                      >
-                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                          🌇 Heure de fermeture quotidienne
-                        </label>
-                        <motion.input
-                          type="time"
-                          value={constraints.companyConstraints.dailyClosingTime || '18:00'}
-                          onChange={(e) => setConstraints(prev => ({
-                            ...prev,
-                            companyConstraints: {
-                              ...prev.companyConstraints,
-                              dailyClosingTime: e.target.value
-                            }
-                          }))}
-                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-pink-500/30 focus:border-pink-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
-                          whileFocus={{ scale: 1.02 }}
-                        />
-                      </motion.div>
+                    <div className="space-y-4">
+                      {[
+                        { day: 'monday', label: 'Lundi', emoji: '📋' },
+                        { day: 'tuesday', label: 'Mardi', emoji: '📊' },
+                        { day: 'wednesday', label: 'Mercredi', emoji: '📈' },
+                        { day: 'thursday', label: 'Jeudi', emoji: '📉' },
+                        { day: 'friday', label: 'Vendredi', emoji: '📋' },
+                        { day: 'saturday', label: 'Samedi', emoji: '🛍️' },
+                        { day: 'sunday', label: 'Dimanche', emoji: '🏠' }
+                      ].map((dayInfo, index) => {
+                        const dayData = constraints.companyConstraints.openingHours.find(h => h.day === dayInfo.day);
+                        const isOpen = constraints.companyConstraints.openingDays.includes(dayInfo.day);
+                        
+                        return (
+                          <motion.div
+                            key={dayInfo.day}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.5 + index * 0.1 }}
+                            className={`p-4 rounded-xl border transition-all duration-300 ${
+                              isOpen 
+                                ? 'bg-green-50/80 dark:bg-green-900/20 border-green-200 dark:border-green-700/50' 
+                                : 'bg-gray-50/80 dark:bg-gray-800/20 border-gray-200 dark:border-gray-700/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center">
+                                <span className="text-lg mr-2">{dayInfo.emoji}</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">{dayInfo.label}</span>
+                              </div>
+                              <motion.label 
+                                className="flex items-center cursor-pointer"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isOpen}
+                                  onChange={(e) => {
+                                    const newOpeningDays = e.target.checked
+                                      ? [...constraints.companyConstraints.openingDays, dayInfo.day]
+                                      : constraints.companyConstraints.openingDays.filter(d => d !== dayInfo.day);
+                                    
+                                    setConstraints(prev => ({
+                                      ...prev,
+                                      companyConstraints: {
+                                        ...prev.companyConstraints,
+                                        openingDays: newOpeningDays
+                                      }
+                                    }));
+                                  }}
+                                  className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                  {isOpen ? 'Ouvert' : 'Fermé'}
+                                </span>
+                              </motion.label>
+                            </div>
+                            
+                            {isOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="space-y-3"
+                              >
+                                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                  Créneaux horaires (ex: 08:00-12:00, 13:00-20:00)
+                                </div>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: 08:00-12:00, 13:00-20:00"
+                                  value={dayData?.hours.join(', ') || ''}
+                                  onChange={(e) => {
+                                    const hours = e.target.value.split(',').map(h => h.trim()).filter(h => h);
+                                    const newOpeningHours = constraints.companyConstraints.openingHours.filter(h => h.day !== dayInfo.day);
+                                    if (hours.length > 0) {
+                                      newOpeningHours.push({ day: dayInfo.day, hours });
+                                    }
+                                    
+                                    setConstraints(prev => ({
+                                      ...prev,
+                                      companyConstraints: {
+                                        ...prev.companyConstraints,
+                                        openingHours: newOpeningHours
+                                      }
+                                    }));
+                                  }}
+                                  className="w-full p-3 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-lg focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 dark:text-white text-sm"
+                                />
+                              </motion.div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </motion.div>
 
