@@ -64,10 +64,10 @@ const generatedScheduleSchema = new Schema<GeneratedScheduleDocument>(
       required: [true, "L'origine de la génération est requise"],
       validate: {
         validator: function (v: any) {
-          return mongoose.Types.ObjectId.isValid(v) || v === "AI";
+          return mongoose.Types.ObjectId.isValid(v) || v === "AI" || v === "AUTO_GENERATE";
         },
         message:
-          "Le champ generatedBy doit être un ID utilisateur valide ou 'AI'",
+          "Le champ generatedBy doit être un ID utilisateur valide, 'AI' ou 'AUTO_GENERATE'",
       },
     },
     timestamp: {

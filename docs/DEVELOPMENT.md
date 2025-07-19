@@ -438,6 +438,76 @@ cd frontend && npm run dev
 - **🧠 Assistant conversationnel** : Configuration intuitive des préférences IA
 - **📊 Optimisation avancée** : Équilibrage charge, préférences employés, contraintes entreprise
 
+### 🤖 Génération automatique de plannings (Version 1.8.0)
+
+**Architecture du système** :
+- **Frontend Service** : `frontend/src/services/autoGenerateSchedule.ts` - Service API avec validation
+- **Backend Route** : `backend/src/routes/autoGenerate.route.ts` - Endpoint REST avec Zod
+- **Core Service** : `backend/src/services/planning/generateSchedule.ts` - Algorithme jsLPSolver
+- **Integration** : `frontend/src/pages/PlanningWizard.tsx` - Interface utilisateur unifiée
+
+**Technologies et algorithmes** :
+- **jsLPSolver** : Programmation linéaire pour optimisation mathématique
+- **Système de fallback** : Génération alternative garantie en cas d'échec
+- **Validation Zod** : Schémas complets avec messages d'erreur français
+- **MongoDB persistence** : Sauvegarde automatique avec modèle GeneratedSchedule
+
+**Développement et tests** :
+```bash
+# Test du service de génération
+cd backend
+npm run dev
+
+# Test de l'endpoint
+curl -X POST http://localhost:5050/api/schedules/auto-generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt-token>" \
+  -d '{
+    "weekNumber": 30,
+    "year": 2025,
+    "employees": [
+      {
+        "_id": "emp_123",
+        "contractHoursPerWeek": 35,
+        "preferences": {
+          "preferredDays": ["lundi", "mardi"],
+          "preferredHours": ["09:00-17:00"]
+        }
+      }
+    ],
+    "companyConstraints": {
+      "openDays": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+      "openHours": ["08:00-18:00"],
+      "minEmployeesPerSlot": 1
+    }
+  }'
+
+# Vérification des plannings générés
+# Les plannings apparaissent automatiquement dans /manager/validation-planning
+```
+
+**Debugging spécifique** :
+```bash
+# Logs détaillés de génération
+DEBUG=planning:* npm run dev
+
+# Test du solveur jsLPSolver
+cd backend && npx ts-node -e "
+  const { generatePlanning } = require('./src/services/planning/generateSchedule.ts');
+  console.log('Testing planning generation...');
+"
+
+# Vérification de la base de données
+mongosh "mongodb://localhost:27017/smartplanning"
+> db.generatedschedules.find().limit(5)
+```
+
+**Métriques et monitoring** :
+- **Temps de génération** : < 30 secondes par planning
+- **Taux de succès** : Surveillance via logs backend
+- **Fallback usage** : Tracking des échecs du solveur principal
+- **Validation errors** : Dashboard Zod intégré au monitoring
+
 ## Débogage commun
 
 ### Problèmes fréquents
@@ -480,3 +550,30 @@ cd frontend && npm run dev
    - Désactiver les particules en mode développement
    - Réduire le nombre d'éléments animés simultanément
    - Vérifier les performances avec React DevTools
+
+7. **Génération automatique de planning échoue**
+   ```bash
+   # Vérifier l'installation de jsLPSolver
+   cd backend && npm list jslpsolver
+   
+   # Tester le service directement
+   curl -X POST http://localhost:5050/api/schedules/auto-generate \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <jwt-token>" \
+     -d '{"weekNumber": 1, "year": 2025, "employees": [{"_id": "test", "contractHoursPerWeek": 35}]}'
+   
+   # Vérifier les logs d'erreur
+   tail -f backend/logs/planning.log
+   ```
+
+8. **Plannings générés n'apparaissent pas dans la validation**
+   - Vérifier la sauvegarde en base : `db.generatedschedules.find()`
+   - Contrôler le champ `generatedBy` (doit être 'AI')
+   - Vérifier les permissions de l'utilisateur (manager/admin)
+   - Examiner les logs de correspondance employé/planning
+
+9. **Échec du solveur jsLPSolver**
+   - Le système de fallback prend automatiquement le relais
+   - Examiner les contraintes pour détecter les incompatibilités
+   - Vérifier que les heures contractuelles sont réalisables
+   - Réduire la complexité des contraintes si nécessaire

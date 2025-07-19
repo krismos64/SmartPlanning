@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.7.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.8.0-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
 ![E2E Tests](https://img.shields.io/badge/E2E%20Tests-Cypress-brightgreen?style=flat-square)
@@ -100,7 +100,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 1.7.0 (Stable - Production)
+### Version actuelle : 1.8.0 (Stable - Production)
 
 **Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN  
 **Statut déploiement** : ✅ **Production stable** - Déployé et opérationnel sur smartplanning.fr  
@@ -441,6 +441,48 @@ Pour une documentation complète, consultez le dossier `docs/` :
 - **[Guide de monitoring](docs/MONITORING.md)** - Surveillance, observabilité et validation des données avec Zod
 
 ## Changelog
+
+### Version 1.8.0 (Génération automatique de plannings - Juillet 2025)
+
+- **🤖 Système de génération automatique de plannings optimisé**
+
+  - **Service de génération avec jsLPSolver** : Algorithme de programmation linéaire pour optimisation automatique
+  - **Contraintes multiples** : Respect des heures contractuelles, préférences employés, contraintes entreprise
+  - **Système de fallback robuste** : Génération alternative garantie en cas d'échec du solveur principal
+  - **API REST complète** : Endpoint `/api/schedules/auto-generate` avec validation Zod
+  - **Interface utilisateur intuitive** : Intégration seamless dans le PlanningWizard existant
+
+- **⚡ Optimisation des contraintes et préférences**
+
+  - **Préférences individuelles** : Jours et heures préférés par employé avec interface de collecte
+  - **Contraintes d'entreprise** : Jours/heures d'ouverture, nombre minimum d'employés par créneau
+  - **Gestion des exceptions** : Support des absences, congés, formations, horaires réduits
+  - **Validation temps réel** : Contrôles de cohérence avant génération avec messages d'erreur explicites
+  - **Métadonnées complètes** : Statistiques détaillées du planning généré (heures, employés, activité)
+
+- **🔗 Intégration complète avec l'écosystème existant**
+
+  - **PlanningWizard unifié** : Remplacement de l'ancienne génération IA par le nouveau système automatique
+  - **Sauvegarde MongoDB** : Persistence automatique des plannings générés avec modèle GeneratedSchedule
+  - **Validation page** : Affichage des plannings auto-générés dans l'interface de validation existante
+  - **Fallback intelligent** : Système de récupération garantissant toujours un planning exploitable
+  - **Logs détaillés** : Debugging facilité avec traces complètes du processus de génération
+
+- **🎯 Performance et fiabilité**
+
+  - **Algorithme jsLPSolver** : Résolution optimale des contraintes de planification en <30s
+  - **Validation multi-niveaux** : Client-side, API Zod, et validation métier backend
+  - **Gestion d'erreurs robuste** : Messages explicites en français avec détails techniques
+  - **Types TypeScript complets** : Interfaces strictes pour toutes les données et réponses API
+  - **Tests automatisés** : Validation du workflow complet de génération à affichage
+
+- **🛠️ Améliorations techniques**
+
+  - **Service frontend modulaire** : `autoGenerateSchedule.ts` avec validation et gestion d'erreurs
+  - **Schémas Zod étendus** : Validation complète des payloads de génération de planning
+  - **Correspondance flexible** : Mapping intelligent employés/plannings générés par nom/ID
+  - **Horaires par défaut** : Configuration automatique 8h-12h et 13h-17h si non spécifiés
+  - **Métriques intégrées** : Collecte automatique des statistiques de génération
 
 ### Version 1.7.1 (Correction AI Model - Juillet 2025)
 

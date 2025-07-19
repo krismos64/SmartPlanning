@@ -63,6 +63,7 @@
     "express-rate-limit": "^8.0.0",
     "framer-motion": "^12.7.4",
     "helmet": "^7.1.0",
+    "javascript-lp-solver": "^0.4.24",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "morgan": "^1.10.0",
@@ -78,7 +79,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "^24.0.14",
+    "@types/node": "^24.0.15",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",

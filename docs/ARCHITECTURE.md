@@ -4,7 +4,7 @@
 
 SmartPlanning utilise une architecture séparée moderne (découplée) avec un backend Node.js/Express et un frontend React, déployés sur des serveurs différents mais communicant via une API REST sécurisée.
 
-**Mise à jour** : Janvier 2025 - Version 1.6.0
+**Mise à jour** : Juillet 2025 - Version 1.8.0
 
 ## Architecture générale
 
@@ -238,6 +238,43 @@ admin > directeur > manager > employee
 - **Interface immersive** : Expérience utilisateur futuriste
 - **Performance temps réel** : Feedback progressif et animations fluides
 - **Types complets** : Interface TypeScript avec PlanningConstraints
+
+### 🤖 Système de génération automatique de plannings (v1.8.0)
+
+**Architecture de génération automatique :**
+```
+┌─────────────────────┐    API REST     ┌─────────────────────┐   jsLPSolver   ┌─────────────────────┐
+│   PlanningWizard    │◄───────────────►│   Backend Service   │◄─────────────►│  Linear Programming │
+│  (Collecte prefs)   │  POST /auto-    │   generateSchedule  │   Constraints │     Optimization    │
+│  Contraintes UX     │   generate      │   .ts + Validation  │    Solving    │                     │
+│  Types TypeScript   │                 │   Zod + MongoDB     │               │   Fallback System   │
+└─────────────────────┘                 └─────────────────────┘               └─────────────────────┘
+```
+
+**🔧 Architecture du service :**
+- **Service modulaire** : `backend/src/services/planning/generateSchedule.ts`
+- **Algorithme jsLPSolver** : Programmation linéaire pour optimisation automatique
+- **Contraintes multiples** : Heures contractuelles, préférences employés, contraintes entreprise
+- **Système de fallback** : Génération alternative garantie en cas d'échec
+- **API endpoint** : `/api/schedules/auto-generate` avec validation Zod complète
+
+**⚖️ Gestion des contraintes :**
+- **Contraintes employés** : Heures contractuelles, jours préférés, exceptions (congés, absences)
+- **Contraintes entreprise** : Jours/heures d'ouverture, minimum d'employés par créneau
+- **Optimisation intelligente** : Équilibrage automatique des charges de travail
+- **Validation temps réel** : Contrôles de cohérence avant génération avec messages explicites
+
+**💾 Intégration base de données :**
+- **Modèle GeneratedSchedule** : Sauvegarde automatique des plannings générés
+- **Métadonnées complètes** : Statistiques détaillées (heures, employés, activité)
+- **Correspondance flexible** : Mapping intelligent employés/plannings par nom et ID
+- **Validation page** : Affichage dans l'interface de validation existante
+
+**🎯 Performance et fiabilité :**
+- **Résolution <30s** : Algorithme optimisé pour traitement rapide
+- **Types TypeScript** : Interfaces strictes pour toutes les données et réponses
+- **Gestion d'erreurs** : Messages explicites en français avec détails techniques
+- **Tests automatisés** : Validation du workflow complet de génération à affichage
 
 ### Upload et assets (Cloudinary)
 

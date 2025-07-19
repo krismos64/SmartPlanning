@@ -514,6 +514,9 @@ router.get(
       // 🔍 Construction de la requête selon le rôle
       let query: any = { status: "draft" };
       
+      // Inclure les plannings générés automatiquement ET par IA
+      // query.generatedBy peut être un ObjectId (IA) ou 'AUTO_GENERATE' (génération automatique)
+      
       console.log(`[AI] Requête initiale:`, query);
 
       if (req.user.role === "manager") {
@@ -583,8 +586,12 @@ router.get(
         .populate({
           path: "generatedBy",
           select: "firstName lastName",
+          // Ne pas faire planter la requête si generatedBy n'est pas un ObjectId
+          options: { strictPopulate: false }
         })
         .sort({ timestamp: -1 });
+
+      console.log(`[AI] Plannings trouvés: ${generatedSchedules.length}`);
 
       // 🏢 Enrichissement avec les données d'équipe
       const enrichedSchedules = await Promise.all(
@@ -642,18 +649,23 @@ router.get(
             employeeIds: schedule.employeeId,
           }).select("name _id");
 
+          // Gestion spéciale pour les plannings générés automatiquement
+          const generatedByInfo = (schedule.generatedBy === 'AUTO_GENERATE' || schedule.generatedBy === 'AI')
+            ? { _id: 'AI', firstName: 'Génération', lastName: 'Automatique' }
+            : schedule.generatedBy;
+
           return {
             _id: schedule._id.toString(),
             employeeId: schedule.employeeId,
             scheduleData: frontendScheduleData,
             status: schedule.status,
             timestamp: schedule.timestamp,
-            generatedBy: schedule.generatedBy,
+            generatedBy: generatedByInfo,
             employee: schedule.employeeId,
             teamId: team?._id,
             teamName: team?.name || "Équipe non trouvée",
             constraints: [],
-            notes: "",
+            notes: (schedule.generatedBy === 'AUTO_GENERATE' || schedule.generatedBy === 'AI') ? "Planning généré automatiquement via jsLPSolver" : "",
             weekNumber: schedule.weekNumber || 1,
             year: schedule.year || new Date().getFullYear(),
           };

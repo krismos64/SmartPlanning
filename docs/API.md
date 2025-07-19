@@ -5,7 +5,7 @@
 L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
 
 **URL de base**: `https://smartplanning.onrender.com/api`  
-**Version**: 1.7.0 (Juillet 2025)  
+**Version**: 1.8.0 (Juillet 2025)  
 **Documentation interactive**: Consultez Postman ou utilisez curl pour tester les endpoints  
 **Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)
 
@@ -256,6 +256,107 @@ Content-Type: application/json
   ]
 }
 ```
+
+#### 🤖 Génération automatique de planning (Nouveau)
+
+```http
+POST /api/schedules/auto-generate
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "weekNumber": 30,
+  "year": 2025,
+  "employees": [
+    {
+      "_id": "employee_id_123",
+      "contractHoursPerWeek": 35,
+      "exceptions": [
+        {
+          "date": "2025-07-21",
+          "type": "vacation"
+        }
+      ],
+      "preferences": {
+        "preferredDays": ["lundi", "mardi", "mercredi", "jeudi"],
+        "preferredHours": ["09:00-17:00"]
+      }
+    }
+  ],
+  "companyConstraints": {
+    "openDays": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+    "openHours": ["08:00-18:00"],
+    "minEmployeesPerSlot": 2
+  }
+}
+```
+
+**Réponse (Succès) :**
+
+```json
+{
+  "success": true,
+  "message": "Planning généré et sauvegardé avec succès",
+  "planning": {
+    "employee_id_123": {
+      "lundi": [
+        {
+          "start": "09:00",
+          "end": "12:00"
+        },
+        {
+          "start": "13:00",
+          "end": "17:00"
+        }
+      ],
+      "mardi": [
+        {
+          "start": "08:00",
+          "end": "16:00"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "weekNumber": 30,
+    "year": 2025,
+    "employeeCount": 1,
+    "generatedAt": "2025-07-19T10:30:00.000Z",
+    "stats": {
+      "totalHoursPlanned": 35,
+      "averageHoursPerEmployee": 35,
+      "employeesWithFullSchedule": 1,
+      "daysWithActivity": 5
+    }
+  },
+  "scheduleId": "schedule_generated_id"
+}
+```
+
+**Réponse (Erreur de validation) :**
+
+```json
+{
+  "success": false,
+  "message": "Paramètres de génération invalides",
+  "issues": [
+    {
+      "field": "employees.0.contractHoursPerWeek",
+      "message": "Le nombre d'heures contractuelles doit être positif",
+      "code": "invalid_type"
+    }
+  ]
+}
+```
+
+**Fonctionnalités de génération automatique :**
+
+- 🔧 **Algorithme jsLPSolver** : Optimisation mathématique des contraintes de planification
+- ⚖️ **Contraintes multiples** : Respect des heures contractuelles, préférences employés, contraintes entreprise
+- 🛡️ **Système de fallback** : Génération alternative garantie en cas d'échec du solveur principal
+- 📊 **Métadonnées complètes** : Statistiques détaillées du planning généré
+- 💾 **Sauvegarde automatique** : Persistence dans MongoDB avec modèle GeneratedSchedule
+- ✅ **Validation Zod** : Validation complète des données d'entrée avec messages d'erreur français
 
 ### 🏖️ Congés
 

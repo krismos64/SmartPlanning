@@ -23,6 +23,7 @@ import contactRoutes from "./routes/contact.routes";
 import employeeRoutes from "./routes/employee.routes";
 import employeesByCompanyRoutes from "./routes/employees.route";
 import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route";
+import autoGenerateRoutes from "./routes/autoGenerate.route";
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
 import incidentsRoutes from "./routes/incidents.route";
 import publicRoutes from "./routes/index";
@@ -220,6 +221,7 @@ app.use("/api/employees/accessible", authenticateToken, accessibleEmployeesRoute
 app.use("/api/employees", authenticateToken, employeeRoutes);
 app.use("/api/employees", authenticateToken, employeesByCompanyRoutes);
 app.use("/api/generated-schedules", authenticateToken, generatedSchedulesRoutes);
+app.use("/api/schedules", authenticateToken, autoGenerateRoutes);
 app.use("/api/incidents", authenticateToken, incidentsRoutes);
 app.use("/api/profile", authenticateToken, profileRoutes);
 app.use("/api/profile", authenticateToken, passwordRoutes);

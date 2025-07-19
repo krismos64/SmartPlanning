@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 import axiosInstance from '../api/axiosInstance';
+import { autoGenerateSchedule, GeneratePlanningPayload, GeneratedPlanning, PlanningStats } from '../services/autoGenerateSchedule';
 import { PlanningConstraints, PlanningWizardStep, AIGenerationResponse } from '../types/PlanningConstraints';
 import LayoutWithSidebar from '../components/layout/LayoutWithSidebar';
 
@@ -37,6 +38,8 @@ const PlanningWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationProgress, setGenerationProgress] = useState<number>(0);
+  const [generatedPlanning, setGeneratedPlanning] = useState<GeneratedPlanning | null>(null);
+  const [planningStats, setPlanningStats] = useState<PlanningStats | null>(null);
   
   // Animations avancées
   const mouseX = useMotionValue(0);
@@ -80,6 +83,7 @@ const PlanningWizard: React.FC = () => {
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [employeeExceptions, setEmployeeExceptions] = useState<{[key: string]: any[]}>({});
+  const [employeePreferences, setEmployeePreferences] = useState<{[key: string]: {preferredDays?: string[], preferredHours?: string[]}}>({});
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
 
   // Fonction pour calculer les dates de la semaine
@@ -248,54 +252,69 @@ const PlanningWizard: React.FC = () => {
 
 
   const generateSchedule = async () => {
-    setIsGenerating(true);
-    setGenerationProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setGenerationProgress(prev => {
-        if (prev >= 90) return prev;
-        return prev + Math.random() * 10;
-      });
-    }, 500);
-
     try {
+      setIsGenerating(true);
+      setGenerationProgress(0);
+
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 500);
+
       // Intégrer les absences dans les contraintes des employés
       const employeesWithExceptions = constraints.employees.map(emp => {
         const exceptions = employeeExceptions[emp.id] || [];
         return {
-          ...emp,
-          exceptions: exceptions.filter(ex => ex.date && ex.type) // Filtrer les exceptions valides
+          _id: emp.id,
+          contractHoursPerWeek: emp.contractHours || 35,
+          exceptions: exceptions.filter(ex => ex.date && ex.type).map(ex => ({
+            date: ex.date,
+            type: ex.type as 'vacation' | 'sick' | 'unavailable' | 'training' | 'reduced'
+          })),
+          preferences: {
+            preferredDays: employeePreferences[emp.id]?.preferredDays || [],
+            preferredHours: employeePreferences[emp.id]?.preferredHours || []
+          }
         };
       });
 
-      const constraintsWithExceptions = {
-        ...constraints,
-        employees: employeesWithExceptions
+      // Conversion des contraintes d'entreprise vers le format API
+      const openHours: string[] = [];
+      if (constraints.companyConstraints?.openingHours) {
+        constraints.companyConstraints.openingHours.forEach(dayHours => {
+          dayHours.hours.forEach(hour => {
+            if (!openHours.includes(hour)) {
+              openHours.push(hour);
+            }
+          });
+        });
+      }
+
+      const payload: GeneratePlanningPayload = {
+        weekNumber: constraints.weekNumber,
+        year: constraints.year,
+        employees: employeesWithExceptions,
+        companyConstraints: {
+          openDays: constraints.companyConstraints?.openingDays || [], // Correction: openingDays -> openDays
+          openHours: openHours.length > 0 ? openHours : ["09:00-18:00"], // Conversion structure complexe -> simple
+          minEmployeesPerSlot: constraints.companyConstraints?.minStaffSimultaneously || 1 // Correction: minStaffSimultaneously -> minEmployeesPerSlot
+        }
       };
 
-      // Validate constraints before sending
-      console.log('🚀 Sending constraints:', JSON.stringify(constraintsWithExceptions, null, 2));
-      
-      // Ensure all required fields are present
-      if (!constraintsWithExceptions.teamId) {
-        throw new Error('Équipe non sélectionnée');
-      }
-      if (!constraintsWithExceptions.employees || constraintsWithExceptions.employees.length === 0) {
-        throw new Error('Aucun employé sélectionné');
-      }
-      if (!constraintsWithExceptions.companyConstraints) {
-        throw new Error('Contraintes d\'entreprise manquantes');
-      }
-      if (!constraintsWithExceptions.preferences) {
-        throw new Error('Préférences de planification manquantes');
-      }
+      console.log('🚀 Generating schedule with payload:', JSON.stringify(payload, null, 2));
 
-      const response = await axiosInstance.post<AIGenerationResponse>('/ai/schedule/generate-from-constraints', constraintsWithExceptions);
+      const response = await autoGenerateSchedule(payload);
+      
+      console.log('✅ Planning généré avec succès:', response);
+      console.log('📊 Nombre d\'employés dans le planning:', Object.keys(response.planning).length);
+      console.log('📈 Statistiques:', response.metadata.stats);
       
       setGenerationProgress(100);
       clearInterval(progressInterval);
-      
-      if (response.data.success) {
+
+      if (response.success) {
         // 🎉 Déclencher les confettis de célébration
         confetti({
           particleCount: 100,
@@ -322,48 +341,29 @@ const PlanningWizard: React.FC = () => {
             colors: ['#F59E0B', '#EF4444', '#8B5CF6']
           });
         }, 300);
+
+        setGeneratedPlanning(response.planning);
+        setPlanningStats(response.metadata.stats);
         
         showToast('Planning généré avec succès! 🎉', 'success');
         
-        // Attendre un peu avant de naviguer pour laisser voir l'animation
+        // Rediriger vers la page de validation des plannings
         setTimeout(() => {
-          navigate('/validation-plannings', { state: { generatedSchedule: response.data.schedule } });
+          navigate('/validation-plannings');
         }, 1500);
-      } else {
-        showToast(response.data.error || 'Erreur lors de la génération', 'error');
       }
+
     } catch (error: any) {
-      clearInterval(progressInterval);
       console.error('❌ Erreur génération:', error);
       
-      let errorMessage = 'Erreur lors de la génération du planning';
-      
       // Gestion spécifique des erreurs d'authentification
-      if (error.response?.status === 401) {
-        errorMessage = 'Session expirée. Veuillez vous reconnecter.';
-        showToast(errorMessage, 'error');
+      if (error.message?.includes('Session expirée') || error.message?.includes('401')) {
+        showToast('Session expirée. Veuillez vous reconnecter.', 'error');
         setTimeout(() => navigate('/connexion'), 2000);
         return;
       }
       
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data?.errors?.length > 0) {
-        errorMessage = `Erreur de validation: ${error.response.data.errors[0].message}`;
-      } else if (error.response?.status) {
-        errorMessage = `Erreur serveur (${error.response.status}): ${error.response.statusText || 'Erreur inconnue'}`;
-      }
-      
-      console.error('📊 Détails de l\'erreur:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message
-      });
-      
-      showToast(errorMessage, 'error');
+      showToast(error.message || 'Erreur lors de la génération du planning', 'error');
     } finally {
       setIsGenerating(false);
       setGenerationProgress(0);
@@ -896,6 +896,100 @@ const PlanningWizard: React.FC = () => {
                             <Plus className="w-5 h-5" />
                             Ajouter une absence
                           </motion.button>
+                        </div>
+
+                        {/* Section Préférences */}
+                        <div className="border-t border-gray-200/50 dark:border-gray-600/30 pt-6 mt-6">
+                          <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Star className="w-5 h-5 text-yellow-500" />
+                            Préférences de Planning
+                          </h4>
+                          
+                          <div className="space-y-4">
+                            {/* Jours préférés */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Jours préférés (optionnel)
+                              </label>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map(day => {
+                                  const isSelected = employeePreferences[employee.id]?.preferredDays?.includes(day) || false;
+                                  return (
+                                    <motion.button
+                                      key={day}
+                                      type="button"
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={() => {
+                                        const currentPrefs = employeePreferences[employee.id] || {};
+                                        const currentDays = currentPrefs.preferredDays || [];
+                                        const newDays = isSelected 
+                                          ? currentDays.filter(d => d !== day)
+                                          : [...currentDays, day];
+                                        
+                                        setEmployeePreferences(prev => ({
+                                          ...prev,
+                                          [employee.id]: {
+                                            ...currentPrefs,
+                                            preferredDays: newDays
+                                          }
+                                        }));
+                                      }}
+                                      className={`p-2 text-sm rounded-lg border transition-all duration-200 ${
+                                        isSelected 
+                                          ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-600'
+                                      }`}
+                                    >
+                                      {day.charAt(0).toUpperCase() + day.slice(1)}
+                                    </motion.button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Heures préférées */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Créneaux horaires préférés (optionnel)
+                              </label>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {['08:00-12:00', '09:00-13:00', '14:00-18:00', '15:00-19:00', '16:00-20:00'].map(slot => {
+                                  const isSelected = employeePreferences[employee.id]?.preferredHours?.includes(slot) || false;
+                                  return (
+                                    <motion.button
+                                      key={slot}
+                                      type="button"
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={() => {
+                                        const currentPrefs = employeePreferences[employee.id] || {};
+                                        const currentHours = currentPrefs.preferredHours || [];
+                                        const newHours = isSelected 
+                                          ? currentHours.filter(h => h !== slot)
+                                          : [...currentHours, slot];
+                                        
+                                        setEmployeePreferences(prev => ({
+                                          ...prev,
+                                          [employee.id]: {
+                                            ...currentPrefs,
+                                            preferredHours: newHours
+                                          }
+                                        }));
+                                      }}
+                                      className={`p-3 text-sm rounded-lg border transition-all duration-200 ${
+                                        isSelected 
+                                          ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
+                                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-green-300 dark:hover:border-green-600'
+                                      }`}
+                                    >
+                                      {slot}
+                                    </motion.button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
