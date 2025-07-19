@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
 import axiosInstance from '../api/axiosInstance';
-import { PlanningConstraints, PlanningWizardStep, EmployeeConstraint, AIGenerationResponse } from '../types/PlanningConstraints';
+import { PlanningConstraints, PlanningWizardStep, AIGenerationResponse } from '../types/PlanningConstraints';
 import LayoutWithSidebar from '../components/layout/LayoutWithSidebar';
 
 const PlanningWizard: React.FC = () => {
@@ -35,7 +35,13 @@ const PlanningWizard: React.FC = () => {
         { day: 'thursday', hours: ['08:00-12:00', '13:00-17:00'] },
         { day: 'friday', hours: ['08:00-12:00', '13:00-17:00'] }
       ],
-      minStaffSimultaneously: 2
+      minStaffSimultaneously: 2,
+      dailyOpeningTime: '08:00',
+      dailyClosingTime: '18:00',
+      maxHoursPerDay: 10,
+      minHoursPerDay: 4,
+      lunchBreakDuration: 60,
+      mandatoryLunchBreak: true
     },
     preferences: {
       favorSplit: false,
@@ -124,8 +130,8 @@ const PlanningWizard: React.FC = () => {
     },
     {
       id: 3,
-      title: 'Configuration Individuelle',
-      description: 'Définissez les contraintes personnelles',
+      title: 'Contraintes Entreprise',
+      description: 'Définissez les horaires et limites de travail',
       icon: Settings,
       isCompleted: currentStep > 3,
       isActive: currentStep === 3
@@ -216,14 +222,6 @@ const PlanningWizard: React.FC = () => {
     mouseY.set(event.clientY - centerY);
   };
 
-  const handleEmployeeConstraintChange = (employeeId: string, field: keyof EmployeeConstraint, value: any) => {
-    setConstraints(prev => ({
-      ...prev,
-      employees: prev.employees.map(emp =>
-        emp.id === employeeId ? { ...emp, [field]: value } : emp
-      )
-    }));
-  };
 
   const generateSchedule = async () => {
     setIsGenerating(true);
@@ -877,7 +875,7 @@ const PlanningWizard: React.FC = () => {
           </motion.div>
         );
 
-      case 4:
+      case 3:
         return (
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -892,11 +890,11 @@ const PlanningWizard: React.FC = () => {
               transition={{ duration: 0.3 }}
             >
               {/* Fond animé avec particules */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-purple-600/10 dark:from-emerald-400/20 dark:via-blue-400/10 dark:to-purple-500/20"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-pink-600/10 dark:from-orange-400/20 dark:via-red-400/10 dark:to-pink-500/20"></div>
               {[...Array(8)].map((_, i) => (
                 <motion.div
                   key={i}
-                  className="absolute w-2 h-2 bg-gradient-to-r from-emerald-400 to-blue-600 rounded-full opacity-30"
+                  className="absolute w-2 h-2 bg-gradient-to-r from-orange-400 to-pink-600 rounded-full opacity-30"
                   style={{
                     left: `${Math.random() * 100}%`,
                     top: `${Math.random() * 100}%`,
@@ -922,161 +920,242 @@ const PlanningWizard: React.FC = () => {
                   transition={{ delay: 0.2 }}
                 >
                   <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-xl text-white shadow-lg"
+                    className="mr-4 p-3 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl text-white shadow-lg"
                     whileHover={{ rotate: 360, scale: 1.1 }}
                     transition={{ duration: 0.6 }}
                   >
                     <Settings className="w-6 h-6" />
                   </motion.div>
-                  Configuration individuelle
-                  <Sparkles className="ml-2 w-5 h-5 text-yellow-500 animate-pulse" />
+                  Contraintes Entreprise
+                  <Clock className="ml-2 w-5 h-5 text-orange-500 animate-pulse" />
                 </motion.h3>
                 
-                <div className="space-y-6">
-                  {constraints.employees.length > 0 ? constraints.employees.map((employee, index) => (
-                    <motion.div 
-                      key={employee.id} 
-                      className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
-                      initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: index * 0.1, duration: 0.4 }}
-                      whileHover={{ scale: 1.02, y: -2 }}
+                <div className="space-y-8">
+                  {/* Section Horaires d'ouverture/fermeture */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
+                  >
+                    <motion.h4 
+                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                      initial={{ x: -10 }}
+                      animate={{ x: 0 }}
+                      transition={{ delay: 0.4 }}
                     >
-                      {/* Effet holographique */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-emerald-500/5 dark:from-blue-400/10 dark:via-purple-400/10 dark:to-emerald-400/10"></div>
+                      <Clock className="w-5 h-5 mr-3 text-orange-500" />
+                      🕐 Horaires d'ouverture
+                    </motion.h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <motion.div
-                        className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-emerald-600/20 rounded-full blur-2xl"
-                        animate={{ opacity: [0.5, 0.8, 0.5] }}
-                        transition={{ duration: 3, repeat: Infinity }}
-                      />
-                      
-                      <div className="relative z-10">
-                        <motion.h4 
-                          className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                          initial={{ x: -10 }}
-                          animate={{ x: 0 }}
-                          transition={{ delay: index * 0.1 + 0.2 }}
-                        >
-                          <motion.div 
-                            className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm mr-4 shadow-lg"
-                            whileHover={{ rotate: [0, 10, -10, 0] }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {employee.name?.charAt(0) || '?'}
-                          </motion.div>
-                          {employee.name}
-                          <Star className="ml-2 w-4 h-4 text-yellow-500 animate-spin" style={{ animationDuration: '3s' }} />
-                        </motion.h4>
-                        
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 + 0.3 }}
-                          >
-                            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                              🏖️ Jour de repos souhaité
-                            </label>
-                            <motion.select
-                              value={employee.restDay || ''}
-                              onChange={(e) => handleEmployeeConstraintChange(employee.id, 'restDay', e.target.value)}
-                              className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
-                              whileFocus={{ scale: 1.02 }}
-                            >
-                              <option value="">✨ Aucune préférence</option>
-                              <option value="monday">🌙 Lundi</option>
-                              <option value="tuesday">🔥 Mardi</option>
-                              <option value="wednesday">⚡ Mercredi</option>
-                              <option value="thursday">🌟 Jeudi</option>
-                              <option value="friday">🎉 Vendredi</option>
-                              <option value="saturday">🌊 Samedi</option>
-                              <option value="sunday">☀️ Dimanche</option>
-                            </motion.select>
-                          </motion.div>
-                          
-                          <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 + 0.4 }}
-                          >
-                            <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                              ⏰ Heures hebdomadaires
-                            </label>
-                            <motion.input
-                              type="number"
-                              min="10"
-                              max="60"
-                              placeholder="Ex: 35 heures"
-                              value={employee.weeklyHours || 35}
-                              onChange={(e) => handleEmployeeConstraintChange(employee.id, 'weeklyHours', parseInt(e.target.value))}
-                              className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner placeholder-gray-400 dark:placeholder-gray-500"
-                              whileFocus={{ scale: 1.02 }}
-                            />
-                          </motion.div>
-                          
-                          <motion.div 
-                            className="lg:col-span-2"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 + 0.5 }}
-                          >
-                            <motion.label 
-                              className="group flex items-center cursor-pointer p-4 bg-white/30 dark:bg-gray-800/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30 hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-300"
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <motion.input
-                                type="checkbox"
-                                checked={employee.allowSplitShifts || false}
-                                onChange={(e) => handleEmployeeConstraintChange(employee.id, 'allowSplitShifts', e.target.checked)}
-                                className="w-5 h-5 text-blue-500 bg-white/50 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 mr-4"
-                                whileHover={{ scale: 1.1 }}
-                              />
-                              <div>
-                                <div className="font-semibold text-gray-900 dark:text-white">
-                                  🔄 Autoriser les coupures dans la journée
-                                </div>
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                  Permet des pauses déjeuner et horaires fractionnés
-                                </div>
-                              </div>
-                              {employee.allowSplitShifts && (
-                                <motion.div
-                                  className="ml-auto"
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ type: "spring", stiffness: 300 }}
-                                >
-                                  <CheckCircle className="w-6 h-6 text-green-500" />
-                                </motion.div>
-                              )}
-                            </motion.label>
-                          </motion.div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )) : (
-                    <motion.div
-                      className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 p-12 rounded-3xl text-center"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                        className="inline-block mb-4"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 }}
                       >
-                        <AlertCircle className="w-16 h-16 text-gray-400" />
+                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                          🌅 Heure d'ouverture quotidienne
+                        </label>
+                        <motion.input
+                          type="time"
+                          value={constraints.companyConstraints.dailyOpeningTime || '08:00'}
+                          onChange={(e) => setConstraints(prev => ({
+                            ...prev,
+                            companyConstraints: {
+                              ...prev.companyConstraints,
+                              dailyOpeningTime: e.target.value
+                            }
+                          }))}
+                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                          whileFocus={{ scale: 1.02 }}
+                        />
                       </motion.div>
-                      <div className="text-xl text-gray-600 dark:text-gray-400 mb-2">
-                        ⚠️ Aucun employé sélectionné
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-500">
-                        Veuillez d'abord sélectionner des employés à l'étape précédente
-                      </div>
-                    </motion.div>
-                  )}
+                      
+                      <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.6 }}
+                      >
+                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                          🌇 Heure de fermeture quotidienne
+                        </label>
+                        <motion.input
+                          type="time"
+                          value={constraints.companyConstraints.dailyClosingTime || '18:00'}
+                          onChange={(e) => setConstraints(prev => ({
+                            ...prev,
+                            companyConstraints: {
+                              ...prev.companyConstraints,
+                              dailyClosingTime: e.target.value
+                            }
+                          }))}
+                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-pink-500/30 focus:border-pink-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                          whileFocus={{ scale: 1.02 }}
+                        />
+                      </motion.div>
+                    </div>
+                  </motion.div>
+
+                  {/* Section Limites horaires des employés */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
+                  >
+                    <motion.h4 
+                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                      initial={{ x: -10 }}
+                      animate={{ x: 0 }}
+                      transition={{ delay: 0.8 }}
+                    >
+                      <AlertCircle className="w-5 h-5 mr-3 text-red-500" />
+                      ⏱️ Limites de travail quotidien
+                    </motion.h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.9 }}
+                      >
+                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                          📉 Heures minimales par jour
+                        </label>
+                        <motion.input
+                          type="number"
+                          min="1"
+                          max="12"
+                          value={constraints.companyConstraints.minHoursPerDay || 4}
+                          onChange={(e) => setConstraints(prev => ({
+                            ...prev,
+                            companyConstraints: {
+                              ...prev.companyConstraints,
+                              minHoursPerDay: parseInt(e.target.value) || 4
+                            }
+                          }))}
+                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                          whileFocus={{ scale: 1.02 }}
+                        />
+                      </motion.div>
+                      
+                      <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 1.0 }}
+                      >
+                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                          📈 Heures maximales par jour
+                        </label>
+                        <motion.input
+                          type="number"
+                          min="4"
+                          max="12"
+                          value={constraints.companyConstraints.maxHoursPerDay || 10}
+                          onChange={(e) => setConstraints(prev => ({
+                            ...prev,
+                            companyConstraints: {
+                              ...prev.companyConstraints,
+                              maxHoursPerDay: parseInt(e.target.value) || 10
+                            }
+                          }))}
+                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-red-500/30 focus:border-red-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                          whileFocus={{ scale: 1.02 }}
+                        />
+                      </motion.div>
+                    </div>
+                  </motion.div>
+
+                  {/* Section Pauses déjeuner */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.1 }}
+                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
+                  >
+                    <motion.h4 
+                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
+                      initial={{ x: -10 }}
+                      animate={{ x: 0 }}
+                      transition={{ delay: 1.2 }}
+                    >
+                      <Users className="w-5 h-5 mr-3 text-green-500" />
+                      🍽️ Gestion des pauses
+                    </motion.h4>
+                    
+                    <div className="space-y-6">
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.3 }}
+                      >
+                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                          ⏰ Durée de pause déjeuner (en minutes)
+                        </label>
+                        <motion.input
+                          type="number"
+                          min="30"
+                          max="120"
+                          step="15"
+                          value={constraints.companyConstraints.lunchBreakDuration || 60}
+                          onChange={(e) => setConstraints(prev => ({
+                            ...prev,
+                            companyConstraints: {
+                              ...prev.companyConstraints,
+                              lunchBreakDuration: parseInt(e.target.value) || 60
+                            }
+                          }))}
+                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
+                          whileFocus={{ scale: 1.02 }}
+                        />
+                      </motion.div>
+                      
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.4 }}
+                      >
+                        <motion.label 
+                          className="group flex items-center cursor-pointer p-4 bg-white/30 dark:bg-gray-800/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30 hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-300"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <motion.input
+                            type="checkbox"
+                            checked={constraints.companyConstraints.mandatoryLunchBreak || true}
+                            onChange={(e) => setConstraints(prev => ({
+                              ...prev,
+                              companyConstraints: {
+                                ...prev.companyConstraints,
+                                mandatoryLunchBreak: e.target.checked
+                              }
+                            }))}
+                            className="w-5 h-5 text-green-500 bg-white/50 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 mr-4"
+                            whileHover={{ scale: 1.1 }}
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-white">
+                              🍽️ Pause déjeuner obligatoire
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              Impose une pause déjeuner pour tous les créneaux dépassant 6h
+                            </div>
+                          </div>
+                          {constraints.companyConstraints.mandatoryLunchBreak && (
+                            <motion.div
+                              className="ml-auto"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300 }}
+                            >
+                              <CheckCircle className="w-6 h-6 text-green-500" />
+                            </motion.div>
+                          )}
+                        </motion.label>
+                      </motion.div>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>

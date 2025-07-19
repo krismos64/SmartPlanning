@@ -31,7 +31,14 @@ export const companyConstraintsSchema = z.object({
   openingDays: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])),
   openingHours: z.array(openingHourSchema),
   minStaffSimultaneously: z.number().min(1, 'Minimum 1 staff member required').optional(),
-  roleConstraints: z.array(roleConstraintSchema).optional()
+  roleConstraints: z.array(roleConstraintSchema).optional(),
+  // Nouvelles contraintes d'horaires
+  dailyOpeningTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
+  dailyClosingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)').optional(),
+  maxHoursPerDay: z.number().min(4, 'Minimum 4 hours per day').max(12, 'Maximum 12 hours per day').optional(),
+  minHoursPerDay: z.number().min(1, 'Minimum 1 hour per day').max(12, 'Maximum 12 hours per day').optional(),
+  lunchBreakDuration: z.number().min(30, 'Minimum 30 minutes break').max(120, 'Maximum 120 minutes break').optional(),
+  mandatoryLunchBreak: z.boolean().optional()
 });
 
 export const planningPreferencesSchema = z.object({

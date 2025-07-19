@@ -29,6 +29,13 @@ export interface CompanyConstraints {
   openingHours: OpeningHour[];
   minStaffSimultaneously?: number;
   roleConstraints?: RoleConstraint[];
+  // Nouvelles contraintes d'horaires
+  dailyOpeningTime?: string; // Ex: "08:00"
+  dailyClosingTime?: string; // Ex: "18:00"
+  maxHoursPerDay?: number; // Ex: 10
+  minHoursPerDay?: number; // Ex: 4
+  lunchBreakDuration?: number; // En minutes, ex: 60
+  mandatoryLunchBreak?: boolean;
 }
 
 export interface OpeningHour {

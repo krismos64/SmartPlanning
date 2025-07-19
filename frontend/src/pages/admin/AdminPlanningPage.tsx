@@ -38,12 +38,9 @@ import Select from "../../components/ui/Select";
 import Table from "../../components/ui/Table";
 import Toast from "../../components/ui/Toast";
 
-// Composants IA
-import AIScheduleGeneratorModal from "../../components/modals/AIScheduleGeneratorModal";
-import AITeamSelectorModal from "../../components/modals/AITeamSelectorModal";
-import AIGenerationGuide from "../../components/ui/AIGenerationGuide";
-import { useAIGuide } from "../../hooks/useAIGuide";
-import { useAIScheduleModal } from "../../hooks/useAIScheduleModal";
+// Hooks
+import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../hooks/useAuth";
 
 // Types
 interface Company {
@@ -165,44 +162,12 @@ const AdminPlanningPage: React.FC = () => {
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // États pour les modals IA
-  const [isAISelectorOpen, setIsAISelectorOpen] = useState<boolean>(false);
-
-  // Hook pour gérer l'affichage du guide IA
-  const aiGuide = useAIGuide(2000); // Délai de 2 secondes
-
-  // Gestion de la génération IA - déclaré avant d'être utilisé
-  const handleAIScheduleGenerated = (scheduleData: any) => {
-    console.log("Planning IA généré:", scheduleData);
-    setSuccess(
-      `Planning généré avec succès pour l'équipe ${scheduleData.teamName} !`
-    );
-    setShowSuccessToast(true);
-
-    // Afficher le guide visuel vers les plannings IA
-    aiGuide.showGuide();
-
-    // Recharger les plannings pour voir le nouveau planning généré
-    fetchSchedules();
-  };
-
-  const aiScheduleModal = useAIScheduleModal({
-    onScheduleGenerated: handleAIScheduleGenerated,
-  });
-
-  // Debug: Log des valeurs du modal
-  console.log("Debug - État AdminPlanningPage:", {
-    isAISelectorOpen,
-    aiScheduleModal: {
-      isOpen: aiScheduleModal.isOpen,
-      selectedTeam: aiScheduleModal.selectedTeam,
-      selectedWeek: aiScheduleModal.selectedWeek,
-    },
-  });
+  const { showToast } = useToast();
 
   const handleOpenAISelector = () => {
-    console.log("Debug - Bouton IA cliqué, ouverture du sélecteur");
-    setIsAISelectorOpen(true);
+    console.log("Debug - Redirection vers le wizard IA");
+    showToast('Redirection vers le nouveau Assistant IA Planning...', 'info');
+    navigate('/planning-wizard');
   };
 
   const handleTeamSelected = (
@@ -211,14 +176,14 @@ const AdminPlanningPage: React.FC = () => {
     year: number,
     weekNumber: number
   ) => {
-    console.log("Debug - handleTeamSelected appelé avec:", {
+    console.log("Debug - Redirection vers le wizard IA avec équipe:", {
       teamId,
       teamName,
       year,
       weekNumber,
     });
-    setIsAISelectorOpen(false);
-    aiScheduleModal.openModal(teamId, teamName, year, weekNumber);
+    showToast('Redirection vers le nouveau Assistant IA Planning...', 'info');
+    navigate('/planning-wizard');
   };
 
   // Options pour les années
@@ -981,31 +946,7 @@ const AdminPlanningPage: React.FC = () => {
           </div>
         </Modal>
 
-        {/* Modals IA */}
-        <AITeamSelectorModal
-          isOpen={isAISelectorOpen}
-          onClose={() => setIsAISelectorOpen(false)}
-          onTeamSelected={handleTeamSelected}
-        />
-
-        {/* Modal de génération IA */}
-        {aiScheduleModal.selectedTeam && aiScheduleModal.selectedTeam.id && (
-          <AIScheduleGeneratorModal
-            isOpen={aiScheduleModal.isOpen}
-            onClose={aiScheduleModal.closeModal}
-            teamId={aiScheduleModal.selectedTeam.id}
-            teamName={aiScheduleModal.selectedTeam.name}
-            year={aiScheduleModal.selectedWeek.year}
-            weekNumber={aiScheduleModal.selectedWeek.weekNumber}
-            onScheduleGenerated={aiScheduleModal.handleScheduleGenerated}
-          />
-        )}
-
-        {/* Guide visuel vers plannings IA */}
-        <AIGenerationGuide
-          isVisible={aiGuide.isVisible}
-          onClose={aiGuide.hideGuide}
-        />
+        {/* Anciens composants IA supprimés - redirection vers le wizard */}
       </PageWrapper>
     </LayoutWithSidebar>
   );

@@ -1560,11 +1560,25 @@ router.post(
 👥 EMPLOYÉS (${constraints.employees.length} personnes):
 ${employeeDetails}
 
-🏢 CONTRAINTES ENTREPRISE:
+🏢 CONTRAINTES ENTREPRISE OBLIGATOIRES:
 Jours d'ouverture:
 ${openingDaysDetails}
 
-Personnel minimum simultané: ${constraints.companyConstraints.minStaffSimultaneously || 1}
+🕐 HORAIRES D'OUVERTURE QUOTIDIENNE:
+- Ouverture: ${constraints.companyConstraints.dailyOpeningTime || '08:00'}
+- Fermeture: ${constraints.companyConstraints.dailyClosingTime || '18:00'}
+- IL FAUT ASSURER UNE COUVERTURE COMPLÈTE DE ${constraints.companyConstraints.dailyOpeningTime || '08:00'} à ${constraints.companyConstraints.dailyClosingTime || '18:00'}
+
+👥 PERSONNEL MINIMUM SIMULTANÉ: ${constraints.companyConstraints.minStaffSimultaneously || 2} employés présents EN PERMANENCE pendant les heures d'ouverture
+
+⏰ LIMITES DE TRAVAIL QUOTIDIEN:
+- Heures MINIMUM par jour: ${constraints.companyConstraints.minHoursPerDay || 4}h
+- Heures MAXIMUM par jour: ${constraints.companyConstraints.maxHoursPerDay || 10}h
+
+🍽️ GESTION DES PAUSES DÉJEUNER:
+- Durée: ${constraints.companyConstraints.lunchBreakDuration || 60} minutes
+- Obligatoire: ${constraints.companyConstraints.mandatoryLunchBreak ? 'OUI - pour tout créneau > 6h' : 'NON'}
+- ROTATION OBLIGATOIRE: Les pauses déjeuner doivent être échelonnées pour maintenir le personnel minimum
 
 ⚙️ PRÉFÉRENCES IA:
 - Favoriser les coupures: ${constraints.preferences.favorSplit ? 'Oui' : 'Non'}
@@ -1572,43 +1586,52 @@ Personnel minimum simultané: ${constraints.companyConstraints.minStaffSimultane
 - Équilibrer la charge: ${constraints.preferences.balanceWorkload ? 'Oui' : 'Non'}
 - Prioriser préférences employés: ${constraints.preferences.prioritizeEmployeePreferences ? 'Oui' : 'Non'}
 
-🎯 OBJECTIFS DE PLANIFICATION:
-1. RESPECTER les heures contractuelles de chaque employé
-2. APPLIQUER les jours de repos souhaités
-3. ASSURER une couverture de service appropriée
-4. RESPECTER le repos hebdomadaire légal (minimum 35h consécutives)
-5. ÉVITER les journées trop longues (maximum 10h/jour)
-6. GÉRER les exceptions et contraintes individuelles
+🎯 OBJECTIFS CRITIQUES (RESPECT ABSOLU REQUIS):
+1. MAINTENIR ${constraints.companyConstraints.minStaffSimultaneously || 2} employés présents EN PERMANENCE de ${constraints.companyConstraints.dailyOpeningTime || '08:00'} à ${constraints.companyConstraints.dailyClosingTime || '18:00'}
+2. ÉCHELONNER les pauses déjeuner (12h-14h) pour éviter que tous soient absents simultanément
+3. COUVRIR INTÉGRALEMENT les horaires d'ouverture (pas de trous dans la couverture)
+4. RESPECTER les heures contractuelles de chaque employé
+5. APPLIQUER les jours de repos souhaités
+6. RESPECTER les limites quotidiennes (${constraints.companyConstraints.minHoursPerDay || 4}h-${constraints.companyConstraints.maxHoursPerDay || 10}h par jour)
+7. GÉRER les exceptions et contraintes individuelles
 
-🔧 RÈGLES TECHNIQUES:
+🔧 RÈGLES TECHNIQUES STRICTES:
 - Format horaire: "HH:MM-HH:MM" (ex: "08:00-12:00")
-- Pauses déjeuner: 1h minimum entre créneaux matin/après-midi
+- Pauses déjeuner OBLIGATOIRES: ${constraints.companyConstraints.lunchBreakDuration || 60}min minimum entre créneaux matin/après-midi
 - Repos quotidien: 11h minimum entre deux services
-- Horaires d'ouverture: respecter les créneaux définis
+- JAMAIS moins de ${constraints.companyConstraints.minStaffSimultaneously || 2} employés présents simultanément
+- Étaler les pauses sur 12h-14h pour maintenir la continuité de service
 
 ⚠️ RÉPONSE OBLIGATOIRE: UNIQUEMENT LE JSON CI-DESSOUS (AUCUN TEXTE, AUCUNE EXPLICATION) ⚠️
 
 RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicatif):
+
+EXEMPLE CORRECT avec couverture ${constraints.companyConstraints.dailyOpeningTime || '08:00'}-${constraints.companyConstraints.dailyClosingTime || '18:00'} et rotation des pauses:
 {
   "lundi": { 
-    "Alice Martin": ["08:00-12:00", "13:00-17:00"],
-    "Jean Dupont": ["09:00-13:00"]
+    "Alice Martin": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:00", "13:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
+    "Jean Dupont": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:30", "13:30-17:00"],
+    "Sophie Bernard": ["09:00-13:00", "14:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"]
   },
   "mardi": { 
-    "Alice Martin": ["08:00-12:00"],
-    "Jean Dupont": ["14:00-18:00"]
+    "Alice Martin": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-13:00", "14:00-17:30"],
+    "Jean Dupont": ["09:30-12:00", "13:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
+    "Sophie Bernard": []
   },
   "mercredi": { 
-    "Alice Martin": ["08:00-12:00", "13:00-17:00"],
-    "Jean Dupont": []
+    "Alice Martin": [],
+    "Jean Dupont": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:30", "13:30-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
+    "Sophie Bernard": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-13:00", "14:00-17:00"]
   },
   "jeudi": { 
-    "Alice Martin": ["09:00-13:00"],
-    "Jean Dupont": ["14:00-18:00"]
+    "Alice Martin": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:00", "13:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
+    "Jean Dupont": ["09:00-12:30", "13:30-17:30"],
+    "Sophie Bernard": ["10:00-14:00", "15:00-${constraints.companyConstraints.dailyClosingTime || '18:00'}"]
   },
   "vendredi": { 
-    "Alice Martin": [],
-    "Jean Dupont": ["08:00-12:00", "13:00-17:00"]
+    "Alice Martin": ["09:00-13:30", "14:30-${constraints.companyConstraints.dailyClosingTime || '18:00'}"],
+    "Jean Dupont": [],
+    "Sophie Bernard": ["${constraints.companyConstraints.dailyOpeningTime || '08:00'}-12:00", "13:00-17:00"]
   },
   "samedi": {},
   "dimanche": {}
@@ -1641,7 +1664,7 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
             messages: [
               {
                 role: "system",
-                content: "Tu es un expert en organisation RH. Tu DOIS répondre UNIQUEMENT avec un objet JSON valide. JAMAIS de texte explicatif. JAMAIS de préambule. JAMAIS de conclusion. SEULEMENT LE JSON."
+                content: "Tu es un expert en organisation RH. Tu DOIS respecter ABSOLUMENT ces règles critiques: 1) Maintenir le personnel minimum en permanence pendant les heures d'ouverture, 2) Échelonner les pauses déjeuner pour éviter que tous soient absents, 3) Couvrir INTÉGRALEMENT les horaires d'ouverture. Tu DOIS répondre UNIQUEMENT avec un objet JSON valide. JAMAIS de texte explicatif."
               },
               {
                 role: "user",
@@ -1653,11 +1676,11 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
               },
               {
                 role: "user",
-                content: "RAPPEL FINAL: Réponds UNIQUEMENT avec l'objet JSON. Commence directement par { et finis par }."
+                content: "RAPPEL FINAL CRITIQUE: 1) COUVRE de ${constraints.companyConstraints.dailyOpeningTime || '08:00'} à ${constraints.companyConstraints.dailyClosingTime || '18:00'} avec ${constraints.companyConstraints.minStaffSimultaneously || 2} employés minimum, 2) ÉCHELONNE les pauses 12h-14h, 3) Réponds UNIQUEMENT avec l'objet JSON."
               },
             ],
-            temperature: 0.1,
-            max_tokens: 2000,
+            temperature: 0.05,
+            max_tokens: 3000,
           }),
         }
       );
@@ -1922,6 +1945,130 @@ RÉPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicat
         message: "Erreur serveur lors de la génération du planning",
         error: error instanceof Error ? error.message : String(error),
         errorType: error instanceof Error ? error.constructor.name : typeof error,
+      });
+    }
+  }
+);
+
+/**
+ * @route   DELETE /api/ai/generated-schedules/bulk
+ * @desc    Supprimer plusieurs plannings IA sélectionnés (ou tous)
+ * @access  Private - Manager, Directeur, Admin uniquement
+ */
+router.delete(
+  "/generated-schedules/bulk",
+  authenticateToken,
+  checkRole(["manager", "directeur", "admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // 🔐 Validation de l'utilisateur authentifié
+      if (!req.user || !req.user._id) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      const { scheduleIds, deleteAll } = req.body;
+
+      console.log(
+        `[AI] Suppression demandée par ${req.user._id} (${req.user.role}) - deleteAll: ${deleteAll}, IDs: ${scheduleIds?.length || 0}`
+      );
+
+      // ✅ Validation des paramètres
+      if (!deleteAll && (!scheduleIds || !Array.isArray(scheduleIds) || scheduleIds.length === 0)) {
+        return res.status(400).json({
+          success: false,
+          message: "Liste des IDs de plannings à supprimer requise ou flag deleteAll manquant",
+        });
+      }
+
+      // 🔍 Construction de la requête selon le rôle et les permissions
+      let baseQuery: any = { status: "draft" };
+
+      if (req.user.role === "manager") {
+        // Manager : seulement les plannings des équipes qu'il gère
+        const managedTeams = await TeamModel.find({
+          managerIds: req.user._id,
+        }).select("_id");
+
+        const teamIds = managedTeams.map((team) => team._id);
+
+        if (teamIds.length === 0) {
+          return res.status(200).json({
+            success: true,
+            data: { deletedCount: 0 },
+            message: "Aucune équipe gérée trouvée",
+          });
+        }
+
+        // Récupérer les employés de ces équipes
+        const teamsWithEmployees = await TeamModel.find({
+          _id: { $in: teamIds },
+        }).select("employeeIds");
+
+        const employeeIds: any[] = [];
+        teamsWithEmployees.forEach((team) => {
+          if (team.employeeIds && team.employeeIds.length > 0) {
+            employeeIds.push(...team.employeeIds);
+          }
+        });
+
+        baseQuery.employeeId = { $in: employeeIds };
+      } else if (req.user.role === "directeur") {
+        // Directeur : seulement les plannings des équipes de sa société
+        const companyTeams = await TeamModel.find({
+          companyId: req.user.companyId,
+        }).select("employeeIds");
+
+        const employeeIds: any[] = [];
+        companyTeams.forEach((team) => {
+          if (team.employeeIds && team.employeeIds.length > 0) {
+            employeeIds.push(...team.employeeIds);
+          }
+        });
+
+        if (employeeIds.length === 0) {
+          return res.status(200).json({
+            success: true,
+            data: { deletedCount: 0 },
+            message: "Aucun employé trouvé dans votre société",
+          });
+        }
+
+        baseQuery.employeeId = { $in: employeeIds };
+      }
+      // Admin : pas de filtre supplémentaire
+
+      // 📊 Construction de la requête finale
+      let deleteQuery = { ...baseQuery };
+
+      if (!deleteAll && scheduleIds) {
+        // Supprimer seulement les IDs spécifiés
+        deleteQuery._id = { $in: scheduleIds.filter(id => mongoose.Types.ObjectId.isValid(id)) };
+      }
+
+      console.log(`[AI] Requête de suppression:`, JSON.stringify(deleteQuery, null, 2));
+
+      // 🗑️ Suppression des plannings
+      const deleteResult = await GeneratedScheduleModel.deleteMany(deleteQuery);
+
+      console.log(`[AI] ${deleteResult.deletedCount} plannings supprimés`);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          deletedCount: deleteResult.deletedCount,
+          deletedIds: deleteAll ? "tous" : scheduleIds,
+        },
+        message: `${deleteResult.deletedCount} planning(s) supprimé(s) avec succès`,
+      });
+    } catch (error) {
+      console.error("[AI] Erreur lors de la suppression des plannings:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la suppression des plannings",
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

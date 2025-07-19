@@ -16,6 +16,7 @@ import {
   Edit3,
   Save,
   Sparkles,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -198,6 +199,18 @@ const ManagerPlanningValidationPage: React.FC = () => {
     Record<string, ScheduleData>
   >({});
 
+  // États pour la sélection multiple
+  const [selectedSchedules, setSelectedSchedules] = useState<Set<string>>(new Set());
+  const [bulkDeleteModal, setBulkDeleteModal] = useState<{
+    isOpen: boolean;
+    type: "selected" | "all";
+    count: number;
+  }>({
+    isOpen: false,
+    type: "selected",
+    count: 0,
+  });
+
   // États pour les modales
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -293,6 +306,9 @@ const ManagerPlanningValidationPage: React.FC = () => {
 
         setEditingStates(initialEditingStates);
         setEditedSchedules(initialEditedSchedules);
+        
+        // Reset selected schedules when data changes
+        setSelectedSchedules(new Set());
       } else {
         console.log('❌ [VALIDATION PAGE] Erreur dans la réponse:', response.data);
         setError("Erreur lors de la récupération des plannings");
@@ -455,6 +471,90 @@ const ManagerPlanningValidationPage: React.FC = () => {
   };
 
   /**
+   * Gérer la sélection d'un planning
+   */
+  const handleSelectSchedule = (scheduleId: string, isSelected: boolean) => {
+    setSelectedSchedules(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(scheduleId);
+      } else {
+        newSet.delete(scheduleId);
+      }
+      return newSet;
+    });
+  };
+
+  /**
+   * Sélectionner/désélectionner tous les plannings
+   */
+  const handleSelectAll = () => {
+    if (selectedSchedules.size === generatedSchedules.length) {
+      setSelectedSchedules(new Set());
+    } else {
+      setSelectedSchedules(new Set(generatedSchedules.map(s => s._id)));
+    }
+  };
+
+  /**
+   * Ouvrir la modale de suppression multiple
+   */
+  const openBulkDeleteModal = (type: "selected" | "all") => {
+    const count = type === "all" ? generatedSchedules.length : selectedSchedules.size;
+    setBulkDeleteModal({
+      isOpen: true,
+      type,
+      count,
+    });
+  };
+
+  /**
+   * Fermer la modale de suppression multiple
+   */
+  const closeBulkDeleteModal = () => {
+    setBulkDeleteModal({
+      isOpen: false,
+      type: "selected",
+      count: 0,
+    });
+  };
+
+  /**
+   * Effectuer la suppression multiple
+   */
+  const handleBulkDelete = async () => {
+    try {
+      setLoading(true);
+
+      const scheduleIds = bulkDeleteModal.type === "all" 
+        ? generatedSchedules.map(s => s._id)
+        : Array.from(selectedSchedules);
+
+      const response = await axiosInstance.delete("/ai/generated-schedules/bulk", {
+        data: { scheduleIds }
+      });
+
+      if (response.data.success) {
+        const deletedCount = response.data.deletedCount || scheduleIds.length;
+        setSuccess(`${deletedCount} planning(s) supprimé(s) avec succès !`);
+        setShowSuccessToast(true);
+        setSelectedSchedules(new Set());
+        closeBulkDeleteModal();
+        fetchGeneratedSchedules();
+      } else {
+        setError("Erreur lors de la suppression");
+        setShowErrorToast(true);
+      }
+    } catch (err: any) {
+      console.error("Erreur lors de la suppression multiple:", err);
+      setError(err.response?.data?.message || "Erreur lors de la suppression");
+      setShowErrorToast(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * Refuser un planning (statut → "rejected")
    */
   const handleRejectSchedule = async () => {
@@ -581,6 +681,62 @@ const ManagerPlanningValidationPage: React.FC = () => {
           return generatedSchedules.length > 0;
         })() ? (
           <div className="space-y-6">
+            {/* Barre d'actions de sélection multiple */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <SectionCard className="bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedSchedules.size === generatedSchedules.length && generatedSchedules.length > 0}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-violet-600 bg-gray-100 border-gray-300 rounded focus:ring-violet-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Sélectionner tout ({generatedSchedules.length})
+                      </span>
+                    </label>
+                    {selectedSchedules.size > 0 && (
+                      <span className="text-sm text-violet-600 dark:text-violet-400 font-medium">
+                        {selectedSchedules.size} sélectionné(s)
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {selectedSchedules.size > 0 && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => openBulkDeleteModal("selected")}
+                        disabled={loading}
+                        icon={<Trash2 className="w-4 h-4" />}
+                        className="bg-red-500 hover:bg-red-600 text-white"
+                      >
+                        Supprimer sélection ({selectedSchedules.size})
+                      </Button>
+                    )}
+                    {generatedSchedules.length > 0 && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => openBulkDeleteModal("all")}
+                        disabled={loading}
+                        icon={<Trash2 className="w-4 h-4" />}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Supprimer tout ({generatedSchedules.length})
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </SectionCard>
+            </motion.div>
             <AnimatePresence>
               {generatedSchedules.map((schedule, index) => {
                 const isEditing = editingStates[schedule._id];
@@ -603,6 +759,15 @@ const ManagerPlanningValidationPage: React.FC = () => {
                       <div className="bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                           <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                            {/* Checkbox de sélection */}
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedSchedules.has(schedule._id)}
+                                onChange={(e) => handleSelectSchedule(schedule._id, e.target.checked)}
+                                className="w-4 h-4 text-violet-600 bg-gray-100 border-gray-300 rounded focus:ring-violet-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                            </div>
                             {/* Avatar de l'employé */}
                             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-lg shrink-0">
                               {schedule.employee.firstName.charAt(0)}
@@ -1014,6 +1179,54 @@ const ManagerPlanningValidationPage: React.FC = () => {
             </SectionCard>
           </motion.div>
         )}
+
+        {/* Modale de suppression multiple */}
+        <Modal
+          isOpen={bulkDeleteModal.isOpen}
+          onClose={closeBulkDeleteModal}
+          title="Confirmer la suppression"
+        >
+          <div className="p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mr-4">
+                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Supprimer {bulkDeleteModal.type === "all" ? "tous les plannings" : "les plannings sélectionnés"}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {bulkDeleteModal.count} planning(s) sera/seront supprimé(s)
+                </p>
+              </div>
+            </div>
+
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Êtes-vous sûr de vouloir supprimer {bulkDeleteModal.type === "all" ? "tous les plannings" : "les plannings sélectionnés"} ? 
+              Cette action est irréversible.
+            </p>
+
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="secondary"
+                onClick={closeBulkDeleteModal}
+                disabled={loading}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleBulkDelete}
+                disabled={loading}
+                isLoading={loading}
+                className="bg-red-500 hover:bg-red-600 text-white"
+                icon={<Trash2 className="w-4 h-4" />}
+              >
+                Supprimer {bulkDeleteModal.count > 1 ? `(${bulkDeleteModal.count})` : ""}
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Modale de confirmation */}
         <Modal
