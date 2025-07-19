@@ -63,7 +63,6 @@
     "express-rate-limit": "^8.0.0",
     "framer-motion": "^12.7.4",
     "helmet": "^7.1.0",
-    "javascript-lp-solver": "^0.4.24",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "morgan": "^1.10.0",

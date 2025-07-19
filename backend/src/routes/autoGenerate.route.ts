@@ -1,7 +1,7 @@
 /**
  * Route pour la génération automatique de planning hebdomadaire
  * 
- * Cette route utilise le service generatePlanning() avec jsLPSolver
+ * Cette route utilise le service generatePlanning() avec moteur personnalisé
  * pour créer automatiquement un planning optimal en respectant
  * les contraintes et préférences des employés.
  * 
@@ -115,7 +115,15 @@ router.post(
       console.log(`Génération du planning pour la semaine ${planningData.weekNumber}/${planningData.year} avec ${planningData.employees.length} employé(s)`);
       
       const generatedPlanning = generatePlanning({
-        employees: planningData.employees,
+        employees: planningData.employees.map(emp => ({
+          _id: emp._id || '',
+          contractHoursPerWeek: emp.contractHoursPerWeek || 35,
+          exceptions: emp.exceptions?.map(exc => ({
+            date: exc.date || '',
+            type: exc.type || 'unavailable'
+          })),
+          preferences: emp.preferences
+        })),
         weekNumber: planningData.weekNumber,
         year: planningData.year,
         companyConstraints: planningData.companyConstraints
@@ -180,7 +188,7 @@ router.post(
           console.log(`✅ Planning sauvegardé pour l'employé ${employeeId}:`, savedSchedule._id);
         } catch (saveError) {
           console.error(`❌ Erreur sauvegarde planning pour employé ${employeeId}:`, saveError);
-          console.error('❌ Stack trace:', saveError.stack);
+          console.error('❌ Stack trace:', saveError instanceof Error ? saveError.stack : 'Stack trace non disponible');
         }
       }
       

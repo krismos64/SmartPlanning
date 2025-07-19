@@ -96,7 +96,7 @@ export interface AutoGenerationError {
 /**
  * Génère automatiquement un planning hebdomadaire optimal
  * 
- * Cette fonction appelle le service backend qui utilise jsLPSolver
+ * Cette fonction appelle le service backend qui utilise un moteur personnalisé
  * pour résoudre les contraintes de planification et générer un
  * planning respectant :
  * - Les heures contractuelles des employés

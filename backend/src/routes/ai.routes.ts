@@ -665,7 +665,7 @@ router.get(
             teamId: team?._id,
             teamName: team?.name || "Équipe non trouvée",
             constraints: [],
-            notes: (schedule.generatedBy === 'AUTO_GENERATE' || schedule.generatedBy === 'AI') ? "Planning généré automatiquement via jsLPSolver" : "",
+            notes: (schedule.generatedBy === 'AUTO_GENERATE' || schedule.generatedBy === 'AI') ? "Planning généré automatiquement via moteur personnalisé" : "",
             weekNumber: schedule.weekNumber || 1,
             year: schedule.year || new Date().getFullYear(),
           };
