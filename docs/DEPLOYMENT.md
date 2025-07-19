@@ -28,8 +28,8 @@ JWT_SECRET=votre_secret_jwt_très_sécurisé
 JWT_EXPIRATION=1d
 REFRESH_TOKEN_SECRET=votre_refresh_secret_très_sécurisé
 
-# API OpenAI
-OPENAI_API_KEY=votre_clé_api_openai
+# API OpenRouter (Version 1.7.1)
+OPENROUTER_API_KEY=votre_clé_api_openrouter
 
 # Google OAuth
 GOOGLE_CLIENT_ID=votre_id_client_google

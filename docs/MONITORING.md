@@ -31,7 +31,7 @@ SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry
 - `auth_duration` : Temps de traitement des authentifications
 
 #### 🚀 Intelligence Artificielle (Assistant IA Planning)
-- `ai_requests_total` : Nombre de requêtes vers OpenRouter/OpenAI
+- `ai_requests_total` : Nombre de requêtes vers OpenRouter (Gemini 2.0 Flash)
 - `ai_request_duration_seconds` : Temps de réponse des requêtes IA
 - `ai_success_rate` : Taux de réussite des requêtes IA
 - `ai_tokens_used` : Nombre de tokens consommés

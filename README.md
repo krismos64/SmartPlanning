@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.7.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.7.1-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-14%2F15%20Pass-brightgreen?style=flat-square)
 ![E2E Tests](https://img.shields.io/badge/E2E%20Tests-Cypress-brightgreen?style=flat-square)
@@ -417,7 +417,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Frontend**                   | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie |
 | **Backend**                    | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet                     |
 | **Base de données**            | MongoDB Atlas, Mongoose (ODM), Index optimisés                               |
-| **Intelligence artificielle**  | OpenAI API, GPT-4, Canvas-confetti pour animations                           |
+| **Intelligence artificielle**  | OpenRouter API, Gemini 2.0 Flash, Canvas-confetti pour animations            |
 | **Authentification**           | JWT hybride (cookies httpOnly + localStorage), Google OAuth 2.0, Passport.js |
 | **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                     |
 | **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), MongoDB Atlas                |
@@ -441,6 +441,24 @@ Pour une documentation complète, consultez le dossier `docs/` :
 - **[Guide de monitoring](docs/MONITORING.md)** - Surveillance, observabilité et validation des données avec Zod
 
 ## Changelog
+
+### Version 1.7.1 (Correction AI Model - Juillet 2025)
+
+- **🤖 Correction du modèle IA OpenRouter**
+
+  - **Modèle IA mis à jour** : Migration de `google/gemini-flash-1.5:free` vers `google/gemini-2.0-flash-exp:free`
+  - **API OpenRouter** : Utilisation du modèle Gemini 2.0 Flash Experimental gratuit
+  - **Correction des erreurs** : Résolution de l'erreur "No endpoints found" pour le modèle inexistant
+  - **Tests validés** : Vérification de la disponibilité du nouveau modèle sur OpenRouter
+  - **Configuration mise à jour** : Variables d'environnement adaptées pour OpenRouter API
+
+- **🔧 Améliorations techniques**
+
+  - **Configuration API** : Remplacement d'OPENAI_API_KEY par OPENROUTER_API_KEY
+  - **Modèle performant** : Utilisation de Gemini 2.0 Flash pour de meilleures performances
+  - **Gestion d'erreur** : Messages d'erreur clairs si la clé API n'est pas configurée
+  - **Documentation mise à jour** : README et variables d'environnement corrigées
+  - **3 instances corrigées** : Toutes les occurrences du modèle dans ai.routes.ts mises à jour
 
 ### Version 1.7.0 (Gestion des Absences & Confettis - Juillet 2025)
 
@@ -759,7 +777,7 @@ REFRESH_TOKEN_SECRET=votre_refresh_secret_très_sécurisé
 REFRESH_TOKEN_EXPIRATION=7d
 
 # Intelligence artificielle
-OPENAI_API_KEY=sk-votre_clé_api_openai
+OPENROUTER_API_KEY=votre_clé_api_openrouter
 
 # Authentification Google OAuth
 GOOGLE_CLIENT_ID=votre_id_client_google.apps.googleusercontent.com

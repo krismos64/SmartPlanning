@@ -2,13 +2,13 @@
 
 ## Vue d'ensemble
 
-L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings grâce à une interface futuriste moderne et une intelligence artificielle avancée. Cette version 1.7.0 introduit un wizard interactif en 7 étapes avec des animations immersives, la gestion des absences exceptionnelles et des confettis de célébration.
+L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings grâce à une interface futuriste moderne et une intelligence artificielle avancée. Cette version 1.7.1 corrige le modèle IA pour une intégration parfaite avec OpenRouter et Gemini 2.0 Flash.
 
-**Version** : 1.7.0 (Juillet 2025)  
+**Version** : 1.7.1 (Juillet 2025)  
 **Status** : ✅ Production stable  
 **Interface** : Wizard futuriste avec animations Framer Motion  
-**IA** : OpenRouter + DeepSeek R1 optimisé  
-**Nouvelles fonctionnalités** : Gestion des absences multiples + Confettis de célébration
+**IA** : OpenRouter + Gemini 2.0 Flash Experimental (corrigé)  
+**Nouvelles fonctionnalités** : Modèle IA corrigé + Gestion des absences multiples + Confettis
 
 ## 🎨 Fonctionnalités Principales
 
@@ -32,7 +32,7 @@ L'Assistant IA Planning de SmartPlanning révolutionne la création de plannings
 
 ### Intelligence Artificielle Avancée
 
-- **🧠 Génération intelligente** : OpenRouter avec modèle DeepSeek R1
+- **🧠 Génération intelligente** : OpenRouter avec modèle Gemini 2.0 Flash Experimental
 - **⚙️ Configuration intuitive** : Interface pour préférences IA
 - **✅ Validation temps réel** : Génération optimisée avec feedback immédiat
 - **📈 Performance optimisée** : Animations fluides sans impact performances
@@ -241,7 +241,12 @@ const particleAnimation = {
 
 ```typescript
 // Route principale
-POST / api / ai / schedule / generate - from - constraints;
+POST /api/ai/schedule/generate-from-constraints
+
+// Configuration IA
+model: "google/gemini-2.0-flash-exp:free"
+api_url: "https://openrouter.ai/api/v1/chat/completions"
+api_key: process.env.OPENROUTER_API_KEY
 
 // Schéma de validation Zod
 const planningConstraintsSchema = z.object({
@@ -317,7 +322,40 @@ const planningConstraintsSchema = z.object({
 - **Optimisation** : Score moyen 8.5/10
 - **Satisfaction utilisateur** : Interface moderne très appréciée
 
+## 🔧 Corrections Version 1.7.1
+
+### Problème Résolu : Modèle IA OpenRouter
+
+**Symptôme** : L'assistant IA retournait l'erreur "No endpoints found for google/gemini-flash-1.5:free"
+
+**Cause** : Le modèle `google/gemini-flash-1.5:free` n'existe pas sur OpenRouter API
+
+**Solution** : Migration vers `google/gemini-2.0-flash-exp:free` (modèle Gemini 2.0 Flash Experimental gratuit)
+
+**Fichiers modifiés** :
+- `backend/src/routes/ai.routes.ts` (3 instances corrigées)
+- Variables d'environnement : `OPENROUTER_API_KEY` au lieu d'`OPENAI_API_KEY`
+
+**Configuration requise** :
+```bash
+# Ajouter dans backend/.env
+OPENROUTER_API_KEY=votre_cle_api_openrouter
+```
+
+**Avantages du nouveau modèle** :
+- ✅ Disponible gratuitement sur OpenRouter
+- ✅ Performance améliorée (Gemini 2.0 vs 1.5)
+- ✅ Support étendu des contraintes complexes
+- ✅ Temps de réponse optimisé
+
 ## 🔮 Roadmap Futur
+
+### Version 1.7.2 (Août 2025)
+
+- **🔧 Configuration avancée OpenRouter** : Interface pour configuration de clés API
+- **📊 Métriques IA** : Suivi des performances du modèle Gemini 2.0
+- **⚡ Optimisations** : Cache des réponses IA pour améliorer les performances
+- **🔍 Tests IA** : Validation automatique du modèle OpenRouter
 
 ### Version 1.8.0 (Q1 2026)
 
@@ -342,9 +380,13 @@ const planningConstraintsSchema = z.object({
 
 ## 🚀 Conclusion
 
-L'Assistant IA Planning Futuriste représente l'avenir de la gestion des plannings. Avec son interface immersive, ses animations fluides et son intelligence artificielle avancée, il transforme une tâche complexe en expérience agréable et intuitive.
+L'Assistant IA Planning Futuriste représente l'avenir de la gestion des plannings. Avec son interface immersive, ses animations fluides et son intelligence artificielle Gemini 2.0 Flash corrigée, il transforme une tâche complexe en expérience agréable et intuitive.
+
+**Correction Version 1.7.1** : Problème du modèle IA résolu ! L'assistant utilise maintenant le modèle Gemini 2.0 Flash Experimental disponible sur OpenRouter.
 
 **Prêt à découvrir l'avenir des plannings ?**
 👉 [Tester l'Assistant IA](https://smartplanning.fr/planning-wizard)
+
+**🔑 Configuration requise** : Ajouter `OPENROUTER_API_KEY=votre_cle_api` dans le fichier `.env` backend
 
 ---

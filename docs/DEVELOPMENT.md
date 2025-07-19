@@ -9,8 +9,7 @@
 - **MongoDB** (local ou MongoDB Atlas recommandé)
 - **Git** pour le versioning
 - **Compte Google Cloud** (pour OAuth - optionnel)
-- **Compte OpenAI** (pour les fonctionnalités IA - optionnel)
-- **Compte OpenRouter** (pour l'Assistant IA Planning futuriste - recommandé)
+- **Compte OpenRouter** (pour l'Assistant IA Planning avec Gemini 2.0 Flash - recommandé)
 - **Compte Cloudinary** (pour l'upload d'images - optionnel)
 
 ### Étapes d'installation
@@ -423,9 +422,8 @@ test: ajout des tests unitaires
 
 **Développement local** :
 ```bash
-# Variables d'environnement requises
-OPENROUTER_API_KEY=sk-or-v1-your-api-key
-OPENAI_API_KEY=sk-your-openai-key  # Fallback
+# Variables d'environnement requises (Version 1.7.1)
+OPENROUTER_API_KEY=sk-or-v1-your-api-key  # Obligatoire pour Gemini 2.0 Flash
 
 # Test de l'interface
 cd frontend && npm run dev

@@ -209,11 +209,11 @@ admin > directeur > manager > employee
 
 ### 🚀 Intelligence Artificielle (Assistant IA Planning Futuriste)
 
-**Architecture IA modernisée (v1.6.0) :**
+**Architecture IA modernisée (v1.7.1) :**
 ```
 ┌─────────────────────┐    API REST     ┌─────────────────────┐    AI API    ┌─────────────────────┐
-│   Frontend Wizard   │◄───────────────►│   Backend + Zod     │◄─────────────►│  OpenRouter/OpenAI  │
-│  (6 étapes + UX)    │   Constraints   │   (Validation)      │  JSON Prompt │   (DeepSeek R1)     │
+│   Frontend Wizard   │◄───────────────►│   Backend + Zod     │◄─────────────►│   OpenRouter Only   │
+│  (7 étapes + UX)    │   Constraints   │   (Validation)      │  JSON Prompt │ (Gemini 2.0 Flash)  │
 │  Framer Motion      │                 │  /ai/schedule/      │              │                     │
 │  Glassmorphism      │                 │  generate-from-     │              │                     │
 │  Particules         │                 │  constraints        │              │                     │
