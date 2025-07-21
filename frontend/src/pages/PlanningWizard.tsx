@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Calendar, Users, Settings, Brain, CheckCircle, Clock, AlertCircle, Sparkles, Zap, Star, Rocket, UserX, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Users, Settings, Brain, CheckCircle, Clock, AlertCircle, Sparkles, Zap, Star, Rocket, Building, Lightbulb } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/useToast';
@@ -36,6 +36,25 @@ const PlanningWizard: React.FC = () => {
   }
   
   const [currentStep, setCurrentStep] = useState<number>(0);
+  const [teamConfigMode, setTeamConfigMode] = useState<string>('profiles');
+  const [employeeProfiles, setEmployeeProfiles] = useState<{[key: string]: string}>({});
+  const [expressSettings, setExpressSettings] = useState({
+    dayPreference: 'weekdays',
+    serviceType: 'continuous',
+    flexibility: 'balanced',
+    preferences: {
+      regularSchedules: true,
+      maxFlexibility: false,
+      concentratedHours: false,
+      spreadHours: false
+    },
+    constraints: {
+      noWeekends: false,
+      avoidLongBreaks: true,
+      preferMornings: false,
+      preferAfternoons: false
+    }
+  });
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   const [generatedPlanning, setGeneratedPlanning] = useState<GeneratedPlanning | null>(null);
@@ -83,7 +102,7 @@ const PlanningWizard: React.FC = () => {
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [employeeExceptions, setEmployeeExceptions] = useState<{[key: string]: any[]}>({});
-  const [employeePreferences, setEmployeePreferences] = useState<{[key: string]: {preferredDays?: string[], preferredHours?: string[]}}>({});
+  const [employeePreferences, setEmployeePreferences] = useState<{[key: string]: {preferredDays?: string[], preferredHours?: string[], allowSplitShifts?: boolean, restDay?: string}}>({});
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
 
   // Fonction pour calculer les dates de la semaine
@@ -131,62 +150,331 @@ const PlanningWizard: React.FC = () => {
     return `Du ${startStr} au ${endStr}`;
   };
 
+  // Suggestions contextuelles intelligentes
+  const getContextualSuggestions = (weekNumber: number, year: number) => {
+    const suggestions = [];
+    const date = new Date(year, 0, 1 + (weekNumber - 1) * 7);
+    const month = date.getMonth() + 1;
+    
+    // Suggestions saisonnières
+    if (month === 12 || month === 1) {
+      suggestions.push({
+        icon: '🎄',
+        text: 'Période de fêtes détectée - Renforcer le weekend ?',
+        type: 'holiday'
+      });
+    }
+    if (month === 9) {
+      suggestions.push({
+        icon: '📚',
+        text: 'Rentrée scolaire - Adapter les horaires parents ?',
+        type: 'school'
+      });
+    }
+    if (month >= 6 && month <= 8) {
+      suggestions.push({
+        icon: '☀️',
+        text: 'Période estivale - Horaires d\'été actifs ?',
+        type: 'summer'
+      });
+    }
+    
+    return suggestions;
+  };
+
+  // Application des profils prédéfinis
+  const applyEmployeeProfile = (employeeId: string, profileType: string) => {
+    const profiles = {
+      manager: {
+        contractHours: 39,
+        preferredDays: ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'],
+        preferredHours: ['09:00-17:00'],
+        allowSplitShifts: false,
+        restDay: 'dimanche'
+      },
+      vendeur: {
+        contractHours: 35,
+        preferredDays: [],
+        preferredHours: [],
+        allowSplitShifts: true,
+        restDay: undefined
+      },
+      polyvalent: {
+        contractHours: 20,
+        preferredDays: [],
+        preferredHours: [],
+        allowSplitShifts: true,
+        restDay: undefined
+      },
+      expert: {
+        contractHours: 39,
+        preferredDays: [],
+        preferredHours: [],
+        allowSplitShifts: false,
+        restDay: undefined
+      }
+    };
+
+    const profile = profiles[profileType as keyof typeof profiles];
+    if (profile) {
+      // Mettre à jour les heures contractuelles
+      setConstraints(prev => ({
+        ...prev,
+        employees: prev.employees.map(emp => 
+          emp.id === employeeId 
+            ? { ...emp, contractHours: profile.contractHours }
+            : emp
+        )
+      }));
+
+      // Mettre à jour les préférences
+      setEmployeePreferences(prev => ({
+        ...prev,
+        [employeeId]: {
+          preferredDays: profile.preferredDays,
+          preferredHours: profile.preferredHours,
+          allowSplitShifts: profile.allowSplitShifts,
+          restDay: profile.restDay
+        }
+      }));
+    }
+  };
+
+  // Application des paramètres express
+  const applyExpressSettings = () => {
+    constraints.employees.forEach(employee => {
+      const settings: any = { 
+        preferredDays: [],
+        preferredHours: [],
+        allowSplitShifts: expressSettings.serviceType !== 'continuous'
+      };
+
+      // Application des préférences de jours
+      if (expressSettings.dayPreference === 'weekdays') {
+        settings.preferredDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+      } else if (expressSettings.dayPreference === 'weekend') {
+        settings.preferredDays = ['samedi', 'dimanche'];
+      }
+      // 'flexible' = pas de préférences spécifiques
+
+      setEmployeePreferences(prev => ({
+        ...prev,
+        [employee.id]: settings
+      }));
+    });
+  };
+
+  // Calcul du score de faisabilité
+  const calculateFeasibilityScore = (): number => {
+    let score = 100;
+    
+    // Vérifications de base
+    if (!constraints.teamId) score -= 30;
+    if (!constraints.weekNumber || !constraints.year) score -= 20;
+    if (!availableEmployees || availableEmployees.length === 0) score -= 30;
+    
+    // Vérifications des contraintes business
+    if (!constraints.companyConstraints.openingDays || constraints.companyConstraints.openingDays.length === 0) score -= 15;
+    if (!constraints.companyConstraints.minStaffSimultaneously) score -= 10;
+    
+    // Vérifications de l'équipe
+    const configuredEmployees = availableEmployees?.filter(emp => 
+      selectedEmployees.includes(emp._id) || employeePreferences[emp._id]
+    ).length || 0;
+    
+    if (configuredEmployees === 0) score -= 20;
+    else if (configuredEmployees < (availableEmployees?.length || 0) / 2) score -= 10;
+    
+    // Bonus pour mode de configuration
+    if (teamConfigMode === 'profiles') score += 5;
+    if (teamConfigMode === 'express') score += 3;
+    
+    return Math.max(0, Math.min(100, score));
+  };
+
+  // Alertes et vérifications de validation
+  const getValidationAlerts = () => {
+    const alerts: Array<{
+      type: 'error' | 'warning' | 'success';
+      title: string;
+      message: string;
+      suggestion?: string;
+    }> = [];
+
+    // Vérifications critiques (erreurs)
+    if (!constraints.teamId) {
+      alerts.push({
+        type: 'error',
+        title: 'Équipe manquante',
+        message: 'Aucune équipe sélectionnée pour le planning',
+        suggestion: 'Retournez à l\'étape 1 pour sélectionner une équipe'
+      });
+    }
+
+    if (!constraints.weekNumber || !constraints.year) {
+      alerts.push({
+        type: 'error',
+        title: 'Période incomplète',
+        message: 'Semaine ou année non définie',
+        suggestion: 'Spécifiez la semaine et l\'année à planifier'
+      });
+    }
+
+    if (!availableEmployees || availableEmployees.length === 0) {
+      alerts.push({
+        type: 'error',
+        title: 'Aucun employé disponible',
+        message: 'Aucun employé trouvé pour cette équipe et cette période',
+        suggestion: 'Vérifiez les employés assignés à cette équipe'
+      });
+    }
+
+    // Vérifications importantes (avertissements)
+    if (constraints.companyConstraints.openingDays?.length === 0) {
+      alerts.push({
+        type: 'warning',
+        title: 'Jours d\'ouverture non définis',
+        message: 'Aucun jour d\'ouverture configuré',
+        suggestion: 'Définissez au moins un jour d\'ouverture'
+      });
+    }
+
+    const minStaff = constraints.companyConstraints.minStaffSimultaneously || 1;
+    const availableCount = availableEmployees?.length || 0;
+    if (minStaff > availableCount) {
+      alerts.push({
+        type: 'warning',
+        title: 'Couverture insuffisante',
+        message: `${minStaff} personnes requises mais seulement ${availableCount} disponibles`,
+        suggestion: 'Réduisez la couverture minimum ou ajoutez des employés'
+      });
+    }
+
+    if (teamConfigMode === 'advanced') {
+      const unconfiguredEmployees = availableEmployees?.filter(emp => 
+        !employeePreferences[emp._id]
+      ).length || 0;
+      
+      if (unconfiguredEmployees > 0) {
+        alerts.push({
+          type: 'warning',
+          title: 'Configuration incomplète',
+          message: `${unconfiguredEmployees} employé(s) sans préférences configurées`,
+          suggestion: 'Configurez les préférences ou utilisez le mode Express'
+        });
+      }
+    }
+
+    // Vérifications positives (succès)
+    if (calculateFeasibilityScore() >= 80) {
+      alerts.push({
+        type: 'success',
+        title: 'Configuration excellente',
+        message: 'Toutes les vérifications passent avec succès'
+      });
+    }
+
+    if (teamConfigMode === 'profiles' && availableEmployees?.length > 0) {
+      alerts.push({
+        type: 'success',
+        title: 'Profils optimisés',
+        message: 'Configuration intelligente avec profils prédéfinis'
+      });
+    }
+
+    return alerts;
+  };
+
+  // Estimation de la satisfaction
+  const getEstimatedSatisfaction = (): number => {
+    let satisfaction = 70; // Base
+
+    // Bonus selon le mode
+    if (teamConfigMode === 'profiles') satisfaction += 15;
+    if (teamConfigMode === 'express') satisfaction += 10;
+    if (teamConfigMode === 'advanced') satisfaction += 5;
+
+    // Bonus pour configuration complète
+    const configuredEmployees = availableEmployees?.filter(emp => 
+      employeePreferences[emp._id] || selectedEmployees.includes(emp._id)
+    ).length || 0;
+    
+    const configRatio = availableEmployees?.length > 0 ? configuredEmployees / availableEmployees.length : 0;
+    satisfaction += configRatio * 15;
+
+    // Malus pour contraintes strictes
+    const minStaff = constraints.companyConstraints.minStaffSimultaneously || 1;
+    if (minStaff >= (availableEmployees?.length || 1)) satisfaction -= 10;
+
+    return Math.max(60, Math.min(95, Math.round(satisfaction)));
+  };
+
+  // Fonction pour démarrer la génération (appelée par le bouton)
+  const handleGeneration = async () => {
+    await generateSchedule();
+  };
+
+  // Conversion des jours français vers anglais pour l'API
+  const convertDaysToEnglish = (frenchDays: string[]): string[] => {
+    const dayMapping: { [key: string]: string } = {
+      'lundi': 'monday',
+      'mardi': 'tuesday', 
+      'mercredi': 'wednesday',
+      'jeudi': 'thursday',
+      'vendredi': 'friday',
+      'samedi': 'saturday',
+      'dimanche': 'sunday'
+    };
+    
+    return frenchDays.map(day => dayMapping[day] || day);
+  };
+
+  const convertDayToEnglish = (frenchDay: string): string => {
+    const dayMapping: { [key: string]: string } = {
+      'lundi': 'monday',
+      'mardi': 'tuesday', 
+      'mercredi': 'wednesday',
+      'jeudi': 'thursday',
+      'vendredi': 'friday',
+      'samedi': 'saturday',
+      'dimanche': 'sunday'
+    };
+    
+    return dayMapping[frenchDay] || frenchDay;
+  };
+
   const steps: PlanningWizardStep[] = [
     {
       id: 0,
-      title: 'Équipe et Semaine',
-      description: 'Sélectionnez l\'équipe et la semaine à planifier',
+      title: 'Contexte',
+      description: 'Équipe et semaine à planifier',
       icon: Calendar,
       isCompleted: currentStep > 0,
       isActive: currentStep === 0
     },
     {
       id: 1,
-      title: 'Employés Présents',
-      description: 'Choisissez les employés disponibles cette semaine',
-      icon: Users,
+      title: 'Contraintes Business',
+      description: 'Horaires et règles d\'ouverture',
+      icon: Settings,
       isCompleted: currentStep > 1,
       isActive: currentStep === 1
     },
     {
       id: 2,
-      title: 'Absences & Contraintes',
-      description: 'Gérez les absences exceptionnelles',
-      icon: UserX,
+      title: 'Préférences Équipe',
+      description: 'Configuration des employés',
+      icon: Users,
       isCompleted: currentStep > 2,
       isActive: currentStep === 2
     },
     {
       id: 3,
-      title: 'Contraintes Entreprise',
-      description: 'Définissez les horaires et limites de travail',
-      icon: Settings,
-      isCompleted: currentStep > 3,
-      isActive: currentStep === 3
-    },
-    {
-      id: 4,
-      title: 'Contraintes Globales',
-      description: 'Paramétrez les règles de l\'entreprise',
-      icon: Clock,
-      isCompleted: currentStep > 4,
-      isActive: currentStep === 4
-    },
-    {
-      id: 5,
-      title: 'Préférences IA',
-      description: 'Configurez l\'intelligence artificielle',
-      icon: Brain,
-      isCompleted: currentStep > 5,
-      isActive: currentStep === 5
-    },
-    {
-      id: 6,
-      title: 'Résumé et Génération',
-      description: 'Vérifiez et lancez la génération',
+      title: 'Validation',
+      description: 'Résumé et génération',
       icon: Rocket,
       isCompleted: false,
-      isActive: currentStep === 6
+      isActive: currentStep === 3
     }
   ];
 
@@ -197,14 +485,11 @@ const PlanningWizard: React.FC = () => {
   const fetchTeams = async () => {
     setIsLoadingTeams(true);
     try {
-      console.log('🔄 Chargement des équipes...');
       const response = await axiosInstance.get('/teams');
-      console.log('✅ Équipes récupérées:', response.data);
       const teams = response.data.data || [];
-      console.log('📋 Structure des équipes:', teams.length > 0 ? teams[0] : 'Aucune équipe');
       setAvailableTeams(teams);
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des équipes:', error);
+      console.error('Erreur lors du chargement des équipes:', error);
       showToast('Erreur lors du chargement des équipes', 'error');
       setAvailableTeams([]);
     } finally {
@@ -215,14 +500,11 @@ const PlanningWizard: React.FC = () => {
   const fetchEmployees = async (teamId: string) => {
     setIsLoadingEmployees(true);
     try {
-      console.log(`🔄 Chargement des employés pour l'équipe ${teamId}...`);
       const response = await axiosInstance.get(`/teams/${teamId}/employees`);
-      console.log('✅ Employés récupérés:', response.data);
       const employees = response.data.data || [];
-      console.log('📋 Structure des employés:', employees.length > 0 ? employees[0] : 'Aucun employé');
       setAvailableEmployees(employees);
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des employés:', error);
+      console.error('Erreur lors du chargement des employés:', error);
       showToast('Erreur lors du chargement des employés', 'error');
       setAvailableEmployees([]);
     } finally {
@@ -264,31 +546,40 @@ const PlanningWizard: React.FC = () => {
       }, 500);
 
       // Intégrer les absences dans les contraintes des employés
-      const employeesWithExceptions = constraints.employees.map(emp => {
-        const exceptions = employeeExceptions[emp.id] || [];
+      const employeesWithExceptions = (availableEmployees || []).map(emp => {
+        const exceptions = employeeExceptions[emp._id] || [];
         return {
-          _id: emp.id,
+          _id: emp._id,
           contractHoursPerWeek: emp.contractHours || 35,
           exceptions: exceptions.filter(ex => ex.date && ex.type).map(ex => ({
             date: ex.date,
             type: ex.type as 'vacation' | 'sick' | 'unavailable' | 'training' | 'reduced'
           })),
           preferences: {
-            preferredDays: employeePreferences[emp.id]?.preferredDays || [],
-            preferredHours: employeePreferences[emp.id]?.preferredHours || []
-          }
+            preferredDays: convertDaysToEnglish(employeePreferences[emp._id]?.preferredDays || []),
+            preferredHours: employeePreferences[emp._id]?.preferredHours || [],
+            allowSplitShifts: employeePreferences[emp._id]?.allowSplitShifts !== undefined ? employeePreferences[emp._id]?.allowSplitShifts : true
+          },
+          restDay: employeePreferences[emp._id]?.restDay ? convertDayToEnglish(employeePreferences[emp._id]?.restDay) : undefined
         };
       });
 
       // Conversion des contraintes d'entreprise vers le format API
+      // Ne prendre QUE les heures des jours qui sont dans openingDays
       const openHours: string[] = [];
-      if (constraints.companyConstraints?.openingHours) {
+      const selectedOpeningDays = constraints.companyConstraints?.openingDays || [];
+      
+      if (constraints.companyConstraints?.openingHours && selectedOpeningDays.length > 0) {
+        // Ne traiter que les jours sélectionnés dans openingDays
         constraints.companyConstraints.openingHours.forEach(dayHours => {
-          dayHours.hours.forEach(hour => {
-            if (!openHours.includes(hour)) {
-              openHours.push(hour);
-            }
-          });
+          // Vérifier si ce jour est dans les jours d'ouverture sélectionnés
+          if (selectedOpeningDays.includes(dayHours.day)) {
+            dayHours.hours.forEach(hour => {
+              if (!openHours.includes(hour)) {
+                openHours.push(hour);
+              }
+            });
+          }
         });
       }
 
@@ -297,19 +588,20 @@ const PlanningWizard: React.FC = () => {
         year: constraints.year,
         employees: employeesWithExceptions,
         companyConstraints: {
-          openDays: constraints.companyConstraints?.openingDays || [], // Correction: openingDays -> openDays
-          openHours: openHours.length > 0 ? openHours : ["09:00-18:00"], // Conversion structure complexe -> simple
-          minEmployeesPerSlot: constraints.companyConstraints?.minStaffSimultaneously || 1 // Correction: minStaffSimultaneously -> minEmployeesPerSlot
+          openDays: convertDaysToEnglish(constraints.companyConstraints?.openingDays || []), // Conversion français -> anglais
+          openHours: openHours.length > 0 ? openHours : [
+            `${constraints.companyConstraints?.dailyOpeningTime || '08:00'}-${constraints.companyConstraints?.dailyClosingTime || '18:00'}`
+          ], // Utiliser les heures du wizard ou par défaut
+          minEmployeesPerSlot: constraints.companyConstraints?.minStaffSimultaneously || 1, // Correction: minStaffSimultaneously -> minEmployeesPerSlot
+          // Nouvelles contraintes du wizard
+          maxHoursPerDay: constraints.companyConstraints?.maxHoursPerDay,
+          minHoursPerDay: constraints.companyConstraints?.minHoursPerDay,
+          mandatoryLunchBreak: constraints.companyConstraints?.mandatoryLunchBreak,
+          lunchBreakDuration: constraints.companyConstraints?.lunchBreakDuration
         }
       };
 
-      console.log('🚀 Generating schedule with payload:', JSON.stringify(payload, null, 2));
-
       const response = await autoGenerateSchedule(payload);
-      
-      console.log('✅ Planning généré avec succès:', response);
-      console.log('📊 Nombre d\'employés dans le planning:', Object.keys(response.planning).length);
-      console.log('📈 Statistiques:', response.metadata.stats);
       
       setGenerationProgress(100);
       clearInterval(progressInterval);
@@ -354,7 +646,7 @@ const PlanningWizard: React.FC = () => {
       }
 
     } catch (error: any) {
-      console.error('❌ Erreur génération:', error);
+      console.error('Erreur génération:', error);
       
       // Gestion spécifique des erreurs d'authentification
       if (error.message?.includes('Session expirée') || error.message?.includes('401')) {
@@ -375,16 +667,16 @@ const PlanningWizard: React.FC = () => {
       case 0:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-8"
           >
             {/* Carte Équipe avec glassmorphism */}
             <motion.div 
               className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
-              whileHover={{ scale: 1.02, rotateY: 2 }}
+              whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.3 }}
             >
               {/* Fond animé */}
@@ -400,8 +692,8 @@ const PlanningWizard: React.FC = () => {
                 >
                   <motion.div 
                     className="mr-4 p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                   >
                     <Calendar className="w-6 h-6" />
                   </motion.div>
@@ -433,7 +725,7 @@ const PlanningWizard: React.FC = () => {
             {/* Carte Semaine avec effet holographique */}
             <motion.div 
               className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
-              whileHover={{ scale: 1.02, rotateY: -2 }}
+              whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.3 }}
             >
               {/* Effet holographique */}
@@ -519,38 +811,19 @@ const PlanningWizard: React.FC = () => {
       case 1:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-8"
           >
+            {/* Contraintes Business */}
             <motion.div 
               className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
               whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Fond animé avec particules */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-blue-500/5 to-purple-600/10 dark:from-emerald-400/20 dark:via-blue-400/10 dark:to-purple-500/20"></div>
-              {[...Array(6)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full opacity-30"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                  animate={{
-                    y: [-10, 10, -10],
-                    opacity: [0.3, 0.8, 0.3],
-                  }}
-                  transition={{
-                    duration: 3 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 2,
-                  }}
-                />
-              ))}
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-pink-600/10 dark:from-orange-400/20 dark:via-red-400/10 dark:to-pink-500/20"></div>
               
               <div className="relative z-10">
                 <motion.h3 
@@ -560,138 +833,311 @@ const PlanningWizard: React.FC = () => {
                   transition={{ delay: 0.2 }}
                 >
                   <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
+                    className="mr-4 p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    <Users className="w-6 h-6" />
+                    <Building className="w-6 h-6" />
                   </motion.div>
-                  Employés disponibles cette semaine
-                  <Zap className="ml-2 w-5 h-5 text-yellow-500 animate-bounce" />
+                  Contraintes Business
+                  <div className="ml-2 text-orange-500">
+                    🏢
+                  </div>
                 </motion.h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {availableEmployees && availableEmployees.length > 0 ? availableEmployees.filter(employee => employee && employee._id).map((employee, index) => (
-                    <motion.label 
-                      key={employee._id} 
-                      className="group relative cursor-pointer"
-                      initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: index * 0.1, duration: 0.4 }}
-                      whileHover={{ scale: 1.05, y: -5 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedEmployees.includes(employee._id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedEmployees(prev => [...prev, employee._id]);
-                            setConstraints(prev => ({
-                              ...prev,
-                              employees: [...prev.employees, {
-                                id: employee._id,
-                                name: employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.name || 'Nom inconnu',
-                                email: employee.email,
-                                weeklyHours: 35,
-                                allowSplitShifts: false
-                              }]
-                            }));
-                          } else {
-                            setSelectedEmployees(prev => prev.filter(id => id !== employee._id));
-                            setConstraints(prev => ({
-                              ...prev,
-                              employees: prev.employees.filter(emp => emp.id !== employee._id)
-                            }));
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      
-                      <motion.div 
-                        className={`relative p-6 rounded-2xl transition-all duration-300 ${
-                          selectedEmployees.includes(employee._id)
-                            ? 'bg-gradient-to-br from-blue-500/20 to-purple-600/20 border-2 border-blue-500/50 dark:border-blue-400/50 shadow-lg shadow-blue-500/25'
-                            : 'bg-white/50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-600/50 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                        } backdrop-blur-sm`}
-                      >
-                        {/* Indicateur de sélection */}
-                        {selectedEmployees.includes(employee._id) && (
-                          <motion.div
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg"
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                          >
-                            <CheckCircle className="w-4 h-4 text-white" />
-                          </motion.div>
-                        )}
-                        
-                        <div className="flex flex-col items-center text-center">
-                          {/* Avatar avec effet holographique */}
-                          <motion.div 
-                            className={`relative w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-lg ${
-                              selectedEmployees.includes(employee._id)
-                                ? 'bg-gradient-to-br from-blue-500 to-purple-600'
-                                : 'bg-gradient-to-br from-gray-500 to-gray-700'
-                            }`}
-                            whileHover={{ rotate: [0, 5, -5, 0] }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {employee.firstName?.charAt(0) || employee.name?.charAt(0) || '?'}
-                            {selectedEmployees.includes(employee._id) && (
-                              <motion.div
-                                className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-purple-600/30 rounded-2xl"
-                                animate={{ opacity: [0.3, 0.7, 0.3] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                              />
-                            )}
-                          </motion.div>
-                          
-                          <div className="space-y-1">
-                            <div className="font-semibold text-gray-900 dark:text-white">
-                              {employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.name || 'Nom inconnu'}
+
+                {/* Suggestions contextuelles */}
+                {getContextualSuggestions().length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2 bg-blue-500 rounded-lg">
+                        <Lightbulb className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                          💡 Suggestions intelligentes
+                        </h4>
+                        <div className="space-y-2">
+                          {getContextualSuggestions().map((suggestion, idx) => (
+                            <div key={idx} className="text-sm text-blue-800 dark:text-blue-200">
+                              • {suggestion}
                             </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              📧 {employee.email}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Effet de survol */}
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                          style={{ pointerEvents: 'none' }}
-                        />
-                      </motion.div>
-                    </motion.label>
-                  )) : (
-                    <motion.div 
-                      className="col-span-full"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      <div className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 p-12 rounded-3xl text-center">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                          className="inline-block mb-4"
-                        >
-                          {isLoadingEmployees ? (
-                            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                          ) : (
-                            <AlertCircle className="w-12 h-12 text-gray-400" />
-                          )}
-                        </motion.div>
-                        <div className="text-lg text-gray-600 dark:text-gray-400">
-                          {isLoadingEmployees ? '🔄 Chargement des employés...' : 
-                           constraints.teamId ? '❌ Aucun employé trouvé dans cette équipe' : 
-                           '⚠️ Veuillez d\'abord sélectionner une équipe'}
+                          ))}
                         </div>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="space-y-8">
+                  {/* Heures d'ouverture jour par jour */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
+                  >
+                    <label className="block text-lg font-semibold mb-6 text-gray-700 dark:text-gray-300">
+                      ⏰ Configuration des horaires jour par jour
+                    </label>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {[
+                        { key: 'monday', label: 'Lundi', icon: '🌙', color: 'blue' },
+                        { key: 'tuesday', label: 'Mardi', icon: '🔥', color: 'red' },
+                        { key: 'wednesday', label: 'Mercredi', icon: '⚡', color: 'yellow' },
+                        { key: 'thursday', label: 'Jeudi', icon: '🌟', color: 'green' },
+                        { key: 'friday', label: 'Vendredi', icon: '🎉', color: 'purple' },
+                        { key: 'saturday', label: 'Samedi', icon: '🌊', color: 'cyan' },
+                        { key: 'sunday', label: 'Dimanche', icon: '☀️', color: 'amber' }
+                      ].map((day) => {
+                        const isOpen = constraints.companyConstraints.openingDays.includes(day.key);
+                        const dayHours = constraints.companyConstraints.openingHours.find(h => h.day === day.key);
+                        
+                        return (
+                          <motion.div
+                            key={day.key}
+                            className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                              isOpen
+                                ? 'border-green-300 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50'
+                            }`}
+                            whileHover={{ scale: 1.02 }}
+                          >
+                            <div className="flex items-center mb-3">
+                              <span className="text-xl mr-2">{day.icon}</span>
+                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{day.label}</h4>
+                              <div className="ml-auto">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isOpen}
+                                    onChange={(e) => {
+                                      const currentDays = constraints.companyConstraints.openingDays;
+                                      const newDays = e.target.checked
+                                        ? currentDays.includes(day.key) 
+                                          ? currentDays 
+                                          : [...currentDays, day.key]
+                                        : currentDays.filter(d => d !== day.key);
+                                      
+                                      setConstraints(prev => ({
+                                        ...prev,
+                                        companyConstraints: {
+                                          ...prev.companyConstraints,
+                                          openingDays: newDays
+                                        }
+                                      }));
+                                    }}
+                                    className="sr-only"
+                                  />
+                                  <div className={`relative w-10 h-5 transition duration-200 ease-linear rounded-full ${
+                                    isOpen ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                                  }`}>
+                                    <div className={`absolute left-0 top-0 bg-white w-5 h-5 rounded-full transition transform ${
+                                      isOpen ? 'translate-x-5' : 'translate-x-0'
+                                    } shadow-md`}></div>
+                                  </div>
+                                </label>
+                              </div>
+                            </div>
+                            
+                            {isOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-2"
+                              >
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">
+                                      Ouverture
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={dayHours?.hours[0]?.split('-')[0] || '08:00'}
+                                      onChange={(e) => {
+                                        const currentHours = dayHours?.hours[0]?.split('-') || ['08:00', '18:00'];
+                                        const newTimeRange = `${e.target.value}-${currentHours[1]}`;
+                                        
+                                        setConstraints(prev => ({
+                                          ...prev,
+                                          companyConstraints: {
+                                            ...prev.companyConstraints,
+                                            openingHours: prev.companyConstraints.openingHours.map(h =>
+                                              h.day === day.key
+                                                ? { ...h, hours: [newTimeRange] }
+                                                : h
+                                            )
+                                          }
+                                        }));
+                                      }}
+                                      className="w-full p-1.5 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400 transition-colors [color-scheme:light] dark:[color-scheme:dark]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">
+                                      Fermeture
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={dayHours?.hours[0]?.split('-')[1] || '18:00'}
+                                      onChange={(e) => {
+                                        const currentHours = dayHours?.hours[0]?.split('-') || ['08:00', '18:00'];
+                                        const newTimeRange = `${currentHours[0]}-${e.target.value}`;
+                                        
+                                        setConstraints(prev => ({
+                                          ...prev,
+                                          companyConstraints: {
+                                            ...prev.companyConstraints,
+                                            openingHours: prev.companyConstraints.openingHours.map(h =>
+                                              h.day === day.key
+                                                ? { ...h, hours: [newTimeRange] }
+                                                : h
+                                            )
+                                          }
+                                        }));
+                                      }}
+                                      className="w-full p-1.5 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400 transition-colors [color-scheme:light] dark:[color-scheme:dark]"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                                  Durée: {(() => {
+                                    const hours = dayHours?.hours[0]?.split('-') || ['08:00', '18:00'];
+                                    const start = hours[0].split(':').map(Number);
+                                    const end = hours[1].split(':').map(Number);
+                                    const startMinutes = start[0] * 60 + start[1];
+                                    const endMinutes = end[0] * 60 + end[1];
+                                    const duration = (endMinutes - startMinutes) / 60;
+                                    return `${duration}h`;
+                                  })()}
+                                </div>
+                              </motion.div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="mt-4 space-y-3">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                        <div className="flex items-center justify-center">
+                          <Clock className="w-4 h-4 text-blue-600 mr-2" />
+                          <div className="text-sm text-blue-800 dark:text-blue-200">
+                            <strong>{constraints.companyConstraints.openingDays.length}</strong> jours d'ouverture configurés
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Boutons de raccourci */}
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <motion.button
+                          type="button"
+                          onClick={() => {
+                            // Activer Lun-Ven avec horaires 8h-18h
+                            const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+                            setConstraints(prev => ({
+                              ...prev,
+                              companyConstraints: {
+                                ...prev.companyConstraints,
+                                openingDays: weekDays,
+                                openingHours: prev.companyConstraints.openingHours.map(h => 
+                                  weekDays.includes(h.day) 
+                                    ? { ...h, hours: ['08:00-18:00'] }
+                                    : h
+                                )
+                              }
+                            }));
+                          }}
+                          className="px-3 py-1.5 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          🔄 Semaine classique (Lun-Ven 8h-18h)
+                        </motion.button>
+                        
+                        <motion.button
+                          type="button"
+                          onClick={() => {
+                            // Activer Lun-Sam avec horaires 9h-19h
+                            const retailDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            setConstraints(prev => ({
+                              ...prev,
+                              companyConstraints: {
+                                ...prev.companyConstraints,
+                                openingDays: retailDays,
+                                openingHours: prev.companyConstraints.openingHours.map(h => 
+                                  retailDays.includes(h.day) 
+                                    ? { ...h, hours: h.day === 'saturday' ? ['09:00-17:00'] : ['09:00-19:00'] }
+                                    : h
+                                )
+                              }
+                            }));
+                          }}
+                          className="px-3 py-1.5 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          🛍️ Commerce (Lun-Sam)
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Couverture minimum */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <label className="block text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
+                      👥 Couverture minimum
+                    </label>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-gray-600 dark:text-gray-400">
+                          Combien de personnes minimum en simultané ?
+                        </label>
+                        <div className="flex items-center space-x-4">
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={constraints.companyConstraints.minStaffSimultaneously || 2}
+                            onChange={(e) => setConstraints(prev => ({
+                              ...prev,
+                              companyConstraints: {
+                                ...prev.companyConstraints,
+                                minStaffSimultaneously: parseInt(e.target.value)
+                              }
+                            }))}
+                            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                          />
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                              {constraints.companyConstraints.minStaffSimultaneously || 2}
+                            </span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">personnes</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-sm">
+                          {(constraints.companyConstraints.minStaffSimultaneously || 2) >= 5 ? (
+                            <span className="text-red-600 dark:text-red-400">⚠️ Attention: Exigence élevée</span>
+                          ) : (constraints.companyConstraints.minStaffSimultaneously || 2) >= 3 ? (
+                            <span className="text-yellow-600 dark:text-yellow-400">⚡ Exigence modérée</span>
+                          ) : (
+                            <span className="text-green-600 dark:text-green-400">✅ Exigence raisonnable</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
@@ -701,39 +1147,19 @@ const PlanningWizard: React.FC = () => {
       case 2:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-8"
           >
+            {/* Préférences Équipe */}
             <motion.div 
               className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
               whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Fond animé avec particules */}
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-orange-500/5 to-yellow-600/10 dark:from-red-400/20 dark:via-orange-400/10 dark:to-yellow-500/20"></div>
-              {[...Array(6)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-2 h-2 bg-gradient-to-r from-red-400 to-orange-600 rounded-full opacity-30"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                  animate={{
-                    y: [-10, 10, -10],
-                    opacity: [0.3, 0.8, 0.3],
-                    scale: [1, 1.2, 1],
-                  }}
-                  transition={{
-                    duration: 4 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 2,
-                  }}
-                />
-              ))}
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-cyan-600/10 dark:from-purple-400/20 dark:via-blue-400/10 dark:to-cyan-500/20"></div>
               
               <div className="relative z-10">
                 <motion.h3 
@@ -743,269 +1169,410 @@ const PlanningWizard: React.FC = () => {
                   transition={{ delay: 0.2 }}
                 >
                   <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
+                    className="mr-4 p-3 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    <UserX className="w-6 h-6" />
+                    <Users className="w-6 h-6" />
                   </motion.div>
-                  Absences & Contraintes
-                  <AlertCircle className="ml-2 w-5 h-5 text-red-500 animate-pulse" />
+                  Préférences Équipe
+                  <div className="ml-2 text-purple-500">
+                    👥
+                  </div>
                 </motion.h3>
-                
-                <div className="space-y-6">
-                  {constraints.employees.length > 0 ? constraints.employees.map((employee, index) => (
-                    <motion.div 
-                      key={employee.id} 
-                      className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
-                      initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: index * 0.1, duration: 0.4 }}
-                      whileHover={{ scale: 1.02, y: -2 }}
+
+                {/* Sélecteur de mode */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="mb-8"
+                >
+                  <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
+                    🎯 Choisissez votre mode de configuration
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Mode Profils */}
+                    <motion.button
+                      type="button"
+                      onClick={() => setTeamConfigMode('profiles')}
+                      className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                        teamConfigMode === 'profiles'
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-600'
+                      }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      {/* Effet holographique */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-orange-500/5 to-yellow-500/5 dark:from-red-400/10 dark:via-orange-400/10 dark:to-yellow-400/10"></div>
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">👨‍💼</div>
+                        <h5 className="font-semibold text-gray-900 dark:text-white">Profils Prédéfinis</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Rapide et intelligent
+                        </p>
+                      </div>
+                    </motion.button>
+
+                    {/* Mode Express */}
+                    <motion.button
+                      type="button"
+                      onClick={() => setTeamConfigMode('express')}
+                      className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                        teamConfigMode === 'express'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
+                      }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">⚡</div>
+                        <h5 className="font-semibold text-gray-900 dark:text-white">Configuration Express</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          30 secondes maximum
+                        </p>
+                      </div>
+                    </motion.button>
+
+                    {/* Mode Avancé */}
+                    <motion.button
+                      type="button"
+                      onClick={() => setTeamConfigMode('advanced')}
+                      className={`p-6 rounded-xl border-2 transition-all duration-300 ${
+                        teamConfigMode === 'advanced'
+                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-cyan-300 dark:hover:border-cyan-600'
+                      }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">🔧</div>
+                        <h5 className="font-semibold text-gray-900 dark:text-white">Détail Avancé</h5>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Contrôle total
+                        </p>
+                      </div>
+                    </motion.button>
+                  </div>
+                </motion.div>
+
+                {/* Contenu selon le mode sélectionné */}
+                <AnimatePresence mode="wait">
+                  {teamConfigMode === 'profiles' && (
+                    <motion.div
+                      key="profiles"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                        👨‍💼 Sélectionnez les profils pour votre équipe
+                      </h4>
                       
-                      <div className="relative z-10">
-                        <motion.h4 
-                          className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                          initial={{ x: -10 }}
-                          animate={{ x: 0 }}
-                          transition={{ delay: index * 0.1 + 0.2 }}
+                      {/* Liste des employés avec sélection de profils */}
+                      {availableEmployees && availableEmployees.length > 0 ? availableEmployees.map((employee, index) => (
+                        <motion.div
+                          key={employee._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-white/50 dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200/50 dark:border-gray-600/50"
                         >
-                          <motion.div 
-                            className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm mr-4 shadow-lg"
-                            whileHover={{ rotate: [0, 10, -10, 0] }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {employee.name?.charAt(0) || '?'}
-                          </motion.div>
-                          {employee.name}
-                          <UserX className="ml-2 w-4 h-4 text-red-500" />
-                        </motion.h4>
-                        
-                        <div className="space-y-4">
-                          {/* Affichage des absences existantes */}
-                          {(employeeExceptions[employee.id] || []).map((exception, exceptionIndex) => (
-                            <motion.div
-                              key={exceptionIndex}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: exceptionIndex * 0.1 }}
-                              className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-700/50"
-                            >
-                              <div className="flex items-center justify-between mb-4">
-                                <h5 className="text-sm font-medium text-red-700 dark:text-red-300">
-                                  Absence #{exceptionIndex + 1}
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold mr-4">
+                                {employee.firstName?.charAt(0) || employee.name?.charAt(0) || '?'}
+                              </div>
+                              <div>
+                                <h5 className="font-semibold text-gray-900 dark:text-white">
+                                  {employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.name || 'Nom inconnu'}
                                 </h5>
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={() => {
-                                    const newExceptions = { ...employeeExceptions };
-                                    newExceptions[employee.id] = newExceptions[employee.id].filter((_, i) => i !== exceptionIndex);
-                                    if (newExceptions[employee.id].length === 0) {
-                                      delete newExceptions[employee.id];
-                                    }
-                                    setEmployeeExceptions(newExceptions);
-                                  }}
-                                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/50 rounded-lg transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </motion.button>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Type d'absence
-                                  </label>
-                                  <select
-                                    className="w-full px-4 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 shadow-sm backdrop-blur-sm"
-                                    value={exception.type || ''}
-                                    onChange={(e) => {
-                                      const newExceptions = { ...employeeExceptions };
-                                      newExceptions[employee.id][exceptionIndex].type = e.target.value;
-                                      setEmployeeExceptions(newExceptions);
-                                    }}
-                                  >
-                                    <option value="">Sélectionner un type</option>
-                                    <option value="sick">Arrêt maladie</option>
-                                    <option value="vacation">Congés</option>
-                                    <option value="training">Formation</option>
-                                    <option value="unavailable">Indisponible</option>
-                                    <option value="reduced">Horaires réduits</option>
-                                  </select>
-                                </div>
-                                
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Date d'absence
-                                  </label>
-                                  <input
-                                    type="date"
-                                    className="w-full px-4 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 shadow-sm backdrop-blur-sm"
-                                    min={new Date().toISOString().split('T')[0]}
-                                    value={exception.date || ''}
-                                    onChange={(e) => {
-                                      const newExceptions = { ...employeeExceptions };
-                                      newExceptions[employee.id][exceptionIndex].date = e.target.value;
-                                      setEmployeeExceptions(newExceptions);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                  Raison / Commentaire
-                                </label>
-                                <textarea
-                                  rows={2}
-                                  className="w-full px-4 py-3 bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 shadow-sm backdrop-blur-sm resize-none"
-                                  placeholder="Décrivez la raison de l'absence..."
-                                  value={exception.reason || ''}
-                                  onChange={(e) => {
-                                    const newExceptions = { ...employeeExceptions };
-                                    newExceptions[employee.id][exceptionIndex].reason = e.target.value;
-                                    setEmployeeExceptions(newExceptions);
-                                  }}
-                                />
-                              </div>
-                            </motion.div>
-                          ))}
-                          
-                          {/* Bouton pour ajouter une absence */}
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => {
-                              const newExceptions = { ...employeeExceptions };
-                              if (!newExceptions[employee.id]) {
-                                newExceptions[employee.id] = [];
-                              }
-                              newExceptions[employee.id].push({
-                                type: '',
-                                date: '',
-                                reason: ''
-                              });
-                              setEmployeeExceptions(newExceptions);
-                            }}
-                            className="w-full p-4 border-2 border-dashed border-red-300 dark:border-red-600 rounded-xl hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 font-medium"
-                          >
-                            <Plus className="w-5 h-5" />
-                            Ajouter une absence
-                          </motion.button>
-                        </div>
-
-                        {/* Section Préférences */}
-                        <div className="border-t border-gray-200/50 dark:border-gray-600/30 pt-6 mt-6">
-                          <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                            <Star className="w-5 h-5 text-yellow-500" />
-                            Préférences de Planning
-                          </h4>
-                          
-                          <div className="space-y-4">
-                            {/* Jours préférés */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Jours préférés (optionnel)
-                              </label>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map(day => {
-                                  const isSelected = employeePreferences[employee.id]?.preferredDays?.includes(day) || false;
-                                  return (
-                                    <motion.button
-                                      key={day}
-                                      type="button"
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      onClick={() => {
-                                        const currentPrefs = employeePreferences[employee.id] || {};
-                                        const currentDays = currentPrefs.preferredDays || [];
-                                        const newDays = isSelected 
-                                          ? currentDays.filter(d => d !== day)
-                                          : [...currentDays, day];
-                                        
-                                        setEmployeePreferences(prev => ({
-                                          ...prev,
-                                          [employee.id]: {
-                                            ...currentPrefs,
-                                            preferredDays: newDays
-                                          }
-                                        }));
-                                      }}
-                                      className={`p-2 text-sm rounded-lg border transition-all duration-200 ${
-                                        isSelected 
-                                          ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
-                                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-600'
-                                      }`}
-                                    >
-                                      {day.charAt(0).toUpperCase() + day.slice(1)}
-                                    </motion.button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Heures préférées */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Créneaux horaires préférés (optionnel)
-                              </label>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {['08:00-12:00', '09:00-13:00', '14:00-18:00', '15:00-19:00', '16:00-20:00'].map(slot => {
-                                  const isSelected = employeePreferences[employee.id]?.preferredHours?.includes(slot) || false;
-                                  return (
-                                    <motion.button
-                                      key={slot}
-                                      type="button"
-                                      whileHover={{ scale: 1.02 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      onClick={() => {
-                                        const currentPrefs = employeePreferences[employee.id] || {};
-                                        const currentHours = currentPrefs.preferredHours || [];
-                                        const newHours = isSelected 
-                                          ? currentHours.filter(h => h !== slot)
-                                          : [...currentHours, slot];
-                                        
-                                        setEmployeePreferences(prev => ({
-                                          ...prev,
-                                          [employee.id]: {
-                                            ...currentPrefs,
-                                            preferredHours: newHours
-                                          }
-                                        }));
-                                      }}
-                                      className={`p-3 text-sm rounded-lg border transition-all duration-200 ${
-                                        isSelected 
-                                          ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
-                                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-green-300 dark:hover:border-green-600'
-                                      }`}
-                                    >
-                                      {slot}
-                                    </motion.button>
-                                  );
-                                })}
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{employee.email}</p>
                               </div>
                             </div>
                           </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {Object.entries(employeeProfiles).map(([profileKey, profile]) => (
+                              <motion.button
+                                key={profileKey}
+                                type="button"
+                                onClick={() => applyEmployeeProfile(employee._id, profileKey)}
+                                className={`p-4 rounded-lg border-2 transition-all duration-300 ${
+                                  selectedEmployees.includes(employee._id) && employeePreferences[employee._id]?.profile === profileKey
+                                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                                    : 'border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-600'
+                                }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <div className="text-center">
+                                  <div className="text-2xl mb-1">{profile.icon}</div>
+                                  <div className="font-medium text-sm text-gray-900 dark:text-white">{profile.name}</div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400">{profile.hours}h</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">{profile.days}</div>
+                                </div>
+                              </motion.button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )) : (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          Aucun employé disponible
                         </div>
-                      </div>
-                    </motion.div>
-                  )) : (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="text-center py-12"
-                    >
-                      <UserX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Aucun employé sélectionné pour cette semaine
-                      </p>
+                      )}
                     </motion.div>
                   )}
-                </div>
+
+                  {teamConfigMode === 'express' && (
+                    <motion.div
+                      key="express"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                        ⚡ Configuration Express (30 secondes)
+                      </h4>
+                      
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
+                        <h5 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">
+                          Pour cette équipe, privilégier :
+                        </h5>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          {Object.entries(expressSettings.preferences).map(([key, setting]) => (
+                            <motion.label
+                              key={key}
+                              className="flex items-center space-x-3 cursor-pointer"
+                              whileHover={{ scale: 1.02 }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={setting}
+                                onChange={(e) => setExpressSettings(prev => ({
+                                  ...prev,
+                                  preferences: {
+                                    ...prev.preferences,
+                                    [key]: e.target.checked
+                                  }
+                                }))}
+                                className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <span className="text-gray-700 dark:text-gray-300">
+                                {key === 'regularSchedules' && '📅 Horaires réguliers pour tous'}
+                                {key === 'maxFlexibility' && '🔄 Flexibilité individuelle maximale'}
+                                {key === 'concentratedHours' && '📊 Concentration des heures (moins de jours)'}
+                                {key === 'spreadHours' && '📈 Étalement des heures (plus de jours)'}
+                              </span>
+                            </motion.label>
+                          ))}
+                        </div>
+
+                        <h5 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">
+                          Contraintes spéciales :
+                        </h5>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(expressSettings.constraints).map(([key, setting]) => (
+                            <motion.label
+                              key={key}
+                              className="flex items-center space-x-3 cursor-pointer"
+                              whileHover={{ scale: 1.02 }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={setting}
+                                onChange={(e) => setExpressSettings(prev => ({
+                                  ...prev,
+                                  constraints: {
+                                    ...prev.constraints,
+                                    [key]: e.target.checked
+                                  }
+                                }))}
+                                className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <span className="text-gray-700 dark:text-gray-300">
+                                {key === 'noWeekends' && '🚫 Personne ne travaille le weekend'}
+                                {key === 'avoidLongBreaks' && '⏰ Éviter les coupures > 2h'}
+                                {key === 'preferMornings' && '🌅 Privilégier les matinées'}
+                                {key === 'preferAfternoons' && '🌇 Privilégier les après-midis'}
+                              </span>
+                            </motion.label>
+                          ))}
+                        </div>
+
+                        <motion.button
+                          type="button"
+                          onClick={() => applyExpressSettings()}
+                          className="mt-6 w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-300"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          🚀 Appliquer la configuration express
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {teamConfigMode === 'advanced' && (
+                    <motion.div
+                      key="advanced"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                        🔧 Configuration Avancée - Contrôle Total
+                      </h4>
+                      
+                      <div className="bg-cyan-50 dark:bg-cyan-900/20 p-4 rounded-xl">
+                        <p className="text-cyan-800 dark:text-cyan-200 text-sm">
+                          💡 Utilisez l'historique et les suggestions automatiques pour optimiser votre configuration
+                        </p>
+                      </div>
+
+                      {/* Configuration détaillée par employé (réutilise l'ancien système amélioré) */}
+                      {availableEmployees && availableEmployees.length > 0 ? availableEmployees.map((employee, index) => (
+                        <motion.div
+                          key={employee._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-white/50 dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200/50 dark:border-gray-600/50"
+                        >
+                          <div className="flex items-center mb-6">
+                            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold mr-4">
+                              {employee.firstName?.charAt(0) || employee.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-gray-900 dark:text-white">
+                                {employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.name || 'Nom inconnu'}
+                              </h5>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">{employee.email}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Heures contractuelles */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Heures contractuelles par semaine
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="48"
+                                value={employeePreferences[employee._id]?.weeklyHours || 35}
+                                onChange={(e) => {
+                                  const currentPrefs = employeePreferences[employee._id] || {};
+                                  setEmployeePreferences(prev => ({
+                                    ...prev,
+                                    [employee._id]: {
+                                      ...currentPrefs,
+                                      weeklyHours: parseInt(e.target.value) || 35
+                                    }
+                                  }));
+                                }}
+                                className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500"
+                              />
+                            </div>
+
+                            {/* Jour de repos */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Jour de repos obligatoire
+                              </label>
+                              <select
+                                value={employeePreferences[employee._id]?.restDay || ''}
+                                onChange={(e) => {
+                                  const currentPrefs = employeePreferences[employee._id] || {};
+                                  setEmployeePreferences(prev => ({
+                                    ...prev,
+                                    [employee._id]: {
+                                      ...currentPrefs,
+                                      restDay: e.target.value || undefined
+                                    }
+                                  }));
+                                }}
+                                className="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500"
+                              >
+                                <option value="">Aucun jour fixe</option>
+                                {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map(day => (
+                                  <option key={day} value={day}>{day.charAt(0).toUpperCase() + day.slice(1)}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Créneaux fractionnés */}
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                              Préférence pour les créneaux
+                            </label>
+                            <div className="flex space-x-3">
+                              <motion.button
+                                type="button"
+                                onClick={() => {
+                                  const currentPrefs = employeePreferences[employee._id] || {};
+                                  setEmployeePreferences(prev => ({
+                                    ...prev,
+                                    [employee._id]: {
+                                      ...currentPrefs,
+                                      allowSplitShifts: false
+                                    }
+                                  }));
+                                }}
+                                className={`flex-1 p-3 rounded-lg border-2 transition-all duration-300 ${
+                                  employeePreferences[employee._id]?.allowSplitShifts === false
+                                    ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
+                                    : 'border-gray-300 dark:border-gray-600 hover:border-cyan-300'
+                                }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                🔄 Service continu
+                              </motion.button>
+                              <motion.button
+                                type="button"
+                                onClick={() => {
+                                  const currentPrefs = employeePreferences[employee._id] || {};
+                                  setEmployeePreferences(prev => ({
+                                    ...prev,
+                                    [employee._id]: {
+                                      ...currentPrefs,
+                                      allowSplitShifts: true
+                                    }
+                                  }));
+                                }}
+                                className={`flex-1 p-3 rounded-lg border-2 transition-all duration-300 ${
+                                  employeePreferences[employee._id]?.allowSplitShifts === true
+                                    ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
+                                    : 'border-gray-300 dark:border-gray-600 hover:border-cyan-300'
+                                }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                ✂️ Créneaux fractionnés OK
+                              </motion.button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )) : (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          Aucun employé disponible
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           </motion.div>
@@ -1014,39 +1581,19 @@ const PlanningWizard: React.FC = () => {
       case 3:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="space-y-8"
           >
+            {/* Validation & Génération */}
             <motion.div 
               className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
               whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Fond animé avec particules */}
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-pink-600/10 dark:from-orange-400/20 dark:via-red-400/10 dark:to-pink-500/20"></div>
-              {[...Array(8)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-2 h-2 bg-gradient-to-r from-orange-400 to-pink-600 rounded-full opacity-30"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                  animate={{
-                    y: [-10, 10, -10],
-                    opacity: [0.3, 0.8, 0.3],
-                    scale: [1, 1.2, 1],
-                  }}
-                  transition={{
-                    duration: 4 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 2,
-                  }}
-                />
-              ))}
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-teal-600/10 dark:from-green-400/20 dark:via-emerald-400/10 dark:to-teal-500/20"></div>
               
               <div className="relative z-10">
                 <motion.h3 
@@ -1056,1181 +1603,267 @@ const PlanningWizard: React.FC = () => {
                   transition={{ delay: 0.2 }}
                 >
                   <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
+                    className="mr-4 p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl text-white shadow-lg"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    <Settings className="w-6 h-6" />
+                    <CheckCircle className="w-6 h-6" />
                   </motion.div>
-                  Contraintes Entreprise
-                  <Clock className="ml-2 w-5 h-5 text-orange-500 animate-pulse" />
+                  Validation & Génération
+                  <div className="ml-2 text-green-500">
+                    ✅
+                  </div>
                 </motion.h3>
-                
-                <div className="space-y-8">
-                  {/* Section Horaires jour par jour */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
-                  >
-                    <motion.h4 
-                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                      initial={{ x: -10 }}
-                      animate={{ x: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <Calendar className="w-5 h-5 mr-3 text-purple-500" />
-                      📅 Horaires d'ouverture par jour
-                    </motion.h4>
-                    
-                    <div className="space-y-4">
-                      {[
-                        { day: 'monday', label: 'Lundi', emoji: '📋' },
-                        { day: 'tuesday', label: 'Mardi', emoji: '📊' },
-                        { day: 'wednesday', label: 'Mercredi', emoji: '📈' },
-                        { day: 'thursday', label: 'Jeudi', emoji: '📉' },
-                        { day: 'friday', label: 'Vendredi', emoji: '📋' },
-                        { day: 'saturday', label: 'Samedi', emoji: '🛍️' },
-                        { day: 'sunday', label: 'Dimanche', emoji: '🏠' }
-                      ].map((dayInfo, index) => {
-                        const dayData = constraints.companyConstraints.openingHours.find(h => h.day === dayInfo.day);
-                        const isOpen = constraints.companyConstraints.openingDays.includes(dayInfo.day);
-                        
-                        return (
-                          <motion.div
-                            key={dayInfo.day}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.5 + index * 0.1 }}
-                            className={`p-4 rounded-xl border transition-all duration-300 ${
-                              isOpen 
-                                ? 'bg-green-50/80 dark:bg-green-900/20 border-green-200 dark:border-green-700/50' 
-                                : 'bg-gray-50/80 dark:bg-gray-800/20 border-gray-200 dark:border-gray-700/50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center">
-                                <span className="text-lg mr-2">{dayInfo.emoji}</span>
-                                <span className="font-semibold text-gray-900 dark:text-white">{dayInfo.label}</span>
-                              </div>
-                              <motion.label 
-                                className="flex items-center cursor-pointer"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isOpen}
-                                  onChange={(e) => {
-                                    const newOpeningDays = e.target.checked
-                                      ? [...constraints.companyConstraints.openingDays, dayInfo.day]
-                                      : constraints.companyConstraints.openingDays.filter(d => d !== dayInfo.day);
-                                    
-                                    setConstraints(prev => ({
-                                      ...prev,
-                                      companyConstraints: {
-                                        ...prev.companyConstraints,
-                                        openingDays: newOpeningDays
-                                      }
-                                    }));
-                                  }}
-                                  className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                />
-                                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                                  {isOpen ? 'Ouvert' : 'Fermé'}
-                                </span>
-                              </motion.label>
-                            </div>
-                            
-                            {isOpen && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="space-y-3"
-                              >
-                                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                  Créneaux horaires (ex: 08:00-12:00, 13:00-20:00)
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="Ex: 08:00-12:00, 13:00-20:00"
-                                  value={dayData?.hours.join(', ') || ''}
-                                  onChange={(e) => {
-                                    const hours = e.target.value.split(',').map(h => h.trim()).filter(h => h);
-                                    const newOpeningHours = constraints.companyConstraints.openingHours.filter(h => h.day !== dayInfo.day);
-                                    if (hours.length > 0) {
-                                      newOpeningHours.push({ day: dayInfo.day, hours });
-                                    }
-                                    
-                                    setConstraints(prev => ({
-                                      ...prev,
-                                      companyConstraints: {
-                                        ...prev.companyConstraints,
-                                        openingHours: newOpeningHours
-                                      }
-                                    }));
-                                  }}
-                                  className="w-full p-3 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-lg focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 dark:text-white text-sm"
-                                />
-                              </motion.div>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
 
-                  {/* Section Limites horaires des employés */}
+                {/* Dashboard de validation */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="space-y-6"
+                >
+                  {/* Score de faisabilité */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-xl border border-green-200/50 dark:border-green-700/50">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-green-900 dark:text-green-100">
+                        🎯 Score de Faisabilité
+                      </h4>
+                      <div
+                        className={`text-3xl font-bold ${
+                          calculateFeasibilityScore() >= 80 ? 'text-green-600' :
+                          calculateFeasibilityScore() >= 60 ? 'text-yellow-600' : 'text-red-600'
+                        }`}
+                      >
+                        {calculateFeasibilityScore()}%
+                      </div>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                      <motion.div
+                        className={`h-3 rounded-full ${
+                          calculateFeasibilityScore() >= 80 ? 'bg-green-600' :
+                          calculateFeasibilityScore() >= 60 ? 'bg-yellow-600' : 'bg-red-600'
+                        }`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${calculateFeasibilityScore()}%` }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                      />
+                    </div>
+                    
+                    <p className="text-sm text-green-800 dark:text-green-200">
+                      {calculateFeasibilityScore() >= 80 ? '🎉 Excellent! Planning très faisable' :
+                       calculateFeasibilityScore() >= 60 ? '⚡ Bon score, quelques ajustements recommandés' :
+                       '⚠️ Score faible, révision nécessaire'}
+                    </p>
+                  </div>
+
+                  {/* Résumé des contraintes */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className="bg-white/50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200/50 dark:border-gray-600/50"
+                    >
+                      <div className="flex items-center mb-2">
+                        <Calendar className="w-5 h-5 text-blue-500 mr-2" />
+                        <h5 className="font-semibold text-gray-900 dark:text-white">Période</h5>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Semaine {constraints.weekNumber} • {constraints.year}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Équipe: {availableTeams.find(t => t._id === constraints.teamId)?.name || 'Non sélectionnée'}
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      className="bg-white/50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200/50 dark:border-gray-600/50"
+                    >
+                      <div className="flex items-center mb-2">
+                        <Building className="w-5 h-5 text-orange-500 mr-2" />
+                        <h5 className="font-semibold text-gray-900 dark:text-white">Ouverture</h5>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {constraints.companyConstraints.openingDays?.length || 0} jours/semaine
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {constraints.companyConstraints.dailyOpeningTime || '08:00'} - {constraints.companyConstraints.dailyClosingTime || '18:00'}
+                      </p>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6 }}
+                      className="bg-white/50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200/50 dark:border-gray-600/50"
+                    >
+                      <div className="flex items-center mb-2">
+                        <Users className="w-5 h-5 text-purple-500 mr-2" />
+                        <h5 className="font-semibold text-gray-900 dark:text-white">Équipe</h5>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {availableEmployees?.length || 0} employés configurés
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Mode: {teamConfigMode === 'profiles' ? 'Profils' : teamConfigMode === 'express' ? 'Express' : 'Avancé'}
+                      </p>
+                    </motion.div>
+                  </div>
+
+                  {/* Alertes et recommandations */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
                   >
-                    <motion.h4 
-                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                      initial={{ x: -10 }}
-                      animate={{ x: 0 }}
-                      transition={{ delay: 0.8 }}
-                    >
-                      <AlertCircle className="w-5 h-5 mr-3 text-red-500" />
-                      ⏱️ Limites de travail quotidien
-                    </motion.h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.9 }}
-                      >
-                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                          📉 Heures minimales par jour
-                        </label>
-                        <motion.input
-                          type="number"
-                          min="1"
-                          max="12"
-                          value={constraints.companyConstraints.minHoursPerDay || 4}
-                          onChange={(e) => setConstraints(prev => ({
-                            ...prev,
-                            companyConstraints: {
-                              ...prev.companyConstraints,
-                              minHoursPerDay: parseInt(e.target.value) || 4
-                            }
-                          }))}
-                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
-                          whileFocus={{ scale: 1.02 }}
-                        />
-                      </motion.div>
-                      
-                      <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 1.0 }}
-                      >
-                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                          📈 Heures maximales par jour
-                        </label>
-                        <motion.input
-                          type="number"
-                          min="4"
-                          max="12"
-                          value={constraints.companyConstraints.maxHoursPerDay || 10}
-                          onChange={(e) => setConstraints(prev => ({
-                            ...prev,
-                            companyConstraints: {
-                              ...prev.companyConstraints,
-                              maxHoursPerDay: parseInt(e.target.value) || 10
-                            }
-                          }))}
-                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-red-500/30 focus:border-red-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
-                          whileFocus={{ scale: 1.02 }}
-                        />
-                      </motion.div>
-                    </div>
-                  </motion.div>
-
-                  {/* Section Pauses déjeuner */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.1 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
-                  >
-                    <motion.h4 
-                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                      initial={{ x: -10 }}
-                      animate={{ x: 0 }}
-                      transition={{ delay: 1.2 }}
-                    >
-                      <Users className="w-5 h-5 mr-3 text-green-500" />
-                      🍽️ Gestion des pauses
-                    </motion.h4>
-                    
-                    <div className="space-y-6">
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.3 }}
-                      >
-                        <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
-                          ⏰ Durée de pause déjeuner (en minutes)
-                        </label>
-                        <motion.input
-                          type="number"
-                          min="30"
-                          max="120"
-                          step="15"
-                          value={constraints.companyConstraints.lunchBreakDuration || 60}
-                          onChange={(e) => setConstraints(prev => ({
-                            ...prev,
-                            companyConstraints: {
-                              ...prev.companyConstraints,
-                              lunchBreakDuration: parseInt(e.target.value) || 60
-                            }
-                          }))}
-                          className="w-full p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner"
-                          whileFocus={{ scale: 1.02 }}
-                        />
-                      </motion.div>
-                      
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.4 }}
-                      >
-                        <motion.label 
-                          className="group flex items-center cursor-pointer p-4 bg-white/30 dark:bg-gray-800/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30 hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all duration-300"
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <motion.input
-                            type="checkbox"
-                            checked={constraints.companyConstraints.mandatoryLunchBreak || true}
-                            onChange={(e) => setConstraints(prev => ({
-                              ...prev,
-                              companyConstraints: {
-                                ...prev.companyConstraints,
-                                mandatoryLunchBreak: e.target.checked
-                              }
-                            }))}
-                            className="w-5 h-5 text-green-500 bg-white/50 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 mr-4"
-                            whileHover={{ scale: 1.1 }}
-                          />
-                          <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">
-                              🍽️ Pause déjeuner obligatoire
-                            </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              Impose une pause déjeuner pour tous les créneaux dépassant 6h
-                            </div>
-                          </div>
-                          {constraints.companyConstraints.mandatoryLunchBreak && (
-                            <motion.div
-                              className="ml-auto"
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: "spring", stiffness: 300 }}
-                            >
-                              <CheckCircle className="w-6 h-6 text-green-500" />
-                            </motion.div>
-                          )}
-                        </motion.label>
-                      </motion.div>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        );
-
-      case 4:
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="space-y-8"
-          >
-            <motion.div 
-              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
-              whileHover={{ scale: 1.01 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Fond animé avec effet de temps */}
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-red-500/5 to-pink-600/10 dark:from-orange-400/20 dark:via-red-400/10 dark:to-pink-500/20"></div>
-              {[...Array(10)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 bg-gradient-to-r from-orange-400 to-pink-600 rounded-full opacity-40"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                  animate={{
-                    x: [0, Math.random() * 30 - 15],
-                    y: [0, Math.random() * 30 - 15],
-                    opacity: [0.4, 0.8, 0.4],
-                    scale: [1, 1.5, 1],
-                  }}
-                  transition={{
-                    duration: 5 + Math.random() * 3,
-                    repeat: Infinity,
-                    delay: Math.random() * 3,
-                  }}
-                />
-              ))}
-              
-              <div className="relative z-10">
-                <motion.h3 
-                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
-                  initial={{ x: -20 }}
-                  animate={{ x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
-                  >
-                    <Clock className="w-6 h-6" />
-                  </motion.div>
-                  Contraintes globales
-                  <Zap className="ml-2 w-5 h-5 text-yellow-500 animate-bounce" />
-                </motion.h3>
-                
-                <div className="space-y-8">
-                  {/* Jours d'ouverture */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
-                  >
-                    <motion.h4 
-                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                      initial={{ x: -10 }}
-                      animate={{ x: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <Calendar className="w-5 h-5 mr-3 text-blue-500" />
-                      🗓️ Jours d'ouverture
-                    </motion.h4>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                      {[
-                        { key: 'monday', label: 'Lundi', icon: '🌙', color: 'from-blue-500 to-indigo-600' },
-                        { key: 'tuesday', label: 'Mardi', icon: '🔥', color: 'from-red-500 to-pink-600' },
-                        { key: 'wednesday', label: 'Mercredi', icon: '⚡', color: 'from-yellow-500 to-orange-600' },
-                        { key: 'thursday', label: 'Jeudi', icon: '🌟', color: 'from-green-500 to-teal-600' },
-                        { key: 'friday', label: 'Vendredi', icon: '🎉', color: 'from-purple-500 to-violet-600' },
-                        { key: 'saturday', label: 'Samedi', icon: '🌊', color: 'from-cyan-500 to-blue-600' },
-                        { key: 'sunday', label: 'Dimanche', icon: '☀️', color: 'from-amber-500 to-yellow-600' }
-                      ].map((day, index) => {
-                        const isSelected = constraints.companyConstraints.openingDays.includes(day.key);
-                        return (
-                          <motion.label 
-                            key={day.key}
-                            className="group cursor-pointer"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.1 + 0.5, duration: 0.3 }}
-                            whileHover={{ scale: 1.05, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setConstraints(prev => ({
-                                    ...prev,
-                                    companyConstraints: {
-                                      ...prev.companyConstraints,
-                                      openingDays: [...prev.companyConstraints.openingDays, day.key]
-                                    }
-                                  }));
-                                } else {
-                                  setConstraints(prev => ({
-                                    ...prev,
-                                    companyConstraints: {
-                                      ...prev.companyConstraints,
-                                      openingDays: prev.companyConstraints.openingDays.filter(d => d !== day.key)
-                                    }
-                                  }));
-                                }
-                              }}
-                              className="sr-only"
-                            />
-                            
-                            <motion.div 
-                              className={`relative p-4 rounded-xl transition-all duration-300 ${
-                                isSelected
-                                  ? `bg-gradient-to-br ${day.color} text-white shadow-lg transform shadow-${day.color.split('-')[1]}-500/25`
-                                  : 'bg-white/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                              } backdrop-blur-sm border border-white/30 dark:border-gray-600/30`}
-                            >
-                              {/* Indicateur de sélection */}
-                              {isSelected && (
-                                <motion.div
-                                  className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg"
-                                  initial={{ scale: 0, rotate: -180 }}
-                                  animate={{ scale: 1, rotate: 0 }}
-                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                >
-                                  <CheckCircle className="w-4 h-4 text-white" />
-                                </motion.div>
-                              )}
-                              
-                              <div className="text-center">
-                                <motion.div 
-                                  className="text-2xl mb-2"
-                                  animate={isSelected ? { rotate: [0, 10, -10, 0] } : {}}
-                                  transition={{ duration: 0.5 }}
-                                >
-                                  {day.icon}
-                                </motion.div>
-                                <div className="text-sm font-semibold">{day.label}</div>
-                              </div>
-                              
-                              {/* Effet de brillance */}
-                              {isSelected && (
-                                <motion.div
-                                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-xl"
-                                  animate={{ x: ['-100%', '100%'] }}
-                                  transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
-                                />
-                              )}
-                            </motion.div>
-                          </motion.label>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                  
-                  {/* Nombre minimum d'employés */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg"
-                  >
-                    <motion.h4 
-                      className="text-lg font-bold mb-6 flex items-center text-gray-900 dark:text-white"
-                      initial={{ x: -10 }}
-                      animate={{ x: 0 }}
-                      transition={{ delay: 0.7 }}
-                    >
-                      <Users className="w-5 h-5 mr-3 text-emerald-500" />
-                      👥 Nombre minimum d'employés présents simultanément
-                    </motion.h4>
-                    
-                    <div className="flex items-center space-x-4">
-                      <motion.input
-                        type="number"
-                        min="1"
-                        max="10"
-                        placeholder="Ex: 2 employés"
-                        value={constraints.companyConstraints.minStaffSimultaneously || 2}
-                        onChange={(e) => setConstraints(prev => ({
-                          ...prev,
-                          companyConstraints: {
-                            ...prev.companyConstraints,
-                            minStaffSimultaneously: parseInt(e.target.value)
-                          }
-                        }))}
-                        className="flex-1 p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all duration-300 text-gray-900 dark:text-white shadow-inner placeholder-gray-400 dark:placeholder-gray-500"
-                        whileFocus={{ scale: 1.02 }}
-                      />
-                      
-                      <motion.div 
-                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 rounded-xl border border-emerald-500/30"
-                        animate={{ opacity: [0.7, 1, 0.7] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                          {constraints.companyConstraints.minStaffSimultaneously || 2} min
-                        </span>
-                      </motion.div>
-                    </div>
-                    
-                    <motion.div 
-                      className="mt-4 p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-700/30"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.8 }}
-                    >
-                      <div className="text-sm text-blue-700 dark:text-blue-300 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-2" />
-                        Garantit qu'il y aura toujours au moins ce nombre d'employés en même temps
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        );
-
-      case 5:
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="space-y-8"
-          >
-            <motion.div 
-              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
-              whileHover={{ scale: 1.01 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Fond animé avec effet IA/neural */}
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-indigo-600/10 dark:from-purple-400/20 dark:via-pink-400/10 dark:to-indigo-500/20"></div>
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-600 rounded-full opacity-50"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                  animate={{
-                    scale: [1, 2, 1],
-                    opacity: [0.5, 1, 0.5],
-                    x: [0, Math.random() * 40 - 20],
-                    y: [0, Math.random() * 40 - 20],
-                  }}
-                  transition={{
-                    duration: 3 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 2,
-                  }}
-                />
-              ))}
-              
-              <div className="relative z-10">
-                <motion.h3 
-                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
-                  initial={{ x: -20 }}
-                  animate={{ x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
-                  >
-                    <Brain className="w-6 h-6" />
-                  </motion.div>
-                  Préférences IA
-                  <Sparkles className="ml-2 w-5 h-5 text-purple-500 animate-pulse" />
-                </motion.h3>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {[
-                    {
-                      key: 'favorSplit',
-                      title: 'Favoriser les coupures',
-                      description: 'Privilégier les journées avec pause déjeuner',
-                      icon: '🍽️',
-                      color: 'from-orange-500 to-red-600',
-                      bgColor: 'from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20'
-                    },
-                    {
-                      key: 'favorUniformity',
-                      title: 'Uniformité des horaires',
-                      description: 'Horaires similaires pour tous les employés',
-                      icon: '⚖️',
-                      color: 'from-blue-500 to-cyan-600',
-                      bgColor: 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20'
-                    },
-                    {
-                      key: 'balanceWorkload',
-                      title: 'Équilibrer la charge',
-                      description: 'Répartir équitablement les heures',
-                      icon: '⚡',
-                      color: 'from-green-500 to-emerald-600',
-                      bgColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20'
-                    },
-                    {
-                      key: 'prioritizeEmployeePreferences',
-                      title: 'Priorité aux préférences employés',
-                      description: 'Respecter au maximum les souhaits individuels',
-                      icon: '❤️',
-                      color: 'from-purple-500 to-pink-600',
-                      bgColor: 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20'
-                    }
-                  ].map((preference, index) => {
-                    const isChecked = constraints.preferences[preference.key as keyof typeof constraints.preferences] || false;
-                    
-                    return (
-                      <motion.label 
-                        key={preference.key}
-                        className="group cursor-pointer"
-                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ delay: index * 0.1 + 0.3, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => setConstraints(prev => ({
-                            ...prev,
-                            preferences: { ...prev.preferences, [preference.key]: e.target.checked }
-                          }))}
-                          className="sr-only"
-                        />
-                        
-                        <motion.div 
-                          className={`relative p-6 rounded-2xl transition-all duration-300 ${
-                            isChecked
-                              ? `bg-gradient-to-br ${preference.bgColor} border-2 border-opacity-50 shadow-lg`
-                              : 'bg-white/50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-600/50 hover:bg-white/70 dark:hover:bg-gray-800/70'
-                          } backdrop-blur-sm overflow-hidden`}
-                        >
-                          {/* Effet holographique pour les préférences activées */}
-                          {isChecked && (
-                            <motion.div
-                              className={`absolute inset-0 bg-gradient-to-br ${preference.color} opacity-10`}
-                              animate={{ opacity: [0.05, 0.15, 0.05] }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                            />
-                          )}
-                          
-                          {/* Indicateur de sélection */}
-                          {isChecked && (
-                            <motion.div
-                              className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg"
-                              initial={{ scale: 0, rotate: -180 }}
-                              animate={{ scale: 1, rotate: 0 }}
-                              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                            >
-                              <CheckCircle className="w-5 h-5 text-white" />
-                            </motion.div>
-                          )}
-                          
-                          <div className="relative z-10">
-                            <div className="flex items-start space-x-4">
-                              <motion.div 
-                                className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg ${
-                                  isChecked
-                                    ? `bg-gradient-to-br ${preference.color} text-white`
-                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
-                                }`}
-                                animate={isChecked ? { rotate: [0, 10, -10, 0] } : {}}
-                                transition={{ duration: 0.5 }}
-                              >
-                                {preference.icon}
-                              </motion.div>
-                              
-                              <div className="flex-1 min-w-0">
-                                <motion.h4 
-                                  className={`text-lg font-bold mb-2 ${
-                                    isChecked ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'
-                                  }`}
-                                  animate={isChecked ? { x: [0, 2, -2, 0] } : {}}
-                                  transition={{ duration: 0.3 }}
-                                >
-                                  {preference.title}
-                                </motion.h4>
-                                <p className={`text-sm ${
-                                  isChecked ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-500'
-                                }`}>
-                                  {preference.description}
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {/* Status indicator */}
-                            <motion.div 
-                              className={`mt-4 flex items-center justify-between p-3 rounded-xl ${
-                                isChecked 
-                                  ? `bg-gradient-to-r ${preference.color} text-white`
-                                  : 'bg-gray-100/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400'
-                              }`}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ delay: index * 0.1 + 0.5 }}
-                            >
-                              <span className="text-sm font-medium">
-                                {isChecked ? '✅ Activé' : '⭕ Désactivé'}
-                              </span>
-                              {isChecked && (
-                                <motion.div
-                                  animate={{ scale: [1, 1.2, 1] }}
-                                  transition={{ duration: 1, repeat: Infinity }}
-                                  className="w-2 h-2 bg-white rounded-full"
-                                />
-                              )}
-                            </motion.div>
-                          </div>
-                          
-                          {/* Effet de brillance */}
-                          {isChecked && (
-                            <motion.div
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded-2xl"
-                              animate={{ x: ['-100%', '100%'] }}
-                              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                            />
-                          )}
-                        </motion.div>
-                      </motion.label>
-                    );
-                  })}
-                </div>
-                
-                {/* Résumé des préférences sélectionnées */}
-                <motion.div
-                  className="mt-8 p-6 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-200/50 dark:border-purple-700/30"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 }}
-                >
-                  <div className="flex items-center mb-4">
-                    <Brain className="w-6 h-6 mr-3 text-purple-600 dark:text-purple-400" />
-                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                      🧠 Résumé des préférences IA
+                    <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
+                      🔍 Vérifications automatiques
                     </h4>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(constraints.preferences).map(([key, value]) => {
-                      const labels = {
-                        favorSplit: '🍽️ Coupures',
-                        favorUniformity: '⚖️ Uniformité',
-                        balanceWorkload: '⚡ Équilibrage',
-                        prioritizeEmployeePreferences: '❤️ Préférences'
-                      };
-                      
-                      return (
-                        <motion.div 
-                          key={key}
-                          className={`text-center p-3 rounded-xl ${
-                            value 
-                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                              : 'bg-gray-100 dark:bg-gray-700/30 text-gray-500 dark:text-gray-400'
+                    
+                    <div className="space-y-3">
+                      {getValidationAlerts().map((alert, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.8 + index * 0.1 }}
+                          className={`p-4 rounded-xl border ${
+                            alert.type === 'error' 
+                              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700/50'
+                              : alert.type === 'warning'
+                              ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700/50'
+                              : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/50'
                           }`}
-                          animate={value ? { scale: [1, 1.05, 1] } : {}}
-                          transition={{ duration: 0.5 }}
                         >
-                          <div className="text-sm font-medium">
-                            {labels[key as keyof typeof labels]}
-                          </div>
-                          <div className="text-xs mt-1">
-                            {value ? 'Activé' : 'Désactivé'}
+                          <div className="flex items-start space-x-3">
+                            <div className={`p-2 rounded-lg ${
+                              alert.type === 'error' ? 'bg-red-100 dark:bg-red-800' :
+                              alert.type === 'warning' ? 'bg-yellow-100 dark:bg-yellow-800' :
+                              'bg-green-100 dark:bg-green-800'
+                            }`}>
+                              {alert.type === 'error' ? (
+                                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                              ) : alert.type === 'warning' ? (
+                                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                              ) : (
+                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <h5 className={`font-medium ${
+                                alert.type === 'error' ? 'text-red-800 dark:text-red-200' :
+                                alert.type === 'warning' ? 'text-yellow-800 dark:text-yellow-200' :
+                                'text-green-800 dark:text-green-200'
+                              }`}>
+                                {alert.title}
+                              </h5>
+                              <p className={`text-sm mt-1 ${
+                                alert.type === 'error' ? 'text-red-700 dark:text-red-300' :
+                                alert.type === 'warning' ? 'text-yellow-700 dark:text-yellow-300' :
+                                'text-green-700 dark:text-green-300'
+                              }`}>
+                                {alert.message}
+                              </p>
+                              {alert.suggestion && (
+                                <p className={`text-sm mt-2 font-medium ${
+                                  alert.type === 'error' ? 'text-red-600 dark:text-red-400' :
+                                  alert.type === 'warning' ? 'text-yellow-600 dark:text-yellow-400' :
+                                  'text-green-600 dark:text-green-400'
+                                }`}>
+                                  💡 {alert.suggestion}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  </motion.div>
+
+                  {/* Estimation des résultats */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.0 }}
+                    className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200/50 dark:border-blue-700/50"
+                  >
+                    <h4 className="text-lg font-semibold mb-4 text-blue-900 dark:text-blue-100">
+                      📊 Estimation des résultats
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          {availableEmployees?.length || 0}
+                        </div>
+                        <div className="text-sm text-blue-800 dark:text-blue-200">
+                          Employés planifiés
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          ~{Math.round(((availableEmployees?.length || 0) * 35) / (constraints.companyConstraints.openingDays?.length || 5))}h
+                        </div>
+                        <div className="text-sm text-blue-800 dark:text-blue-200">
+                          Heures/jour moyennes
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          {getEstimatedSatisfaction()}%
+                        </div>
+                        <div className="text-sm text-blue-800 dark:text-blue-200">
+                          Satisfaction estimée
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Bouton de génération */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.2 }}
+                    className="flex justify-center"
+                  >
+                    <motion.button
+                      type="button"
+                      onClick={() => {
+                        const errors = getValidationAlerts().filter(alert => alert.type === 'error');
+                        if (errors.length > 0) {
+                          console.log('Erreurs de validation bloquant la génération:', errors);
+                        }
+                        handleGeneration();
+                      }}
+                      disabled={isGenerating || getValidationAlerts().some(alert => alert.type === 'error')}
+                      className={`px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 ${
+                        isGenerating || getValidationAlerts().some(alert => alert.type === 'error')
+                          ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl'
+                      }`}
+                      whileHover={!isGenerating && !getValidationAlerts().some(alert => alert.type === 'error') ? { scale: 1.05 } : {}}
+                      whileTap={!isGenerating && !getValidationAlerts().some(alert => alert.type === 'error') ? { scale: 0.95 } : {}}
+                    >
+                      {isGenerating ? (
+                        <div className="flex items-center space-x-3">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                          <span>Génération en cours...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-3">
+                          <Rocket className="w-6 h-6" />
+                          <span>🚀 Générer le planning</span>
+                        </div>
+                      )}
+                    </motion.button>
+                  </motion.div>
                 </motion.div>
               </div>
             </motion.div>
-          </motion.div>
-        );
-
-      case 6:
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="space-y-8"
-          >
-            <motion.div 
-              className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-8 rounded-3xl shadow-2xl overflow-hidden"
-              whileHover={{ scale: 1.01 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Fond animé avec effet de validation/succès */}
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-blue-500/5 to-purple-600/10 dark:from-green-400/20 dark:via-blue-400/10 dark:to-purple-500/20"></div>
-              {[...Array(15)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 bg-gradient-to-r from-green-400 to-blue-600 rounded-full opacity-40"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                  }}
-                  animate={{
-                    scale: [1, 1.8, 1],
-                    opacity: [0.4, 0.9, 0.4],
-                    rotate: [0, 180, 360],
-                  }}
-                  transition={{
-                    duration: 4 + Math.random() * 3,
-                    repeat: Infinity,
-                    delay: Math.random() * 3,
-                  }}
-                />
-              ))}
-              
-              <div className="relative z-10">
-                <motion.h3 
-                  className="text-2xl font-bold mb-8 flex items-center text-gray-900 dark:text-white"
-                  initial={{ x: -20 }}
-                  animate={{ x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <motion.div 
-                    className="mr-4 p-3 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl text-white shadow-lg"
-                    whileHover={{ rotate: 360, scale: 1.1 }}
-                    transition={{ duration: 0.6 }}
-                  >
-                    <CheckCircle className="w-6 h-6" />
-                  </motion.div>
-                  Résumé de la configuration
-                  <Rocket className="ml-2 w-5 h-5 text-orange-500 animate-bounce" />
-                </motion.h3>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Équipe sélectionnée */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.3, duration: 0.4 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
-                    whileHover={{ scale: 1.02, y: -2 }}
-                  >
-                    {/* Effet holographique bleu */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 dark:from-blue-400/20 dark:to-cyan-400/20"></div>
-                    <motion.div
-                      className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/30 to-cyan-600/30 rounded-full blur-2xl"
-                      animate={{ opacity: [0.5, 0.8, 0.5] }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    />
-                    
-                    <div className="relative z-10">
-                      <motion.div 
-                        className="flex items-center mb-4"
-                        initial={{ x: -10 }}
-                        animate={{ x: 0 }}
-                        transition={{ delay: 0.4 }}
-                      >
-                        <motion.div 
-                          className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white mr-4 shadow-lg"
-                          whileHover={{ rotate: [0, 15, -15, 0] }}
-                          transition={{ duration: 0.5 }}
-                        >
-                          <Users className="w-6 h-6" />
-                        </motion.div>
-                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                          🏢 Équipe sélectionnée
-                        </h4>
-                      </motion.div>
-                      
-                      <div className="space-y-3">
-                        {formatDateRange(constraints.weekNumber, constraints.year) && (
-                          <motion.div 
-                            className="p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-700/30"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
-                          >
-                            <div className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                              📅 Semaine {constraints.weekNumber} de {constraints.year}
-                            </div>
-                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                              {formatDateRange(constraints.weekNumber, constraints.year)}
-                            </div>
-                          </motion.div>
-                        )}
-                        
-                        <motion.div 
-                          className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-blue-400/20 dark:to-cyan-400/20 rounded-lg"
-                          animate={{ opacity: [0.8, 1, 0.8] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            👥 Employés sélectionnés
-                          </span>
-                          <motion.span 
-                            className="text-lg font-bold text-blue-600 dark:text-blue-400"
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {constraints.employees.length}
-                          </motion.span>
-                        </motion.div>
-                      </div>
-                    </div>
-                  </motion.div>
-                  
-                  {/* Contraintes configurées */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.4, duration: 0.4 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
-                    whileHover={{ scale: 1.02, y: -2 }}
-                  >
-                    {/* Effet holographique vert */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 dark:from-green-400/20 dark:to-emerald-400/20"></div>
-                    <motion.div
-                      className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-400/30 to-emerald-600/30 rounded-full blur-2xl"
-                      animate={{ opacity: [0.5, 0.8, 0.5] }}
-                      transition={{ duration: 3, repeat: Infinity, delay: 1 }}
-                    />
-                    
-                    <div className="relative z-10">
-                      <motion.div 
-                        className="flex items-center mb-4"
-                        initial={{ x: -10 }}
-                        animate={{ x: 0 }}
-                        transition={{ delay: 0.5 }}
-                      >
-                        <motion.div 
-                          className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white mr-4 shadow-lg"
-                          whileHover={{ rotate: [0, 15, -15, 0] }}
-                          transition={{ duration: 0.5 }}
-                        >
-                          <Clock className="w-6 h-6" />
-                        </motion.div>
-                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                          ⚙️ Contraintes configurées
-                        </h4>
-                      </motion.div>
-                      
-                      <div className="space-y-3">
-                        <motion.div 
-                          className="flex items-center justify-between p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 dark:from-green-400/20 dark:to-emerald-400/20 rounded-lg"
-                          animate={{ opacity: [0.8, 1, 0.8] }}
-                          transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                        >
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            📅 Jours d'ouverture
-                          </span>
-                          <motion.span 
-                            className="text-lg font-bold text-green-600 dark:text-green-400"
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {constraints.companyConstraints.openingDays.length}
-                          </motion.span>
-                        </motion.div>
-                        
-                        <motion.div 
-                          className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-400/20 dark:to-teal-400/20 rounded-lg"
-                          animate={{ opacity: [0.8, 1, 0.8] }}
-                          transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-                        >
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            👥 Minimum simultané
-                          </span>
-                          <motion.span 
-                            className="text-lg font-bold text-emerald-600 dark:text-emerald-400"
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {constraints.companyConstraints.minStaffSimultaneously}
-                          </motion.span>
-                        </motion.div>
-                      </div>
-                    </div>
-                  </motion.div>
-                  
-                  {/* Préférences IA */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.5, duration: 0.4 }}
-                    className="relative bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-white/30 dark:border-gray-600/30 p-6 rounded-2xl shadow-lg overflow-hidden"
-                    whileHover={{ scale: 1.02, y: -2 }}
-                  >
-                    {/* Effet holographique violet */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 dark:from-purple-400/20 dark:to-pink-400/20"></div>
-                    <motion.div
-                      className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400/30 to-pink-600/30 rounded-full blur-2xl"
-                      animate={{ opacity: [0.5, 0.8, 0.5] }}
-                      transition={{ duration: 3, repeat: Infinity, delay: 2 }}
-                    />
-                    
-                    <div className="relative z-10">
-                      <motion.div 
-                        className="flex items-center mb-4"
-                        initial={{ x: -10 }}
-                        animate={{ x: 0 }}
-                        transition={{ delay: 0.6 }}
-                      >
-                        <motion.div 
-                          className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white mr-4 shadow-lg"
-                          whileHover={{ rotate: [0, 15, -15, 0] }}
-                          transition={{ duration: 0.5 }}
-                        >
-                          <Brain className="w-6 h-6" />
-                        </motion.div>
-                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                          🧠 Préférences IA
-                        </h4>
-                      </motion.div>
-                      
-                      <div className="space-y-2">
-                        {Object.entries(constraints.preferences).map(([key, value], index) => {
-                          const labels = {
-                            favorSplit: '🍽️ Coupures',
-                            favorUniformity: '⚖️ Uniformité',
-                            balanceWorkload: '⚡ Équilibrage',
-                            prioritizeEmployeePreferences: '❤️ Préférences'
-                          };
-                          
-                          return (
-                            <motion.div 
-                              key={key}
-                              className={`flex items-center justify-between p-2 rounded-lg text-sm ${
-                                value 
-                                  ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 dark:from-green-400/20 dark:to-emerald-400/20 text-green-700 dark:text-green-300'
-                                  : 'bg-gradient-to-r from-gray-500/10 to-gray-600/10 dark:from-gray-600/20 dark:to-gray-700/20 text-gray-500 dark:text-gray-400'
-                              }`}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.7 + index * 0.1 }}
-                            >
-                              <span className="font-medium">
-                                {labels[key as keyof typeof labels]}
-                              </span>
-                              <motion.span 
-                                className={`text-xs px-2 py-1 rounded-full ${
-                                  value 
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                    : 'bg-gray-100 dark:bg-gray-700/30 text-gray-400 dark:text-gray-500'
-                                }`}
-                                animate={value ? { scale: [1, 1.05, 1] } : {}}
-                                transition={{ duration: 0.5 }}
-                              >
-                                {value ? '✓ ON' : '✗ OFF'}
-                              </motion.span>
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            </motion.div>
-
-            {isGenerating && (
-              <motion.div 
-                className="relative bg-gradient-to-br from-blue-500/90 to-purple-600/90 backdrop-blur-xl border border-blue-400/30 p-8 rounded-3xl text-white mb-8 overflow-hidden"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                {/* Particules d'énergie IA */}
-                {[...Array(12)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-1 h-1 bg-white/60 rounded-full"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                    }}
-                    animate={{
-                      scale: [0, 1.5, 0],
-                      opacity: [0, 1, 0],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: Math.random() * 2,
-                    }}
-                  />
-                ))}
-                
-                <div className="relative z-10">
-                  <motion.div 
-                    className="flex items-center justify-center mb-6"
-                    initial={{ y: 10 }}
-                    animate={{ y: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="mr-4"
-                    >
-                      <Brain className="w-10 h-10" />
-                    </motion.div>
-                    <span className="text-2xl font-bold">🤖 IA en action...</span>
-                  </motion.div>
-                  
-                  <div className="mb-6">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Progression</span>
-                      <span>{Math.round(generationProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
-                      <motion.div 
-                        className="bg-gradient-to-r from-cyan-300 to-white h-3 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${generationProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <motion.div 
-                    className="text-center text-lg font-medium"
-                    key={generationProgress < 30 ? 'analyse' : generationProgress < 70 ? 'optimisation' : generationProgress < 100 ? 'finalisation' : 'termine'}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                  >
-                    {generationProgress < 30 && '🔍 Analyse des contraintes...'}
-                    {generationProgress >= 30 && generationProgress < 70 && '⚡ Optimisation du planning...'}
-                    {generationProgress >= 70 && generationProgress < 100 && '🎯 Finalisation...'}
-                    {generationProgress >= 100 && '✨ Terminé!'}
-                  </motion.div>
-                </div>
-              </motion.div>
-            )}
-
-            <motion.button
-              onClick={generateSchedule}
-              disabled={isGenerating || constraints.employees.length === 0}
-              className="group relative w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-6 rounded-3xl font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-2xl shadow-blue-500/30 overflow-hidden"
-              whileHover={{ scale: isGenerating ? 1 : 1.02, y: isGenerating ? 0 : -2 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {/* Effet de brillance */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-                initial={{ x: '-100%' }}
-                animate={{ x: isGenerating ? '100%' : '-100%' }}
-                transition={{ duration: 1.5, repeat: isGenerating ? Infinity : 0, ease: "easeInOut" }}
-              />
-              
-              <div className="relative z-10 flex items-center justify-center">
-                {isGenerating ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="mr-3"
-                    >
-                      <Brain className="w-6 h-6" />
-                    </motion.div>
-                    🚀 Génération en cours...
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="w-6 h-6 mr-3 group-hover:animate-bounce" />
-                    ✨ Lancer la génération IA
-                    <Sparkles className="w-5 h-5 ml-2 animate-pulse" />
-                  </>
-                )}
-              </div>
-            </motion.button>
           </motion.div>
         );
 
@@ -2243,25 +1876,23 @@ const PlanningWizard: React.FC = () => {
     <LayoutWithSidebar activeItem="planning-wizard" pageTitle="Assistant IA Planning">
       {/* Fond futuriste avec particules animées */}
       <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/10">
-        {/* Particules flottantes */}
-        {[...Array(20)].map((_, i) => (
+        {/* Particules flottantes simplifiées */}
+        {[...Array(8)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-blue-400/30 rounded-full"
+            className="absolute w-1 h-1 bg-blue-400/20 rounded-full"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
             }}
             animate={{
-              x: [0, Math.random() * 100 - 50],
-              y: [0, Math.random() * 100 - 50],
-              opacity: [0.3, 0.8, 0.3],
+              opacity: [0.2, 0.5, 0.2],
             }}
             transition={{
-              duration: 8 + Math.random() * 4,
+              duration: 4,
               repeat: Infinity,
-              ease: "linear",
-              delay: Math.random() * 5,
+              ease: "easeInOut",
+              delay: i * 0.5,
             }}
           />
         ))}
@@ -2322,7 +1953,7 @@ const PlanningWizard: React.FC = () => {
                 </div>
 
                 {/* Navigation des étapes */}
-                <div className="grid grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                   {steps.map((step, index) => {
                     const StepIcon = step.icon;
                     return (
@@ -2341,7 +1972,7 @@ const PlanningWizard: React.FC = () => {
                               ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30' :
                               'bg-white/50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 border border-gray-200/50 dark:border-gray-600/50'
                           }`}
-                          whileHover={{ scale: 1.1, rotate: step.isActive ? 5 : 0 }}
+                          whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
                           {step.isCompleted ? (
@@ -2357,10 +1988,8 @@ const PlanningWizard: React.FC = () => {
                           )}
                           
                           {step.isActive && (
-                            <motion.div
-                              className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-purple-600/30 rounded-2xl"
-                              animate={{ opacity: [0.3, 0.7, 0.3] }}
-                              transition={{ duration: 2, repeat: Infinity }}
+                            <div
+                              className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-purple-600/30 rounded-2xl opacity-50"
                             />
                           )}
                         </motion.div>

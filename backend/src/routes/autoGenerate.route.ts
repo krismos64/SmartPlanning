@@ -39,13 +39,19 @@ const planningRequestSchema = z.object({
     })).optional(),
     preferences: z.object({
       preferredDays: z.array(z.string()).optional(),
-      preferredHours: z.array(z.string().regex(/^\d{2}:\d{2}-\d{2}:\d{2}$/, 'Format horaire invalide (HH:MM-HH:MM)')).optional()
-    }).optional()
+      preferredHours: z.array(z.string().regex(/^\d{2}:\d{2}-\d{2}:\d{2}$/, 'Format horaire invalide (HH:MM-HH:MM)')).optional(),
+      allowSplitShifts: z.boolean().optional()
+    }).optional(),
+    restDay: z.string().optional()
   })).min(1, 'Au moins un employé est requis'),
   companyConstraints: z.object({
     openDays: z.array(z.string()).optional(),
     openHours: z.array(z.string().regex(/^\d{2}:\d{2}-\d{2}:\d{2}$/, 'Format horaire invalide (HH:MM-HH:MM)')).optional(),
-    minEmployeesPerSlot: z.number().min(0).optional()
+    minEmployeesPerSlot: z.number().min(0).optional(),
+    maxHoursPerDay: z.number().min(4, 'Minimum 4 heures par jour').max(12, 'Maximum 12 heures par jour').optional(),
+    minHoursPerDay: z.number().min(1, 'Minimum 1 heure par jour').max(12, 'Maximum 12 heures par jour').optional(),
+    mandatoryLunchBreak: z.boolean().optional(),
+    lunchBreakDuration: z.number().min(30, 'Minimum 30 minutes de pause').max(120, 'Maximum 120 minutes de pause').optional()
   }).optional()
 });
 

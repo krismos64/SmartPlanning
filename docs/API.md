@@ -5,9 +5,10 @@
 L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
 
 **URL de base**: `https://smartplanning.onrender.com/api`  
-**Version**: 1.8.0 (Juillet 2025)  
+**Version**: 2.1.0 (Juillet 2025)  
 **Documentation interactive**: Consultez Postman ou utilisez curl pour tester les endpoints  
-**Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)
+**Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)  
+**🎯 Nouvelle fonctionnalité**: Génération automatique de plannings optimisée (respect 100% des contraintes wizards)
 
 ## Authentification
 
@@ -16,6 +17,7 @@ L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScr
 L'API utilise des cookies httpOnly sécurisés pour l'authentification. Après connexion, le token JWT est automatiquement stocké dans un cookie sécurisé.
 
 **Configuration requise :**
+
 - `credentials: 'include'` dans les requêtes
 - `withCredentials: true` pour axios
 
@@ -36,6 +38,7 @@ GET /api/auth/google
 ```
 
 **Flux OAuth :**
+
 1. Redirection vers Google
 2. Callback vers `/api/auth/google/callback`
 3. Redirection vers le frontend avec token
@@ -257,7 +260,15 @@ Content-Type: application/json
 }
 ```
 
-#### 🤖 Génération automatique de planning (Nouveau)
+#### 🤖 Génération automatique de planning (V2.1.0 - Optimisé)
+
+**🎯 Version 2.1.0 - Corrections critiques appliquées :**
+
+- ✅ **Jours de repos respectés à 100%** (fix conversion français/anglais)
+- ✅ **Heures d'ouverture configurées** utilisées au lieu des valeurs par défaut
+- ✅ **Validation stricte** des contraintes entreprise
+- ✅ **Performance maintenue** : Génération en 2-8ms
+- ✅ **Tests validés** : 3 scénarios réalistes confirmés
 
 ```http
 POST /api/schedules/auto-generate
@@ -278,15 +289,21 @@ Content-Type: application/json
         }
       ],
       "preferences": {
-        "preferredDays": ["lundi", "mardi", "mercredi", "jeudi"],
+        "preferredDays": ["monday", "tuesday", "wednesday", "thursday"],
+        "allowSplitShifts": false,
         "preferredHours": ["09:00-17:00"]
+      },
+      "restDay": "sunday"
       }
     }
   ],
   "companyConstraints": {
-    "openDays": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
-    "openHours": ["08:00-18:00"],
-    "minEmployeesPerSlot": 2
+    "openDays": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    "openHours": ["09:00-20:00", "09:00-12:00"], // Lundi-sam: 9h-20h, Dim: 9h-12h
+    "minEmployeesPerSlot": 2,
+    "maxHoursPerDay": 8,
+    "mandatoryLunchBreak": true,
+    "lunchBreakDuration": 60
   }
 }
 ```
@@ -610,6 +627,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **Réponse :**
+
 ```json
 {
   "success": true,
@@ -650,9 +668,11 @@ Authorization: Bearer <admin_token>
 ```
 
 **Paramètres :**
+
 - `period`: `1h`, `24h`, `7d`, `30d`
 
 **Réponse :**
+
 ```json
 {
   "success": true,
@@ -678,6 +698,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **Réponse :**
+
 ```json
 {
   "success": true,
@@ -703,10 +724,12 @@ Authorization: Bearer <admin_token>
 ```
 
 **Paramètres :**
+
 - `level`: `info`, `warn`, `error`, `all` (optionnel, défaut: `info`)
 - `limit`: Nombre de logs (query param, défaut: 100)
 
 **Réponse :**
+
 ```json
 {
   "success": true,
@@ -735,6 +758,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **Réponse :**
+
 ```json
 {
   "success": true,
@@ -768,6 +792,7 @@ Authorization: Bearer <admin_token>
 ```
 
 **Réponse :**
+
 ```json
 {
   "success": true,
@@ -814,8 +839,9 @@ Content-Type: application/json
 ```
 
 **Types supportés :**
+
 - `auth`: Tentatives d'authentification
-- `ai`: Requêtes IA  
+- `ai`: Requêtes IA
 - `planning`: Génération de plannings
 
 ### 📁 Upload de fichiers

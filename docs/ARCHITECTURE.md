@@ -4,7 +4,8 @@
 
 SmartPlanning utilise une architecture séparée moderne (découplée) avec un backend Node.js/Express et un frontend React, déployés sur des serveurs différents mais communicant via une API REST sécurisée.
 
-**Mise à jour** : Juillet 2025 - Version 1.8.0
+**Mise à jour** : Juillet 2025 - Version 2.1.0  
+**🎯 Nouveauté** : Système de génération automatique optimisé avec AdvancedSchedulingEngine
 
 ## Architecture générale
 
@@ -29,6 +30,7 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 ### Frontend (React + TypeScript)
 
 **Technologies principales :**
+
 - **React 18** : Framework UI avec hooks et contexte
 - **TypeScript** : Typage strict pour la fiabilité
 - **Vite** : Build tool moderne avec HMR ultra-rapide
@@ -36,6 +38,7 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 - **React Router** : Navigation SPA avec lazy loading
 
 **Composants et UI :**
+
 - **Lucide React** : Icônes modernes et cohérentes
 - **Framer Motion** : Animations fluides et performantes (Assistant IA Planning)
 - **Lottie React** : Animations complexes (JSON)
@@ -43,17 +46,20 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 - **React Helmet Async** : Gestion SEO et meta tags
 
 **Assistant IA Planning Futuriste (v1.6.0) :**
+
 - **Glassmorphism Design** : Effets de verre avec backdrop-blur
 - **Particules animées** : Système de particules flottantes
 - **Wizard moderne** : Interface 6 étapes avec navigation progressive
 - **Mode adaptatif** : Optimisation automatique light/dark
 
 **État et données :**
+
 - **React Context** : Gestion d'état global (auth, thème)
 - **Axios** : Client HTTP avec intercepteurs automatiques
 - **React Hook Form** : Gestion de formulaires performante
 
 **Performance :**
+
 - **Code splitting** : Chaque page = chunk séparé
 - **Lazy loading** : Composants chargés à la demande
 - **Bundle optimisé** : 1.9MB → 389KB (-80%)
@@ -62,12 +68,14 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 ### Backend (Node.js + TypeScript)
 
 **Technologies principales :**
+
 - **Node.js 18+** : Runtime JavaScript côté serveur
 - **Express.js** : Framework web minimaliste et rapide
 - **TypeScript** : Développement typé côté serveur
 - **Mongoose** : ODM pour MongoDB avec validation
 
 **Sécurité :**
+
 - **JWT** : Tokens d'authentification sécurisés
 - **bcrypt** : Hashage des mots de passe (salt 10)
 - **Helmet** : Headers de sécurité HTTP
@@ -75,12 +83,14 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 - **express-rate-limit** : Protection DoS
 
 **Middleware et utilitaires :**
+
 - **Morgan** : Logging HTTP détaillé
 - **Compression** : gzip/brotli automatique
 - **Multer** : Upload de fichiers multipart
 - **Passport** : Authentification OAuth Google
 
 **Performance :**
+
 - **Cache HTTP** : Stratégie intelligente par endpoint
 - **Index MongoDB** : Requêtes optimisées
 - **Compression** : Réduction automatique de 70%
@@ -89,12 +99,14 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 ### Base de données (MongoDB Atlas)
 
 **Architecture :**
+
 - **MongoDB Atlas** : Cluster cloud managé
 - **Mongoose ODM** : Schémas typés et validation
 - **Index optimisés** : Performance des requêtes
 - **Replica Set** : Haute disponibilité
 
 **Modèles principaux :**
+
 - `User` : Utilisateurs avec authentification
 - `Company` : Entreprises multi-tenant
 - `Team` : Équipes organisationnelles
@@ -108,12 +120,14 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 ### 1. Separation of Concerns
 
 **Frontend responsabilités :**
+
 - Présentation et interaction utilisateur
 - Validation côté client
 - Navigation et routing
 - Gestion d'état local
 
 **Backend responsabilités :**
+
 - Logique métier
 - Authentification et autorisation
 - Validation côté serveur
@@ -129,6 +143,7 @@ SmartPlanning utilise une architecture séparée moderne (découplée) avec un b
 ### 3. Component-Driven Development
 
 **Architecture des composants :**
+
 ```
 src/components/
 ├── ui/              # Composants réutilisables (Button, Modal, etc.)
@@ -150,6 +165,7 @@ src/components/
 ### JWT avec cookies httpOnly
 
 **Flux d'authentification :**
+
 1. User login → Backend vérifie credentials
 2. Backend génère JWT → Stockage cookie httpOnly
 3. Frontend reçoit user data → Mise à jour contexte
@@ -157,6 +173,7 @@ src/components/
 5. Backend vérifie JWT → Autorisation accordée
 
 **Avantages :**
+
 - **XSS Protection** : JS ne peut pas accéder au token
 - **CSRF Protection** : SameSite policy
 - **Auto-logout** : Expiration automatique
@@ -165,11 +182,13 @@ src/components/
 ### Role-Based Access Control (RBAC)
 
 **Hiérarchie des rôles :**
+
 ```
 admin > directeur > manager > employee
 ```
 
 **Permissions par rôle :**
+
 - **admin** : Accès global, gestion système
 - **directeur** : Gestion entreprise, équipes, utilisateurs
 - **manager** : Gestion équipe assignée, plannings, congés
@@ -180,12 +199,14 @@ admin > directeur > manager > employee
 ### Frontend optimizations
 
 **Build optimizations :**
+
 - **Manual chunks** : Bibliothèques groupées logiquement
 - **Tree shaking** : Code mort éliminé
 - **Minification** : Terser pour JS, cssnano pour CSS
 - **Asset optimization** : Images optimisées automatiquement
 
 **Runtime optimizations :**
+
 - **Lazy loading** : `React.lazy()` + Suspense
 - **Memoization** : `React.memo()` pour composants purs
 - **Virtual scrolling** : Pour grandes listes
@@ -194,12 +215,14 @@ admin > directeur > manager > employee
 ### Backend optimizations
 
 **Database optimizations :**
+
 - **Index strategies** : Compound indexes pour requêtes complexes
 - **Projection** : Sélection champs nécessaires uniquement
 - **Aggregation** : Pipeline optimisé pour statistiques
 - **Connection pooling** : Mongoose connection management
 
 **HTTP optimizations :**
+
 - **Compression middleware** : gzip/brotli niveau 6
 - **ETag support** : Cache validation intelligente
 - **HTTP/2** : Support automatique via Render
@@ -210,6 +233,7 @@ admin > directeur > manager > employee
 ### 🚀 Intelligence Artificielle (Assistant IA Planning Futuriste)
 
 **Architecture IA modernisée (v1.7.1) :**
+
 ```
 ┌─────────────────────┐    API REST     ┌─────────────────────┐    AI API    ┌─────────────────────┐
 │   Frontend Wizard   │◄───────────────►│   Backend + Zod     │◄─────────────►│   OpenRouter Only   │
@@ -221,6 +245,7 @@ admin > directeur > manager > employee
 ```
 
 **🎨 Interface Futuriste :**
+
 - **Wizard 6 étapes** : Navigation progressive avec validation
 - **Glassmorphism** : Design moderne avec effets de transparence
 - **Particules animées** : Système immersif avec Framer Motion
@@ -228,12 +253,14 @@ admin > directeur > manager > employee
 - **Feedback temps réel** : Progression IA avec animations d'énergie
 
 **🧠 IA Avancée :**
+
 - **OpenRouter + DeepSeek R1** : Modèle optimisé pour génération de plannings
 - **Configuration granulaire** : Contraintes par employé et entreprise
 - **Validation Zod** : Schémas TypeScript pour données robustes
 - **Optimisation intelligente** : Équilibrage charge, préférences, contraintes
 
 **📊 Fonctionnalités :**
+
 - **Génération optimisée** : Plannings avec contraintes complexes
 - **Interface immersive** : Expérience utilisateur futuriste
 - **Performance temps réel** : Feedback progressif et animations fluides
@@ -242,6 +269,7 @@ admin > directeur > manager > employee
 ### 🤖 Système de génération automatique de plannings (v1.8.0)
 
 **Architecture de génération automatique :**
+
 ```
 ┌─────────────────────┐    API REST     ┌─────────────────────┐   jsLPSolver   ┌─────────────────────┐
 │   PlanningWizard    │◄───────────────►│   Backend Service   │◄─────────────►│  Linear Programming │
@@ -252,6 +280,7 @@ admin > directeur > manager > employee
 ```
 
 **🔧 Architecture du service :**
+
 - **Service modulaire** : `backend/src/services/planning/generateSchedule.ts`
 - **Algorithme jsLPSolver** : Programmation linéaire pour optimisation automatique
 - **Contraintes multiples** : Heures contractuelles, préférences employés, contraintes entreprise
@@ -259,18 +288,21 @@ admin > directeur > manager > employee
 - **API endpoint** : `/api/schedules/auto-generate` avec validation Zod complète
 
 **⚖️ Gestion des contraintes :**
+
 - **Contraintes employés** : Heures contractuelles, jours préférés, exceptions (congés, absences)
 - **Contraintes entreprise** : Jours/heures d'ouverture, minimum d'employés par créneau
 - **Optimisation intelligente** : Équilibrage automatique des charges de travail
 - **Validation temps réel** : Contrôles de cohérence avant génération avec messages explicites
 
 **💾 Intégration base de données :**
+
 - **Modèle GeneratedSchedule** : Sauvegarde automatique des plannings générés
 - **Métadonnées complètes** : Statistiques détaillées (heures, employés, activité)
 - **Correspondance flexible** : Mapping intelligent employés/plannings par nom et ID
 - **Validation page** : Affichage dans l'interface de validation existante
 
 **🎯 Performance et fiabilité :**
+
 - **Résolution <30s** : Algorithme optimisé pour traitement rapide
 - **Types TypeScript** : Interfaces strictes pour toutes les données et réponses
 - **Gestion d'erreurs** : Messages explicites en français avec détails techniques
@@ -279,6 +311,7 @@ admin > directeur > manager > employee
 ### Upload et assets (Cloudinary)
 
 **Flux d'upload :**
+
 1. Frontend → File selection (images)
 2. Backend → Validation (type, taille)
 3. Cloudinary → Traitement et stockage
@@ -288,6 +321,7 @@ admin > directeur > manager > employee
 ### Authentification (Google OAuth)
 
 **OAuth 2.0 Flow :**
+
 1. Frontend → Redirect vers Google
 2. Google → User authorization
 3. Backend → Code exchange pour tokens
@@ -299,6 +333,7 @@ admin > directeur > manager > employee
 ### Health checks
 
 **Endpoints de santé :**
+
 - `GET /api/health` : Status général
 - Database connectivity check
 - External services status
@@ -307,6 +342,7 @@ admin > directeur > manager > employee
 ### Logging strategy
 
 **Niveaux de logs :**
+
 - **Error** : Erreurs critiques système
 - **Warn** : Situations anormales non critiques
 - **Info** : Événements importants (login, etc.)
@@ -315,6 +351,7 @@ admin > directeur > manager > employee
 ### Performance monitoring
 
 **Métriques surveillées :**
+
 - **Response time** : Temps de réponse API
 - **Throughput** : Requêtes par seconde
 - **Error rate** : Taux d'erreur 4xx/5xx
@@ -325,11 +362,13 @@ admin > directeur > manager > employee
 ### Scalabilité horizontale
 
 **Frontend :**
+
 - **CDN Distribution** : Assets statiques globaux
 - **Edge caching** : Mise en cache géographique
 - **Load balancing** : Répartition du trafic
 
 **Backend :**
+
 - **Stateless design** : Aucun état serveur stocké
 - **Database sharding** : Partitionnement par tenant
 - **Microservices ready** : Architecture modulaire
@@ -337,11 +376,13 @@ admin > directeur > manager > employee
 ### Maintenance et updates
 
 **Déploiement :**
+
 - **CI/CD Pipeline** : Tests automatiques + déploiement
 - **Blue-green deployment** : Déploiement sans interruption
 - **Rollback strategy** : Retour version précédente rapide
 
 **Database migrations :**
+
 - **Versioning** : Scripts de migration numérotés
 - **Backwards compatibility** : Compatibilité ascendante
 - **Data validation** : Vérification intégrité post-migration

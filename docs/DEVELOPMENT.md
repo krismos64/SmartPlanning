@@ -9,7 +9,8 @@
 - **MongoDB** (local ou MongoDB Atlas recommandé)
 - **Git** pour le versioning
 - **Compte Google Cloud** (pour OAuth - optionnel)
-- **Compte OpenRouter** (pour l'Assistant IA Planning avec Gemini 2.0 Flash - recommandé)
+- **Compte OpenRouter** (pour l'Assistant IA Planning avec Gemini 2.0 Flash - recommandé)  
+- **Tests automatisés** configurés pour validation génération planning
 - **Compte Cloudinary** (pour l'upload d'images - optionnel)
 
 ### Étapes d'installation

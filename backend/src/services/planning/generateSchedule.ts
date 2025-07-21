@@ -28,6 +28,7 @@ interface GeneratePlanningInput {
       allowSplitShifts?: boolean; // Autorise les créneaux fractionnés
       maxConsecutiveDays?: number; // Maximum de jours consécutifs
     };
+    restDay?: string; // Jour de repos obligatoire de l'employé
   }[];
   weekNumber: number;
   year: number;
@@ -74,9 +75,9 @@ const DAYS_OF_WEEK = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi
 
 // Créneaux horaires par défaut avec pause déjeuner
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-  { start: '08:00', end: '12:00', duration: 4, day: 'lundi' },
-  { start: '12:00', end: '13:00', duration: 1, day: 'lundi', isLunchBreak: true },
-  { start: '13:00', end: '17:00', duration: 4, day: 'lundi' }
+  { start: '09:00', end: '13:00', duration: 4, day: 'lundi' },
+  { start: '13:00', end: '14:00', duration: 1, day: 'lundi', isLunchBreak: true },
+  { start: '14:00', end: '20:00', duration: 6, day: 'lundi' }
 ];
 
 /**
@@ -170,8 +171,14 @@ class AdvancedSchedulingEngine {
         continue;
       }
 
-      // Utiliser les heures d'ouverture spécifiées ou par défaut
-      const dayHours = constraints?.openHours || ['08:00-12:00', '13:00-17:00'];
+      // Utiliser les heures d'ouverture spécifiées ou par défaut plus larges
+      const dayHours = constraints?.openHours || ['09:00-20:00'];
+      
+      // Debug: afficher les heures d'ouverture utilisées
+      if (day === 'lundi') { // Ne logguer qu'une fois
+        console.log(`🕐 Heures d'ouverture transmises:`, constraints?.openHours);
+        console.log(`🕐 Heures utilisées pour génération:`, dayHours);
+      }
       
       for (const hourRange of dayHours) {
         const [start, end] = hourRange.split('-');
@@ -278,23 +285,61 @@ class AdvancedSchedulingEngine {
 
       // Créer un créneau continu si pas de créneaux fractionnés autorisés
       if (employee.preferences?.allowSplitShifts === false && dayHours > 0) {
+        // Déterminer l'heure de début basée sur les préférences
+        let startTime = '09:00';
+        if (employee.preferences?.preferredHours?.length > 0) {
+          const firstPref = employee.preferences.preferredHours[0].split('-')[0];
+          if (firstPref && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(firstPref)) {
+            startTime = firstPref;
+          }
+        }
+        
         const maxContinuousHours = Math.min(dayHours, 8);
         schedule[day].push({
-          start: '08:00',
-          end: this.addHoursToTime('08:00', maxContinuousHours)
+          start: startTime,
+          end: this.addHoursToTime(startTime, maxContinuousHours)
         });
         remainingHours -= maxContinuousHours;
       } else {
         // Répartir sur les créneaux disponibles
-        for (const slot of daySlots) {
-          if (dayHours <= 0) break;
-          const hours = Math.min(slot.duration, dayHours);
-          schedule[day].push({
-            start: slot.start,
-            end: this.addHoursToTime(slot.start, hours)
+        // Respecter les préférences horaires si spécifiées
+        if (employee.preferences?.preferredHours?.length > 0) {
+          const preferredSlots = daySlots.filter(slot => {
+            return employee.preferences.preferredHours.some(prefRange => {
+              const [prefStart, prefEnd] = prefRange.split('-');
+              const slotStart = this.parseTimeToDecimal(slot.start);
+              const slotEnd = this.parseTimeToDecimal(slot.end);
+              const prefStartDecimal = this.parseTimeToDecimal(prefStart);
+              const prefEndDecimal = this.parseTimeToDecimal(prefEnd);
+              
+              // Créneau compatible si il y a overlap
+              return (slotStart < prefEndDecimal && slotEnd > prefStartDecimal);
+            });
           });
-          dayHours -= hours;
-          remainingHours -= hours;
+          
+          const slotsToUse = preferredSlots.length > 0 ? preferredSlots : daySlots;
+          
+          for (const slot of slotsToUse) {
+            if (dayHours <= 0) break;
+            const hours = Math.min(slot.duration, dayHours);
+            schedule[day].push({
+              start: slot.start,
+              end: this.addHoursToTime(slot.start, hours)
+            });
+            dayHours -= hours;
+            remainingHours -= hours;
+          }
+        } else {
+          for (const slot of daySlots) {
+            if (dayHours <= 0) break;
+            const hours = Math.min(slot.duration, dayHours);
+            schedule[day].push({
+              start: slot.start,
+              end: this.addHoursToTime(slot.start, hours)
+            });
+            dayHours -= hours;
+            remainingHours -= hours;
+          }
         }
       }
     }
@@ -324,15 +369,67 @@ class AdvancedSchedulingEngine {
 
         const daySlots = this.availableSlots.filter(slot => slot.day === day && !slot.isLunchBreak);
         
-        for (const slot of daySlots) {
-          if (dayHours <= 0) break;
-          const hours = Math.min(slot.duration, dayHours);
+        // Gérer les créneaux fractionnés selon les préférences
+        if (employee.preferences?.allowSplitShifts === false && dayHours > 0) {
+          // Créer un seul créneau continu
+          const preferredHours = employee.preferences?.preferredHours;
+          let startTime = '09:00';
+          
+          if (preferredHours?.length > 0) {
+            // Utiliser la première préférence horaire comme base
+            const firstPref = preferredHours[0].split('-')[0];
+            if (firstPref && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(firstPref)) {
+              startTime = firstPref;
+            }
+          }
+          
+          const maxContinuousHours = Math.min(dayHours, 8);
           schedule[day].push({
-            start: slot.start,
-            end: this.addHoursToTime(slot.start, hours)
+            start: startTime,
+            end: this.addHoursToTime(startTime, maxContinuousHours)
           });
-          dayHours -= hours;
-          remainingHours -= hours;
+          remainingHours -= maxContinuousHours;
+        } else {
+          // Permettre les créneaux fractionnés
+          // Respecter les préférences horaires si spécifiées
+          if (employee.preferences?.preferredHours?.length > 0) {
+            const preferredSlots = daySlots.filter(slot => {
+              return employee.preferences.preferredHours.some((prefRange: string) => {
+                const [prefStart, prefEnd] = prefRange.split('-');
+                const slotStart = this.parseTimeToDecimal(slot.start);
+                const slotEnd = this.parseTimeToDecimal(slot.end);
+                const prefStartDecimal = this.parseTimeToDecimal(prefStart);
+                const prefEndDecimal = this.parseTimeToDecimal(prefEnd);
+                
+                // Créneau compatible si il y a overlap
+                return (slotStart < prefEndDecimal && slotEnd > prefStartDecimal);
+              });
+            });
+            
+            const slotsToUse = preferredSlots.length > 0 ? preferredSlots : daySlots;
+            
+            for (const slot of slotsToUse) {
+              if (dayHours <= 0) break;
+              const hours = Math.min(slot.duration, dayHours);
+              schedule[day].push({
+                start: slot.start,
+                end: this.addHoursToTime(slot.start, hours)
+              });
+              dayHours -= hours;
+              remainingHours -= hours;
+            }
+          } else {
+            for (const slot of daySlots) {
+              if (dayHours <= 0) break;
+              const hours = Math.min(slot.duration, dayHours);
+              schedule[day].push({
+                start: slot.start,
+                end: this.addHoursToTime(slot.start, hours)
+              });
+              dayHours -= hours;
+              remainingHours -= hours;
+            }
+          }
         }
       }
     }
@@ -412,13 +509,70 @@ class AdvancedSchedulingEngine {
     const hoursAccuracy = 1 - Math.abs(totalHours - targetHours) / targetHours;
     score += hoursAccuracy * 50;
 
-    // Score basé sur les préférences
+    // Score basé sur les préférences de jours
     if (employee.preferences?.preferredDays) {
       const workingDays = Object.keys(schedule).filter(day => schedule[day].length > 0);
       const preferredWorkingDays = workingDays.filter(day => 
         employee.preferences.preferredDays.includes(day)
       );
-      score += (preferredWorkingDays.length / workingDays.length) * 30;
+      score += (preferredWorkingDays.length / (workingDays.length || 1)) * 20;
+    }
+    
+    // Score basé sur le respect des créneaux préférés
+    if (employee.preferences?.preferredHours) {
+      let preferredHoursRespected = 0;
+      let totalSlots = 0;
+      
+      for (const daySlots of Object.values(schedule)) {
+        for (const slot of daySlots as any[]) {
+          totalSlots++;
+          const slotStart = this.parseTimeToDecimal(slot.start);
+          const slotEnd = this.parseTimeToDecimal(slot.end);
+          
+          const isInPreferredRange = employee.preferences.preferredHours.some((prefRange: string) => {
+            const [prefStart, prefEnd] = prefRange.split('-');
+            const prefStartDecimal = this.parseTimeToDecimal(prefStart);
+            const prefEndDecimal = this.parseTimeToDecimal(prefEnd);
+            
+            // Vérifier si le créneau est dans la plage préférée
+            return slotStart >= prefStartDecimal && slotEnd <= prefEndDecimal;
+          });
+          
+          if (isInPreferredRange) {
+            preferredHoursRespected++;
+          }
+        }
+      }
+      
+      if (totalSlots > 0) {
+        score += (preferredHoursRespected / totalSlots) * 15;
+      }
+    }
+    
+    // Score basé sur le respect de allowSplitShifts
+    if (employee.preferences?.allowSplitShifts === false) {
+      let penaltyForSplits = 0;
+      
+      for (const [day, daySlots] of Object.entries(schedule)) {
+        const slots = daySlots as any[];
+        if (slots.length > 1) {
+          // Vérifier s'il y a vraiment des splits (gaps > 15min)
+          const sortedSlots = [...slots].sort((a, b) => 
+            this.parseTimeToDecimal(a.start) - this.parseTimeToDecimal(b.start)
+          );
+          
+          for (let i = 0; i < sortedSlots.length - 1; i++) {
+            const currentEnd = this.parseTimeToDecimal(sortedSlots[i].end);
+            const nextStart = this.parseTimeToDecimal(sortedSlots[i + 1].start);
+            
+            if (nextStart - currentEnd > 0.25) { // Gap > 15min
+              penaltyForSplits += 5; // Pénalité pour chaque split
+            }
+          }
+        }
+      }
+      
+      score -= penaltyForSplits;
     }
 
     // Score basé sur la distribution des heures
@@ -547,9 +701,39 @@ class AdvancedSchedulingEngine {
     return this.addMinutesToTime(time, hours * 60);
   }
 
-  private isEmployeeAvailable(employee: any, day: string, slot?: TimeSlot): boolean {
+  private isEmployeeAvailable(employee: any, day: string): boolean {
     const dayIndex = DAYS_OF_WEEK.indexOf(day);
     if (dayIndex === -1) return false;
+
+    // Conversion français -> anglais pour comparaison jour de repos
+    const dayMappingFrToEn: { [key: string]: string } = {
+      'lundi': 'monday',
+      'mardi': 'tuesday', 
+      'mercredi': 'wednesday',
+      'jeudi': 'thursday',
+      'vendredi': 'friday',
+      'samedi': 'saturday',
+      'dimanche': 'sunday'
+    };
+    
+    const dayInEnglish = dayMappingFrToEn[day] || day;
+
+    // Vérifier si l'entreprise est ouverte ce jour
+    if (this.input.companyConstraints?.openDays && !this.input.companyConstraints.openDays.includes(dayInEnglish)) {
+      console.log(`🏢 Entreprise fermée le ${day} (${dayInEnglish})`);
+      return false;
+    }
+
+    // Vérifier le jour de repos obligatoire
+    if (employee.restDay && dayInEnglish === employee.restDay) {
+      console.log(`🚫 ${employee._id} a un jour de repos obligatoire le ${day} (${dayInEnglish})`);
+      return false;
+    }
+
+    // Debug: afficher tous les jours de repos configurés
+    if (employee.restDay) {
+      console.log(`📅 Employé ${employee._id} - jour de repos configuré: ${employee.restDay}`);
+    }
 
     const date = this.weekDates[dayIndex];
     
@@ -610,8 +794,8 @@ class AdvancedSchedulingEngine {
     const slots: TimeSlot[] = [];
     for (const day of DAYS_OF_WEEK) {
       slots.push(
-        { start: '08:00', end: '12:00', duration: 4, day },
-        { start: '14:00', end: '18:00', duration: 4, day }
+        { start: '09:00', end: '13:00', duration: 4, day },
+        { start: '14:00', end: '20:00', duration: 6, day }
       );
     }
     return slots;
@@ -635,8 +819,8 @@ class AdvancedSchedulingEngine {
           const dayHours = Math.min(8, remainingHours);
           if (dayHours >= 4) {
             planning[employee._id][day].push({
-              start: '08:00',
-              end: this.addHoursToTime('08:00', dayHours)
+              start: '09:00',
+              end: this.addHoursToTime('09:00', dayHours)
             });
             remainingHours -= dayHours;
           }

@@ -4,12 +4,13 @@
 
 SmartPlanning intègre un système de monitoring complet basé sur OpenTelemetry pour fournir une observabilité complète de l'application. Le système collecte les traces, métriques et logs pour une surveillance proactive des performances et de la santé de l'application.
 
-**Statut d'implémentation** : ✅ **COMPLET** - Version 1.6.0  
+**Statut d'implémentation** : ✅ **COMPLET** - Version 2.1.0  
 **Interface admin** : ✅ Opérationnelle à `/monitoring`  
 **Métriques temps réel** : ✅ Auto-refresh 30 secondes  
 **Alertes intelligentes** : ✅ Seuils configurables  
 **Validation Zod** : ✅ Dashboard intégré avec métriques d'erreurs  
-**Assistant IA** : ✅ Monitoring des performances et usage de l'IA
+**Assistant IA** : ✅ Monitoring des performances et usage de l'IA  
+**🎯 Génération planning** : ✅ Métriques qualité et conformité (V2.1.0)
 
 ## Architecture du Monitoring
 

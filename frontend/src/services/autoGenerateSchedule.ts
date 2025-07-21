@@ -27,12 +27,18 @@ export interface GeneratePlanningPayload {
     preferences?: {
       preferredDays?: string[]; // ["lundi", "mardi", ...]
       preferredHours?: string[]; // ["09:00-17:00", ...]
+      allowSplitShifts?: boolean; // Autorise les créneaux fractionnés
     };
+    restDay?: string; // Jour de repos obligatoire
   }[];
   companyConstraints?: {
     openDays?: string[]; // Jours d'ouverture de l'entreprise
     openHours?: string[]; // Heures d'ouverture (format "HH:MM-HH:MM")
     minEmployeesPerSlot?: number; // Nombre minimum d'employés par créneau
+    maxHoursPerDay?: number; // Maximum d'heures par jour
+    minHoursPerDay?: number; // Minimum d'heures par jour
+    mandatoryLunchBreak?: boolean; // Pause déjeuner obligatoire
+    lunchBreakDuration?: number; // Durée pause déjeuner en minutes
   };
 }
 
