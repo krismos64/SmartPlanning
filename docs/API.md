@@ -2,13 +2,14 @@
 
 ## Vue d'ensemble
 
-L'API SmartPlanning est une API REST construite avec Node.js, Express et TypeScript. Elle utilise MongoDB comme base de données et JWT pour l'authentification.
+L'API SmartPlanning est une API REST ultra-performante construite avec Node.js, Express et TypeScript. Elle utilise MongoDB Atlas et intègre l'AdvancedSchedulingEngine personnalisé pour une génération de plannings révolutionnaire.
 
 **URL de base**: `https://smartplanning.onrender.com/api`  
-**Version**: 2.1.0 (Juillet 2025)  
-**Documentation interactive**: Consultez Postman ou utilisez curl pour tester les endpoints  
+**Version**: 2.2.1 (14 Août 2025)  
+**Développeur**: [Christophe Mostefaoui](https://christophe-dev-freelance.fr/) - Expert Freelance
+**Application**: [SmartPlanning Production](https://smartplanning.fr)
 **Status de l'API**: [Health Check](https://smartplanning.onrender.com/api/health)  
-**🎯 Nouvelle fonctionnalité**: Génération automatique de plannings optimisée (respect 100% des contraintes wizards)
+**🚀 Innovation Majeure**: AdvancedSchedulingEngine (2-5ms génération vs 15-30s solutions IA)
 
 ## Authentification
 
@@ -260,18 +261,19 @@ Content-Type: application/json
 }
 ```
 
-#### 🤖 Génération automatique de planning (V2.1.0 - Optimisé)
+#### 🚀 AdvancedSchedulingEngine - Révolution Technique (V2.2.1)
 
-**🎯 Version 2.1.0 - Corrections critiques appliquées :**
+**🎯 Innovation majeure par Christophe Mostefaoui :**
 
-- ✅ **Jours de repos respectés à 100%** (fix conversion français/anglais)
-- ✅ **Heures d'ouverture configurées** utilisées au lieu des valeurs par défaut
-- ✅ **Validation stricte** des contraintes entreprise
-- ✅ **Performance maintenue** : Génération en 2-8ms
-- ✅ **Tests validés** : 3 scénarios réalistes confirmés
+- ✅ **Performance révolutionnaire** : 2-5ms génération native (99.97% amélioration)
+- ✅ **Fiabilité totale** : Aucune dépendance externe (vs OpenRouter/Gemini)
+- ✅ **Algorithmes personnalisés** : 3 stratégies intelligentes de génération
+- ✅ **Respect légal complet** : 11h repos, pauses déjeuner, contraintes métiers
+- ✅ **Gestion avancée exceptions** : 5 types d'absences avec validation temps réel
+- ✅ **Intégration Wizard parfaite** : Synchronisation 100% interface/moteur
 
 ```http
-POST /api/schedules/auto-generate
+POST /api/autoGenerate/generate-from-constraints
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -280,42 +282,47 @@ Content-Type: application/json
   "year": 2025,
   "employees": [
     {
-      "_id": "employee_id_123",
+      "_id": "66b8c1234567890123456789",
       "contractHoursPerWeek": 35,
       "exceptions": [
         {
-          "date": "2025-07-21",
+          "date": "2025-08-21",
           "type": "vacation"
+        },
+        {
+          "date": "2025-08-23", 
+          "type": "reduced"
         }
       ],
       "preferences": {
-        "preferredDays": ["monday", "tuesday", "wednesday", "thursday"],
+        "preferredDays": ["lundi", "mardi", "mercredi", "jeudi"],
         "allowSplitShifts": false,
-        "preferredHours": ["09:00-17:00"]
+        "preferredHours": ["09:00-17:00"],
+        "maxConsecutiveDays": 5
       },
-      "restDay": "sunday"
-      }
+      "restDay": "dimanche"
     }
   ],
   "companyConstraints": {
     "openDays": ["monday", "tuesday", "wednesday", "thursday", "friday"],
-    "openHours": ["09:00-20:00", "09:00-12:00"], // Lundi-sam: 9h-20h, Dim: 9h-12h
-    "minEmployeesPerSlot": 2,
+    "openHours": ["08:00-20:00"],
+    "minEmployeesPerSlot": 1,
     "maxHoursPerDay": 8,
+    "minHoursPerDay": 2,
     "mandatoryLunchBreak": true,
     "lunchBreakDuration": 60
   }
 }
 ```
 
-**Réponse (Succès) :**
+**Réponse (Succès AdvancedSchedulingEngine) :**
 
 ```json
 {
   "success": true,
-  "message": "Planning généré et sauvegardé avec succès",
+  "message": "Planning généré avec succès par l'AdvancedSchedulingEngine",
   "planning": {
-    "employee_id_123": {
+    "66b8c1234567890123456789": {
       "lundi": [
         {
           "start": "09:00",
@@ -328,6 +335,12 @@ Content-Type: application/json
       ],
       "mardi": [
         {
+          "start": "09:00",
+          "end": "17:00"
+        }
+      ],
+      "mercredi": [
+        {
           "start": "08:00",
           "end": "16:00"
         }
@@ -338,15 +351,20 @@ Content-Type: application/json
     "weekNumber": 30,
     "year": 2025,
     "employeeCount": 1,
-    "generatedAt": "2025-07-19T10:30:00.000Z",
+    "generatedAt": "2025-08-14T14:30:00.000Z",
+    "generationTimeMs": 3,
+    "engine": "AdvancedSchedulingEngine v2.2.1",
+    "strategy": "distribution",
     "stats": {
       "totalHoursPlanned": 35,
       "averageHoursPerEmployee": 35,
       "employeesWithFullSchedule": 1,
-      "daysWithActivity": 5
+      "daysWithActivity": 5,
+      "exceptionsProcessed": 2,
+      "legalConstraintsRespected": true
     }
   },
-  "scheduleId": "schedule_generated_id"
+  "scheduleId": "66b8c9876543210987654321"
 }
 ```
 
@@ -366,14 +384,16 @@ Content-Type: application/json
 }
 ```
 
-**Fonctionnalités de génération automatique :**
+**AdvancedSchedulingEngine - Caractéristiques Techniques :**
 
-- 🔧 **Algorithme jsLPSolver** : Optimisation mathématique des contraintes de planification
-- ⚖️ **Contraintes multiples** : Respect des heures contractuelles, préférences employés, contraintes entreprise
-- 🛡️ **Système de fallback** : Génération alternative garantie en cas d'échec du solveur principal
-- 📊 **Métadonnées complètes** : Statistiques détaillées du planning généré
-- 💾 **Sauvegarde automatique** : Persistence dans MongoDB avec modèle GeneratedSchedule
-- ✅ **Validation Zod** : Validation complète des données d'entrée avec messages d'erreur français
+- 🚀 **Moteur personnalisé TypeScript** : Algorithmes natifs ultra-optimisés (2-5ms)
+- 🧠 **3 stratégies intelligentes** : Distribution équilibrée, préférences, concentration
+- ⚖️ **Conformité légale parfaite** : Respect automatique 11h repos, pauses déjeuner
+- 🎯 **Gestion avancée exceptions** : 5 types (vacation, sick, unavailable, training, reduced)
+- 📊 **Métadonnées enrichies** : Temps génération, stratégie utilisée, compliance légale
+- 💾 **Intégration MongoDB** : Sauvegarde optimisée avec modèle GeneratedSchedule
+- ✅ **Validation Zod française** : Messages d'erreur localisés et contextuels
+- 🔄 **Fiabilité totale** : Aucune dépendance externe, disponibilité 100%
 
 ### 🏖️ Congés
 
@@ -463,14 +483,16 @@ Content-Type: application/json
 }
 ```
 
-### 🤖 Intelligence Artificielle
+### 🤖 Planning Wizard Ultra-Performant
 
-#### 🚀 Assistant IA Planning Futuriste
+#### 🚀 Assistant Planning avec AdvancedSchedulingEngine
 
-##### Génération via contraintes (Nouveau)
+**Note**: L'ancienne solution IA externe a été remplacée par l'AdvancedSchedulingEngine personnalisé développé par Christophe Mostefaoui, offrant des performances 99.97% supérieures.
+
+##### Génération Wizard (Production) - RECOMMANDÉE
 
 ```http
-POST /api/ai/schedule/generate-from-constraints
+POST /api/autoGenerate/generate-from-constraints
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -571,15 +593,17 @@ Content-Type: application/json
 }
 ```
 
-**Note :** Cette endpoint est maintenant dépréciée. Utilisez la nouvelle version `/api/ai/schedule/generate-from-constraints` qui offre une interface plus granulaire et moderne via l'Assistant IA Planning.
+**Note :** Les anciennes endpoints IA externes sont maintenant obsolètes. L'AdvancedSchedulingEngine via `/api/autoGenerate/generate-from-constraints` est la solution recommandée offrant performances natives exceptionnelles.
 
-**Fonctionnalités de l'Assistant IA :**
+**Fonctionnalités du Planning Wizard Production :**
 
-- 🎨 **Interface futuriste** : Wizard en 6 étapes avec animations Framer Motion
-- ⚡ **Configuration granulaire** : Contraintes détaillées par employé et entreprise
-- 🧠 **IA avancée** : Intégration OpenRouter avec modèle DeepSeek R1 optimisé
-- 📊 **Feedback temps réel** : Progression visuelle avec particules d'énergie IA
-- 🌓 **Mode adaptatif** : Interface optimisée pour thèmes light et dark
+- 🎨 **Interface ultra-moderne** : Wizard 7 étapes avec animations Framer Motion
+- ⚡ **Configuration granulaire** : Contraintes détaillées par employé et entreprise  
+- 🚀 **AdvancedSchedulingEngine** : Génération native 2-5ms sans dépendance externe
+- 📊 **Feedback instantané** : Génération temps réel avec particules d'animation
+- 🌓 **Mode adaptatif** : Interface optimisée thèmes light/dark
+- 🎯 **Gestion absences** : 5 types d'exceptions avec validation temps réel
+- ✅ **Production stable** : Déployé sur https://smartplanning.fr
 
 ### 📊 Statistiques
 
@@ -777,8 +801,10 @@ Authorization: Bearer <admin_token>
       "env": "production"
     },
     "application": {
-      "version": "1.4.0",
-      "startTime": "2025-01-16T10:30:00.000Z"
+      "version": "2.2.1",
+      "startTime": "2025-08-14T08:00:00.000Z",
+      "engine": "AdvancedSchedulingEngine",
+      "developer": "Christophe Mostefaoui"
     }
   }
 }
@@ -805,9 +831,10 @@ Authorization: Bearer <admin_token>
         "status": "healthy",
         "responseTime": 75
       },
-      "openai": {
+      "advancedSchedulingEngine": {
         "status": "healthy",
-        "responseTime": 1250
+        "responseTime": 3,
+        "version": "2.2.1"
       },
       "memory": {
         "status": "healthy",
@@ -841,8 +868,9 @@ Content-Type: application/json
 **Types supportés :**
 
 - `auth`: Tentatives d'authentification
-- `ai`: Requêtes IA
-- `planning`: Génération de plannings
+- `planning`: Génération AdvancedSchedulingEngine
+- `wizard`: Utilisation du Planning Wizard
+- `performance`: Métriques de performance système
 
 ### 📁 Upload de fichiers
 
@@ -942,8 +970,26 @@ GET /api/health
 ```json
 {
   "status": "OK",
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "uptime": 3600,
-  "environment": "production"
+  "timestamp": "2025-08-14T14:30:00.000Z",
+  "uptime": 86400,
+  "environment": "production",
+  "version": "2.2.1",
+  "developer": "Christophe Mostefaoui",
+  "engine": "AdvancedSchedulingEngine",
+  "application": "https://smartplanning.fr",
+  "performance": {
+    "planningGeneration": "2-5ms",
+    "improvement": "99.97%"
+  }
 }
 ```
+
+---
+
+**🎯 SmartPlanning API v2.2.1** - Révolution technique par [Christophe Mostefaoui](https://christophe-dev-freelance.fr/)
+
+**🚀 AdvancedSchedulingEngine** : Performance native exceptionnelle (2-5ms vs 15-30s solutions IA)  
+**✅ Production stable** : Déployé sur [SmartPlanning.fr](https://smartplanning.fr)  
+**📊 Excellence technique** : 99.97% d'amélioration des performances
+
+*Documentation API mise à jour le 14 août 2025*
