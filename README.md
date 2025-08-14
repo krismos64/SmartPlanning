@@ -35,14 +35,14 @@ Notre plateforme a été **révolutionnée** avec des optimisations de pointe po
 - ✅ **Schema.org** : Données structurées pour les moteurs de recherche
 - ✅ **Analytics intégrés** : Suivi des performances et conversions
 
-### ⚡ **Performance Ultra-Optimisées (Version 2.2.0)**
+### ⚡ **Performance Révolutionnaires (Version 2.2.1)**
 
 - ✅ **Bundle réduit de 80%** : 1.9MB → 389KB pour un chargement ultra-rapide
 - ✅ **Code-splitting avancé** : 70+ chunks avec lazy loading intelligent
 - ✅ **Compression gzip/brotli** : -70% de données transférées
-- ✅ **Cache Redis intelligent** : Plannings (24h), Employés (6h), +21% performance
+- ✅ **Cache production désactivé** : Dégradation gracieuse, base optimisée
 - ✅ **28 Index MongoDB** : Requêtes ultra-rapides <100ms
-- ✅ **Planning Wizard** : Génération 2-5ms avec cache intelligent
+- ✅ **AdvancedSchedulingEngine** : Génération native 2-5ms (99.97% plus rapide)
 - ✅ **Rate limiting DoS** : Protection 100 req/15min par IP
 - ✅ **Sécurité renforcée** : 15/15 tests sécurité, SameSite=Strict
 - ✅ **Monitoring temps réel** : Analytics et métriques de performance
@@ -475,15 +475,30 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Internationalisation**       | i18next, react-i18next (support multilingue)                                 |
 | **PDF & Export**               | jsPDF, jsPDF-autotable (génération de rapports)                              |
 
-## Documentation détaillée
+## 📚 Documentation Détaillée v2.2.1
 
-Pour une documentation complète, consultez le dossier `docs/` :
+Documentation complète réorganisée et optimisée (14 Août 2025) :
 
-- **[Guide de la base de données](docs/DATABASE.md)** - Architecture et modèles de données
-- **[Documentation API](docs/API.md)** - Endpoints et schémas de l'API REST
-- **[Guide de déploiement](docs/DEPLOYMENT.md)** - Instructions de déploiement en production
-- **[Guide de développement](docs/DEVELOPMENT.md)** - Configuration et développement local
-- **[Guide de monitoring](docs/MONITORING.md)** - Surveillance, observabilité et validation des données avec Zod
+### 🚀 **Guides Utilisateur**
+- **[Guide Démarrage Rapide](docs/GETTING_STARTED.md)** - Commencez en 5 minutes !
+- **[❓ FAQ](docs/FAQ.md)** - Questions fréquentes et réponses
+- **[🔧 Troubleshooting](docs/TROUBLESHOOTING.md)** - Résolution problèmes
+
+### 🤖 **Intelligence Artificielle & Planning**  
+- **[🎆 Planning IA](docs/PLANNING_IA.md)** - AdvancedSchedulingEngine + Wizard Ultra-Moderne
+- **[🌅 Gestion Absences](docs/ABSENCES_MANAGEMENT.md)** - 5 types d'exceptions avancées
+
+### 📊 **Architecture & Technique**
+- **[🏢 Architecture](docs/ARCHITECTURE.md)** - Stack MERN + moteur personnalisé
+- **[📊 Monitoring](docs/MONITORING.md)** - Observabilité + Dashboard Zod français
+- **[🗄 Base de Données](docs/DATABASE.md)** - Modèles + 28 index MongoDB
+- **[📡 API](docs/API.md)** - Endpoints REST + validation Zod
+
+### 🛠️ **Développement & Tests**
+- **[💻 Développement](docs/DEVELOPMENT.md)** - Setup local + optimisations
+- **[🧪 Tests](docs/TESTING.md)** - Suite complète AdvancedSchedulingEngine
+- **[🚀 Déploiement](docs/DEPLOYMENT.md)** - Production Render + Hostinger
+- **[📋 Changelog](docs/CHANGELOG.md)** - Historique versions détaillé
 
 ## Changelog
 
