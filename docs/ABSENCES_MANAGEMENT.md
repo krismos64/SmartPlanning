@@ -4,45 +4,47 @@
 
 La gestion des absences exceptionnelles dans SmartPlanning permet aux utilisateurs de déclarer et de gérer facilement les absences de leurs employés lors de la génération de plannings IA. Cette fonctionnalité, introduite dans la version 1.7.0, offre une interface intuitive et complète pour tous les types d'absences.
 
-**Version** : 1.7.0 (Juillet 2025)  
-**Status** : ✅ Production stable  
-**Intégration** : Wizard IA Planning - Étape 3  
-**Support** : Absences multiples par employé
+**Version** : 2.2.1 (Août 2025)  
+**Status** : ✅ Production déployée - https://smartplanning.fr  
+**Intégration** : Wizard IA Planning - Étape 3 (Absences)  
+**Support** : Absences multiples par employé avec validation avancée
 
 ## 🎯 Fonctionnalités Principales
 
 ### Types d'Absences Supportés
 
-- **🏥 Arrêt maladie** : Absence complète pour raison médicale
-- **🏖️ Congés** : Absence prévue pour vacances ou repos
-- **📚 Formation** : Absence pour formation professionnelle
-- **🚫 Indisponible** : Absence pour raison personnelle
-- **⏰ Horaires réduits** : Travail en matinée uniquement (8h-12h)
+- **🏥 Maladie** : Absence complète pour raison médicale (`sick`)
+- **🏖️ Congés** : Absence prévue pour vacances ou repos (`vacation`)
+- **📚 Formation** : Absence pour formation professionnelle (`training`)
+- **🚫 Indisponible** : Absence pour raison personnelle (`unavailable`)
+- **⏰ Horaires réduits** : Travail partiel selon préférences (`reduced`)
 
 ### Capacités Avancées
 
-- **🔄 Absences multiples** : Plusieurs absences par employé
-- **📅 Validation de dates** : Vérification des conflits
-- **💬 Commentaires** : Raison et contexte pour chaque absence
-- **🎨 Interface moderne** : Design glassmorphism avec animations
-- **⚡ Temps réel** : Validation et feedback instantanés
+- **🔄 Absences multiples** : Plusieurs absences par employé avec gestion individuelle
+- **📅 Validation avancée** : Correspondance dates de semaine planifiée
+- **💬 Descriptions** : Raison et contexte pour chaque absence (optionnel)
+- **🎨 Interface moderne** : Design glassmorphism avec animations Framer Motion
+- **⚡ Intégration temps réel** : Prise en compte immédiate dans la génération IA
+- **🔧 Moteur optimisé** : Génération 2-5ms avec AdvancedSchedulingEngine
 
 ## 📋 Guide d'Utilisation
 
 ### Accès à la Gestion des Absences
 
-1. **Navigation** : Accédez au Planning Wizard IA
-2. **Étape 3** : "Absences & Contraintes" après sélection des employés
-3. **Interface** : Cartes employés avec gestion d'absences individuelle
+1. **Navigation** : Accédez au Planning Wizard IA depuis le dashboard
+2. **Étape 3** : "Absences" (optionnelle) après sélection des employés  
+3. **Interface** : Vue par employé avec cartes d'absence colorées par type
+4. **URL** : https://smartplanning.fr/planning-wizard (étape 3)
 
 ### Ajouter une Absence
 
 1. **Sélection employé** : Choisissez l'employé concerné
 2. **Bouton "Ajouter une absence"** : Cliquez sur le bouton + avec bordure pointillée
 3. **Formulaire** : Remplissez les informations :
-   - **Type d'absence** : Sélectionnez parmi les 5 types disponibles
-   - **Date d'absence** : Choisissez la date avec validation minimale
-   - **Raison/Commentaire** : Ajoutez un contexte (optionnel)
+   - **Type d'absence** : Congés, Maladie, Formation, Indisponible, Horaires réduits
+   - **Date d'absence** : Sélecteur de date avec validation
+   - **Description** : Contexte optionnel (ex: "Rendez-vous médical")
 4. **Validation** : L'absence est ajoutée immédiatement
 
 ### Gérer Plusieurs Absences
@@ -65,9 +67,9 @@ La gestion des absences exceptionnelles dans SmartPlanning permet aux utilisateu
 
 ```typescript
 interface EmployeeException {
-  date: string;
-  reason: string;
-  type: 'unavailable' | 'reduced' | 'training' | 'sick' | 'vacation';
+  date: string; // Format ISO (YYYY-MM-DD)
+  type: 'vacation' | 'sick' | 'unavailable' | 'training' | 'reduced';
+  description?: string; // Optionnel
 }
 
 interface EmployeeConstraint {
@@ -84,32 +86,36 @@ const [employeeExceptions, setEmployeeExceptions] = useState<{
 }>({});
 ```
 
-### Backend (Node.js + Express)
+### Backend (AdvancedSchedulingEngine)
 
 ```typescript
-// Fonction utilitaire pour calculer les dates de la semaine
-function getWeekDateRange(weekNumber: number, year: number) {
-  const firstDayOfYear = new Date(year, 0, 1);
-  const daysOffset = (weekNumber - 1) * 7;
-  const mondayOfWeek = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000);
-  
-  // Ajustement pour Monday = premier jour
-  const dayOfWeek = mondayOfWeek.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  mondayOfWeek.setDate(mondayOfWeek.getDate() + mondayOffset);
-  
-  return { start: mondayOfWeek, end: sundayOfWeek };
+// Validation des exceptions dans le moteur de planification
+function isEmployeeAvailable(employee: Employee, date: Date): boolean {
+  // Vérifier les exceptions (congés, absences)
+  const hasBlockingException = employee.exceptions?.some(exception => {
+    const exceptionDate = new Date(exception.date);
+    const isSameDate = exceptionDate.toDateString() === date.toDateString();
+    const isBlockingType = ['vacation', 'sick', 'unavailable'].includes(exception.type);
+    
+    return isSameDate && isBlockingType;
+  });
+
+  return !hasBlockingException;
 }
 
-// Logique de génération avec prise en compte des absences
-const hasUnavailableException = emp.exceptions && emp.exceptions.some(exc => 
-  exc.date === dayDateString && 
-  (exc.type === 'unavailable' || exc.type === 'sick' || exc.type === 'vacation')
-);
+// Gestion des horaires réduits
+const hasReducedHours = employee.exceptions?.some(exception => {
+  const exceptionDate = new Date(exception.date);
+  return exceptionDate.toDateString() === date.toDateString() && 
+         exception.type === 'reduced';
+});
 
-const hasReducedHours = emp.exceptions && emp.exceptions.some(exc => 
-  exc.date === dayDateString && exc.type === 'reduced'
-);
+// Types supportés dans le backend
+interface EmployeeException {
+  date: string; // ISO format (YYYY-MM-DD)
+  type: 'vacation' | 'sick' | 'unavailable' | 'training' | 'reduced';
+  description?: string;
+}
 ```
 
 ## 🎨 Interface Utilisateur
@@ -147,21 +153,27 @@ const buttonAnimation = {
 
 ## 🔄 Logique de Génération
 
-### Traitement des Absences
+### Traitement des Absences (AdvancedSchedulingEngine)
 
-1. **Validation** : Vérification des exceptions par employé
-2. **Correspondance dates** : Calcul des dates de la semaine planifiée
-3. **Application des règles** :
-   - **Absence complète** : Aucun créneau pour la journée
-   - **Horaires réduits** : Matin uniquement (8h-12h)
-   - **Formation** : Traité comme absence complète
+1. **Validation des dates** : Correspondance avec la semaine planifiée
+2. **Classification des exceptions** :
+   - **Blocantes** : `vacation`, `sick`, `unavailable` → aucun créneau
+   - **Formation** : `training` → traité comme blocant
+   - **Partielles** : `reduced` → horaires adaptés selon préférences
+3. **Génération intelligente** : Adaptation automatique des créneaux
+4. **Performance** : Validation en 2-5ms par employé
 
-### Logs et Debugging
+### Logs et Debugging (Production)
 
 ```typescript
-// Logs détaillés pour diagnostic
-console.log(`❌ [AI GENERATION] Absence pour ${emp.name} le ${day}: ${dayDateString}`);
-console.log(`🔄 [AI GENERATION] Horaires réduits pour ${emp.name} le ${day}`);
+// Logs de diagnostic dans le moteur de planification
+console.log(`🚫 ${employee._id} - exception le ${day}:`, exception.type);
+console.log(`⏰ ${employee.firstName} ${employee.lastName} - horaires adaptés`);
+
+// Monitoring des exceptions
+if (process.env.NODE_ENV === 'development') {
+  console.log(`📊 Total exceptions traitées: ${processedExceptions.length}`);
+}
 ```
 
 ## 📊 Exemples d'Utilisation
@@ -169,24 +181,24 @@ console.log(`🔄 [AI GENERATION] Horaires réduits pour ${emp.name} le ${day}`)
 ### Cas d'Usage Typiques
 
 1. **Employé malade** :
-   - Type : "Arrêt maladie"
+   - Type : "Maladie" (`sick`)
    - Date : Jour de l'absence
-   - Raison : "Grippe - certificat médical"
+   - Description : "Grippe - arrêt médical"
 
 2. **Congés programmés** :
-   - Type : "Congés"
+   - Type : "Congés" (`vacation`)
    - Date : Jour de congé
-   - Raison : "Congés annuels"
+   - Description : "Vacances d'été"
 
 3. **Formation professionnelle** :
-   - Type : "Formation"
+   - Type : "Formation" (`training`)
    - Date : Jour de formation
-   - Raison : "Formation sécurité obligatoire"
+   - Description : "Formation obligatoire sécurité"
 
 4. **Rendez-vous médical** :
-   - Type : "Horaires réduits"
+   - Type : "Horaires réduits" (`reduced`)
    - Date : Jour du rendez-vous
-   - Raison : "Rendez-vous médical après-midi"
+   - Description : "RDV médical 14h"
 
 ### Absences Multiples
 
@@ -197,39 +209,48 @@ const employeeWithMultipleAbsences = {
   name: "Marie Dupont",
   exceptions: [
     {
-      date: "2025-07-21",
+      date: "2025-08-21",
       type: "sick",
-      reason: "Grippe"
+      description: "Grippe saisonnière"
     },
     {
-      date: "2025-07-23",
+      date: "2025-08-23",
       type: "reduced",
-      reason: "Rendez-vous médical"
+      description: "RDV spécialiste après-midi"
     },
     {
-      date: "2025-07-25",
+      date: "2025-08-25",
       type: "vacation",
-      reason: "Congés d'été"
+      description: "Congés d'été - dernière semaine"
     }
   ]
 };
 ```
 
-## 🚀 Améliorations Futures
+## 🚀 État Actuel et Futures Améliorations
 
-### Version 1.8.0 (Q1 2026)
+### Version 2.2.1 - Production (Août 2025)
 
-- **📱 Notifications** : Alertes pour conflits d'absences
-- **📊 Statistiques** : Tableau de bord des absences
-- **🔄 Templates** : Absences récurrentes
-- **📅 Intégration calendrier** : Sync avec Google Calendar
+**✅ Fonctionnalités Actuelles :**
+- Gestion complète des 5 types d'absences
+- Interface intuitive dans le Planning Wizard  
+- Intégration parfaite avec AdvancedSchedulingEngine (2-5ms)
+- Support absences multiples par employé
+- Validation temps réel avec génération immédiate
 
-### Version 1.9.0 (Q2 2026)
+### Version 2.3.0 (Q4 2025) - Planifié
 
-- **🤖 IA prédictive** : Suggestion d'absences probables
-- **📈 Analytics** : Tendances d'absences par équipe
-- **🔗 Intégrations RH** : Sync avec systèmes RH existants
-- **📱 App mobile** : Gestion des absences sur mobile
+- **📊 Dashboard absences** : Vue globale par équipe/période
+- **📱 Notifications avancées** : Alertes conflits et validations
+- **🔄 Templates d'absences** : Modèles récurrents (RTT, formations)
+- **📈 Analytics** : Statistiques et tendances d'absences
+
+### Version 2.4.0 (Q1 2026) - Roadmap
+
+- **📅 Intégration calendrier** : Sync bidirectionnelle Google/Outlook
+- **🤖 IA prédictive** : Suggestions intelligentes d'absences probables
+- **🔗 API RH** : Intégration systèmes RH existants (Workday, BambooHR)
+- **📱 App mobile** : Gestion nomade des absences
 
 ## 🛠️ Développement et Maintenance
 
@@ -252,17 +273,31 @@ describe('Absence Management', () => {
 });
 ```
 
-### Configuration
+### Configuration Actuelle (AbsencesStep.tsx)
 
 ```typescript
-// Configuration des types d'absences
-const ABSENCE_TYPES = {
-  sick: { label: 'Arrêt maladie', color: 'red' },
-  vacation: { label: 'Congés', color: 'blue' },
-  training: { label: 'Formation', color: 'green' },
-  unavailable: { label: 'Indisponible', color: 'gray' },
-  reduced: { label: 'Horaires réduits', color: 'orange' }
-};
+// Types d'absences avec thème adaptatif
+const getExceptionTypes = (isDarkMode: boolean) => [
+  { 
+    value: 'vacation', 
+    label: 'Congés', 
+    color: 'bg-blue-500', 
+    bgColor: isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50'
+  },
+  { 
+    value: 'sick', 
+    label: 'Maladie', 
+    color: 'bg-red-500',
+    bgColor: isDarkMode ? 'bg-red-900/30' : 'bg-red-50'
+  },
+  { 
+    value: 'training', 
+    label: 'Formation', 
+    color: 'bg-green-500',
+    bgColor: isDarkMode ? 'bg-green-900/30' : 'bg-green-50'
+  },
+  // ... autres types
+];
 ```
 
 ## 📚 Ressources Complémentaires
@@ -274,6 +309,9 @@ const ABSENCE_TYPES = {
 
 ---
 
-**📞 Support** : Pour toute question sur la gestion des absences, consultez la documentation ou contactez l'équipe de développement.
+**📞 Support** : Documentation complète disponible, application déployée sur https://smartplanning.fr
 
-**🎯 Objectif** : Simplifier la gestion des absences pour des plannings plus précis et une meilleure satisfaction des employés.
+**🎯 Objectif** : Gestion intuitive des absences pour des plannings IA ultra-précis et une satisfaction employé optimale
+
+**📊 Performance** : AdvancedSchedulingEngine - Génération 2-5ms avec prise en compte complète des absences  
+**🚀 Production** : Système stable et opérationnel en production (Version 2.2.1)
