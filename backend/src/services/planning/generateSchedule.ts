@@ -1,16 +1,15 @@
 /**
  * Service de génération automatique de planning hebdomadaire
  * 
- * Ce service utilise un moteur de planification personnalisé optimisé pour
- * générer un planning optimal pour chaque employé en respectant :
- * - Les heures contractuelles
- * - Les exceptions (congés, absences)
- * - Les préférences des employés
- * - Les contraintes de l'entreprise
- * - La législation du travail
+ * Ce service génère un planning optimal pour chaque employé en respectant :
+ * - Les heures contractuelles (contractHoursPerWeek)
+ * - Les exceptions (congés, absences) avec type et date
+ * - Le jour de repos obligatoire (restDay)
+ * - Les préférences individuelles (jours, heures, créneaux fractionnés)
+ * - Les contraintes de l'entreprise (ouverture, minimum employés, pauses)
  * 
  * @author SmartPlanning Team
- * @version 2.0.0 - Moteur personnalisé
+ * @version 2.1.0 - Logique complètement réécrite
  */
 
 // Interface pour les paramètres d'entrée du générateur de planning
@@ -59,784 +58,490 @@ interface TimeSlot {
   start: string;
   end: string;
   duration: number; // en heures
-  day: string;
-  isLunchBreak?: boolean;
 }
 
-// Interface pour la validation
-interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-}
-
-// Jours de la semaine dans l'ordre
+// Jours de la semaine dans l'ordre français
 const DAYS_OF_WEEK = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
-// Créneaux horaires par défaut avec pause déjeuner
-const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-  { start: '09:00', end: '13:00', duration: 4, day: 'lundi' },
-  { start: '13:00', end: '14:00', duration: 1, day: 'lundi', isLunchBreak: true },
-  { start: '14:00', end: '20:00', duration: 6, day: 'lundi' }
-];
+// Mapping français vers anglais pour les jours
+const DAY_MAPPING_FR_TO_EN: { [key: string]: string } = {
+  'lundi': 'monday',
+  'mardi': 'tuesday', 
+  'mercredi': 'wednesday',
+  'jeudi': 'thursday',
+  'vendredi': 'friday',
+  'samedi': 'saturday',
+  'dimanche': 'sunday'
+};
 
 /**
- * Moteur de planification avancé personnalisé
+ * Fonction principale de génération de planning hebdomadaire
+ * 
+ * @param input - Paramètres d'entrée contenant employés, contraintes et préférences
+ * @returns GeneratedPlanning - Planning structuré par employé et par jour
  */
-class AdvancedSchedulingEngine {
-  private input: GeneratePlanningInput;
-  private weekDates: Date[];
-  private availableSlots: TimeSlot[];
+export function generateSchedule(input: GeneratePlanningInput): GeneratedPlanning {
+  console.log('🚀 Début génération planning pour semaine', input.weekNumber, 'année', input.year);
   
-  constructor(input: GeneratePlanningInput) {
-    this.input = input;
-    this.weekDates = this.getWeekDates(input.weekNumber, input.year);
-    this.availableSlots = this.generateTimeSlots();
+  // Validation des paramètres d'entrée
+  if (!input.employees || input.employees.length === 0) {
+    console.warn('⚠️ Aucun employé fourni pour génération planning');
+    return {};
   }
 
-  /**
-   * Génère un planning optimal
-   */
-  generateOptimalSchedule(): GeneratedPlanning {
+  if (input.weekNumber < 1 || input.weekNumber > 53) {
+    console.warn('⚠️ Numéro de semaine invalide:', input.weekNumber);
+    return {};
+  }
+
+  // Créer les dates de la semaine
+  const weekDates = getWeekDates(input.weekNumber, input.year);
+  console.log('📅 Dates de la semaine générées:', weekDates.map(d => d.toISOString().split('T')[0]));
+
+  const finalPlanning: GeneratedPlanning = {};
+
+  // Générer le planning pour chaque employé
+  for (const employee of input.employees) {
+    console.log(`\n👤 Génération planning pour employé: ${employee._id}`);
+    console.log(`📋 Heures contractuelles: ${employee.contractHoursPerWeek}h/semaine`);
+    
     try {
-      // 1. Validation des paramètres d'entrée
-      const validation = this.validateInput();
-      if (!validation.isValid) {
-        console.warn('Paramètres invalides:', validation.errors);
-        return this.generateFallbackPlanning();
-      }
-
-      // 2. Génération des candidats d'horaires
-      const candidateSchedules = this.generateCandidateSchedules();
-
-      // 3. Optimisation par algorithme personnalisé
-      const optimizedSchedule = this.optimizeSchedule(candidateSchedules);
-
-      // 4. Validation finale du planning généré
-      const finalValidation = this.validateGeneratedPlanning(optimizedSchedule);
-      if (!finalValidation.isValid) {
-        console.warn('Planning généré invalide:', finalValidation.errors);
-        return this.generateFallbackPlanning();
-      }
-
-      return optimizedSchedule;
-
+      const employeePlanning = generateEmployeeSchedule(employee, input, weekDates);
+      finalPlanning[employee._id] = employeePlanning;
+      
+      // Calculer et afficher le total d'heures généré
+      const totalHours = calculateTotalHours(employeePlanning);
+      console.log(`✅ Planning généré - Total: ${totalHours}h (objectif: ${employee.contractHoursPerWeek}h)`);
+      
     } catch (error) {
-      console.error('Erreur lors de la génération du planning:', error);
-      return this.generateFallbackPlanning();
+      console.error(`❌ Erreur génération planning pour ${employee._id}:`, error);
+      // En cas d'erreur, créer un planning vide pour cet employé
+      finalPlanning[employee._id] = createEmptySchedule();
     }
   }
 
-  /**
-   * Valide les paramètres d'entrée
-   */
-  private validateInput(): ValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+  console.log('🏁 Génération planning terminée\n');
+  return finalPlanning;
+}
 
-    if (!this.input.employees || this.input.employees.length === 0) {
-      errors.push('Aucun employé fourni pour la génération du planning');
-    }
-
-    if (this.input.weekNumber < 1 || this.input.weekNumber > 53) {
-      errors.push('Numéro de semaine invalide');
-    }
-
-    // Validation des heures contractuelles
-    this.input.employees.forEach(emp => {
-      if (emp.contractHoursPerWeek < 0 || emp.contractHoursPerWeek > 60) {
-        warnings.push(`Heures contractuelles suspectes pour l'employé ${emp._id}: ${emp.contractHoursPerWeek}h`);
-      }
-    });
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
+/**
+ * Génère le planning pour un employé spécifique
+ */
+function generateEmployeeSchedule(
+  employee: GeneratePlanningInput['employees'][0], 
+  input: GeneratePlanningInput,
+  weekDates: Date[]
+): { [day: string]: { start: string; end: string; isLunchBreak?: boolean; }[] } {
+  
+  const schedule: { [day: string]: { start: string; end: string; isLunchBreak?: boolean; }[] } = {};
+  
+  // Initialiser tous les jours vides
+  for (const day of DAYS_OF_WEEK) {
+    schedule[day] = [];
   }
 
-  /**
-   * Génère les créneaux horaires disponibles
-   */
-  private generateTimeSlots(): TimeSlot[] {
-    const slots: TimeSlot[] = [];
-    const constraints = this.input.companyConstraints;
+  // Déterminer les jours disponibles pour l'employé
+  const availableDays = getAvailableDaysForEmployee(employee, weekDates, input.companyConstraints);
+  console.log(`📋 Jours disponibles pour ${employee._id}:`, availableDays);
 
-    for (let dayIndex = 0; dayIndex < DAYS_OF_WEEK.length; dayIndex++) {
-      const day = DAYS_OF_WEEK[dayIndex];
-      
-      // Vérifier si l'entreprise est ouverte ce jour
-      if (constraints?.openDays && !constraints.openDays.includes(day)) {
-        continue;
-      }
-
-      // Utiliser les heures d'ouverture spécifiées ou par défaut plus larges
-      const dayHours = constraints?.openHours || ['09:00-20:00'];
-      
-      // Debug: afficher les heures d'ouverture utilisées
-      if (day === 'lundi') { // Ne logguer qu'une fois
-        console.log(`🕐 Heures d'ouverture transmises:`, constraints?.openHours);
-        console.log(`🕐 Heures utilisées pour génération:`, dayHours);
-      }
-      
-      for (const hourRange of dayHours) {
-        const [start, end] = hourRange.split('-');
-        const startTime = this.parseTimeToDecimal(start);
-        const endTime = this.parseTimeToDecimal(end);
-        const duration = endTime - startTime;
-
-        if (duration > 0) {
-          slots.push({
-            start,
-            end,
-            duration,
-            day
-          });
-
-          // Ajouter une pause déjeuner si nécessaire
-          if (constraints?.mandatoryLunchBreak && duration >= 6) {
-            const lunchStart = this.addMinutesToTime(start, duration * 60 / 2);
-            const lunchEnd = this.addMinutesToTime(lunchStart, constraints.lunchBreakDuration || 60);
-            
-            slots.push({
-              start: lunchStart,
-              end: lunchEnd,
-              duration: (constraints.lunchBreakDuration || 60) / 60,
-              day,
-              isLunchBreak: true
-            });
-          }
-        }
-      }
-    }
-
-    return slots.length > 0 ? slots : this.generateDefaultSlots();
+  if (availableDays.length === 0) {
+    console.warn(`⚠️ Aucun jour disponible pour ${employee._id} - planning vide`);
+    return schedule;
   }
 
-  /**
-   * Génère des candidats d'horaires pour chaque employé
-   */
-  private generateCandidateSchedules(): Map<string, GeneratedPlanning> {
-    const candidates = new Map<string, GeneratedPlanning>();
+  // Récupérer les préférences ou utiliser les valeurs par défaut
+  const preferences = employee.preferences || {};
+  const workingDays = preferences.preferredDays && preferences.preferredDays.length > 0 
+    ? availableDays.filter(day => preferences.preferredDays!.includes(day))
+    : availableDays;
+
+  if (workingDays.length === 0) {
+    console.warn(`⚠️ Aucun jour de travail préféré disponible pour ${employee._id} - fallback sur jours disponibles`);
+    workingDays.push(...availableDays);
+  }
+
+  console.log(`🗓️ Jours de travail sélectionnés:`, workingDays);
+
+  // Répartir les heures sur la semaine
+  const hoursDistribution = distributeWorkingHours(
+    employee.contractHoursPerWeek,
+    workingDays,
+    preferences,
+    input.companyConstraints
+  );
+
+  console.log(`⏰ Distribution des heures:`, hoursDistribution);
+
+  // Générer les créneaux horaires pour chaque jour
+  for (const [day, hours] of Object.entries(hoursDistribution)) {
+    if (hours > 0) {
+      const daySlots = generateDaySlots(day, hours, preferences, input.companyConstraints);
+      schedule[day] = daySlots;
+    }
+  }
+
+  // Valider et ajuster le planning selon maxConsecutiveDays
+  const adjustedSchedule = applyMaxConsecutiveDays(schedule, preferences.maxConsecutiveDays || 5);
+
+  return adjustedSchedule;
+}
+
+/**
+ * Fonction utilitaire interne pour répartir les heures de travail
+ */
+function distributeWorkingHours(
+  totalHours: number,
+  workingDays: string[],
+  preferences: any,
+  companyConstraints?: GeneratePlanningInput['companyConstraints']
+): { [day: string]: number } {
+  
+  console.log(`📊 Répartition de ${totalHours}h sur ${workingDays.length} jours`);
+  
+  const distribution: { [day: string]: number } = {};
+  let remainingHours = totalHours;
+  
+  // Limites d'heures par jour
+  const maxHoursPerDay = companyConstraints?.maxHoursPerDay || 8;
+  const minHoursPerDay = companyConstraints?.minHoursPerDay || 2;
+  
+  console.log(`⚖️ Limites: ${minHoursPerDay}h-${maxHoursPerDay}h par jour`);
+
+  // Stratégie de répartition équitable
+  const hoursPerDay = Math.min(maxHoursPerDay, Math.ceil(totalHours / workingDays.length));
+  
+  for (const day of workingDays) {
+    if (remainingHours <= 0) break;
     
-    for (const employee of this.input.employees) {
-      // Génération de plusieurs candidats par employé
-      for (let i = 0; i < 3; i++) {
-        const candidate = this.generateEmployeeSchedule(employee, i);
-        candidates.set(`${employee._id}_${i}`, { [employee._id]: candidate });
-      }
-    }
-
-    return candidates;
-  }
-
-  /**
-   * Génère un planning pour un employé spécifique
-   */
-  private generateEmployeeSchedule(employee: GeneratePlanningInput['employees'][0], variant: number): any {
-    const schedule: any = {};
-    let remainingHours = employee.contractHoursPerWeek;
-
-    // Initialiser les jours
-    for (const day of DAYS_OF_WEEK) {
-      schedule[day] = [];
-    }
-
-    // Stratégies différentes selon le variant
-    const strategies = [
-      this.distributeEvenly.bind(this),
-      this.favorPreferences.bind(this),
-      this.concentrateHours.bind(this)
-    ];
-
-    return strategies[variant](employee, schedule, remainingHours);
-  }
-
-  /**
-   * Stratégie 1: Distribution uniforme des heures
-   */
-  private distributeEvenly(employee: any, schedule: any, remainingHours: number): any {
-    const workingDays = this.getAvailableDaysForEmployee(employee);
-    console.log(`Jours disponibles pour ${employee._id}:`, workingDays);
+    const dayHours = Math.min(hoursPerDay, remainingHours, maxHoursPerDay);
     
-    if (workingDays.length === 0) {
-      console.log(`Aucun jour disponible pour ${employee._id}`);
-      return schedule;
+    // Ne planifier que si au moins le minimum d'heures
+    if (dayHours >= minHoursPerDay || remainingHours < minHoursPerDay) {
+      distribution[day] = dayHours;
+      remainingHours -= dayHours;
     }
-    
-    const hoursPerDay = Math.min(
-      remainingHours / workingDays.length,
-      this.input.companyConstraints?.maxHoursPerDay || 8
-    );
-
+  }
+  
+  // Si il reste des heures, les répartir sur les jours existants
+  if (remainingHours > 0) {
     for (const day of workingDays) {
       if (remainingHours <= 0) break;
       
-      if (!this.isEmployeeAvailable(employee, day)) {
-        console.log(`Employé ${employee._id} non disponible le ${day}`);
-        continue;
+      const currentHours = distribution[day] || 0;
+      if (currentHours < maxHoursPerDay) {
+        const additionalHours = Math.min(remainingHours, maxHoursPerDay - currentHours);
+        distribution[day] = currentHours + additionalHours;
+        remainingHours -= additionalHours;
       }
-      
-      const daySlots = this.availableSlots.filter(slot => slot.day === day && !slot.isLunchBreak);
-      let dayHours = Math.min(hoursPerDay, remainingHours);
-      
-      console.log(`Planification ${employee._id} le ${day}: ${dayHours}h à répartir`);
+    }
+  }
+  
+  return distribution;
+}
 
-      // Créer un créneau continu si pas de créneaux fractionnés autorisés
-      if (employee.preferences?.allowSplitShifts === false && dayHours > 0) {
-        // Déterminer l'heure de début basée sur les préférences
-        let startTime = '09:00';
-        if (employee.preferences?.preferredHours?.length > 0) {
-          const firstPref = employee.preferences.preferredHours[0].split('-')[0];
-          if (firstPref && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(firstPref)) {
-            startTime = firstPref;
-          }
-        }
-        
-        const maxContinuousHours = Math.min(dayHours, 8);
-        schedule[day].push({
-          start: startTime,
-          end: this.addHoursToTime(startTime, maxContinuousHours)
+/**
+ * Génère les créneaux horaires pour un jour donné
+ */
+function generateDaySlots(
+  day: string,
+  hours: number,
+  preferences: any,
+  companyConstraints?: GeneratePlanningInput['companyConstraints']
+): { start: string; end: string; isLunchBreak?: boolean; }[] {
+  
+  const slots: { start: string; end: string; isLunchBreak?: boolean; }[] = [];
+  
+  // Déterminer les heures d'ouverture pour ce jour
+  const openHours = getOpenHoursForDay(day, companyConstraints);
+  const [dayStart, dayEnd] = openHours.split('-');
+  
+  console.log(`🕐 ${day}: ${hours}h à planifier entre ${dayStart} et ${dayEnd}`);
+  
+  // Déterminer l'heure de début préférée
+  let preferredStart = dayStart;
+  if (preferences.preferredHours && preferences.preferredHours.length > 0) {
+    // Utiliser la première préférence horaire qui chevauche avec les heures d'ouverture
+    for (const prefRange of preferences.preferredHours) {
+      const [prefStart] = prefRange.split('-');
+      if (isTimeInRange(prefStart, dayStart, dayEnd)) {
+        preferredStart = prefStart;
+        break;
+      }
+    }
+  }
+  
+  console.log(`🎯 Heure de début préférée: ${preferredStart}`);
+  
+  // Gérer les créneaux fractionnés vs continus
+  if (preferences.allowSplitShifts === false) {
+    // Créer un seul créneau continu
+    const endTime = addHoursToTime(preferredStart, hours);
+    
+    // Vérifier si le créneau continu dépasse les heures d'ouverture
+    if (parseTimeToDecimal(endTime) > parseTimeToDecimal(dayEnd)) {
+      // Ajuster pour rester dans les heures d'ouverture
+      const maxHours = parseTimeToDecimal(dayEnd) - parseTimeToDecimal(preferredStart);
+      const adjustedEndTime = addHoursToTime(preferredStart, Math.max(0, maxHours));
+      
+      if (maxHours > 0) {
+        slots.push({
+          start: preferredStart,
+          end: adjustedEndTime
         });
-        remainingHours -= maxContinuousHours;
+      }
+    } else {
+      slots.push({
+        start: preferredStart,
+        end: endTime
+      });
+    }
+    
+    // Ajouter pause déjeuner si nécessaire et si plus de 6h
+    if (companyConstraints?.mandatoryLunchBreak && hours >= 6) {
+      const lunchBreakDuration = (companyConstraints.lunchBreakDuration || 60) / 60; // Convertir en heures
+      const lunchStart = addHoursToTime(preferredStart, hours / 2);
+      const lunchEnd = addHoursToTime(lunchStart, lunchBreakDuration);
+      
+      slots.push({
+        start: lunchStart,
+        end: lunchEnd,
+        isLunchBreak: true
+      });
+    }
+    
+  } else {
+    // Permettre les créneaux fractionnés - répartir intelligemment
+    let remainingHours = hours;
+    let currentStart = preferredStart;
+    
+    // Créer des créneaux de 4h maximum avec pauses
+    while (remainingHours > 0) {
+      const slotHours = Math.min(4, remainingHours);
+      const slotEnd = addHoursToTime(currentStart, slotHours);
+      
+      // Vérifier que le créneau reste dans les heures d'ouverture
+      if (parseTimeToDecimal(slotEnd) <= parseTimeToDecimal(dayEnd)) {
+        slots.push({
+          start: currentStart,
+          end: slotEnd
+        });
+        
+        remainingHours -= slotHours;
+        
+        // Ajouter une pause entre les créneaux si il reste des heures
+        if (remainingHours > 0) {
+          currentStart = addHoursToTime(slotEnd, 0.5); // 30 min de pause
+        }
       } else {
-        // Répartir sur les créneaux disponibles
-        // Respecter les préférences horaires si spécifiées
-        if (employee.preferences?.preferredHours?.length > 0) {
-          const preferredSlots = daySlots.filter(slot => {
-            return employee.preferences.preferredHours.some(prefRange => {
-              const [prefStart, prefEnd] = prefRange.split('-');
-              const slotStart = this.parseTimeToDecimal(slot.start);
-              const slotEnd = this.parseTimeToDecimal(slot.end);
-              const prefStartDecimal = this.parseTimeToDecimal(prefStart);
-              const prefEndDecimal = this.parseTimeToDecimal(prefEnd);
-              
-              // Créneau compatible si il y a overlap
-              return (slotStart < prefEndDecimal && slotEnd > prefStartDecimal);
-            });
-          });
-          
-          const slotsToUse = preferredSlots.length > 0 ? preferredSlots : daySlots;
-          
-          for (const slot of slotsToUse) {
-            if (dayHours <= 0) break;
-            const hours = Math.min(slot.duration, dayHours);
-            schedule[day].push({
-              start: slot.start,
-              end: this.addHoursToTime(slot.start, hours)
-            });
-            dayHours -= hours;
-            remainingHours -= hours;
-          }
-        } else {
-          for (const slot of daySlots) {
-            if (dayHours <= 0) break;
-            const hours = Math.min(slot.duration, dayHours);
-            schedule[day].push({
-              start: slot.start,
-              end: this.addHoursToTime(slot.start, hours)
-            });
-            dayHours -= hours;
-            remainingHours -= hours;
-          }
-        }
+        // Ne peut pas créer d'autres créneaux dans les heures d'ouverture
+        break;
       }
     }
-
-    return schedule;
-  }
-
-  /**
-   * Stratégie 2: Favoriser les préférences employé
-   */
-  private favorPreferences(employee: any, schedule: any, remainingHours: number): any {
-    const preferredDays = employee.preferences?.preferredDays || DAYS_OF_WEEK;
     
-    // Trier les jours par préférence
-    const sortedDays = DAYS_OF_WEEK.sort((a, b) => {
-      const aPreferred = preferredDays.includes(a) ? 1 : 0;
-      const bPreferred = preferredDays.includes(b) ? 1 : 0;
-      return bPreferred - aPreferred;
-    });
-
-    for (const day of sortedDays) {
-      if (remainingHours <= 0) break;
+    // Ajouter pause déjeuner si nécessaire
+    if (companyConstraints?.mandatoryLunchBreak && hours >= 6 && slots.length > 0) {
+      const lunchBreakDuration = (companyConstraints.lunchBreakDuration || 60) / 60;
+      const middleSlotIndex = Math.floor(slots.length / 2);
+      const lunchStart = slots[middleSlotIndex].end;
+      const lunchEnd = addHoursToTime(lunchStart, lunchBreakDuration);
       
-      if (this.isEmployeeAvailable(employee, day)) {
-        const maxDayHours = this.input.companyConstraints?.maxHoursPerDay || 8;
-        let dayHours = Math.min(maxDayHours, remainingHours);
-
-        const daySlots = this.availableSlots.filter(slot => slot.day === day && !slot.isLunchBreak);
-        
-        // Gérer les créneaux fractionnés selon les préférences
-        if (employee.preferences?.allowSplitShifts === false && dayHours > 0) {
-          // Créer un seul créneau continu
-          const preferredHours = employee.preferences?.preferredHours;
-          let startTime = '09:00';
-          
-          if (preferredHours?.length > 0) {
-            // Utiliser la première préférence horaire comme base
-            const firstPref = preferredHours[0].split('-')[0];
-            if (firstPref && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(firstPref)) {
-              startTime = firstPref;
-            }
-          }
-          
-          const maxContinuousHours = Math.min(dayHours, 8);
-          schedule[day].push({
-            start: startTime,
-            end: this.addHoursToTime(startTime, maxContinuousHours)
-          });
-          remainingHours -= maxContinuousHours;
-        } else {
-          // Permettre les créneaux fractionnés
-          // Respecter les préférences horaires si spécifiées
-          if (employee.preferences?.preferredHours?.length > 0) {
-            const preferredSlots = daySlots.filter(slot => {
-              return employee.preferences.preferredHours.some((prefRange: string) => {
-                const [prefStart, prefEnd] = prefRange.split('-');
-                const slotStart = this.parseTimeToDecimal(slot.start);
-                const slotEnd = this.parseTimeToDecimal(slot.end);
-                const prefStartDecimal = this.parseTimeToDecimal(prefStart);
-                const prefEndDecimal = this.parseTimeToDecimal(prefEnd);
-                
-                // Créneau compatible si il y a overlap
-                return (slotStart < prefEndDecimal && slotEnd > prefStartDecimal);
-              });
-            });
-            
-            const slotsToUse = preferredSlots.length > 0 ? preferredSlots : daySlots;
-            
-            for (const slot of slotsToUse) {
-              if (dayHours <= 0) break;
-              const hours = Math.min(slot.duration, dayHours);
-              schedule[day].push({
-                start: slot.start,
-                end: this.addHoursToTime(slot.start, hours)
-              });
-              dayHours -= hours;
-              remainingHours -= hours;
-            }
-          } else {
-            for (const slot of daySlots) {
-              if (dayHours <= 0) break;
-              const hours = Math.min(slot.duration, dayHours);
-              schedule[day].push({
-                start: slot.start,
-                end: this.addHoursToTime(slot.start, hours)
-              });
-              dayHours -= hours;
-              remainingHours -= hours;
-            }
-          }
-        }
-      }
+      slots.splice(middleSlotIndex + 1, 0, {
+        start: lunchStart,
+        end: lunchEnd,
+        isLunchBreak: true
+      });
     }
-
-    return schedule;
   }
+  
+  console.log(`📋 Créneaux générés pour ${day}:`, slots);
+  return slots;
+}
 
-  /**
-   * Stratégie 3: Concentrer les heures sur moins de jours
-   */
-  private concentrateHours(employee: any, schedule: any, remainingHours: number): any {
-    const availableDays = this.getAvailableDaysForEmployee(employee);
-    const maxDayHours = this.input.companyConstraints?.maxHoursPerDay || 8;
-
-    for (const day of availableDays) {
-      if (remainingHours <= 0) break;
+/**
+ * Applique la contrainte de jours consécutifs maximum
+ */
+function applyMaxConsecutiveDays(
+  schedule: { [day: string]: any[] },
+  maxConsecutiveDays: number
+): { [day: string]: any[] } {
+  
+  console.log(`🔄 Application limite jours consécutifs: ${maxConsecutiveDays}`);
+  
+  const adjustedSchedule = { ...schedule };
+  let consecutiveDays = 0;
+  
+  for (const day of DAYS_OF_WEEK) {
+    if (schedule[day] && schedule[day].length > 0) {
+      consecutiveDays++;
       
-      let dayHours = Math.min(maxDayHours, remainingHours);
-      const daySlots = this.availableSlots.filter(slot => slot.day === day && !slot.isLunchBreak);
-
-      for (const slot of daySlots) {
-        if (dayHours <= 0) break;
-        const hours = Math.min(slot.duration, dayHours);
-        schedule[day].push({
-          start: slot.start,
-          end: this.addHoursToTime(slot.start, hours)
-        });
-        dayHours -= hours;
-        remainingHours -= hours;
+      if (consecutiveDays > maxConsecutiveDays) {
+        console.log(`⚠️ Suppression planning ${day} - dépassement jours consécutifs`);
+        adjustedSchedule[day] = [];
+        consecutiveDays = 0; // Reset après suppression
       }
+    } else {
+      consecutiveDays = 0; // Reset si jour sans travail
     }
-
-    return schedule;
   }
+  
+  return adjustedSchedule;
+}
 
-  /**
-   * Optimise le planning en combinant les meilleurs candidats
-   */
-  private optimizeSchedule(candidates: Map<string, GeneratedPlanning>): GeneratedPlanning {
-    const finalPlanning: GeneratedPlanning = {};
+// Fonctions utilitaires
 
-    // Pour chaque employé, choisir le meilleur candidat
-    for (const employee of this.input.employees) {
-      let bestCandidate = null;
-      let bestScore = -1;
-
-      for (let i = 0; i < 3; i++) {
-        const candidateKey = `${employee._id}_${i}`;
-        const candidate = candidates.get(candidateKey);
-        
-        if (candidate) {
-          const score = this.scorePlanningCandidate(candidate[employee._id], employee);
-          if (score > bestScore) {
-            bestScore = score;
-            bestCandidate = candidate[employee._id];
-          }
-        }
-      }
-
-      if (bestCandidate) {
-        finalPlanning[employee._id] = bestCandidate;
-      }
-    }
-
-    return finalPlanning;
+/**
+ * Obtient les dates de la semaine à partir du numéro de semaine et de l'année
+ */
+function getWeekDates(weekNumber: number, year: number): Date[] {
+  // Calculer le premier jour de l'année
+  const firstDayOfYear = new Date(year, 0, 1);
+  
+  // Calculer le décalage pour atteindre la semaine voulue
+  const daysOffset = (weekNumber - 1) * 7;
+  const weekStart = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+  
+  // Ajuster pour obtenir le lundi de la semaine
+  const dayOfWeek = weekStart.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  weekStart.setDate(weekStart.getDate() + mondayOffset);
+  
+  // Générer les 7 jours de la semaine
+  const weekDates: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + i);
+    weekDates.push(date);
   }
+  
+  return weekDates;
+}
 
-  /**
-   * Évalue la qualité d'un candidat de planning
-   */
-  private scorePlanningCandidate(schedule: any, employee: any): number {
-    let score = 0;
-
-    // Score basé sur le respect des heures contractuelles
-    const totalHours = this.calculateTotalHours(schedule);
-    const targetHours = employee.contractHoursPerWeek;
-    const hoursAccuracy = 1 - Math.abs(totalHours - targetHours) / targetHours;
-    score += hoursAccuracy * 50;
-
-    // Score basé sur les préférences de jours
-    if (employee.preferences?.preferredDays) {
-      const workingDays = Object.keys(schedule).filter(day => schedule[day].length > 0);
-      const preferredWorkingDays = workingDays.filter(day => 
-        employee.preferences.preferredDays.includes(day)
-      );
-      score += (preferredWorkingDays.length / (workingDays.length || 1)) * 20;
-    }
+/**
+ * Détermine les jours disponibles pour un employé
+ */
+function getAvailableDaysForEmployee(
+  employee: GeneratePlanningInput['employees'][0],
+  weekDates: Date[],
+  companyConstraints?: GeneratePlanningInput['companyConstraints']
+): string[] {
+  
+  const availableDays: string[] = [];
+  
+  for (let i = 0; i < DAYS_OF_WEEK.length; i++) {
+    const day = DAYS_OF_WEEK[i];
+    const dayInEnglish = DAY_MAPPING_FR_TO_EN[day];
+    const date = weekDates[i];
     
-    // Score basé sur le respect des créneaux préférés
-    if (employee.preferences?.preferredHours) {
-      let preferredHoursRespected = 0;
-      let totalSlots = 0;
-      
-      for (const daySlots of Object.values(schedule)) {
-        for (const slot of daySlots as any[]) {
-          totalSlots++;
-          const slotStart = this.parseTimeToDecimal(slot.start);
-          const slotEnd = this.parseTimeToDecimal(slot.end);
-          
-          const isInPreferredRange = employee.preferences.preferredHours.some((prefRange: string) => {
-            const [prefStart, prefEnd] = prefRange.split('-');
-            const prefStartDecimal = this.parseTimeToDecimal(prefStart);
-            const prefEndDecimal = this.parseTimeToDecimal(prefEnd);
-            
-            // Vérifier si le créneau est dans la plage préférée
-            return slotStart >= prefStartDecimal && slotEnd <= prefEndDecimal;
-          });
-          
-          if (isInPreferredRange) {
-            preferredHoursRespected++;
-          }
-        }
-      }
-      
-      if (totalSlots > 0) {
-        score += (preferredHoursRespected / totalSlots) * 15;
-      }
-    }
-    
-    // Score basé sur le respect de allowSplitShifts
-    if (employee.preferences?.allowSplitShifts === false) {
-      let penaltyForSplits = 0;
-      
-      for (const [day, daySlots] of Object.entries(schedule)) {
-        const slots = daySlots as any[];
-        if (slots.length > 1) {
-          // Vérifier s'il y a vraiment des splits (gaps > 15min)
-          const sortedSlots = [...slots].sort((a, b) => 
-            this.parseTimeToDecimal(a.start) - this.parseTimeToDecimal(b.start)
-          );
-          
-          for (let i = 0; i < sortedSlots.length - 1; i++) {
-            const currentEnd = this.parseTimeToDecimal(sortedSlots[i].end);
-            const nextStart = this.parseTimeToDecimal(sortedSlots[i + 1].start);
-            
-            if (nextStart - currentEnd > 0.25) { // Gap > 15min
-              penaltyForSplits += 5; // Pénalité pour chaque split
-            }
-          }
-        }
-      }
-      
-      score -= penaltyForSplits;
-    }
-
-    // Score basé sur la distribution des heures
-    const dailyHours = Object.values(schedule).map((slots: any) => 
-      this.calculateDayHours(slots)
-    );
-    const variance = this.calculateVariance(dailyHours);
-    score += Math.max(0, 20 - variance); // Favorise la régularité
-
-    return score;
-  }
-
-  /**
-   * Valide le planning généré
-   */
-  private validateGeneratedPlanning(planning: GeneratedPlanning): ValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    for (const [employeeId, schedule] of Object.entries(planning)) {
-      const employee = this.input.employees.find(emp => emp._id === employeeId);
-      if (!employee) continue;
-
-      // Validation des heures contractuelles
-      const totalHours = this.calculateTotalHours(schedule);
-      const targetHours = employee.contractHoursPerWeek;
-      const tolerance = targetHours * 0.1; // 10% de tolérance
-
-      if (Math.abs(totalHours - targetHours) > tolerance) {
-        warnings.push(`Écart d'heures pour ${employeeId}: ${totalHours}h vs ${targetHours}h attendues`);
-      }
-
-      // Validation des repos légaux (11h minimum entre deux services)
-      for (let dayIndex = 0; dayIndex < DAYS_OF_WEEK.length - 1; dayIndex++) {
-        const today = DAYS_OF_WEEK[dayIndex];
-        const tomorrow = DAYS_OF_WEEK[dayIndex + 1];
-        
-        const todaySlots = schedule[today] || [];
-        const tomorrowSlots = schedule[tomorrow] || [];
-
-        if (todaySlots.length > 0 && tomorrowSlots.length > 0) {
-          const lastToday = todaySlots[todaySlots.length - 1];
-          const firstTomorrow = tomorrowSlots[0];
-          
-          const restHours = this.calculateRestBetweenShifts(lastToday.end, firstTomorrow.start);
-          if (restHours < 11) {
-            errors.push(`Repos insuffisant pour ${employeeId} entre ${today} et ${tomorrow}: ${restHours}h`);
-          }
-        }
-      }
-
-      // Validation des créneaux fractionnés
-      if (employee.preferences?.allowSplitShifts === false) {
-        for (const day of DAYS_OF_WEEK) {
-          const daySlots = schedule[day] || [];
-          
-          // Vérifier s'il y a vraiment des créneaux fractionnés (non-consécutifs)
-          if (daySlots.length > 1) {
-            // Trier les créneaux par heure de début
-            const sortedSlots = [...daySlots].sort((a, b) => 
-              this.parseTimeToDecimal(a.start) - this.parseTimeToDecimal(b.start)
-            );
-            
-            // Vérifier s'il y a des gaps entre les créneaux
-            let hasSplitShifts = false;
-            for (let i = 0; i < sortedSlots.length - 1; i++) {
-              const currentEnd = this.parseTimeToDecimal(sortedSlots[i].end);
-              const nextStart = this.parseTimeToDecimal(sortedSlots[i + 1].start);
-              
-              // Si il y a un gap > 15 minutes, c'est considéré comme fractionné
-              if (nextStart - currentEnd > 0.25) {
-                hasSplitShifts = true;
-                break;
-              }
-            }
-            
-            if (hasSplitShifts) {
-              errors.push(`Créneaux fractionnés non autorisés pour ${employeeId} le ${day}`);
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
-  }
-
-  // Méthodes utilitaires
-  private getWeekDates(weekNumber: number, year: number): Date[] {
-    const firstDayOfYear = new Date(year, 0, 1);
-    const daysOffset = (weekNumber - 1) * 7;
-    const weekStart = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000);
-    
-    const dayOfWeek = weekStart.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    weekStart.setDate(weekStart.getDate() + mondayOffset);
-    
-    const weekDates: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      weekDates.push(date);
-    }
-    
-    return weekDates;
-  }
-
-  private parseTimeToDecimal(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours + minutes / 60;
-  }
-
-  private addMinutesToTime(time: string, minutes: number): string {
-    const [hours, mins] = time.split(':').map(Number);
-    const totalMinutes = hours * 60 + mins + minutes;
-    const newHours = Math.floor(totalMinutes / 60);
-    const newMins = totalMinutes % 60;
-    return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
-  }
-
-  private addHoursToTime(time: string, hours: number): string {
-    return this.addMinutesToTime(time, hours * 60);
-  }
-
-  private isEmployeeAvailable(employee: any, day: string): boolean {
-    const dayIndex = DAYS_OF_WEEK.indexOf(day);
-    if (dayIndex === -1) return false;
-
-    // Conversion français -> anglais pour comparaison jour de repos
-    const dayMappingFrToEn: { [key: string]: string } = {
-      'lundi': 'monday',
-      'mardi': 'tuesday', 
-      'mercredi': 'wednesday',
-      'jeudi': 'thursday',
-      'vendredi': 'friday',
-      'samedi': 'saturday',
-      'dimanche': 'sunday'
-    };
-    
-    const dayInEnglish = dayMappingFrToEn[day] || day;
-
     // Vérifier si l'entreprise est ouverte ce jour
-    if (this.input.companyConstraints?.openDays && !this.input.companyConstraints.openDays.includes(dayInEnglish)) {
-      console.log(`🏢 Entreprise fermée le ${day} (${dayInEnglish})`);
-      return false;
+    if (companyConstraints?.openDays && !companyConstraints.openDays.includes(dayInEnglish)) {
+      console.log(`🏢 Entreprise fermée le ${day}`);
+      continue;
     }
-
-    // Vérifier le jour de repos obligatoire
-    if (employee.restDay && dayInEnglish === employee.restDay) {
-      console.log(`🚫 ${employee._id} a un jour de repos obligatoire le ${day} (${dayInEnglish})`);
-      return false;
-    }
-
-    // Debug: afficher tous les jours de repos configurés
-    if (employee.restDay) {
-      console.log(`📅 Employé ${employee._id} - jour de repos configuré: ${employee.restDay}`);
-    }
-
-    const date = this.weekDates[dayIndex];
     
-    // Vérifier les exceptions
-    const hasException = employee.exceptions?.some((exception: any) => {
+    // Vérifier le jour de repos obligatoire de l'employé
+    if (employee.restDay && dayInEnglish === employee.restDay) {
+      console.log(`🚫 ${employee._id} - jour de repos obligatoire: ${day}`);
+      continue;
+    }
+    
+    // Vérifier les exceptions (congés, absences)
+    const hasBlockingException = employee.exceptions?.some(exception => {
       const exceptionDate = new Date(exception.date);
       const isSameDate = exceptionDate.toDateString() === date.toDateString();
       const isBlockingType = ['vacation', 'sick', 'unavailable'].includes(exception.type);
       
-      console.log(`Vérification exception pour ${employee._id} le ${day}:`, {
-        exceptionDate: exceptionDate.toDateString(),
-        currentDate: date.toDateString(),
-        isSameDate,
-        exceptionType: exception.type,
-        isBlockingType
-      });
-      
       return isSameDate && isBlockingType;
     });
     
-    console.log(`Employé ${employee._id} disponible le ${day}:`, !hasException);
-    return !hasException;
-  }
-
-  private getAvailableDaysForEmployee(employee: any): string[] {
-    return DAYS_OF_WEEK.filter(day => this.isEmployeeAvailable(employee, day));
-  }
-
-  private calculateTotalHours(schedule: any): number {
-    return Object.values(schedule).reduce((total: number, daySlots: any) => {
-      return total + this.calculateDayHours(daySlots);
-    }, 0);
-  }
-
-  private calculateDayHours(slots: any[]): number {
-    return slots.reduce((total, slot) => {
-      const start = this.parseTimeToDecimal(slot.start);
-      const end = this.parseTimeToDecimal(slot.end);
-      return total + (end - start);
-    }, 0);
-  }
-
-  private calculateVariance(numbers: number[]): number {
-    const mean = numbers.reduce((sum, num) => sum + num, 0) / numbers.length;
-    const squaredDiffs = numbers.map(num => Math.pow(num - mean, 2));
-    return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / numbers.length;
-  }
-
-  private calculateRestBetweenShifts(endTime: string, startTime: string): number {
-    const end = this.parseTimeToDecimal(endTime);
-    const start = this.parseTimeToDecimal(startTime);
-    let rest = start - end;
-    if (rest < 0) rest += 24; // Gestion du passage de jour
-    return rest;
-  }
-
-  private generateDefaultSlots(): TimeSlot[] {
-    const slots: TimeSlot[] = [];
-    for (const day of DAYS_OF_WEEK) {
-      slots.push(
-        { start: '09:00', end: '13:00', duration: 4, day },
-        { start: '14:00', end: '20:00', duration: 6, day }
+    if (hasBlockingException) {
+      console.log(`🚫 ${employee._id} - exception le ${day}:`, 
+        employee.exceptions?.find(e => new Date(e.date).toDateString() === date.toDateString())?.type
       );
-    }
-    return slots;
-  }
-
-  /**
-   * Génère un planning de fallback simple
-   */
-  private generateFallbackPlanning(): GeneratedPlanning {
-    const planning: GeneratedPlanning = {};
-    
-    for (const employee of this.input.employees) {
-      planning[employee._id] = {};
-      let remainingHours = employee.contractHoursPerWeek;
-      
-      for (let dayIndex = 0; dayIndex < DAYS_OF_WEEK.length && remainingHours > 0; dayIndex++) {
-        const day = DAYS_OF_WEEK[dayIndex];
-        planning[employee._id][day] = [];
-        
-        if (this.isEmployeeAvailable(employee, day)) {
-          const dayHours = Math.min(8, remainingHours);
-          if (dayHours >= 4) {
-            planning[employee._id][day].push({
-              start: '09:00',
-              end: this.addHoursToTime('09:00', dayHours)
-            });
-            remainingHours -= dayHours;
-          }
-        }
-      }
+      continue;
     }
     
-    return planning;
+    availableDays.push(day);
   }
+  
+  return availableDays;
 }
 
 /**
- * Fonction principale de génération de planning
- * Compatible avec l'ancienne API pour la transition
+ * Obtient les heures d'ouverture pour un jour donné
  */
+function getOpenHoursForDay(day: string, companyConstraints?: GeneratePlanningInput['companyConstraints']): string {
+  // Si des heures spécifiques sont définies, les utiliser
+  if (companyConstraints?.openHours && companyConstraints.openHours.length > 0) {
+    return companyConstraints.openHours[0]; // Utilise la première plage horaire
+  }
+  
+  // Sinon, utiliser des heures par défaut sécurisées
+  return '09:00-17:00';
+}
+
+/**
+ * Calcule le nombre total d'heures dans un planning
+ */
+function calculateTotalHours(schedule: { [day: string]: { start: string; end: string; isLunchBreak?: boolean; }[] }): number {
+  let totalHours = 0;
+  
+  for (const daySlots of Object.values(schedule)) {
+    for (const slot of daySlots) {
+      if (!slot.isLunchBreak) { // Ne pas compter les pauses déjeuner
+        const start = parseTimeToDecimal(slot.start);
+        const end = parseTimeToDecimal(slot.end);
+        totalHours += (end - start);
+      }
+    }
+  }
+  
+  return Math.round(totalHours * 100) / 100; // Arrondir à 2 décimales
+}
+
+/**
+ * Crée un planning vide pour un employé
+ */
+function createEmptySchedule(): { [day: string]: { start: string; end: string; isLunchBreak?: boolean; }[] } {
+  const schedule: { [day: string]: { start: string; end: string; isLunchBreak?: boolean; }[] } = {};
+  
+  for (const day of DAYS_OF_WEEK) {
+    schedule[day] = [];
+  }
+  
+  return schedule;
+}
+
+/**
+ * Convertit une heure au format "HH:MM" en nombre décimal
+ */
+function parseTimeToDecimal(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours + minutes / 60;
+}
+
+/**
+ * Ajoute des heures à une heure donnée
+ */
+function addHoursToTime(time: string, hours: number): string {
+  const totalMinutes = parseTimeToDecimal(time) * 60 + hours * 60;
+  const newHours = Math.floor(totalMinutes / 60);
+  const newMinutes = totalMinutes % 60;
+  
+  return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Vérifie si une heure est dans une plage horaire
+ */
+function isTimeInRange(time: string, startRange: string, endRange: string): boolean {
+  const timeDecimal = parseTimeToDecimal(time);
+  const startDecimal = parseTimeToDecimal(startRange);
+  const endDecimal = parseTimeToDecimal(endRange);
+  
+  return timeDecimal >= startDecimal && timeDecimal <= endDecimal;
+}
+
+// Export de la fonction principale pour compatibilité avec l'ancienne API
 export function generatePlanning(input: GeneratePlanningInput): GeneratedPlanning {
-  const engine = new AdvancedSchedulingEngine(input);
-  return engine.generateOptimalSchedule();
+  return generateSchedule(input);
 }
