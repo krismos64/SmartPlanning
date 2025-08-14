@@ -98,9 +98,11 @@ pm2.json
 .env.backup
 config.local.js
 
-# Fichiers générés par les scripts
+# Fichiers générés et logs des scripts
 backend/src/scripts/output/
 backend/src/scripts/logs/
+backend/src/scripts/legacy/
 
-# Scripts de maintenance (non nécessaires en production)
-backend/src/scripts/
+# Fichiers de test déplacés
+tests/tmp/
+tests/output/
