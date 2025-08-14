@@ -85,7 +85,6 @@ export class CacheService {
         password: this.config.password,
         db: this.config.db,
         keyPrefix: this.config.keyPrefix,
-        retryDelayOnFailover: 100,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
         // Éviter les timeouts en développement

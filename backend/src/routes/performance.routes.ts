@@ -306,7 +306,7 @@ router.get('/health-check', async (req, res) => {
       success: false,
       status: 'unhealthy',
       message: 'System health check failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
     });
   }
 });
