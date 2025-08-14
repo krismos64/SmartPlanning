@@ -77,6 +77,14 @@ export class CacheService {
    * Initialise la connexion Redis
    */
   private async initializeRedis(): Promise<void> {
+    // En production sans Redis, ne pas tenter de connexion
+    if (process.env.NODE_ENV === 'production' && !process.env.REDIS_HOST) {
+      console.log('⚠️  Redis désactivé en production (variable REDIS_HOST non définie)');
+      this.redis = null;
+      this.isConnected = false;
+      return;
+    }
+
     try {
       // Configuration Redis avec retry automatique
       this.redis = new Redis({
@@ -85,11 +93,11 @@ export class CacheService {
         password: this.config.password,
         db: this.config.db,
         keyPrefix: this.config.keyPrefix,
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: 1,
         lazyConnect: true,
-        // Éviter les timeouts en développement
-        connectTimeout: process.env.NODE_ENV === 'development' ? 5000 : 10000,
-        commandTimeout: process.env.NODE_ENV === 'development' ? 2000 : 5000
+        // Timeout plus courts en production
+        connectTimeout: process.env.NODE_ENV === 'production' ? 3000 : 5000,
+        commandTimeout: process.env.NODE_ENV === 'production' ? 1000 : 2000
       });
 
       // Gestion des événements Redis
@@ -100,22 +108,39 @@ export class CacheService {
 
       this.redis.on('error', (error) => {
         this.isConnected = false;
-        console.log(chalk.yellow(`⚠️  Cache Redis déconnecté: ${error.message}`));
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(chalk.yellow(`⚠️  Cache Redis déconnecté: ${error.message}`));
+        }
+        // En production, arrêter les tentatives de reconnexion après plusieurs échecs
+        if (process.env.NODE_ENV === 'production') {
+          this.redis?.disconnect();
+          this.redis = null;
+        }
       });
 
       this.redis.on('close', () => {
         this.isConnected = false;
-        console.log(chalk.gray('🔌 Cache Redis fermé'));
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(chalk.gray('🔌 Cache Redis fermé'));
+        }
       });
 
-      // Test de connexion
-      if (process.env.NODE_ENV !== 'test') {
-        await this.redis.ping();
-        console.log(chalk.green('🚀 Cache Redis prêt'));
+      // Test de connexion seulement en développement
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          await this.redis.ping();
+          console.log(chalk.green('🚀 Cache Redis prêt'));
+        } catch (pingError) {
+          console.log(chalk.yellow('⚠️  Redis indisponible, continuons sans cache'));
+          this.redis = null;
+          this.isConnected = false;
+        }
       }
 
     } catch (error) {
-      console.log(chalk.yellow(`⚠️  Cache Redis indisponible: ${error instanceof Error ? error.message : 'Erreur inconnue'}`));
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(chalk.yellow(`⚠️  Cache Redis indisponible: ${error instanceof Error ? error.message : 'Erreur inconnue'}`));
+      }
       this.redis = null;
       this.isConnected = false;
     }
