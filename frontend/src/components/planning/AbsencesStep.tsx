@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Plus, Trash2, User, AlertTriangle, CheckCircle, Clock, X } from 'lucide-react';
 import { WizardData, Employee, EmployeeException } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 
 interface AbsencesStepProps {
   wizardData: WizardData;
@@ -10,12 +11,42 @@ interface AbsencesStepProps {
   onValidationChange: (isValid: boolean) => void;
 }
 
-const EXCEPTION_TYPES = [
-  { value: 'vacation', label: 'Congés', color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-800' },
-  { value: 'sick', label: 'Maladie', color: 'bg-red-500', bgColor: 'bg-red-50', textColor: 'text-red-800' },
-  { value: 'unavailable', label: 'Indisponible', color: 'bg-gray-500', bgColor: 'bg-gray-50', textColor: 'text-gray-800' },
-  { value: 'training', label: 'Formation', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-800' },
-  { value: 'reduced', label: 'Horaires réduits', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-800' }
+const getExceptionTypes = (isDarkMode: boolean) => [
+  { 
+    value: 'vacation', 
+    label: 'Congés', 
+    color: 'bg-blue-500', 
+    bgColor: isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50', 
+    textColor: isDarkMode ? 'text-blue-400' : 'text-blue-800' 
+  },
+  { 
+    value: 'sick', 
+    label: 'Maladie', 
+    color: 'bg-red-500', 
+    bgColor: isDarkMode ? 'bg-red-900/30' : 'bg-red-50', 
+    textColor: isDarkMode ? 'text-red-400' : 'text-red-800' 
+  },
+  { 
+    value: 'unavailable', 
+    label: 'Indisponible', 
+    color: 'bg-gray-500', 
+    bgColor: isDarkMode ? 'bg-gray-700' : 'bg-gray-50', 
+    textColor: isDarkMode ? 'text-gray-400' : 'text-gray-800' 
+  },
+  { 
+    value: 'training', 
+    label: 'Formation', 
+    color: 'bg-green-500', 
+    bgColor: isDarkMode ? 'bg-green-900/30' : 'bg-green-50', 
+    textColor: isDarkMode ? 'text-green-400' : 'text-green-800' 
+  },
+  { 
+    value: 'reduced', 
+    label: 'Horaires réduits', 
+    color: 'bg-orange-500', 
+    bgColor: isDarkMode ? 'bg-orange-900/30' : 'bg-orange-50', 
+    textColor: isDarkMode ? 'text-orange-400' : 'text-orange-800' 
+  }
 ] as const;
 
 const AbsencesStep: React.FC<AbsencesStepProps> = ({
@@ -24,6 +55,7 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
   onValidationChange
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [newException, setNewException] = useState<Partial<EmployeeException>>({
     date: '',
@@ -121,7 +153,8 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
   };
 
   const getTypeConfig = (type: string) => {
-    return EXCEPTION_TYPES.find(t => t.value === type) || EXCEPTION_TYPES[0];
+    const types = getExceptionTypes(isDarkMode);
+    return types.find(t => t.value === type) || types[0];
   };
 
   const formatDate = (dateStr: string) => {
@@ -140,8 +173,8 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
     return (
       <div className="text-center py-20">
         <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun employé sélectionné</h3>
-        <p className="text-gray-600">Veuillez d'abord sélectionner des employés à l'étape précédente.</p>
+        <h3 className={`text-lg font-semibold ${darkClasses.title} mb-2`}>Aucun employé sélectionné</h3>
+        <p className={darkClasses.subtitle}>Veuillez d'abord sélectionner des employés à l'étape précédente.</p>
       </div>
     );
   }
@@ -162,12 +195,12 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
         >
           <Calendar className="h-8 w-8 text-white" />
         </motion.div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Gestion des absences</h2>
-        <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto transition-colors duration-300">
+        <h2 className={`text-3xl font-bold ${darkClasses.title} mb-2`}>Gestion des absences</h2>
+        <p className={`${darkClasses.subtitle} max-w-2xl mx-auto`}>
           Ajoutez les congés, absences et autres exceptions pour chaque employé pendant la semaine planifiée.
         </p>
         {weekDates.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+          <div className={`mt-4 text-sm ${darkClasses.textMuted}`}>
             Semaine {wizardData.weekNumber} de {wizardData.year} ({formatDate(weekDates[0])} - {formatDate(weekDates[6])})
           </div>
         )}
@@ -179,23 +212,23 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           <div className="flex items-center mb-6">
             <Plus className="h-6 w-6 text-blue-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-900">Ajouter une absence</h3>
+            <h3 className={`text-xl font-semibold ${darkClasses.title}`}>Ajouter une absence</h3>
           </div>
 
           <div className="space-y-4">
             {/* Sélection de l'employé */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                 Employé
               </label>
               <select
                 value={selectedEmployee}
                 onChange={(e) => setSelectedEmployee(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
               >
                 {employeesWithExceptions.map(employee => (
                   <option key={employee._id} value={employee._id}>
@@ -207,14 +240,14 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
 
             {/* Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                 Date
               </label>
               <input
                 type="date"
                 value={newException.date || ''}
                 onChange={(e) => setNewException({...newException, date: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
               />
               {newException.date && isDateInWeek(newException.date) && (
                 <div className="mt-1 text-xs text-orange-600 flex items-center">
@@ -226,11 +259,11 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
 
             {/* Type d'exception */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                 Type d'absence
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {EXCEPTION_TYPES.map(type => (
+                {getExceptionTypes(isDarkMode).map(type => (
                   <button
                     key={type.value}
                     onClick={() => setNewException({...newException, type: type.value})}
@@ -249,7 +282,7 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
 
             {/* Description optionnelle */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                 Description (optionnel)
               </label>
               <input
@@ -257,7 +290,7 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
                 placeholder="Détails sur l'absence..."
                 value={newException.description || ''}
                 onChange={(e) => setNewException({...newException, description: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
               />
             </div>
 
@@ -279,7 +312,7 @@ const AbsencesStep: React.FC<AbsencesStepProps> = ({
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           <div className="flex items-center mb-6">
             <User className="h-6 w-6 text-green-600 mr-3" />

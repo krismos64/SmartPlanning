@@ -263,10 +263,14 @@ export const createObjectIdSchema = (fieldName: string = 'id') => {
  * Helper pour validation d'email normalisée
  */
 export const createEmailSchema = () => {
+  // FIX #4: Validation stricte des formats email
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
   return z.string()
     .email("L'adresse email n'est pas valide")
     .min(5, "L'email doit contenir au moins 5 caractères")
     .max(254, "L'email ne peut pas dépasser 254 caractères")
+    .regex(emailRegex, "Format d'email invalide. Utilisez un format standard: utilisateur@domaine.com")
     .transform(email => email.toLowerCase().trim());
 };
 

@@ -17,6 +17,7 @@ import mongoose from 'mongoose';
 import authenticateToken, { AuthRequest } from '../middlewares/auth.middleware';
 import { generatePlanning } from '../services/planning/generateSchedule';
 import GeneratedScheduleModel from '../models/GeneratedSchedule.model';
+import { cacheService, CacheKeyType, CacheHelpers } from '../services/cache.service';
 
 // Création du router Express
 const router = express.Router();
@@ -117,23 +118,64 @@ router.post(
         }
       }
       
-      // Appel du service de génération de planning
-      console.log(`Génération du planning pour la semaine ${planningData.weekNumber}/${planningData.year} avec ${planningData.employees.length} employé(s)`);
-      
-      const generatedPlanning = generatePlanning({
-        employees: planningData.employees.map(emp => ({
-          _id: emp._id || '',
-          contractHoursPerWeek: emp.contractHoursPerWeek || 35,
-          exceptions: emp.exceptions?.map(exc => ({
-            date: exc.date || '',
-            type: exc.type || 'unavailable'
+      // Vérifier le cache pour chaque employé d'abord
+      console.log(`🔍 Vérification du cache pour ${planningData.employees.length} employé(s)...`);
+      const cachedPlannings: { [employeeId: string]: any } = {};
+      const employeesToGenerate = [];
+
+      for (const emp of planningData.employees) {
+        const cacheKey = CacheHelpers.planningKey(emp._id, planningData.year, planningData.weekNumber);
+        const cached = await cacheService.get(CacheKeyType.PLANNING_GENERATED, cacheKey);
+        
+        if (cached && cached.planning && cached.planning[emp._id]) {
+          cachedPlannings[emp._id] = cached.planning[emp._id];
+          console.log(`💾 Cache HIT pour employé ${emp._id}`);
+        } else {
+          employeesToGenerate.push(emp);
+          console.log(`🔍 Cache MISS pour employé ${emp._id}`);
+        }
+      }
+
+      let generatedPlanning: any = {};
+
+      // Si tous les plannings sont en cache, les utiliser
+      if (employeesToGenerate.length === 0) {
+        console.log('🎯 Tous les plannings trouvés en cache !');
+        generatedPlanning = cachedPlannings;
+      } else {
+        // Générer seulement pour les employés non cachés
+        console.log(`⚡ Génération du planning pour ${employeesToGenerate.length} employé(s) non cachés...`);
+        
+        const newlyGenerated = generatePlanning({
+          employees: employeesToGenerate.map(emp => ({
+            _id: emp._id || '',
+            contractHoursPerWeek: emp.contractHoursPerWeek || 35,
+            exceptions: emp.exceptions?.map(exc => ({
+              date: exc.date || '',
+              type: exc.type || 'unavailable'
+            })),
+            preferences: emp.preferences
           })),
-          preferences: emp.preferences
-        })),
-        weekNumber: planningData.weekNumber,
-        year: planningData.year,
-        companyConstraints: planningData.companyConstraints
-      });
+          weekNumber: planningData.weekNumber,
+          year: planningData.year,
+          companyConstraints: planningData.companyConstraints
+        });
+
+        // Combiner les plannings cachés et nouvellement générés
+        generatedPlanning = { ...cachedPlannings, ...newlyGenerated };
+
+        // Mettre en cache les nouveaux plannings
+        for (const [employeeId, schedule] of Object.entries(newlyGenerated)) {
+          const cacheKey = CacheHelpers.planningKey(employeeId, planningData.year, planningData.weekNumber);
+          await cacheService.set(
+            CacheKeyType.PLANNING_GENERATED,
+            cacheKey,
+            { planning: { [employeeId]: schedule } },
+            CacheHelpers.getTTL(CacheKeyType.PLANNING_GENERATED)
+          );
+          console.log(`💾 Mise en cache du planning pour employé ${employeeId}`);
+        }
+      }
       
       console.log('🎯 Planning généré par le service:', JSON.stringify(generatedPlanning, null, 2));
       console.log('📊 Employés dans le planning généré:', Object.keys(generatedPlanning));

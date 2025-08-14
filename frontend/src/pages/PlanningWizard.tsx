@@ -36,27 +36,7 @@ const PlanningWizard: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
   const { isDarkMode } = useTheme();
   
-  // Vérification de l'authentification
-  React.useEffect(() => {
-    if (!authLoading && !user) {
-      showToast('Vous devez être connecté pour accéder au wizard IA', 'error');
-      navigate('/connexion');
-    }
-  }, [user, authLoading, navigate, showToast]);
-  
-  // Si l'utilisateur n'est pas encore vérifié, attendre
-  if (authLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-  
-  // Si l'utilisateur n'est pas connecté, ne rien afficher (redirection en cours)
-  if (!user) {
-    return null;
-  }
+  // La vérification d'authentification est déjà gérée par RoleProtectedRoute
 
   // Configuration des étapes du wizard
   const steps: WizardStep[] = [
@@ -244,7 +224,7 @@ const PlanningWizard: React.FC = () => {
       // Attendre un peu pour l'effet visuel
       setTimeout(() => {
         setGeneratedPlanning(result.planning);
-        setPlanningStats(result.stats);
+        setPlanningStats(result.stats || result.metadata?.stats || null);
         setIsGenerating(false);
         
         // Confettis de célébration
@@ -254,7 +234,8 @@ const PlanningWizard: React.FC = () => {
           origin: { y: 0.6 }
         });
         
-        showToast('Planning généré avec succès !', 'success');
+        const savedCount = result.savedSchedules || Object.keys(result.planning).length;
+        showToast(`Planning généré avec succès ! ${savedCount} planning(s) sauvegardé(s)`, 'success');
       }, 500);
 
     } catch (error: any) {

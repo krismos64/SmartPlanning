@@ -13,6 +13,7 @@ import {
   passwordRequirementsMessage,
   validatePasswordComplexity,
 } from "../utils/password";
+import { securityConfig, clearAuthCookies } from "../config/security.config";
 
 // Import des schémas de validation et middleware
 import { 
@@ -116,15 +117,8 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
   // Génération du token JWT avec cookies sécurisés
   const token = generateToken(newUser.toObject());
   
-  // Configuration des cookies
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-    maxAge: 24 * 60 * 60 * 1000, // 24 heures
-  };
-
-  res.cookie('token', token, cookieOptions);
+  // Configuration des cookies avec sécurité renforcée
+  res.cookie('token', token, securityConfig.cookieOptions);
 
   // Réponse avec les données minimales de l'utilisateur (sans mot de passe)
   res.status(201).json({
@@ -200,14 +194,11 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
   const token = generateToken((user as UserDocument).toObject());
   console.log("✅ Token JWT généré avec succès");
 
-  // Configuration des cookies pour cross-origin
+  // Configuration des cookies avec sécurité renforcée
   const maxAge = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 7 jours ou 24h
   const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
+    ...securityConfig.cookieOptions,
     maxAge,
-    path: '/',
   };
 
   console.log("🍪 Configuration du cookie:", {
@@ -283,19 +274,9 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
  */
 router.post("/logout", (req: Request, res: Response) => {
   try {
-    // Configuration identique à celle du login pour supprimer le cookie
-    const clearCookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
-      path: '/'
-    };
-
-    console.log("🍪 Suppression du cookie avec options:", clearCookieOptions);
-
-    // Supprimer le cookie httpOnly
-    res.clearCookie('token', clearCookieOptions);
-
+    // FIX #5: Utiliser la fonction centralisée pour nettoyer les cookies
+    clearAuthCookies(res);
+    
     console.log("✅ Déconnexion utilisateur réussie");
 
     res.status(200).json({

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Calendar, Clock, User, Coffee, AlertTriangle, Download, Share, ArrowRight, Sparkles, Users, TrendingUp } from 'lucide-react';
 import { GeneratedPlanning, PlanningStats } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 import confetti from 'canvas-confetti';
 
 interface ResultsStepProps {
@@ -35,6 +36,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
   onNavigateToValidation
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [showAnimation, setShowAnimation] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
 
@@ -271,7 +273,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6 transition-colors duration-300`}
         >
           <div className="flex items-center mb-4">
             <User className="h-6 w-6 text-blue-600 mr-3" />

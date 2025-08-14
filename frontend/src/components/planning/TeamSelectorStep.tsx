@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, Building, ChevronDown, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 import { WizardData } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 import axiosInstance from '../../api/axiosInstance';
 
 interface TeamSelectorStepProps {
@@ -28,6 +29,7 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
   onValidationChange
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +108,7 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des équipes...</p>
+          <p className={darkClasses.textMuted}>Chargement des équipes...</p>
         </div>
       </div>
     );
@@ -117,11 +119,11 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-red-50 border border-red-200 rounded-xl p-6 text-center"
+        className={`${darkClasses.error} rounded-xl p-6 text-center`}
       >
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-red-800 mb-2">Erreur de chargement</h3>
-        <p className="text-red-600">{error}</p>
+        <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-800'}`}>Erreur de chargement</h3>
+        <p className={isDarkMode ? 'text-red-300' : 'text-red-600'}>{error}</p>
       </motion.div>
     );
   }
@@ -142,12 +144,8 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
         >
           <Users className="h-8 w-8 text-white" />
         </motion.div>
-        <h2 className={`text-3xl font-bold ${
-          isDarkMode ? 'text-white' : 'text-gray-900'
-        } mb-2 transition-colors duration-300`}>Sélection de l'équipe</h2>
-        <p className={`${
-          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-        } max-w-2xl mx-auto transition-colors duration-300`}>
+        <h2 className={`text-3xl font-bold ${darkClasses.title} mb-2`}>Sélection de l'équipe</h2>
+        <p className={`${darkClasses.subtitle} max-w-2xl mx-auto`}>
           Choisissez l'équipe pour laquelle vous souhaitez générer le planning et définissez la période.
         </p>
       </div>
@@ -158,17 +156,17 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           <div className="flex items-center mb-4">
             <Building className="h-6 w-6 text-blue-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-300">Équipe</h3>
+            <h3 className={`text-xl font-semibold ${darkClasses.title}`}>Équipe</h3>
           </div>
 
           {teams.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-700 dark:text-gray-300 mb-4 transition-colors duration-300">Aucune équipe disponible</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">Contactez votre administrateur pour créer des équipes</p>
+              <p className={`${darkClasses.subtitle} mb-4`}>Aucune équipe disponible</p>
+              <p className={`text-sm ${darkClasses.textMuted}`}>Contactez votre administrateur pour créer des équipes</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -180,17 +178,17 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
                   onClick={() => handleTeamSelect(team._id)}
                   className={`w-full p-4 rounded-lg border-2 transition-all ${
                     wizardData.teamId === team._id
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      ? darkClasses.selected
+                      : darkClasses.unselected
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="text-left">
-                      <h4 className="font-semibold text-gray-900">{team.name}</h4>
+                      <h4 className={`font-semibold ${darkClasses.title}`}>{team.name}</h4>
                       {team.description && (
-                        <p className="text-sm text-gray-600 mt-1">{team.description}</p>
+                        <p className={`text-sm ${darkClasses.subtitle} mt-1`}>{team.description}</p>
                       )}
-                      <div className="flex items-center mt-2 text-xs text-gray-500">
+                      <div className={`flex items-center mt-2 text-xs ${darkClasses.textMuted}`}>
                         <Users className="h-3 w-3 mr-1" />
                         {team.employeesCount} employé{team.employeesCount > 1 ? 's' : ''}
                         {team.manager && (
@@ -215,24 +213,24 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           <div className="flex items-center mb-4">
             <Calendar className="h-6 w-6 text-purple-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-900">Période</h3>
+            <h3 className={`text-xl font-semibold ${darkClasses.title}`}>Période</h3>
           </div>
 
           <div className="space-y-4">
             {/* Sélection de l'année */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                 Année
               </label>
               <div className="relative">
                 <select
                   value={wizardData.year || new Date().getFullYear()}
                   onChange={(e) => handleYearChange(parseInt(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                  className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none ${darkClasses.input}`}
                 >
                   {[0, 1, 2].map(offset => {
                     const year = new Date().getFullYear() + offset;
@@ -249,7 +247,7 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
 
             {/* Sélection de la semaine */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                 Numéro de semaine
               </label>
               <div className="relative">
@@ -259,11 +257,11 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
                   max="53"
                   value={wizardData.weekNumber || ''}
                   onChange={(e) => handleWeekChange(parseInt(e.target.value) || 0)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
                   placeholder="Ex: 25"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className={`text-xs ${darkClasses.textMuted} mt-1`}>
                 Semaine actuelle: {getCurrentWeekNumber()}
               </p>
             </div>
@@ -273,13 +271,13 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-50 rounded-lg p-4"
+                className={`${darkClasses.cardSecondary} rounded-lg p-4`}
               >
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Aperçu de la période</h4>
-                <p className="text-sm text-gray-600">
+                <h4 className={`text-sm font-medium ${darkClasses.subtitle} mb-2`}>Aperçu de la période</h4>
+                <p className={`text-sm ${darkClasses.title}`}>
                   Semaine {wizardData.weekNumber} de {wizardData.year}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className={`text-xs ${darkClasses.textMuted} mt-1`}>
                   Du {new Date(wizardData.year, 0, (wizardData.weekNumber - 1) * 7 + 1).toLocaleDateString('fr-FR', { 
                     weekday: 'long', 
                     day: 'numeric', 
@@ -301,10 +299,10 @@ const TeamSelectorStep: React.FC<TeamSelectorStepProps> = ({
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-green-50 border border-green-200 rounded-xl p-4 text-center"
+          className={`${darkClasses.success} rounded-xl p-4 text-center`}
         >
-          <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-2" />
-          <p className="text-green-800 font-medium">
+          <CheckCircle className={`h-6 w-6 mx-auto mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+          <p className={`font-medium ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>
             Équipe et période sélectionnées avec succès !
           </p>
         </motion.div>

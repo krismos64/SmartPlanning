@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, User, Clock, Calendar, ToggleLeft, ToggleRight, CheckCircle, AlertTriangle, Users } from 'lucide-react';
 import { WizardData, Employee, EmployeePreferences, convertDaysToFrench } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 
 interface PreferencesStepProps {
   wizardData: WizardData;
@@ -46,6 +47,7 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
   onValidationChange
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [employeesWithPreferences, setEmployeesWithPreferences] = useState<Employee[]>([]);
   const [bulkMode, setBulkMode] = useState(false);

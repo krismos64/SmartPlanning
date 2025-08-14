@@ -38,6 +38,8 @@ import usersRoutes from "./routes/users.routes";
 import vacationRoutes from "./routes/vacations.routes";
 import weeklySchedulesRouter from "./routes/weeklySchedules.route";
 import monitoringRoutes from "./routes/monitoring.routes";
+import performanceRoutes from "./routes/performance.routes";
+import { securityConfig, applySecurityHeaders } from "./config/security.config";
 // Charger les variables d'environnement
 dotenv.config();
 
@@ -57,6 +59,9 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Middlewares
 app.use(morgan("dev"));
+
+// Headers de sécurité supplémentaires (FIX #2: Validation headers HTTP)
+app.use(applySecurityHeaders);
 
 // 📊 Monitoring et métriques
 app.use(metricsMiddleware);
@@ -194,11 +199,14 @@ const corsConfig = {
   maxAge: 86400,
 };
 
-app.use(cors(corsConfig));
+// 🌐 Configuration CORS sécurisée (FIX: CORS renforcé)
+app.use(cors(securityConfig.corsOptions));
 app.use(helmet());
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Middleware de base avec limites de sécurité (FIX #3: Protection DoS)
+app.use(express.json({ limit: securityConfig.payloadLimits.json }));
+app.use(express.urlencoded({ extended: true, limit: securityConfig.payloadLimits.urlencoded }));
+app.use(express.raw({ limit: securityConfig.payloadLimits.raw }));
 
 // Routes publiques (SEO)
 app.use("/api", publicRoutes);
@@ -232,6 +240,9 @@ app.use("/api/weekly-schedules", authenticateToken, weeklySchedulesRouter);
 app.use("/api/tasks", authenticateToken, tasksRoutes);
 app.use("/api/stats", authenticateToken, statsRoutes);
 app.use("/api/monitoring", monitoringRoutes);
+
+// Routes de performance et analytics
+app.use("/api/performance", performanceRoutes);
 
 // Routes publiques
 app.use("/api/contact", contactRoutes);

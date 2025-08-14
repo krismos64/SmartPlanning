@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Building, Clock, Users, Settings, CheckCircle, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { WizardData, CompanyConstraints, convertDaysToEnglish } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 
 interface CompanyConstraintsStepProps {
   wizardData: WizardData;
@@ -53,6 +54,7 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
   onValidationChange
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [constraints, setConstraints] = useState<CompanyConstraints>({
     openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
     openHours: ['09:00-18:00'],

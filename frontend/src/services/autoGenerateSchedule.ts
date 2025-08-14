@@ -83,6 +83,8 @@ export interface AutoGenerationResponse {
   message: string;
   planning: GeneratedPlanning;
   metadata: PlanningMetadata;
+  stats?: PlanningStats;
+  savedSchedules?: number;
 }
 
 /**
@@ -198,6 +200,11 @@ export async function autoGenerateSchedule(
       if (!planningEmployeeIds.includes(employeeId)) {
         console.warn(`Planning manquant pour l'employé ${employeeId}`);
       }
+    }
+
+    // Ajouter les stats si pas présent dans metadata
+    if (response.data.metadata && response.data.metadata.stats) {
+      response.data.stats = response.data.metadata.stats;
     }
 
     return response.data;

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Eye, User, Calendar, Settings, Building, CheckCircle, AlertTriangle, Copy, Download, Zap } from 'lucide-react';
 import { WizardData, GeneratePlanningPayload, convertDaysToEnglish, convertDaysToFrench } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 
 interface SummaryStepProps {
   wizardData: WizardData;
@@ -16,6 +17,7 @@ const SummaryStep: React.FC<SummaryStepProps> = ({
   onValidationChange
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [jsonPayload, setJsonPayload] = useState<GeneratePlanningPayload | null>(null);
   const [showFullJson, setShowFullJson] = useState(false);
 

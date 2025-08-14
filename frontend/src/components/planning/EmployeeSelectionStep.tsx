@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, User, CheckCircle, AlertCircle, Search, Clock, Mail, Phone } from 'lucide-react';
 import { WizardData, Employee } from '../../types/GeneratePlanningPayload';
 import { useTheme } from '../ThemeProvider';
+import { useDarkModeClasses } from '../../utils/darkModeClasses';
 import axiosInstance from '../../api/axiosInstance';
 
 interface EmployeeSelectionStepProps {
@@ -17,6 +18,7 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
   onValidationChange
 }) => {
   const { isDarkMode } = useTheme();
+  const darkClasses = useDarkModeClasses(isDarkMode);
   const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +104,8 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
     return (
       <div className="text-center py-20">
         <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Équipe non sélectionnée</h3>
-        <p className="text-gray-600">Veuillez d'abord sélectionner une équipe à l'étape précédente.</p>
+        <h3 className={`text-lg font-semibold ${darkClasses.title} mb-2`}>Équipe non sélectionnée</h3>
+        <p className={darkClasses.subtitle}>Veuillez d'abord sélectionner une équipe à l'étape précédente.</p>
       </div>
     );
   }
@@ -113,7 +115,7 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des employés...</p>
+          <p className={darkClasses.textMuted}>Chargement des employés...</p>
         </div>
       </div>
     );
@@ -124,11 +126,11 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-red-50 border border-red-200 rounded-xl p-6 text-center"
+        className={`${darkClasses.error} rounded-xl p-6 text-center`}
       >
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-red-800 mb-2">Erreur de chargement</h3>
-        <p className="text-red-600">{error}</p>
+        <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-800'}`}>Erreur de chargement</h3>
+        <p className={isDarkMode ? 'text-red-300' : 'text-red-600'}>{error}</p>
       </motion.div>
     );
   }
@@ -149,8 +151,8 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
         >
           <Users className="h-8 w-8 text-white" />
         </motion.div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Sélection des employés</h2>
-        <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto transition-colors duration-300">
+        <h2 className={`text-3xl font-bold ${darkClasses.title} mb-2`}>Sélection des employés</h2>
+        <p className={`${darkClasses.subtitle} max-w-2xl mx-auto`}>
           Choisissez les employés qui seront inclus dans la génération automatique du planning.
         </p>
       </div>
@@ -160,7 +162,7 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+        className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
       >
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
           {/* Barre de recherche */}
@@ -171,7 +173,7 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
               placeholder="Rechercher un employé..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
+              className={`w-full pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
             />
           </div>
 
@@ -185,7 +187,7 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
             </button>
             <button
               onClick={handleDeselectAll}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors duration-300"
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${darkClasses.button('secondary')}`}
             >
               Tout désélectionner
             </button>
@@ -193,21 +195,21 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
         </div>
 
         {/* Statistiques */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className={`mt-4 p-4 rounded-lg ${darkClasses.cardSecondary}`}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-blue-600">{availableEmployees.length}</p>
-              <p className="text-sm text-gray-600">Employés disponibles</p>
+              <p className={`text-sm ${darkClasses.textMuted}`}>Employés disponibles</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-green-600">{wizardData.selectedEmployees.length}</p>
-              <p className="text-sm text-gray-600">Employés sélectionnés</p>
+              <p className={`text-sm ${darkClasses.textMuted}`}>Employés sélectionnés</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-purple-600">
                 {wizardData.selectedEmployees.reduce((sum, emp) => sum + emp.contractHoursPerWeek, 0)}h
               </p>
-              <p className="text-sm text-gray-600">Heures totales/semaine</p>
+              <p className={`text-sm ${darkClasses.textMuted}`}>Heures totales/semaine</p>
             </div>
           </div>
         </div>
@@ -220,11 +222,11 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
           animate={{ opacity: 1 }}
           className="text-center py-12"
         >
-          <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <User className={`h-16 w-16 mx-auto mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+          <h3 className={`text-lg font-medium ${darkClasses.title} mb-2`}>
             {searchTerm ? 'Aucun employé trouvé' : 'Aucun employé disponible'}
           </h3>
-          <p className="text-gray-500">
+          <p className={darkClasses.textMuted}>
             {searchTerm 
               ? 'Essayez de modifier votre terme de recherche'
               : 'Cette équipe ne contient aucun employé'
@@ -245,10 +247,10 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => handleEmployeeToggle(employee)}
-                className={`relative bg-white rounded-xl shadow-lg border-2 p-6 cursor-pointer transition-all ${
+                className={`relative rounded-xl shadow-lg border-2 p-6 cursor-pointer transition-all ${
                   isSelected 
-                    ? 'border-green-500 bg-green-50 shadow-xl' 
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow-xl'
+                    ? `${darkClasses.selected} shadow-xl` 
+                    : `${darkClasses.unselected} hover:shadow-xl`
                 }`}
               >
                 {/* Indicateur de sélection */}
@@ -264,25 +266,33 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
 
                 {/* Avatar */}
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto ${
-                  isSelected ? 'bg-green-100' : 'bg-gray-100'
+                  isSelected 
+                    ? (isDarkMode ? 'bg-green-900/30' : 'bg-green-100')
+                    : (isDarkMode ? 'bg-gray-700' : 'bg-gray-100')
                 }`}>
-                  <User className={`h-8 w-8 ${isSelected ? 'text-green-600' : 'text-gray-600'}`} />
+                  <User className={`h-8 w-8 ${
+                    isSelected 
+                      ? (isDarkMode ? 'text-green-400' : 'text-green-600')
+                      : (isDarkMode ? 'text-gray-400' : 'text-gray-600')
+                  }`} />
                 </div>
 
                 {/* Informations employé */}
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  <h3 className={`text-lg font-semibold ${darkClasses.title} mb-1`}>
                     {employee.firstName} {employee.lastName}
                   </h3>
                   
-                  <div className="space-y-2 text-sm text-gray-600">
+                  <div className={`space-y-2 text-sm ${darkClasses.subtitle}`}>
                     <div className="flex items-center justify-center">
                       <Clock className="h-4 w-4 mr-2" />
                       <span>{employee.contractHoursPerWeek}h/semaine</span>
                     </div>
                     
                     {employee.restDay && (
-                      <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      <div className={`text-xs px-2 py-1 rounded-full ${
+                        isDarkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'
+                      }`}>
                         Repos: {employee.restDay === 'monday' ? 'Lundi' : 
                                employee.restDay === 'tuesday' ? 'Mardi' :
                                employee.restDay === 'wednesday' ? 'Mercredi' :
@@ -294,7 +304,9 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
                     )}
 
                     {employee.exceptions && employee.exceptions.length > 0 && (
-                      <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                      <div className={`text-xs px-2 py-1 rounded-full ${
+                        isDarkMode ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-100 text-orange-800'
+                      }`}>
                         {employee.exceptions.length} exception{employee.exceptions.length > 1 ? 's' : ''}
                       </div>
                     )}
@@ -311,13 +323,13 @@ const EmployeeSelectionStep: React.FC<EmployeeSelectionStepProps> = ({
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-green-50 border border-green-200 rounded-xl p-4 text-center"
+          className={`${darkClasses.success} rounded-xl p-4 text-center`}
         >
-          <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-2" />
-          <p className="text-green-800 font-medium">
+          <CheckCircle className={`h-6 w-6 mx-auto mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+          <p className={`font-medium ${isDarkMode ? 'text-green-400' : 'text-green-800'}`}>
             {wizardData.selectedEmployees.length} employé{wizardData.selectedEmployees.length > 1 ? 's' : ''} sélectionné{wizardData.selectedEmployees.length > 1 ? 's' : ''} pour la génération !
           </p>
-          <p className="text-green-600 text-sm mt-1">
+          <p className={`text-sm mt-1 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
             Total: {wizardData.selectedEmployees.reduce((sum, emp) => sum + emp.contractHoursPerWeek, 0)} heures/semaine
           </p>
         </motion.div>
