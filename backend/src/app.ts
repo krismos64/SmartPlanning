@@ -8,6 +8,7 @@ import helmet from "helmet";
 import mongoose from "mongoose";
 import morgan from "morgan";
 import { metricsMiddleware } from "./monitoring/metrics";
+import { initSentry, sentryRequestHandler } from "./config/sentry.config";
 
 import adminTeamRoutes from "./routes/admin/adminTeam.routes";
 import { adminCompaniesRouter } from "./routes/admin/companies.route";
@@ -39,9 +40,15 @@ import vacationRoutes from "./routes/vacations.routes";
 import weeklySchedulesRouter from "./routes/weeklySchedules.route";
 import monitoringRoutes from "./routes/monitoring.routes";
 import performanceRoutes from "./routes/performance.routes";
+import sentryMonitoringRoutes from "./routes/monitoring-sentry.routes";
 import { securityConfig, applySecurityHeaders } from "./config/security.config";
 // Charger les variables d'environnement
 dotenv.config();
+
+// Initialiser Sentry en premier (production uniquement)
+if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
+  initSentry();
+}
 
 // Initialisation de l'application
 const app: Express = express();
@@ -240,6 +247,7 @@ app.use("/api/weekly-schedules", authenticateToken, weeklySchedulesRouter);
 app.use("/api/tasks", authenticateToken, tasksRoutes);
 app.use("/api/stats", authenticateToken, statsRoutes);
 app.use("/api/monitoring", monitoringRoutes);
+app.use("/api/monitoring/sentry", sentryMonitoringRoutes);
 
 // Routes de performance et analytics
 app.use("/api/performance", performanceRoutes);
@@ -270,10 +278,25 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({ message: "Route non trouvée" });
 });
 
+// Handler Sentry pour erreurs Express (production)
+if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
+  app.use(sentryRequestHandler);
+}
+
 // Gestion des erreurs globales
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Erreur serveur:", err);
-  res.status(500).json({ message: "Erreur serveur", error: err.message });
+  
+  // Ne pas exposer les détails d'erreur en production
+  const message = process.env.NODE_ENV === 'production' 
+    ? "Erreur serveur interne" 
+    : err.message;
+    
+  res.status(500).json({ 
+    message: "Erreur serveur", 
+    error: message,
+    timestamp: new Date().toISOString()
+  });
 });
 
 export default app;
