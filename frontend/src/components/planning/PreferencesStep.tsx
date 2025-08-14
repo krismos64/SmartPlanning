@@ -188,8 +188,8 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
     return (
       <div className="text-center py-20">
         <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun employé sélectionné</h3>
-        <p className="text-gray-600">Veuillez d'abord sélectionner des employés à l'étape précédente.</p>
+        <h3 className={`text-lg font-semibold ${darkClasses.title} mb-2`}>Aucun employé sélectionné</h3>
+        <p className={darkClasses.subtitle}>Veuillez d'abord sélectionner des employés à l'étape précédente.</p>
       </div>
     );
   }
@@ -212,8 +212,8 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
         >
           <Settings className="h-8 w-8 text-white" />
         </motion.div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Préférences des employés</h2>
-        <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto transition-colors duration-300">
+        <h2 className={`text-3xl font-bold ${darkClasses.title} mb-2`}>Préférences des employés</h2>
+        <p className={`${darkClasses.subtitle} max-w-2xl mx-auto`}>
           Configurez les préférences de travail pour optimiser le planning selon les contraintes personnelles.
         </p>
       </div>
@@ -223,15 +223,17 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+        className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Mode de configuration</h3>
+          <h3 className={`text-lg font-semibold ${darkClasses.title}`}>Mode de configuration</h3>
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setBulkMode(false)}
               className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                !bulkMode ? 'bg-blue-100 text-blue-800' : 'text-gray-600 hover:bg-gray-100'
+                !bulkMode 
+                  ? isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800'
+                  : isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               <User className="h-4 w-4 mr-2" />
@@ -240,7 +242,9 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
             <button
               onClick={() => setBulkMode(true)}
               className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                bulkMode ? 'bg-purple-100 text-purple-800' : 'text-gray-600 hover:bg-gray-100'
+                bulkMode 
+                  ? isDarkMode ? 'bg-purple-900/50 text-purple-300' : 'bg-purple-100 text-purple-800'
+                  : isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               <Users className="h-4 w-4 mr-2" />
@@ -249,7 +253,7 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
           </div>
         </div>
 
-        <div className="text-sm text-gray-600">
+        <div className={`text-sm ${darkClasses.textMuted}`}>
           {bulkMode 
             ? 'Les modifications seront appliquées à tous les employés sélectionnés'
             : 'Configurez les préférences individuellement pour chaque employé'
@@ -264,9 +268,9 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+            className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Sélection employé</h3>
+            <h3 className={`text-lg font-semibold ${darkClasses.title} mb-4`}>Sélection employé</h3>
             
             <div className="space-y-2">
               {employeesWithPreferences.map(employee => (
@@ -275,16 +279,16 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
                   onClick={() => setSelectedEmployee(employee._id)}
                   className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
                     selectedEmployee === employee._id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      ? isDarkMode ? 'border-green-500 bg-green-900/40 text-green-300' : 'border-blue-500 bg-blue-50'
+                      : isDarkMode ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-gray-900">
+                      <div className={`font-medium ${darkClasses.title}`}>
                         {employee.firstName} {employee.lastName}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className={`text-xs ${darkClasses.textMuted} mt-1`}>
                         {employee.contractHoursPerWeek}h/semaine
                         {employee.restDay && (
                           <span className="ml-2">
@@ -308,11 +312,11 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className={`bg-white rounded-xl shadow-lg border border-gray-200 p-6 ${
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6 ${
             bulkMode ? 'lg:col-span-2' : ''
           }`}
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">
+          <h3 className={`text-lg font-semibold ${darkClasses.title} mb-6`}>
             {bulkMode ? 'Préférences pour tous les employés' : 
              selectedEmployeeData ? `Préférences de ${selectedEmployeeData.firstName} ${selectedEmployeeData.lastName}` : 'Sélectionnez un employé'}
           </h3>
@@ -321,7 +325,7 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
             <div className="space-y-6">
               {/* Jours préférés */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-3`}>
                   Jours de travail préférés
                 </label>
                 <div className="grid grid-cols-7 gap-2">
@@ -336,24 +340,30 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
                         onClick={() => handleDayToggle(day.value)}
                         className={`p-3 rounded-lg border-2 text-center transition-all ${
                           isSelected && !bulkMode
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            ? isDarkMode ? 'border-green-500 bg-green-900/40 text-green-300' : 'border-blue-500 bg-blue-50 text-blue-700'
+                            : isDarkMode ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
-                        <div className="font-medium">{day.short}</div>
-                        <div className="text-xs mt-1">{day.label.slice(0, 3)}</div>
+                        <div className={`font-medium ${
+                          isSelected && !bulkMode && isDarkMode ? 'text-green-300' : 
+                          isDarkMode ? 'text-gray-200' : 'text-gray-900'
+                        }`}>{day.short}</div>
+                        <div className={`text-xs mt-1 ${
+                          isSelected && !bulkMode && isDarkMode ? 'text-green-400' :
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>{day.label.slice(0, 3)}</div>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className={`text-xs ${darkClasses.textMuted} mt-2`}>
                   Laissez vide pour autoriser tous les jours d'ouverture
                 </p>
               </div>
 
               {/* Créneaux horaires préférés */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-3`}>
                   Créneaux horaires préférés
                 </label>
                 <div className="space-y-2">
@@ -378,19 +388,23 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
                         }}
                         className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
                           isSelected && !bulkMode
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            ? isDarkMode ? 'border-green-500 bg-green-900/40 text-green-300' : 'border-green-500 bg-green-50'
+                            : isDarkMode ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{preset.label}</span>
-                          <span className="text-sm text-gray-500">{preset.value}</span>
+                          <span className={`font-medium ${
+                            isSelected && !bulkMode && isDarkMode ? 'text-green-300' : 'text-inherit'
+                          }`}>{preset.label}</span>
+                          <span className={`text-sm ${
+                            isSelected && !bulkMode && isDarkMode ? 'text-green-400' : darkClasses.textMuted
+                          }`}>{preset.value}</span>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className={`text-xs ${darkClasses.textMuted} mt-2`}>
                   Plusieurs créneaux peuvent être sélectionnés
                 </p>
               </div>
@@ -399,10 +413,10 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
               <div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className={`text-sm font-medium ${darkClasses.subtitle}`}>
                       Autoriser les créneaux fractionnés
                     </label>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className={`text-xs ${darkClasses.textMuted} mt-1`}>
                       Permet de diviser la journée en plusieurs créneaux avec pauses
                     </p>
                   </div>
@@ -418,7 +432,7 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
                     {(bulkMode ? true : selectedEmployeeData?.preferences?.allowSplitShifts ?? true) ? (
                       <ToggleRight className="h-8 w-8 text-green-500" />
                     ) : (
-                      <ToggleLeft className="h-8 w-8 text-gray-400" />
+                      <ToggleLeft className={`h-8 w-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                     )}
                   </button>
                 </div>
@@ -426,16 +440,28 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
 
               {/* Jours consécutifs maximum */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className={`block text-sm font-medium ${darkClasses.subtitle} mb-2`}>
                   Maximum de jours consécutifs
                 </label>
                 <select
                   value={bulkMode ? 5 : selectedEmployeeData?.preferences?.maxConsecutiveDays || 5}
                   onChange={(e) => handleMaxConsecutiveDaysChange(parseInt(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
+                  style={isDarkMode ? {
+                    backgroundColor: 'rgb(55, 65, 81)',
+                    borderColor: 'rgb(75, 85, 99)',
+                    color: 'white'
+                  } : {}}
                 >
                   {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                    <option key={num} value={num}>
+                    <option 
+                      key={num} 
+                      value={num}
+                      style={isDarkMode ? {
+                        backgroundColor: 'rgb(55, 65, 81)',
+                        color: 'white'
+                      } : {}}
+                    >
                       {num} jour{num > 1 ? 's' : ''} consécutif{num > 1 ? 's' : ''}
                     </option>
                   ))}
@@ -451,23 +477,35 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6 }}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+            className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Jours de repos fixes</h3>
+            <h3 className={`text-lg font-semibold ${darkClasses.title} mb-4`}>Jours de repos fixes</h3>
             
             <div className="space-y-3">
               {employeesWithPreferences.map(employee => (
-                <div key={employee._id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                  <div className="font-medium text-gray-900 mb-2">
+                <div key={employee._id} className={`border-b ${isDarkMode ? 'border-gray-600' : 'border-gray-100'} pb-3 last:border-b-0`}>
+                  <div className={`font-medium ${darkClasses.title} mb-2`}>
                     {employee.firstName} {employee.lastName}
                   </div>
                   <select
                     value={employee.restDay || ''}
                     onChange={(e) => handleRestDayChange(e.target.value, employee._id)}
-                    className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full p-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
+                    style={isDarkMode ? {
+                      backgroundColor: 'rgb(55, 65, 81)',
+                      borderColor: 'rgb(75, 85, 99)',
+                      color: 'white'
+                    } : {}}
                   >
                     {REST_DAYS.map(day => (
-                      <option key={day.value} value={day.value}>
+                      <option 
+                        key={day.value} 
+                        value={day.value}
+                        style={isDarkMode ? {
+                          backgroundColor: 'rgb(55, 65, 81)',
+                          color: 'white'
+                        } : {}}
+                      >
                         {day.label}
                       </option>
                     ))}
@@ -483,11 +521,15 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-green-50 border border-green-200 rounded-xl p-6"
+        className={`rounded-xl p-6 ${
+          isDarkMode 
+            ? 'bg-green-900/20 border border-green-700' 
+            : 'bg-green-50 border border-green-200'
+        }`}
       >
         <div className="flex items-center mb-4">
-          <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
-          <h3 className="text-lg font-semibold text-green-800">Résumé des préférences</h3>
+          <CheckCircle className={`h-6 w-6 mr-3 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-green-300' : 'text-green-800'}`}>Résumé des préférences</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -500,11 +542,13 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
               employee.restDay;
             
             return (
-              <div key={employee._id} className="bg-white rounded-lg p-3">
-                <h4 className="font-medium text-gray-900 mb-2">
+              <div key={employee._id} className={`rounded-lg p-3 ${
+                isDarkMode ? 'bg-gray-700' : 'bg-white'
+              }`}>
+                <h4 className={`font-medium ${darkClasses.title} mb-2`}>
                   {employee.firstName} {employee.lastName}
                 </h4>
-                <div className="space-y-1 text-xs text-gray-600">
+                <div className={`space-y-1 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   {employee.preferences?.preferredDays?.length ? (
                     <div>
                       Jours: {employee.preferences.preferredDays.join(', ')}
@@ -532,7 +576,7 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
                   )}
                   
                   {!hasPreferences && (
-                    <div className="text-gray-400">Aucune préférence spécifique</div>
+                    <div className={darkClasses.textMuted}>Aucune préférence spécifique</div>
                   )}
                 </div>
               </div>
@@ -540,7 +584,7 @@ const PreferencesStep: React.FC<PreferencesStepProps> = ({
           })}
         </div>
         
-        <p className="text-green-700 text-sm mt-4">
+        <p className={`text-sm mt-4 ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>
           Les préférences seront utilisées pour optimiser la génération automatique du planning.
         </p>
       </motion.div>

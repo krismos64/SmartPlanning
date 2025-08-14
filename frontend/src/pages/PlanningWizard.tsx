@@ -129,22 +129,22 @@ const PlanningWizard: React.FC = () => {
   const rotateY = useTransform(mouseX, [-300, 300], [-10, 10]);
 
   // Gestion des données du wizard
-  const handleWizardDataUpdate = (newData: Partial<WizardData>) => {
+  const handleWizardDataUpdate = React.useCallback((newData: Partial<WizardData>) => {
     setWizardData(prev => ({
       ...prev,
       ...newData,
       currentStep
     }));
-  };
+  }, [currentStep]);
 
   // Gestion de la validation d'étape
-  const handleStepValidation = (stepIndex: number, isValid: boolean) => {
+  const handleStepValidation = React.useCallback((stepIndex: number, isValid: boolean) => {
     setStepsValidation(prev => {
       const newValidation = [...prev];
       newValidation[stepIndex] = isValid;
       return newValidation;
     });
-  };
+  }, []);
 
   // Navigation entre les étapes
   const handleNext = () => {
@@ -257,12 +257,17 @@ const PlanningWizard: React.FC = () => {
     navigate('/validation-plannings');
   };
 
+  // Callback pour la validation de l'étape courante
+  const handleCurrentStepValidation = React.useCallback((isValid: boolean) => {
+    handleStepValidation(currentStep, isValid);
+  }, [handleStepValidation, currentStep]);
+
   // Rendu du composant d'étape actuel
   const renderCurrentStep = () => {
     const stepProps = {
       wizardData,
       onUpdate: handleWizardDataUpdate,
-      onValidationChange: (isValid: boolean) => handleStepValidation(currentStep, isValid)
+      onValidationChange: handleCurrentStepValidation
     };
 
     switch (currentStep) {
@@ -308,7 +313,7 @@ const PlanningWizard: React.FC = () => {
         }}
       >
         <div className="container mx-auto px-4 py-8">
-          {/* En-tête du wizard */}
+          {/* En-tête du wizard futuriste */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -316,77 +321,303 @@ const PlanningWizard: React.FC = () => {
           >
             <motion.div
               style={{ rotateX, rotateY }}
-              className="inline-block"
+              className="inline-block relative"
             >
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl p-6 shadow-2xl dark:shadow-blue-500/20">
-                <div className="flex items-center justify-center space-x-3">
-                  <Sparkles className="h-8 w-8" />
-                  <h1 className="text-3xl font-bold">Assistant IA Planning</h1>
-                  <Sparkles className="h-8 w-8" />
+              {/* Halo d'arrière-plan avec animation */}
+              <motion.div
+                animate={{
+                  scale: [1, 1.1, 1],
+                  opacity: [0.3, 0.6, 0.3]
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 rounded-2xl blur-xl opacity-30"
+              />
+              
+              {/* Contenu principal avec effets néon */}
+              <div className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 text-white rounded-2xl p-8 shadow-2xl border border-cyan-400/30 dark:shadow-cyan-500/20 overflow-hidden">
+                {/* Lignes de grille futuristes */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="grid grid-cols-8 h-full">
+                    {[...Array(8)].map((_, i) => (
+                      <div key={i} className="border-r border-cyan-400/20" />
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 grid grid-rows-6">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="border-b border-cyan-400/20" />
+                    ))}
+                  </div>
                 </div>
-                <p className="mt-2 text-blue-100">
+                
+                {/* Effets de particules animées */}
+                <motion.div
+                  animate={{
+                    x: [-20, 20, -20],
+                    y: [-10, 10, -10]
+                  }}
+                  transition={{
+                    duration: 6,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="absolute top-4 right-4 w-2 h-2 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50"
+                />
+                <motion.div
+                  animate={{
+                    x: [20, -20, 20],
+                    y: [10, -10, 10]
+                  }}
+                  transition={{
+                    duration: 8,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="absolute bottom-4 left-4 w-1 h-1 bg-purple-400 rounded-full shadow-lg shadow-purple-400/50"
+                />
+                
+                {/* Titre avec effet néon */}
+                <div className="flex items-center justify-center space-x-4 relative z-10">
+                  <motion.div
+                    animate={{
+                      rotate: [0, 180, 360],
+                      scale: [1, 1.2, 1]
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <Sparkles className="h-10 w-10 text-cyan-400 drop-shadow-[0_0_20px_rgba(34,211,238,0.8)]" />
+                  </motion.div>
+                  
+                  <motion.h1 
+                    className="text-4xl font-bold bg-gradient-to-r from-cyan-400 via-white to-purple-400 bg-clip-text text-transparent"
+                    style={{
+                      textShadow: '0 0 30px rgba(34, 211, 238, 0.5)',
+                      fontFamily: '"Orbitron", "Exo 2", sans-serif'
+                    }}
+                    animate={{
+                      textShadow: [
+                        '0 0 30px rgba(34, 211, 238, 0.5)',
+                        '0 0 50px rgba(34, 211, 238, 0.8)',
+                        '0 0 30px rgba(34, 211, 238, 0.5)'
+                      ]
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    Assistant IA Planning
+                  </motion.h1>
+                  
+                  <motion.div
+                    animate={{
+                      rotate: [360, 180, 0],
+                      scale: [1, 1.2, 1]
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <Sparkles className="h-10 w-10 text-purple-400 drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]" />
+                  </motion.div>
+                </div>
+                
+                {/* Sous-titre avec effet holographique */}
+                <motion.p 
+                  className="mt-4 text-lg text-cyan-100 relative z-10"
+                  style={{
+                    fontFamily: '"Orbitron", "Exo 2", sans-serif',
+                    textShadow: '0 0 15px rgba(34, 211, 238, 0.3)'
+                  }}
+                  animate={{
+                    opacity: [0.7, 1, 0.7]
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
                   Génération automatique de planning ultra-rapide et optimisée
-                </p>
+                </motion.p>
+                
+                {/* Barres de scanning animées */}
+                <motion.div
+                  animate={{
+                    x: [-100, 400]
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent opacity-30"
+                />
+                
+                {/* Bordures néon animées */}
+                <div className="absolute inset-0 rounded-2xl">
+                  <motion.div
+                    animate={{
+                      opacity: [0.3, 0.8, 0.3]
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    className="absolute inset-0 rounded-2xl border-2 border-cyan-400/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]"
+                  />
+                </div>
               </div>
             </motion.div>
           </motion.div>
 
-          {/* Indicateur de progression */}
+          {/* Indicateur de progression - Responsive */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-6 mb-8 transition-colors duration-300"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 transition-colors duration-300"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">
-                Étape {currentStep + 1} sur {steps.length}
-              </h2>
-              <div className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
-                {Math.round(((currentStep + 1) / steps.length) * 100)}% terminé
+            {/* Version Desktop */}
+            <div className="hidden md:block">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">
+                  Étape {currentStep + 1} sur {steps.length}
+                </h2>
+                <div className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+                  {Math.round(((currentStep + 1) / steps.length) * 100)}% terminé
+                </div>
+              </div>
+              
+              {/* Barre de progression */}
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-6 transition-colors duration-300">
+                <motion.div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
+                  animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                  transition={{ duration: 0.5 }}
+                />
               </div>
             </div>
-            
-            {/* Barre de progression */}
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-6 transition-colors duration-300">
-              <motion.div 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
-                animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-                transition={{ duration: 0.5 }}
-              />
+
+            {/* Version Mobile - Plus compacte */}
+            <div className="md:hidden mb-4">
+              <div className="text-center mb-3">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-white transition-colors duration-300">
+                  Étape {currentStep + 1} / {steps.length}
+                </h2>
+                <div className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
+                  {Math.round(((currentStep + 1) / steps.length) * 100)}% terminé
+                </div>
+              </div>
+              
+              {/* Barre de progression mobile */}
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-3 transition-colors duration-300">
+                <motion.div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-1.5 rounded-full"
+                  animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
             </div>
 
-            {/* Navigation des étapes */}
-            <div className="grid grid-cols-7 gap-2">
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-                const isActive = index === currentStep;
-                const isCompleted = step.isCompleted;
-                const isAccessible = index <= currentStep || (index === currentStep + 1 && canProceed);
-                
-                return (
-                  <button
-                    key={step.id}
-                    onClick={() => handleStepClick(index)}
-                    disabled={!isAccessible}
-                    className={`p-3 rounded-xl text-center transition-all duration-300 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-105'
-                        : isCompleted
-                        ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/70 border border-transparent dark:border-green-700'
-                        : isAccessible
-                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent dark:border-gray-600'
-                        : 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50 border border-transparent dark:border-gray-700'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-xs font-medium">{step.title}</div>
-                    <div className="text-xs opacity-75">{step.description}</div>
-                    {step.isOptional && (
-                      <div className="text-xs mt-1 opacity-60">(Optionnel)</div>
-                    )}
-                  </button>
-                );
-              })}
+            {/* Navigation des étapes - Responsive */}
+            <div className="space-y-4">
+              {/* Version Desktop/Tablette - Grille horizontale */}
+              <div className="hidden md:grid md:grid-cols-7 gap-2">
+                {steps.map((step, index) => {
+                  const Icon = step.icon;
+                  const isActive = index === currentStep;
+                  const isCompleted = step.isCompleted;
+                  const isAccessible = index <= currentStep || (index === currentStep + 1 && canProceed);
+                  
+                  return (
+                    <button
+                      key={step.id}
+                      onClick={() => handleStepClick(index)}
+                      disabled={!isAccessible}
+                      className={`p-3 rounded-xl text-center transition-all duration-300 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-105'
+                          : isCompleted
+                          ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/70 border border-transparent dark:border-green-700'
+                          : isAccessible
+                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent dark:border-gray-600'
+                          : 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50 border border-transparent dark:border-gray-700'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mx-auto mb-1" />
+                      <div className="text-xs font-medium">{step.title}</div>
+                      <div className="text-xs opacity-75 hidden lg:block">{step.description}</div>
+                      {step.isOptional && (
+                        <div className="text-xs mt-1 opacity-60 hidden lg:block">(Optionnel)</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Version Mobile - Liste verticale compacte */}
+              <div className="md:hidden space-y-2">
+                {steps.map((step, index) => {
+                  const Icon = step.icon;
+                  const isActive = index === currentStep;
+                  const isCompleted = step.isCompleted;
+                  const isAccessible = index <= currentStep || (index === currentStep + 1 && canProceed);
+                  
+                  return (
+                    <button
+                      key={step.id}
+                      onClick={() => handleStepClick(index)}
+                      disabled={!isAccessible}
+                      className={`w-full p-4 rounded-xl flex items-center text-left transition-all duration-300 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          : isCompleted
+                          ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/70 border border-transparent dark:border-green-700'
+                          : isAccessible
+                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-transparent dark:border-gray-600'
+                          : 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50 border border-transparent dark:border-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg mr-3 bg-white/20">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium">{index + 1}. {step.title}</span>
+                          {step.isOptional && (
+                            <span className="text-xs opacity-60 bg-white/20 px-2 py-1 rounded">Optionnel</span>
+                          )}
+                          {isCompleted && !isActive && (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                        <div className="text-xs opacity-75 mt-1">{step.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Indicateur d'étape actuelle pour mobile */}
+              <div className="md:hidden text-center">
+                <div className="inline-flex items-center space-x-2 bg-white/10 rounded-full px-4 py-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Étape {currentStep + 1} sur {steps.length} • {Math.round(((currentStep + 1) / steps.length) * 100)}% terminé
+                  </span>
+                </div>
+              </div>
             </div>
           </motion.div>
 
@@ -394,7 +625,7 @@ const PlanningWizard: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-8 mb-8 transition-colors duration-300"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-4 md:p-8 mb-6 md:mb-8 transition-colors duration-300"
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -409,70 +640,155 @@ const PlanningWizard: React.FC = () => {
             </AnimatePresence>
           </motion.div>
 
-          {/* Boutons de navigation */}
+          {/* Boutons de navigation - Responsive */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-6 transition-colors duration-300"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-4 md:p-6 transition-colors duration-300"
           >
-            <button
-              onClick={handlePrevious}
-              disabled={currentStep === 0}
-              className={`flex items-center px-6 py-3 rounded-xl transition-all duration-300 ${
-                currentStep === 0
-                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                  : 'bg-gray-600 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 shadow-lg hover:shadow-xl border-0 dark:border dark:border-gray-600'
-              }`}
-            >
-              <ChevronLeft className="h-5 w-5 mr-2" />
-              Précédent
-            </button>
+            {/* Version Desktop */}
+            <div className="hidden md:flex items-center justify-between">
+              <button
+                onClick={handlePrevious}
+                disabled={currentStep === 0}
+                className={`flex items-center px-6 py-3 rounded-xl transition-all duration-300 ${
+                  currentStep === 0
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-600 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 shadow-lg hover:shadow-xl border-0 dark:border dark:border-gray-600'
+                }`}
+              >
+                <ChevronLeft className="h-5 w-5 mr-2" />
+                Précédent
+              </button>
 
-            <div className="text-center">
-              <div className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">
-                {currentStepData?.title}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
-                {currentStepData?.description}
-              </div>
-              {!isCurrentStepValid && !currentStepData?.isOptional && (
-                <div className="text-xs text-red-400 mt-1">
-                  Compléter cette étape pour continuer
+              <div className="text-center">
+                <div className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">
+                  {currentStepData?.title}
                 </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
+                  {currentStepData?.description}
+                </div>
+                {!isCurrentStepValid && !currentStepData?.isOptional && (
+                  <div className="text-xs text-red-400 mt-1">
+                    Compléter cette étape pour continuer
+                  </div>
+                )}
+              </div>
+
+              {currentStep < 5 ? (
+                <button
+                  onClick={handleNext}
+                  disabled={!canProceed}
+                  className={`flex items-center px-6 py-3 rounded-xl transition-all duration-300 ${
+                    canProceed
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Suivant
+                  <ChevronRight className="h-5 w-5 ml-2" />
+                </button>
+              ) : currentStep === 5 ? (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleGenerate}
+                  disabled={!isCurrentStepValid || isGenerating}
+                  className={`flex items-center px-8 py-3 rounded-xl transition-all duration-300 ${
+                    isCurrentStepValid && !isGenerating
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  {isGenerating ? 'Génération...' : 'Générer le planning'}
+                </motion.button>
+              ) : (
+                <div className="w-24" /> // Espaceur pour l'équilibre visuel
               )}
             </div>
 
-            {currentStep < 5 ? (
-              <button
-                onClick={handleNext}
-                disabled={!canProceed}
-                className={`flex items-center px-6 py-3 rounded-xl transition-all duration-300 ${
-                  canProceed
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Suivant
-                <ChevronRight className="h-5 w-5 ml-2" />
-              </button>
-            ) : currentStep === 5 ? (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleGenerate}
-                disabled={!isCurrentStepValid || isGenerating}
-                className={`flex items-center px-8 py-3 rounded-xl transition-all duration-300 ${
-                  isCurrentStepValid && !isGenerating
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <Sparkles className="h-5 w-5 mr-2" />
-                {isGenerating ? 'Génération...' : 'Générer le planning'}
-              </motion.button>
-            ) : (
-              <div className="w-24" /> // Espaceur pour l'équilibre visuel
-            )}
+            {/* Version Mobile */}
+            <div className="md:hidden space-y-4">
+              {/* Informations de l'étape actuelle */}
+              <div className="text-center py-2">
+                <div className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">
+                  {currentStepData?.title}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
+                  {currentStepData?.description}
+                </div>
+                {!isCurrentStepValid && !currentStepData?.isOptional && (
+                  <div className="text-xs text-red-400 mt-1">
+                    Compléter cette étape pour continuer
+                  </div>
+                )}
+              </div>
+
+              {/* Boutons de navigation empilés */}
+              <div className="flex flex-col space-y-3">
+                {currentStep < 5 ? (
+                  <>
+                    <button
+                      onClick={handleNext}
+                      disabled={!canProceed}
+                      className={`w-full flex items-center justify-center px-6 py-3 rounded-xl transition-all duration-300 ${
+                        canProceed
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Suivant
+                      <ChevronRight className="h-5 w-5 ml-2" />
+                    </button>
+                    {currentStep > 0 && (
+                      <button
+                        onClick={handlePrevious}
+                        className="w-full flex items-center justify-center px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300"
+                      >
+                        <ChevronLeft className="h-5 w-5 mr-2" />
+                        Précédent
+                      </button>
+                    )}
+                  </>
+                ) : currentStep === 5 ? (
+                  <>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleGenerate}
+                      disabled={!isCurrentStepValid || isGenerating}
+                      className={`w-full flex items-center justify-center px-8 py-4 rounded-xl transition-all duration-300 ${
+                        isCurrentStepValid && !isGenerating
+                          ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      {isGenerating ? 'Génération en cours...' : 'Générer le planning'}
+                    </motion.button>
+                    <button
+                      onClick={handlePrevious}
+                      className="w-full flex items-center justify-center px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300"
+                    >
+                      <ChevronLeft className="h-5 w-5 mr-2" />
+                      Précédent
+                    </button>
+                  </>
+                ) : (
+                  // Étape Results
+                  currentStep > 0 && (
+                    <button
+                      onClick={handlePrevious}
+                      className="w-full flex items-center justify-center px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300"
+                    >
+                      <ChevronLeft className="h-5 w-5 mr-2" />
+                      Précédent
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>

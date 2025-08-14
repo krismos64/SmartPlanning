@@ -71,6 +71,9 @@ const ProfileChecker: React.FC = () => {
     // Ne pas rediriger pendant le chargement
     if (loading) return;
 
+    // Ne pas rediriger si on est sur le planning-wizard pour éviter les problèmes de navigation
+    if (location.pathname === "/planning-wizard") return;
+
     // Rediriger vers la page de complétion de profil si nécessaire
     if (
       isAuthenticated &&

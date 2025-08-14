@@ -178,13 +178,33 @@ export const useAutoUserSync = (intervalMs: number = 30000) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      startSync(intervalMs);
-    } else {
-      stopSync();
-    }
+    // Fonction pour vérifier si on est sur le Planning Wizard
+    const checkPath = () => {
+      const isOnPlanningWizard = window.location.pathname === '/planning-wizard';
+      
+      if (user && !isOnPlanningWizard) {
+        console.log('🔄 Démarrage de la synchronisation utilisateur');
+        startSync(intervalMs);
+      } else {
+        console.log('⏸️ Arrêt de la synchronisation utilisateur (Planning Wizard ou pas d\'utilisateur)');
+        stopSync();
+      }
+    };
 
-    return () => stopSync();
+    // Vérifier le path initial
+    checkPath();
+
+    // Écouter les changements de navigation via popstate
+    const handleNavigation = () => {
+      checkPath();
+    };
+
+    window.addEventListener('popstate', handleNavigation);
+
+    return () => {
+      stopSync();
+      window.removeEventListener('popstate', handleNavigation);
+    };
   }, [user, startSync, stopSync, intervalMs]);
 
   return { forceRefresh, emitSyncEvent };

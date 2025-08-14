@@ -55,6 +55,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Vérifier l'authentification au chargement du composant
   useEffect(() => {
+    let isMounted = true; // Protection contre les appels multiples
+    
     // Fonction pour vérifier si l'utilisateur est connecté
     const checkAuth = async () => {
       // Vérifier si on est sur une page publique où l'authentification n'est pas requise
@@ -75,7 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const isPublicPage = publicPages.includes(currentPath);
       
       // Sur les pages publiques, ne pas faire la vérification automatique
-      if (isPublicPage) {
+      if (isPublicPage && isMounted) {
         setLoading(false);
         return;
       }
@@ -130,11 +132,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
         setIsAuthenticated(false);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkAuth();
+    
+    return () => {
+      isMounted = false; // Cleanup pour éviter les fuites mémoire
+    };
   }, []);
 
   // Fonction pour connecter l'utilisateur

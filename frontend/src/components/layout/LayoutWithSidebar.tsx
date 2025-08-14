@@ -38,44 +38,59 @@ const LayoutWithSidebar: React.FC<LayoutWithSidebarProps> = ({
   // Utiliser le hook useAuth pour accéder aux données utilisateur
   const { user, isAuthenticated, loading } = useAuth();
 
-  // Récupérer les informations de l'entreprise
+  // Récupérer les informations de l'entreprise depuis le contexte utilisateur
   useEffect(() => {
-    const fetchCompany = async () => {
-      if (!user?.companyId) return;
+    if (user?.company) {
+      // Utiliser les données de l'entreprise déjà disponibles dans l'objet user
+      setCompanyData({
+        name: user.company.name,
+        logoUrl: user.company.logoUrl,
+      });
+    } else if (user?.companyName) {
+      // Fallback si les données sont dans un format différent
+      setCompanyData({
+        name: user.companyName,
+        logoUrl: user.companyLogoUrl,
+      });
+    } else {
+      // Seulement faire l'appel API si les données ne sont pas dans l'objet user
+      const fetchCompany = async () => {
+        if (!user?.companyId) return;
 
-      try {
-        // Les cookies httpOnly sont automatiquement envoyés
-        const response = await axiosInstance.get("/companies/me");
+        try {
+          // Les cookies httpOnly sont automatiquement envoyés
+          const response = await axiosInstance.get("/companies/me");
 
-        // Vérifier la structure de la réponse et extraire les données correctement
-        if (response.data) {
-          // Si la réponse a une propriété success et data, utiliser cette structure
-          if (response.data.success && response.data.data) {
-            setCompanyData({
-              name: response.data.data.name,
-              logoUrl: response.data.data.logoUrl,
-            });
+          // Vérifier la structure de la réponse et extraire les données correctement
+          if (response.data) {
+            // Si la réponse a une propriété success et data, utiliser cette structure
+            if (response.data.success && response.data.data) {
+              setCompanyData({
+                name: response.data.data.name,
+                logoUrl: response.data.data.logoUrl,
+              });
+            }
+            // Sinon, vérifier si la réponse elle-même contient les données de l'entreprise
+            else if (response.data.name) {
+              setCompanyData({
+                name: response.data.name,
+                logoUrl: response.data.logoUrl,
+              });
+            }
+
+            console.log("Données entreprise récupérées:", response.data);
           }
-          // Sinon, vérifier si la réponse elle-même contient les données de l'entreprise
-          else if (response.data.name) {
-            setCompanyData({
-              name: response.data.name,
-              logoUrl: response.data.logoUrl,
-            });
-          }
-
-          console.log("Données entreprise récupérées:", response.data);
+        } catch (error) {
+          console.error(
+            "Erreur lors de la récupération des infos entreprise:",
+            error
+          );
         }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération des infos entreprise:",
-          error
-        );
-      }
-    };
+      };
 
-    if (user && user.companyId) {
-      fetchCompany();
+      if (user && user.companyId) {
+        fetchCompany();
+      }
     }
   }, [user]);
 

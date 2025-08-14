@@ -159,10 +159,12 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
         </motion.div>
         
         <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">Génération du planning en cours...</h3>
-          <p className="text-gray-600 mb-6">L'IA optimise les créneaux selon vos contraintes</p>
+          <h3 className={`text-2xl font-bold ${darkClasses.title} mb-2`}>Génération du planning en cours...</h3>
+          <p className={`${darkClasses.subtitle} mb-6`}>L'IA optimise les créneaux selon vos contraintes</p>
           
-          <div className="w-80 bg-gray-200 rounded-full h-3 mb-4">
+          <div className={`w-80 rounded-full h-3 mb-4 ${
+            isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+          }`}>
             <motion.div 
               className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
               animate={{ width: `${generationProgress}%` }}
@@ -170,7 +172,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
             />
           </div>
           
-          <div className="text-sm text-gray-500">
+          <div className={`text-sm ${darkClasses.textMuted}`}>
             {generationProgress}% - Temps de génération ultra-rapide
           </div>
         </div>
@@ -182,8 +184,8 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
     return (
       <div className="text-center py-20">
         <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun planning généré</h3>
-        <p className="text-gray-600">Une erreur s'est produite lors de la génération du planning.</p>
+        <h3 className={`text-lg font-semibold ${darkClasses.title} mb-2`}>Aucun planning généré</h3>
+        <p className={darkClasses.subtitle}>Une erreur s'est produite lors de la génération du planning.</p>
       </div>
     );
   }
@@ -213,8 +215,8 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3 transition-colors duration-300">Planning généré avec succès !</h2>
-          <p className="text-xl text-gray-700 dark:text-gray-300 mb-6 transition-colors duration-300">
+          <h2 className={`text-4xl font-bold ${darkClasses.title} mb-3`}>Planning généré avec succès !</h2>
+          <p className={`text-xl ${darkClasses.subtitle} mb-6`}>
             Votre planning optimisé est prêt. Tous les employés et contraintes ont été pris en compte.
           </p>
         </motion.div>
@@ -232,22 +234,22 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
             <div className="text-center">
               <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-green-600">{Math.round(planningStats.employeeSatisfaction)}%</div>
-              <div className="text-sm text-gray-600">Satisfaction employés</div>
+              <div className={`text-sm ${darkClasses.textMuted}`}>Satisfaction employés</div>
             </div>
             <div className="text-center">
               <CheckCircle className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-600">{Math.round(planningStats.constraintCompliance)}%</div>
-              <div className="text-sm text-gray-600">Respect contraintes</div>
+              <div className={`text-sm ${darkClasses.textMuted}`}>Respect contraintes</div>
             </div>
             <div className="text-center">
               <Clock className="h-8 w-8 text-purple-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-purple-600">{planningStats.totalHours}h</div>
-              <div className="text-sm text-gray-600">Total planifié</div>
+              <div className={`text-sm ${darkClasses.textMuted}`}>Total planifié</div>
             </div>
             <div className="text-center">
               <Users className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-indigo-600">{Math.round(planningStats.averageHoursPerEmployee)}h</div>
-              <div className="text-sm text-gray-600">Moyenne/employé</div>
+              <div className={`text-sm ${darkClasses.textMuted}`}>Moyenne/employé</div>
             </div>
           </div>
 
@@ -277,7 +279,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
         >
           <div className="flex items-center mb-4">
             <User className="h-6 w-6 text-blue-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">Employés</h3>
+            <h3 className={`text-lg font-semibold ${darkClasses.title}`}>Employés</h3>
           </div>
           
           <div className="space-y-2">
@@ -291,11 +293,11 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                   className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
                     selectedEmployee === employeeId
                       ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      : isDarkMode ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="font-medium text-gray-900 dark:text-white mb-1 transition-colors duration-300">{employeeId}</div>
-                  <div className="text-xs text-gray-600 space-y-1">
+                  <div className={`font-medium ${darkClasses.title} mb-1`}>{employeeId}</div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} space-y-1`}>
                     <div>{stats?.totalHours.toFixed(1)}h total • {stats?.workingDays} jours</div>
                     {stats?.hasLunchBreaks && (
                       <div className="flex items-center text-orange-600">
@@ -315,20 +317,20 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300"
+          className={`lg:col-span-3 ${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           {selectedEmployee && (
             <>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <Calendar className="h-6 w-6 text-purple-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">
+                  <h3 className={`text-lg font-semibold ${darkClasses.title}`}>
                     Planning de {selectedEmployee}
                   </h3>
                 </div>
                 
                 {selectedEmployeeStats && (
-                  <div className="text-right text-sm text-gray-600">
+                  <div className={`text-right text-sm ${darkClasses.textMuted}`}>
                     <div className="font-medium">{selectedEmployeeStats.totalHours.toFixed(1)}h total</div>
                     <div>{selectedEmployeeStats.workingDays} jour{selectedEmployeeStats.workingDays > 1 ? 's' : ''} travaillé{selectedEmployeeStats.workingDays > 1 ? 's' : ''}</div>
                   </div>
@@ -341,13 +343,15 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                   const dayHours = calculateDayHours(daySlots);
                   
                   return (
-                    <div key={day} className="bg-gray-50 rounded-lg p-4">
+                    <div key={day} className={`rounded-lg p-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+                    }`}>
                       <div className="text-center mb-3">
-                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm transition-colors duration-300">
+                        <h4 className={`font-semibold text-sm ${darkClasses.title}`}>
                           {DAY_LABELS[day]}
                         </h4>
                         {dayHours > 0 && (
-                          <div className="text-xs text-gray-600 mt-1">
+                          <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                             {dayHours.toFixed(1)}h
                           </div>
                         )}
@@ -377,7 +381,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                               </motion.div>
                             ))
                           ) : (
-                            <div className="text-center text-xs text-gray-400 py-4">
+                            <div className={`text-center text-xs py-4 ${darkClasses.textMuted}`}>
                               Repos
                             </div>
                           )}
@@ -397,12 +401,12 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8 }}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300"
+        className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
       >
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
           <div className="text-center sm:text-left">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-300">Planning prêt à utiliser</h3>
-            <p className="text-gray-600 dark:text-gray-400 transition-colors duration-300">
+            <h3 className={`text-lg font-semibold ${darkClasses.title}`}>Planning prêt à utiliser</h3>
+            <p className={`${darkClasses.textMuted}`}>
               Exportez ou validez votre planning pour le mettre en œuvre
             </p>
           </div>
@@ -410,7 +414,11 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
             <button
               onClick={exportPlanning}
-              className="flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className={`flex items-center px-6 py-3 rounded-lg transition-colors ${
+                isDarkMode 
+                  ? 'bg-gray-600 text-white hover:bg-gray-500' 
+                  : 'bg-gray-600 text-white hover:bg-gray-700'
+              }`}
             >
               <Download className="h-5 w-5 mr-2" />
               Exporter CSV

@@ -156,8 +156,8 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
         >
           <Building className="h-8 w-8 text-white" />
         </motion.div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Contraintes de l'entreprise</h2>
-        <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto transition-colors duration-300">
+        <h2 className={`text-3xl font-bold ${darkClasses.title} mb-2`}>Contraintes de l'entreprise</h2>
+        <p className={`${darkClasses.subtitle} max-w-2xl mx-auto`}>
           Configurez les jours et horaires d'ouverture, ainsi que les contraintes légales et organisationnelles.
         </p>
       </div>
@@ -167,9 +167,9 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+        className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
       >
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 transition-colors duration-300">Configurations prédéfinies</h3>
+        <h3 className="text-lg font-semibold ${darkClasses.title} dark:text-white mb-4 transition-colors duration-300">Configurations prédéfinies</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {PRESET_SCHEDULES.map((preset, index) => (
@@ -178,21 +178,27 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handlePresetSelect(preset)}
-              className="p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-left transition-all"
+              className={`p-4 rounded-lg border-2 text-left transition-all ${
+                isDarkMode
+                  ? 'border-gray-600 hover:border-blue-400 hover:bg-blue-900/30'
+                  : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+              }`}
             >
-              <h4 className="font-semibold text-gray-900 mb-1">{preset.name}</h4>
-              <p className="text-sm text-gray-600">{preset.description}</p>
+              <h4 className="font-semibold ${darkClasses.title} mb-1">{preset.name}</h4>
+              <p className="text-sm ${darkClasses.textMuted}">{preset.description}</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {preset.openDays.slice(0, 3).map(day => {
                   const dayInfo = FRENCH_DAYS.find(d => d.english === day);
                   return (
-                    <span key={day} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    <span key={day} className={`text-xs px-2 py-1 rounded ${
+                      isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                    }`}>
                       {dayInfo?.short}
                     </span>
                   );
                 })}
                 {preset.openDays.length > 3 && (
-                  <span className="text-xs text-gray-500">+{preset.openDays.length - 3}</span>
+                  <span className={`text-xs ${darkClasses.textMuted}`}>+{preset.openDays.length - 3}</span>
                 )}
               </div>
             </motion.button>
@@ -206,11 +212,11 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           <div className="flex items-center mb-4">
             <Clock className="h-6 w-6 text-indigo-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-300">Jours d'ouverture</h3>
+            <h3 className="text-xl font-semibold ${darkClasses.title} dark:text-white transition-colors duration-300">Jours d'ouverture</h3>
           </div>
 
           <div className="grid grid-cols-7 gap-2 mb-4">
@@ -223,8 +229,8 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
                   onClick={() => handleDayToggle(day.english)}
                   className={`p-3 rounded-lg border-2 text-center transition-all ${
                     isSelected
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      ? isDarkMode ? 'border-indigo-400 bg-indigo-900/40 text-indigo-300' : 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : isDarkMode ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   <div className="font-bold">{day.short}</div>
@@ -234,7 +240,7 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
             })}
           </div>
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm ${darkClasses.textMuted}">
             {constraints.openDays?.length || 0} jour{(constraints.openDays?.length || 0) > 1 ? 's' : ''} d'ouverture par semaine
           </p>
         </motion.div>
@@ -244,12 +250,12 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+          className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
               <Clock className="h-6 w-6 text-blue-600 mr-3" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-300">Horaires</h3>
+              <h3 className="text-xl font-semibold ${darkClasses.title} dark:text-white transition-colors duration-300">Horaires</h3>
             </div>
             <button
               onClick={handleHourAdd}
@@ -267,14 +273,20 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
                   placeholder="09:00-18:00"
                   value={hours}
                   onChange={(e) => handleHourChange(index, e.target.value)}
-                  className={`flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    !validateTimeRange(hours) && hours ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  className={`flex-1 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    !validateTimeRange(hours) && hours 
+                      ? isDarkMode ? 'border-red-500 bg-red-900/30 text-white' : 'border-red-300 bg-red-50'
+                      : isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white'
                   }`}
                 />
                 {constraints.openHours!.length > 1 && (
                   <button
                     onClick={() => handleHourRemove(index)}
-                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDarkMode 
+                        ? 'text-red-400 hover:text-red-300 hover:bg-red-900/30' 
+                        : 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                    }`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -283,10 +295,12 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
             ))}
           </div>
 
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-700">
-              <div className="font-medium">Total: {getTotalOpenHours()}h par jour</div>
-              <div className="text-xs text-gray-500 mt-1">
+          <div className={`mt-4 p-3 rounded-lg ${
+            isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+          }`}>
+            <div className="text-sm ${darkClasses.subtitle}">
+              <div className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Total: {getTotalOpenHours()}h par jour</div>
+              <div className="text-xs ${darkClasses.textMuted} mt-1">
                 Format: HH:MM-HH:MM (ex: 09:00-18:00)
               </div>
             </div>
@@ -299,17 +313,17 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+        className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
       >
         <div className="flex items-center mb-6">
           <Users className="h-6 w-6 text-purple-600 mr-3" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-300">Contraintes de staffing</h3>
+          <h3 className="text-xl font-semibold ${darkClasses.title} dark:text-white transition-colors duration-300">Contraintes de staffing</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Minimum d'employés simultanés */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium ${darkClasses.subtitle} mb-2">
               Minimum d'employés simultanés
             </label>
             <input
@@ -321,16 +335,16 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
                 ...constraints,
                 minEmployeesPerSlot: parseInt(e.target.value) || 1
               })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs ${darkClasses.textMuted} mt-1">
               Nombre minimum requis à tout moment
             </p>
           </div>
 
           {/* Heures max par jour */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium ${darkClasses.subtitle} mb-2">
               Maximum d'heures par jour
             </label>
             <input
@@ -342,16 +356,16 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
                 ...constraints,
                 maxHoursPerDay: parseInt(e.target.value) || 8
               })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs ${darkClasses.textMuted} mt-1">
               Limite légale du temps de travail
             </p>
           </div>
 
           {/* Heures min par jour */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium ${darkClasses.subtitle} mb-2">
               Minimum d'heures par jour
             </label>
             <input
@@ -364,9 +378,9 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
                 ...constraints,
                 minHoursPerDay: parseFloat(e.target.value) || 2
               })}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs ${darkClasses.textMuted} mt-1">
               Durée minimum d'un service
             </p>
           </div>
@@ -378,12 +392,12 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-6 transition-colors duration-300"
+        className={`${darkClasses.card} rounded-xl shadow-lg p-6`}
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <Settings className="h-6 w-6 text-green-600 mr-3" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-300">Pauses déjeuner</h3>
+            <h3 className="text-xl font-semibold ${darkClasses.title} dark:text-white transition-colors duration-300">Pauses déjeuner</h3>
           </div>
           
           <label className="flex items-center space-x-2">
@@ -396,7 +410,7 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
               })}
               className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
             />
-            <span className="text-sm font-medium text-gray-700">Obligatoire</span>
+            <span className="text-sm font-medium ${darkClasses.subtitle}">Obligatoire</span>
           </label>
         </div>
 
@@ -408,7 +422,7 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium ${darkClasses.subtitle} mb-2">
                   Durée de la pause (minutes)
                 </label>
                 <select
@@ -417,7 +431,7 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
                     ...constraints,
                     lunchBreakDuration: parseInt(e.target.value)
                   })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkClasses.input}`}
                 >
                   <option value={30}>30 minutes</option>
                   <option value={45}>45 minutes</option>
@@ -428,8 +442,8 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
               </div>
               
               <div className="flex items-end">
-                <div className="text-sm text-gray-600">
-                  <div className="font-medium">Règles automatiques :</div>
+                <div className={`text-sm ${darkClasses.textMuted}`}>
+                  <div className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Règles automatiques :</div>
                   <ul className="list-disc list-inside text-xs mt-1 space-y-1">
                     <li>Pause après 4h de travail consécutif</li>
                     <li>Positionnée au milieu de la journée</li>
@@ -449,18 +463,23 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
         className={`rounded-xl p-6 ${
           constraints.openDays?.length && constraints.openHours?.length &&
           constraints.maxHoursPerDay! >= constraints.minHoursPerDay!
-            ? 'bg-green-50 border border-green-200'
-            : 'bg-red-50 border border-red-200'
+            ? isDarkMode ? 'bg-green-900/20 border border-green-700' : 'bg-green-50 border border-green-200'
+            : isDarkMode ? 'bg-red-900/20 border border-red-700' : 'bg-red-50 border border-red-200'
         }`}
       >
         <div className="flex items-center mb-4">
           {constraints.openDays?.length && constraints.openHours?.length &&
            constraints.maxHoursPerDay! >= constraints.minHoursPerDay! ? (
-            <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
+            <CheckCircle className={`h-6 w-6 mr-3 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
           ) : (
-            <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+            <AlertTriangle className={`h-6 w-6 mr-3 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
           )}
-          <h3 className="text-lg font-semibold">
+          <h3 className={`text-lg font-semibold ${
+            constraints.openDays?.length && constraints.openHours?.length &&
+            constraints.maxHoursPerDay! >= constraints.minHoursPerDay!
+              ? isDarkMode ? 'text-green-300' : 'text-green-800'
+              : isDarkMode ? 'text-red-300' : 'text-red-800'
+          }`}>
             {constraints.openDays?.length && constraints.openHours?.length &&
              constraints.maxHoursPerDay! >= constraints.minHoursPerDay!
               ? 'Configuration valide'
@@ -469,35 +488,35 @@ const CompanyConstraintsStep: React.FC<CompanyConstraintsStepProps> = ({
           </h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           <div>
-            <span className="font-medium">Jours d'ouverture:</span>
+            <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Jours d'ouverture:</span>
             <div className="mt-1">
               {constraints.openDays?.length ? (
                 `${constraints.openDays.length} jour${constraints.openDays.length > 1 ? 's' : ''}/semaine`
               ) : (
-                <span className="text-red-600">Non configuré</span>
+                <span className={`${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>Non configuré</span>
               )}
             </div>
           </div>
           
           <div>
-            <span className="font-medium">Horaires quotidiens:</span>
+            <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Horaires quotidiens:</span>
             <div className="mt-1">
               {getTotalOpenHours() > 0 ? (
                 `${getTotalOpenHours()}h/jour (${constraints.openHours?.length} créneau${constraints.openHours!.length > 1 ? 'x' : ''})`
               ) : (
-                <span className="text-red-600">Non configuré</span>
+                <span className={`${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>Non configuré</span>
               )}
             </div>
           </div>
           
           <div>
-            <span className="font-medium">Contraintes staffing:</span>
+            <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Contraintes staffing:</span>
             <div className="mt-1">
               {constraints.minEmployeesPerSlot} min • {constraints.minHoursPerDay}h-{constraints.maxHoursPerDay}h/jour
               {constraints.mandatoryLunchBreak && (
-                <div className="text-xs text-gray-600">
+                <div className={`text-xs ${darkClasses.textMuted}`}>
                   Pause déjeuner: {constraints.lunchBreakDuration}min
                 </div>
               )}
