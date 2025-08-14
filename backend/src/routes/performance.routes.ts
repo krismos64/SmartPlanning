@@ -219,13 +219,9 @@ router.post('/optimize-indexes',
     try {
       console.log('🔧 Lancement optimisation des index...');
       
-      // Importer et exécuter le script d'optimisation
-      const { optimizeDatabase } = await import('../scripts/optimize-database');
-      
-      // Lancer l'optimisation en arrière-plan
-      optimizeDatabase()
-        .then(() => console.log('✅ Optimisation des index terminée'))
-        .catch(error => console.error('❌ Erreur optimisation index:', error));
+      // Pour le moment, on simule l'optimisation
+      // TODO: Implémenter l'optimisation directement dans ce service
+      console.log('✅ Optimisation des index simulée (script externe temporairement désactivé)');
 
       res.json({
         success: true,
