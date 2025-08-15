@@ -93,11 +93,11 @@ const IconWrapper = styled.div`
   font-size: 1.5rem;
 `;
 
-const ContactItemTitle = styled.h3`
+const ContactItemTitle = styled.h3<{ isDarkMode?: boolean }>`
   font-size: 1.125rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #334155;
+  color: ${({ isDarkMode }) => (isDarkMode ? "#e2e8f0" : "#334155")};
 `;
 
 const ContactItemText = styled.p<{ isDarkMode?: boolean }>`
@@ -424,7 +424,7 @@ const ContactPage: React.FC = () => {
                 <IconWrapper>
                   <MdOutlineMail />
                 </IconWrapper>
-                <ContactItemTitle>Email</ContactItemTitle>
+                <ContactItemTitle isDarkMode={isDarkMode}>Email</ContactItemTitle>
                 <ContactItemText isDarkMode={isDarkMode}>
                   <a
                     href="mailto:contact@smartplanning.fr"

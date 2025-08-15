@@ -83,28 +83,32 @@ const InputField: React.FC<InputFieldProps> = ({
   // Style inline pour le mode sombre
   const darkModeStyle = isDarkMode
     ? {
-        backgroundColor: "#1A2234",
-        color: "white",
-        borderColor: "#4a5568",
-        WebkitTextFillColor: "white",
-        caretColor: "white",
+        backgroundColor: "rgba(30, 41, 59, 0.5)",
+        color: "#e2e8f0",
+        borderColor: "rgba(100, 116, 139, 0.3)",
+        WebkitTextFillColor: "#e2e8f0",
+        caretColor: "#818cf8",
       }
-    : {};
+    : {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        color: "#1e293b",
+        borderColor: "rgba(203, 213, 225, 0.5)",
+      };
 
   return (
     <div className={`relative mb-4 ${containerClassName}`}>
       {label && (
         <motion.label
           htmlFor={name}
-          className={`absolute transition-all duration-200 pointer-events-none ${
+          className={`absolute transition-all duration-300 pointer-events-none z-10 ${
             isDarkMode ? "text-gray-300" : "text-gray-600"
           } ${
             isActive
               ? `text-xs ${
                   isDarkMode ? "text-indigo-400" : "text-indigo-600"
-                } top-1`
+                } top-1 font-medium`
               : `text-base ${
-                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
                 } top-1/2 -translate-y-1/2`
           }`}
           initial={false}
@@ -113,8 +117,10 @@ const InputField: React.FC<InputFieldProps> = ({
             translateY: isActive ? "0" : "-50%",
             fontSize: isActive ? "0.75rem" : "1rem",
           }}
-          transition={{ duration: 0.2 }}
-          style={{}}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          style={{
+            left: icon ? "2.5rem" : "1rem"
+          }}
         >
           {label}
           {required && <span className="text-red-400 ml-1">*</span>}
@@ -123,7 +129,9 @@ const InputField: React.FC<InputFieldProps> = ({
 
       <div className="relative">
         {icon && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10 ${
+            isDarkMode ? "text-gray-400" : "text-gray-500"
+          }`}>
             {icon}
           </div>
         )}
@@ -136,18 +144,32 @@ const InputField: React.FC<InputFieldProps> = ({
           onChange={onChange}
           disabled={disabled}
           required={required}
-          placeholder={placeholder}
+          placeholder={isFocused ? placeholder : ""}
           onFocus={handleFocus}
           onBlur={handleBlur}
           data-theme-mode={isDarkMode ? "dark" : "light"}
-          style={darkModeStyle}
-          className={`w-full px-3 pt-6 pb-2 rounded-lg outline-none transition-colors duration-200
-            ${disabled ? "opacity-70 cursor-not-allowed" : ""} 
-            placeholder-gray-400 dark:placeholder-gray-300
-            focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500
-            ${icon ? "pl-10" : "pl-3"}
-            border
-            ${error ? "border-red-500 dark:border-red-500" : ""}
+          style={{
+            ...darkModeStyle,
+            backdropFilter: "blur(10px)",
+            transition: "all 0.3s ease",
+          }}
+          className={`w-full px-4 pt-6 pb-2 rounded-xl outline-none transition-all duration-300
+            ${disabled ? "opacity-50 cursor-not-allowed" : ""} 
+            ${isDarkMode 
+              ? "placeholder-gray-500 hover:bg-slate-800/60" 
+              : "placeholder-gray-400 hover:bg-white"}
+            ${isFocused 
+              ? isDarkMode 
+                ? "ring-2 ring-indigo-500/40 border-indigo-500/60 bg-slate-800/70" 
+                : "ring-2 ring-indigo-500/30 border-indigo-500 bg-white"
+              : ""}
+            ${icon ? "pl-10" : "pl-4"}
+            border-2
+            ${error 
+              ? "border-red-500 dark:border-red-400" 
+              : isDarkMode 
+                ? "border-slate-600/30" 
+                : "border-gray-200"}
             ${className}`}
           autoComplete={autoComplete}
           aria-invalid={error ? "true" : "false"}

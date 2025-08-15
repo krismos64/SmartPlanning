@@ -6,6 +6,7 @@
  */
 import { motion } from "framer-motion";
 import React from "react";
+import { useTheme } from "../ThemeProvider";
 
 /**
  * Interface des propriétés du composant Button
@@ -54,55 +55,53 @@ const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   title,
 }) => {
-  // Mapping des variantes vers les classes CSS appropriées
+  const { isDarkMode } = useTheme();
+  
+  // Mapping des variantes vers les classes CSS appropriées avec support mode sombre amélioré
   const variantClasses = {
-    primary:
-      "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500/40 border border-indigo-500",
-    secondary:
-      "bg-gray-800 text-white hover:bg-gray-700 focus:ring-gray-700/60 border border-gray-700",
-    danger:
-      "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500/40 border border-red-500",
-    ghost:
-      "bg-transparent text-gray-200 hover:bg-gray-800 hover:text-white focus:ring-gray-700/30",
-    outline:
-      "bg-transparent border border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white focus:ring-gray-700/30",
+    primary: isDarkMode
+      ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:from-indigo-500 hover:to-indigo-400 shadow-lg shadow-indigo-500/25 border border-indigo-400/20"
+      : "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:from-indigo-700 hover:to-indigo-600 shadow-md shadow-indigo-500/20 border border-indigo-600",
+    secondary: isDarkMode
+      ? "bg-slate-800/70 text-gray-100 hover:bg-slate-700/70 border border-slate-600/30 backdrop-blur-sm"
+      : "bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300",
+    danger: isDarkMode
+      ? "bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-500 hover:to-red-400 shadow-lg shadow-red-500/25 border border-red-400/20"
+      : "bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-700 hover:to-red-600 shadow-md shadow-red-500/20 border border-red-600",
+    ghost: isDarkMode
+      ? "bg-transparent text-gray-300 hover:bg-slate-800/50 hover:text-white"
+      : "bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+    outline: isDarkMode
+      ? "bg-transparent border-2 border-slate-600/50 text-gray-300 hover:bg-slate-800/50 hover:border-indigo-500/50 hover:text-white backdrop-blur-sm"
+      : "bg-transparent border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-indigo-500 hover:text-gray-900",
   };
 
   // Mapping des tailles vers les classes CSS appropriées
   const sizeClasses = {
-    sm: "text-xs px-2.5 py-1.5 rounded-md",
-    md: "text-sm px-4 py-2 rounded-md",
-    lg: "text-base px-6 py-2.5 rounded-md",
-    xs: "text-xs px-2 py-1 rounded",
+    sm: "text-xs px-3 py-1.5 rounded-lg",
+    md: "text-sm px-4 py-2 rounded-xl",
+    lg: "text-base px-6 py-3 rounded-xl",
+    xs: "text-xs px-2 py-1 rounded-lg",
   };
 
-  // Classes de base communes à tous les boutons
+  // Classes de base communes à tous les boutons avec animations améliorées
   const baseClasses =
-    "font-medium transition-colors duration-200 focus:outline-none focus:ring-2 flex items-center justify-center gap-2";
+    "font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center gap-2 transform hover:scale-[1.02]";
 
   // Classes pour gérer l'état désactivé
   const disabledClasses =
-    disabled || isLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer";
+    disabled || isLoading ? "opacity-50 cursor-not-allowed hover:scale-100" : "cursor-pointer";
 
   // Classes pour la largeur du bouton
   const widthClasses = fullWidth ? "w-full" : "";
-
-  // Modifier la section de la classe des icônes pour les rendre plus visibles en mode dark
-  const iconClasses = `
-    ${size === "sm" ? "mr-1.5" : size === "xs" ? "mr-1" : "mr-2"} 
-    ${fullWidth ? "mr-2" : ""}
-    ${
-      variant === "ghost"
-        ? "text-inherit group-hover:text-inherit dark:text-gray-300 dark:group-hover:text-white"
-        : variant === "outline"
-        ? "text-inherit group-hover:text-inherit dark:text-gray-300 dark:group-hover:text-white"
-        : "text-inherit dark:text-white"
-    }
-    transition-colors
-  `;
+  
+  // Classes pour le focus ring selon le mode
+  const focusRingClasses = isDarkMode 
+    ? "focus:ring-offset-slate-900" 
+    : "focus:ring-offset-white";
 
   // Assemblage final des classes CSS
-  const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabledClasses} ${widthClasses} ${className} ${iconClasses}`;
+  const buttonClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabledClasses} ${widthClasses} ${focusRingClasses} ${className}`;
 
   return (
     <motion.button
