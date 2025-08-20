@@ -273,7 +273,7 @@ const LogicielPlanningRHPage: React.FC = () => {
                 </p>
                 <ul className="text-sm text-gray-600 space-y-2">
                   <li>• Expert développeur français</li>
-                  <li>• Support <24h</li>
+                  <li>• Support &lt;24h</li>
                   <li>• Formation incluse</li>
                   <li>• Évolutions sur-mesure</li>
                 </ul>
