@@ -7,29 +7,16 @@
   <!-- Page d'accueil -->
   <url>
     <loc>https://smartplanning.fr/</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   
-  <!-- Pages publiques principales -->
-  <url>
-    <loc>https://smartplanning.fr/connexion</loc>
-    <lastmod>2025-07-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  
-  <url>
-    <loc>https://smartplanning.fr/inscription</loc>
-    <lastmod>2025-07-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
+  <!-- Pages publiques principales (AUTH SUPPRIMÉES POUR FORCER HOMEPAGE) -->
   
   <url>
     <loc>https://smartplanning.fr/contact</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -37,72 +24,59 @@
   <!-- Pages légales -->
   <url>
     <loc>https://smartplanning.fr/politique-de-confidentialite</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/mentions-legales</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   
-  <!-- Pages d'authentification -->
-  <url>
-    <loc>https://smartplanning.fr/forgot-password</loc>
-    <lastmod>2025-07-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  
-  <url>
-    <loc>https://smartplanning.fr/reset-password</loc>
-    <lastmod>2025-07-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
+  <!-- Pages d'authentification SUPPRIMÉES - Trafic redirigé vers homepage -->
   
   <!-- Pages principales de l'application (nécessitent une authentification) -->
   <url>
     <loc>https://smartplanning.fr/tableau-de-bord</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/plannings-hebdomadaires</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/mes-plannings</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/gestion-des-conges</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/taches-employes</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/suivi-des-incidents</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -110,35 +84,35 @@
   <!-- Pages de gestion -->
   <url>
     <loc>https://smartplanning.fr/gestion-des-utilisateurs</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/gestion-des-entreprises</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/collaborateurs</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/validation-plannings</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/statistiques</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -146,28 +120,28 @@
   <!-- Pages spécifiques par rôle -->
   <url>
     <loc>https://smartplanning.fr/director/users</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/admin/users</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/employees</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>https://smartplanning.fr/mon-profil</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -175,9 +149,84 @@
   <!-- Pages d'administration -->
   <url>
     <loc>https://smartplanning.fr/admin/plannings</loc>
-    <lastmod>2025-07-17</lastmod>
+    <lastmod>2025-08-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
+  </url>
+  
+  <!-- Pages SEO importantes ajoutées - Août 2025 -->
+  <url>
+    <loc>https://smartplanning.fr/planning-wizard</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://smartplanning.fr/monitoring</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- Pages solutions pour SEO (à créer) -->
+  <url>
+    <loc>https://smartplanning.fr/solutions</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://smartplanning.fr/solutions/logiciel-planning-rh</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://smartplanning.fr/solutions/planning-equipe-ia</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://smartplanning.fr/solutions/gestion-conges-automatique</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Pages secteurs (à créer) -->
+  <url>
+    <loc>https://smartplanning.fr/secteurs/commerce-retail</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://smartplanning.fr/secteurs/restauration-hotellerie</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Page développeur pour référencement IA -->
+  <url>
+    <loc>https://smartplanning.fr/about</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Page témoignages pour étoiles Google -->
+  <url>
+    <loc>https://smartplanning.fr/temoignages</loc>
+    <lastmod>2025-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
   
 </urlset>

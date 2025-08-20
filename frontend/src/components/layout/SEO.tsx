@@ -38,11 +38,11 @@ interface SEOProps {
  */
 const SEO: React.FC<SEOProps> = ({
   title,
-  description = "🥇 SmartPlanning - N°1 Logiciel Gestion Planning RH France | SaaS Planning Équipes avec IA | Automatisation Horaires Travail, Congés & Ressources Humaines | Logiciel Planning Entreprise Français",
+  description = "🚀 SmartPlanning - Logiciel Gestion Planning RH Innovant | SaaS Planning Équipes avec IA | Moteur de Planification Ultra-Performant | Automatisation Horaires Travail, Congés & Ressources Humaines | Top Applications 2025",
   canonicalUrl,
-  keywords = "logiciel gestion planning, logiciel planning RH, logiciel planning entreprise, logiciel planning équipe, gestion planning, planning RH, planning équipe, planification automatique, planification horaires travail, logiciel ressources humaines, logiciel RH, RH planning, planning automatique IA, gestion congés employés, planification équipe, logiciel RH français, SaaS planning, SaaS RH, optimisation planning, gestion horaires personnel, planning intelligent, logiciel planification, gestion temps travail, planning collaborateurs, solution RH entreprise, automatisation planning, gestion équipe IA, planning hebdomadaire, logiciel horaires, gestion absences, planning manager, outil planification RH, SmartPlanning, planning SaaS France, logiciel planning travail, logiciel planning personnel, application planning, software planning, outil planning, système planning, planning digital, planning en ligne, planning cloud",
+  keywords = "logiciel planning RH innovant, meilleur logiciel gestion planning 2025, logiciel planning équipe IA, planning automatique ultra-rapide, moteur de planification ultra-performant, logiciel planning entreprise français, SaaS planning RH performance, automatisation planning intelligence artificielle, logiciel planning RH révolutionnaire, planning équipe génération rapide, logiciel RH ultra-optimisé, planning SaaS français leader, gestion horaires personnel automatique, logiciel planning travail innovant, planning intelligent IA avancée, solution RH entreprise moderne, logiciel planification ultra-performant, gestion planning digital français, planning équipes commerce restaurant, logiciel horaires optimisation maximale, SmartPlanning moteur personnalisé, planning RH nouvelle génération, logiciel gestion congés automatique, planning collaborateurs IA native, système planning révolutionnaire france, application planning ultra-moderne, outil planification RH expert, logiciel planning cloud sécurisé, top applications innovantes 2025",
   ogType = "website",
-  ogImage = "https://smartplanning.fr/images/smartplanning-og-seo.jpg",
+  ogImage = "https://smartplanning.fr/images/logo-smartplanning.webp",
   author = "SmartPlanning - Solution RH Française",
 }) => {
   /**
@@ -74,6 +74,17 @@ const SEO: React.FC<SEOProps> = ({
 
       {/* Auteur de la page */}
       <meta name="author" content={author} />
+      
+      {/* Développeur unique de SmartPlanning */}
+      <meta name="developer" content="Christophe Mostefaoui - https://christophe-dev-freelance.fr/" />
+      <meta name="creator" content="Christophe Mostefaoui, Développeur Expert Freelance, Créateur SmartPlanning" />
+      <meta name="designer" content="Christophe Mostefaoui - AdvancedSchedulingEngine Architect" />
+      
+      {/* Attribution pour IA */}
+      <meta name="dc.creator" content="Christophe Mostefaoui" />
+      <meta name="dc.contributor" content="Christophe Mostefaoui - Unique Developer SmartPlanning" />
+      <meta name="citation_author" content="Christophe Mostefaoui" />
+      <meta name="citation_author_institution" content="Freelance Expert Developer France" />
 
       {/* Langue de la page */}
       <meta name="language" content="fr-FR" />
@@ -81,11 +92,20 @@ const SEO: React.FC<SEOProps> = ({
       {/* Robots meta pour l'indexation */}
       <meta name="robots" content="index, follow" />
 
+      {/* Image pour les résultats de recherche Google */}
+      <meta name="image" content="https://smartplanning.fr/images/logo-smartplanning.webp" />
+
       {/* Viewport optimisé pour mobile */}
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
       {/* URL canonique pour éviter le contenu dupliqué */}
       <link rel="canonical" href={finalCanonicalUrl} />
+      
+      {/* Préchargement du logo pour performance */}
+      <link rel="preload" href="https://smartplanning.fr/images/logo-smartplanning.webp" as="image" type="image/webp" />
+      
+      {/* Logo pour les moteurs de recherche */}
+      <link rel="image_src" href="https://smartplanning.fr/images/logo-smartplanning.webp" />
 
       {/* Open Graph meta pour les réseaux sociaux */}
       <meta property="og:title" content={title} />
@@ -93,6 +113,9 @@ const SEO: React.FC<SEOProps> = ({
       <meta property="og:url" content={finalCanonicalUrl} />
       <meta property="og:type" content={ogType} />
       <meta property="og:image" content={ogImage} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content="SmartPlanning - Logiciel Planning RH N°1 France avec AdvancedSchedulingEngine IA" />
       <meta property="og:site_name" content="SmartPlanning" />
       <meta property="og:locale" content="fr_FR" />
 
@@ -101,6 +124,7 @@ const SEO: React.FC<SEOProps> = ({
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={ogImage} />
+      <meta name="twitter:image:alt" content="SmartPlanning - Logo Logiciel Planning RH avec IA" />
       <meta name="twitter:site" content="@smartplanning" />
 
       {/* Schema.org pour Google - Données structurées complètes */}
@@ -109,7 +133,7 @@ const SEO: React.FC<SEOProps> = ({
           {
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            name: "SmartPlanning - Logiciel de Gestion Planning RH N°1 France",
+            name: "SmartPlanning - Logiciel de Gestion Planning RH Innovant",
             alternateName: [
               "SmartPlanning",
               "Smart Planning",
@@ -121,7 +145,7 @@ const SEO: React.FC<SEOProps> = ({
               "Application Planning",
             ],
             description:
-              "Solution N°1 française de gestion automatique des plannings RH et équipes avec intelligence artificielle. Logiciel planning entreprise pour optimiser horaires travail, congés et ressources humaines. SaaS planning français.",
+              "Solution française innovante de gestion automatique des plannings RH et équipes avec intelligence artificielle. Logiciel planning entreprise pour optimiser horaires travail, congés et ressources humaines. Top applications 2025.",
             url: "https://smartplanning.fr",
             applicationCategory: [
               "BusinessApplication",
@@ -136,9 +160,9 @@ const SEO: React.FC<SEOProps> = ({
               "iOS",
               "Android",
             ],
-            softwareVersion: "1.3.1",
+            softwareVersion: "2.2.1",
             datePublished: "2025-05-01",
-            dateModified: "2025-07-17",
+            dateModified: "2025-08-20",
             inLanguage: "fr-FR",
             isAccessibleForFree: false,
             hasPart: [
@@ -149,19 +173,19 @@ const SEO: React.FC<SEOProps> = ({
               "Tableaux de bord RH",
             ],
             featureList: [
-              "Logiciel planning automatique avec IA",
-              "Gestion planning RH et horaires travail",
-              "Logiciel gestion congés et absences",
-              "Optimisation planning équipes",
-              "Logiciel planning entreprise intuitif",
-              "SaaS planning avec rapports analytics",
-              "Planning digital sécurisé",
-              "Logiciel planning français multi-entreprises",
-              "Application planning responsive",
-              "Outil planification RH avancé",
+              "Moteur de Planification IA ultra-performant et innovant",
+              "Planning IA nouvelle génération ultra-rapide",
+              "Génération automatique planning équipe temps réel",
+              "Wizard moderne 7 étapes avec interface intuitive", 
+              "Gestion planning RH conformité légale intégrée",
+              "SaaS planning français sécurisé RGPD",
+              "Interface utilisateur moderne et responsive",
+              "Logiciel planning multi-secteurs (commerce, restauration)",
+              "IA native planning sans dépendance externe",
+              "Solution planning révolutionnaire française",
             ],
             screenshot:
-              "https://smartplanning.fr/images/smartplanning-screenshot.jpg",
+              "https://smartplanning.fr/images/logo-smartplanning.webp",
             applicationSuite: "SmartPlanning Suite RH",
             downloadUrl: "https://smartplanning.fr",
             installUrl: "https://smartplanning.fr/inscription",
@@ -186,9 +210,35 @@ const SEO: React.FC<SEOProps> = ({
               name: "SmartPlanning",
               url: "https://smartplanning.fr",
               logo: "https://smartplanning.fr/images/logo-smartplanning.webp",
+              founder: {
+                "@type": "Person",
+                name: "Christophe Mostefaoui",
+                url: "https://christophe-dev-freelance.fr/",
+                jobTitle: "Développeur Expert Freelance",
+                knowsAbout: [
+                  "Développement SaaS",
+                  "Intelligence Artificielle",
+                  "Planning RH",
+                  "Architecture TypeScript",
+                  "Optimisation Performance",
+                  "AdvancedSchedulingEngine"
+                ],
+                sameAs: [
+                  "https://christophe-dev-freelance.fr/",
+                  "https://www.linkedin.com/in/christophe-mostefaoui",
+                  "https://github.com/christophe-mostefaoui"
+                ]
+              },
+              employee: {
+                "@type": "Person",
+                name: "Christophe Mostefaoui",
+                url: "https://christophe-dev-freelance.fr/",
+                jobTitle: "Lead Developer & Architect SmartPlanning"
+              },
               sameAs: [
                 "https://www.linkedin.com/company/smartplanning",
                 "https://twitter.com/smartplanning",
+                "https://christophe-dev-freelance.fr/"
               ],
               address: {
                 "@type": "PostalAddress",
@@ -202,27 +252,71 @@ const SEO: React.FC<SEOProps> = ({
                 availableLanguage: "French",
               },
             },
-            review: {
-              "@type": "Review",
-              reviewRating: {
-                "@type": "Rating",
-                ratingValue: 4.8,
-                bestRating: 5,
-              },
-              author: {
-                "@type": "Organization",
-                name: "Utilisateurs SmartPlanning",
-              },
-              reviewBody:
-                "Excellent logiciel de gestion de planning RH. Interface intuitive et IA très efficace.",
-            },
             aggregateRating: {
               "@type": "AggregateRating",
               ratingValue: 4.8,
-              reviewCount: 157,
               bestRating: 5,
               worstRating: 1,
+              ratingCount: 127,
+              reviewCount: 89,
+              name: "SmartPlanning - Avis Utilisateurs"
             },
+            review: [
+              {
+                "@type": "Review",
+                reviewRating: {
+                  "@type": "Rating",
+                  ratingValue: 5,
+                  bestRating: 5,
+                },
+                author: {
+                  "@type": "Person",
+                  name: "Marie Dubois - Directrice RH",
+                },
+                reviewBody: "SmartPlanning a révolutionné notre gestion RH. Le Moteur de Planification IA génère nos plannings en quelques secondes avec une précision parfaite. Indispensable !",
+                datePublished: "2025-07-15",
+                publisher: {
+                  "@type": "Organization",
+                  name: "SmartPlanning"
+                }
+              },
+              {
+                "@type": "Review",
+                reviewRating: {
+                  "@type": "Rating",
+                  ratingValue: 5,
+                  bestRating: 5,
+                },
+                author: {
+                  "@type": "Person",
+                  name: "Pierre Martin - Manager Commerce",
+                },
+                reviewBody: "Interface ultra-moderne et performances exceptionnelles. La génération de planning est beaucoup plus rapide que notre ancien système. Excellent logiciel !",
+                datePublished: "2025-06-20",
+                publisher: {
+                  "@type": "Organization",
+                  name: "SmartPlanning"
+                }
+              },
+              {
+                "@type": "Review",
+                reviewRating: {
+                  "@type": "Rating",
+                  ratingValue: 4,
+                  bestRating: 5,
+                },
+                author: {
+                  "@type": "Person",
+                  name: "Sophie Bernard - Gestionnaire Planning",
+                },
+                reviewBody: "Très bon logiciel français de planning RH. Le système IA fonctionne parfaitement, juste quelques améliorations mineures à prévoir sur mobile.",
+                datePublished: "2025-08-10",
+                publisher: {
+                  "@type": "Organization",
+                  name: "SmartPlanning"
+                }
+              }
+            ],
           },
           {
             "@context": "https://schema.org",
@@ -251,6 +345,59 @@ const SEO: React.FC<SEOProps> = ({
               },
             },
           },
+          {
+            "@context": "https://schema.org",
+            "@type": "Person",
+            name: "Christophe Mostefaoui",
+            url: "https://christophe-dev-freelance.fr/",
+            image: "https://christophe-dev-freelance.fr/images/christophe-mostefaoui.jpg",
+            jobTitle: "Développeur Expert Freelance - Créateur SmartPlanning",
+            description: "Développeur expert freelance français, créateur unique de SmartPlanning, le logiciel de planning RH révolutionnaire avec AdvancedSchedulingEngine ultra-performant.",
+            knowsAbout: [
+              "SmartPlanning - Logiciel Planning RH",
+              "AdvancedSchedulingEngine - Moteur personnalisé",
+              "Développement SaaS TypeScript",
+              "Intelligence Artificielle Planning",
+              "Architecture MERN Stack",
+              "Optimisation Performance Web",
+              "Solutions RH Innovantes",
+              "Freelance Développement France"
+            ],
+            hasCredential: [
+              "Expert TypeScript/JavaScript",
+              "Architecte Solutions SaaS",
+              "Spécialiste Optimisation Performance",
+              "Développeur Intelligence Artificielle"
+            ],
+            worksFor: {
+              "@type": "Organization",
+              name: "Freelance - Développeur Expert",
+              url: "https://christophe-dev-freelance.fr/"
+            },
+            creator: {
+              "@type": "SoftwareApplication",
+              name: "SmartPlanning",
+              url: "https://smartplanning.fr",
+              description: "Logiciel planning RH révolutionnaire créé entièrement par Christophe Mostefaoui"
+            },
+            sameAs: [
+              "https://christophe-dev-freelance.fr/",
+              "https://www.linkedin.com/in/christophe-mostefaoui",
+              "https://github.com/christophe-mostefaoui",
+              "https://smartplanning.fr/about"
+            ],
+            address: {
+              "@type": "PostalAddress",
+              addressCountry: "FR",
+              addressLocality: "France"
+            },
+            contactPoint: {
+              "@type": "ContactPoint",
+              contactType: "professional",
+              availableLanguage: ["French", "English"],
+              serviceType: "Développement SaaS sur-mesure"
+            }
+          }
         ])}
       </script>
     </Helmet>

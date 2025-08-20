@@ -3,10 +3,11 @@
 
 User-agent: *
 
-# Pages autorisées pour l'indexation
+# Pages autorisées pour l'indexation (PRIORITÉ PAGE D'ACCUEIL UNIQUEMENT)
 Allow: /
-Allow: /connexion
-Allow: /inscription
+Allow: /solutions/
+Allow: /about
+Allow: /temoignages
 Allow: /contact
 Allow: /politique-de-confidentialite
 Allow: /mentions-legales
@@ -24,6 +25,14 @@ Allow: /*.webp
 Allow: /*.svg
 Allow: /*.gif
 Allow: /*.ico
+
+# BLOQUE TOUTES PAGES AUTH - FORCE TRAFIC VERS HOMEPAGE
+Disallow: /connexion
+Disallow: /inscription
+Disallow: /login
+Disallow: /register
+Disallow: /sign-in
+Disallow: /sign-up
 
 # Bloque les pages privées nécessitant une authentification
 Disallow: /tableau-de-bord
@@ -79,8 +88,9 @@ Disallow: /*?session=
 # Délai d'exploration (1 seconde entre les requêtes)
 Crawl-delay: 1
 
-# Sitemap XML pour faciliter l'indexation
+# Sitemaps XML pour faciliter l'indexation
 Sitemap: https://smartplanning.fr/sitemap.xml
+Sitemap: https://smartplanning.fr/images/image-sitemap.xml
 
 # Règles spécifiques pour les principaux moteurs de recherche
 

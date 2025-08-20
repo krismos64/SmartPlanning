@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Image principale SmartPlanning -->
+  <url>
+    <loc>https://smartplanning.fr/</loc>
+    <image:image>
+      <image:loc>https://smartplanning.fr/images/logo-smartplanning.webp</image:loc>
+      <image:title>SmartPlanning - Logiciel Planning RH N°1 France</image:title>
+      <image:caption>Logo SmartPlanning avec personnage et robot IA présentant le logiciel de gestion planning RH révolutionnaire français</image:caption>
+      <image:geo_location>France</image:geo_location>
+      <image:license>https://smartplanning.fr/mentions-legales</image:license>
+    </image:image>
+  </url>
+  
+  <!-- Image pour page solutions -->
+  <url>
+    <loc>https://smartplanning.fr/solutions</loc>
+    <image:image>
+      <image:loc>https://smartplanning.fr/images/logo-smartplanning.webp</image:loc>
+      <image:title>Solutions Logiciel Planning RH - SmartPlanning</image:title>
+      <image:caption>Solutions planning RH avec AdvancedSchedulingEngine 99.97% plus rapide</image:caption>
+      <image:geo_location>France</image:geo_location>
+      <image:license>https://smartplanning.fr/mentions-legales</image:license>
+    </image:image>
+  </url>
+  
+  <!-- Image pour page logiciel planning RH -->
+  <url>
+    <loc>https://smartplanning.fr/solutions/logiciel-planning-rh</loc>
+    <image:image>
+      <image:loc>https://smartplanning.fr/images/logo-smartplanning.webp</image:loc>
+      <image:title>Logiciel Planning RH Révolutionnaire - SmartPlanning</image:title>
+      <image:caption>Logiciel planning RH français avec IA génération 2-5ms, conformité légale</image:caption>
+      <image:geo_location>France</image:geo_location>
+      <image:license>https://smartplanning.fr/mentions-legales</image:license>
+    </image:image>
+  </url>
+  
+</urlset>

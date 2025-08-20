@@ -643,6 +643,10 @@ const RegisterPage: React.FC = () => {
         title="Inscription - SmartPlanning"
         description="Créez votre compte SmartPlanning pour accéder à notre solution de gestion de planning innovante."
       />
+      
+      {/* NOINDEX - Force trafic vers homepage */}
+      <meta name="robots" content="noindex, nofollow" />
+      <link rel="canonical" href="https://smartplanning.fr/" />
 
       <Header />
 

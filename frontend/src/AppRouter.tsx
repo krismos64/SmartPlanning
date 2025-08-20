@@ -58,6 +58,12 @@ const DatePickerDemoPage = lazy(() => import("./pages/DatePickerDemoPage"));
 const MonitoringPage = lazy(() => import("./pages/MonitoringPage"));
 const PlanningWizard = lazy(() => import("./pages/PlanningWizard"));
 
+// Pages SEO Solutions (nouvelles)
+const SolutionsPage = lazy(() => import("./pages/SolutionsPage"));
+const LogicielPlanningRHPage = lazy(() => import("./pages/solutions/LogicielPlanningRHPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const TestimonialsPage = lazy(() => import("./pages/TestimonialsPage"));
+
 
 /**
  * Composant de vérification du profil pour la redirection conditionnelle
@@ -387,6 +393,12 @@ const AppRouter: React.FC = () => {
             />
           }
         />
+
+        {/* Pages Solutions SEO */}
+        <Route path="/solutions" element={<SolutionsPage />} />
+        <Route path="/solutions/logiciel-planning-rh" element={<LogicielPlanningRHPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/temoignages" element={<TestimonialsPage />} />
 
         {/* Pages légales et utilitaires */}
         <Route path="/mentions-legales" element={<TermsOfUsePage />} />

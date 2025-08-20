@@ -18,8 +18,9 @@
 ![Validation](https://img.shields.io/badge/Validation-Zod-orange?style=flat-square)
 ![État](https://img.shields.io/badge/État-Production%20Déployé-brightgreen?style=flat-square)
 ![Deployment](https://img.shields.io/badge/Deployment-Render%20%2B%20Hostinger-blue?style=flat-square)
+![Developer](https://img.shields.io/badge/Developer-Christophe%20Mostefaoui-purple?style=flat-square)
 
-SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, développée en TypeScript pour une gestion optimisée des ressources humaines. L'application utilise une architecture moderne séparée (frontend React/backend Node.js) avec des fonctionnalités d'IA avancées pour l'optimisation automatique des plannings.
+SmartPlanning est une application SaaS complète de gestion intelligente des plannings d'équipe avec intégration IA, **entièrement développée par [Christophe Mostefaoui](https://christophe-dev-freelance.fr/)**, développeur expert freelance français. L'application utilise une architecture moderne séparée (frontend React/backend Node.js) avec des fonctionnalités d'IA avancées pour l'optimisation automatique des plannings.
 
 ## 🚀 Optimisations Ultra-Performantes & Sécurité
 

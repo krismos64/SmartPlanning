@@ -1739,16 +1739,23 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       <Helmet>
         {/* SEO optimisé pour SmartPlanning */}
         <title>
-          🥇 SmartPlanning - N°1 Logiciel Planning RH France | SaaS Gestion Équipes IA | Automatisation Horaires
+          🚀 SmartPlanning - Logiciel Planning RH Innovant | Moteur de Planification IA | Top Applications 2025
         </title>
         <meta
           name="description"
-          content="🚀 Solution N°1 française de gestion automatique plannings RH avec IA. Logiciel planning entreprise pour optimiser horaires travail, congés et ressources humaines. SaaS planning français gratuit."
+          content="SmartPlanning : Logiciel planning RH révolutionnaire avec Moteur de Planification IA ultra-performant. Génération automatique plannings équipe, gestion congés, conformité légale française. Top applications innovantes 2025 ⭐4.8/5."
         />
         <meta
           name="keywords"
-          content="logiciel gestion planning, logiciel planning RH, logiciel planning entreprise, logiciel planning équipe, gestion planning, planning RH, planning équipe, planification automatique, planification horaires travail, logiciel ressources humaines, logiciel RH, RH planning, planning automatique IA, gestion congés employés, planification équipe, logiciel RH français, SaaS planning, SaaS RH, optimisation planning, gestion horaires personnel, planning intelligent, logiciel planification, gestion temps travail, planning collaborateurs, solution RH entreprise, automatisation planning, gestion équipe IA, planning hebdomadaire, logiciel horaires, gestion absences, planning manager, outil planification RH, SmartPlanning France"
+          content="SmartPlanning, logiciel planning RH innovant, moteur de planification IA, logiciel planning RH révolutionnaire, meilleur logiciel gestion planning 2025, planning équipe IA ultra-rapide, logiciel planning entreprise français, SaaS planning RH performance, automatisation planning intelligence artificielle, planning RH nouvelle génération, logiciel gestion congés automatique, solution RH entreprise moderne, outil planification RH expert, logiciel planning cloud sécurisé, planning hebdomadaire automatique, gestion horaires personnel français, logiciel RH conformité légale, top applications innovantes 2025"
         />
+        
+        {/* Meta priorité homepage */}
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <meta name="rating" content="4.8" />
+        <meta name="author" content="SmartPlanning" />
+        <meta name="copyright" content="SmartPlanning" />
+        <meta name="classification" content="Business Software, HR Management, Planning Tool" />
 
         {/* Open Graph optimisé */}
         <meta

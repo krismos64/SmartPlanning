@@ -260,6 +260,10 @@ const LoginPage: React.FC = () => {
         title="Connexion - SmartPlanning"
         description="Connectez-vous à votre compte SmartPlanning pour accéder à votre espace de gestion."
       />
+      
+      {/* NOINDEX - Force trafic vers homepage */}
+      <meta name="robots" content="noindex, nofollow" />
+      <link rel="canonical" href="https://smartplanning.fr/" />
 
       <style>
         {`
