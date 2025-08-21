@@ -737,70 +737,6 @@ const UserRating = styled.div`
   font-weight: 600;
 `;
 
-const BetaSection = styled.section`
-  padding: 5rem 2rem;
-  background-color: ${({ theme }) => theme.colors.surface};
-  text-align: center;
-`;
-
-const BetaContent = styled.div`
-  max-width: 900px;
-  margin: 0 auto;
-`;
-
-const BetaTitle = styled.h2`
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: ${({ theme }) => theme.colors.primary};
-`;
-
-const BetaDescription = styled.p`
-  font-size: 1.2rem;
-  margin-bottom: 2rem;
-  color: ${({ theme }) => theme.colors.text.secondary};
-`;
-
-const BetaFeatures = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-`;
-
-// Améliorations des features bêta
-const BetaFeature = styled(motion.div)`
-  flex: 1;
-  min-width: 200px;
-  display: flex;
-  align-items: center;
-  background-color: ${({ theme }) => theme.colors.background};
-  padding: 1.5rem;
-  border-radius: 0.8rem;
-  box-shadow: ${({ theme }) => theme.shadows.small};
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: ${({ theme }) => theme.shadows.medium};
-  }
-`;
-
-const BetaFeatureIcon = styled.div`
-  font-size: 1.8rem;
-  margin-right: 1rem;
-`;
-
-const BetaFeatureText = styled.p`
-  font-size: 1rem;
-`;
-
-const BetaButtonContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  margin-top: 2rem;
-`;
 
 const FAQSection = styled.section`
   padding: 5rem 2rem;
@@ -888,385 +824,810 @@ const CTAButton = styled(motion.button)`
   }
 `;
 
-// Nouveaux composants pour le modal de bienvenue
-const ModalOverlay = styled(motion.div)`
+// Composants pour la section de tarifs modernes
+const PricingContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 3rem auto;
+  padding: 0 1rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+  }
+`;
+
+const PricingCard = styled(motion.div)`
+  background: ${({ theme }) => theme.colors.background};
+  border-radius: 1.5rem;
+  padding: 2.5rem 2rem;
+  box-shadow: ${({ theme }) => theme.shadows.large};
+  position: relative;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      ${({ theme }) => theme.colors.primary}15 0%, 
+      transparent 50%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
+
+  &.popular {
+    border-color: ${({ theme }) => theme.colors.primary};
+    transform: scale(1.02);
+    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.2), ${({ theme }) => theme.shadows.large};
+    
+    &::before {
+      background: linear-gradient(135deg, 
+        ${({ theme }) => theme.colors.primary}10 0%, 
+        rgba(59, 130, 246, 0.05) 100%
+      );
+      opacity: 1;
+    }
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+`;
+
+const PricingBadge = styled.div`
+  position: relative;
+  margin-top: 1rem;
+  background: linear-gradient(45deg, #ef4444, #f59e0b, #ef4444);
+  background-size: 200% 200%;
+  color: white;
+  padding: 0.5rem 1.2rem;
+  border-radius: 1.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  box-shadow: 
+    0 6px 20px rgba(239, 68, 68, 0.4),
+    0 0 25px rgba(245, 158, 11, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  animation: ${keyframes`
+    0% { 
+      background-position: 0% 50%;
+      transform: scale(1);
+      box-shadow: 
+        0 6px 20px rgba(239, 68, 68, 0.4),
+        0 0 25px rgba(245, 158, 11, 0.3);
+    }
+    50% { 
+      background-position: 100% 50%;
+      transform: scale(1.02);
+      box-shadow: 
+        0 8px 25px rgba(239, 68, 68, 0.6),
+        0 0 35px rgba(245, 158, 11, 0.5);
+    }
+    100% { 
+      background-position: 0% 50%;
+      transform: scale(1);
+      box-shadow: 
+        0 6px 20px rgba(239, 68, 68, 0.4),
+        0 0 25px rgba(245, 158, 11, 0.3);
+    }
+  `} 2.5s ease-in-out infinite;
+  
+  @media (max-width: 768px) {
+    font-size: 0.75rem;
+    padding: 0.4rem 1rem;
+  }
+`;
+
+const PricingHeader = styled.div`
+  text-align: center;
+  margin-bottom: 2rem;
+`;
+
+const PricingTitle = styled.h3`
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.primary};
+  margin-bottom: 1rem;
+`;
+
+const PricingPrice = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+
+  .currency {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text.secondary};
+    position: relative;
+    top: -0.5rem;
+  }
+
+  .price {
+    font-size: 3.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary}, #06b6d4, #10b981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    
+    @media (max-width: 768px) {
+      font-size: 2.8rem;
+    }
+  }
+`;
+
+const PricingPeriod = styled.span`
+  font-size: 1rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  font-weight: 500;
+`;
+
+const PricingSubtext = styled.p`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  font-style: italic;
+`;
+
+const PricingFeatures = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+`;
+
+const PricingFeature = styled.li`
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 0;
+  font-size: 0.95rem;
+  color: ${({ theme }) => theme.colors.text.primary};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border || 'rgba(0,0,0,0.05)'};
+  
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.bonus {
+    background: linear-gradient(90deg, 
+      rgba(59, 130, 246, 0.1) 0%, 
+      transparent 100%
+    );
+    margin: 0 -2rem;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+  }
+
+  &.exclusive {
+    background: linear-gradient(90deg, 
+      rgba(16, 185, 129, 0.1) 0%, 
+      transparent 100%
+    );
+    margin: 0 -2rem;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    color: #10b981;
+  }
+`;
+
+const FeatureCheck = styled.span`
+  font-size: 1.1rem;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+`;
+
+const PricingButton = styled(motion.a)`
+  display: block;
+  text-align: center;
+  padding: 1rem 2rem;
+  border-radius: 0.8rem;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+  margin-top: auto;
+
+  &.primary {
+    background: linear-gradient(45deg, ${({ theme }) => theme.colors.primary}, #06b6d4);
+    color: white;
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+    
+    &:hover {
+      box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+      transform: translateY(-2px);
+    }
+  }
+
+  &.secondary {
+    background: transparent;
+    color: ${({ theme }) => theme.colors.primary};
+    border: 2px solid ${({ theme }) => theme.colors.primary};
+    
+    &:hover {
+      background: ${({ theme }) => theme.colors.primary};
+      color: white;
+      transform: translateY(-1px);
+    }
+  }
+`;
+
+const PricingGuarantees = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  max-width: 900px;
+  margin: 4rem auto 2rem;
+  padding: 0 1rem;
+`;
+
+const GuaranteeItem = styled(motion.div)`
+  display: flex;
+  align-items: center;
+  text-align: center;
+  flex-direction: column;
+  padding: 1.5rem;
+  background: ${({ theme }) => theme.colors.background};
+  border-radius: 1rem;
+  box-shadow: ${({ theme }) => theme.shadows.small};
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: ${({ theme }) => theme.shadows.medium};
+  }
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    text-align: left;
+  }
+`;
+
+const GuaranteeIcon = styled.div`
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+
+  @media (min-width: 768px) {
+    margin-bottom: 0;
+    margin-right: 1rem;
+  }
+`;
+
+const GuaranteeText = styled.div`
+  color: ${({ theme }) => theme.colors.text.primary};
+  
+  strong {
+    color: ${({ theme }) => theme.colors.primary};
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+`;
+
+const PricingFooter = styled.div`
+  text-align: center;
+  margin-top: 3rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, 
+    ${({ theme }) => theme.colors.primary}08 0%, 
+    rgba(6, 182, 212, 0.05) 100%
+  );
+  border-radius: 1rem;
+  border: 1px solid ${({ theme }) => theme.colors.primary}20;
+`;
+
+const PricingFooterText = styled.p`
+  font-size: 1.1rem;
+  color: ${({ theme }) => theme.colors.text.primary};
+  margin: 0;
+  
+  strong {
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+// Composants pour l'écran de bienvenue futuriste
+const WelcomeScreenOverlay = styled(motion.div)`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
   z-index: 9999;
+  background: linear-gradient(
+    135deg,
+    #0a0e27 0%,
+    #162447 15%,
+    #1f4788 30%,
+    #0f3460 45%,
+    #1e1b4b 60%,
+    #312e81 75%,
+    #1e1b4b 90%,
+    #0f172a 100%
+  );
+  animation: ${keyframes`
+    0% { background-position: 0% 50%; }
+    25% { background-position: 25% 75%; }
+    50% { background-position: 100% 50%; }
+    75% { background-position: 75% 25%; }
+    100% { background-position: 0% 50%; }
+  `} 12s ease-in-out infinite;
+  background-size: 400% 400%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  overflow: hidden;
 `;
 
-const ModalContainer = styled(motion.div)`
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-  border-radius: 1.5rem;
-  padding: 2.5rem 2rem;
-  max-width: 650px;
-  width: 100%;
-  max-height: 85vh;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+const FuturisticGrid = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: ${keyframes`
+    0% { 
+      transform: translate(0, 0);
+      opacity: 0.3;
+    }
+    50% { 
+      opacity: 0.6;
+    }
+    100% { 
+      transform: translate(60px, 60px);
+      opacity: 0.3;
+    }
+  `} 8s linear infinite;
+`;
 
-  &::before {
-    content: "";
+const FloatingParticles = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+`;
+
+const Particle = styled(motion.div)<{ delay: number; duration: number; x: number; y: number }>`
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: linear-gradient(45deg, #3b82f6, #06b6d4, #10b981);
+  border-radius: 50%;
+  box-shadow: 
+    0 0 10px rgba(59, 130, 246, 0.8),
+    0 0 20px rgba(6, 182, 212, 0.6),
+    0 0 30px rgba(16, 185, 129, 0.4);
+  
+  &::after {
+    content: '';
     position: absolute;
     top: -2px;
     left: -2px;
     right: -2px;
     bottom: -2px;
-    background: linear-gradient(
-      45deg,
+    background: inherit;
+    border-radius: 50%;
+    filter: blur(2px);
+    opacity: 0.7;
+    z-index: -1;
+  }
+`;
+
+const WelcomeContainer = styled(motion.div)`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 10;
+  position: relative;
+  max-width: 800px;
+  padding: 2rem;
+`;
+
+const FuturisticLogo = styled(motion.div)`
+  position: relative;
+  margin-bottom: 3rem;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -30px;
+    left: -30px;
+    right: -30px;
+    bottom: -30px;
+    background: conic-gradient(
+      from 0deg,
       #3b82f6,
       #06b6d4,
       #10b981,
       #f59e0b,
       #ef4444,
       #8b5cf6,
+      #06b6d4,
       #3b82f6
     );
-    background-size: 400% 400%;
-    border-radius: 1.5rem;
+    border-radius: 25px;
+    animation: ${keyframes`
+      0% { transform: rotate(0deg) scale(1) skew(0deg); }
+      25% { transform: rotate(90deg) scale(1.02) skew(1deg); }
+      50% { transform: rotate(180deg) scale(1.05) skew(0deg); }
+      75% { transform: rotate(270deg) scale(1.02) skew(-1deg); }
+      100% { transform: rotate(360deg) scale(1) skew(0deg); }
+    `} 6s linear infinite;
+    filter: blur(15px);
+    opacity: 0.8;
     z-index: -1;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    background: linear-gradient(45deg, 
+      rgba(59, 130, 246, 0.3), 
+      rgba(6, 182, 212, 0.3), 
+      rgba(16, 185, 129, 0.3),
+      rgba(168, 85, 247, 0.3)
+    );
+    border-radius: 25px;
     animation: ${keyframes`
       0% { 
-        background-position: 0% 50%;
-        filter: hue-rotate(0deg) brightness(1);
-      }
-      25% { 
-        background-position: 100% 50%;
-        filter: hue-rotate(90deg) brightness(1.2);
+        transform: rotate(360deg) scale(0.9); 
+        opacity: 0.4;
       }
       50% { 
-        background-position: 100% 100%;
-        filter: hue-rotate(180deg) brightness(1);
-      }
-      75% { 
-        background-position: 0% 100%;
-        filter: hue-rotate(270deg) brightness(1.2);
+        transform: rotate(180deg) scale(1.1); 
+        opacity: 0.7;
       }
       100% { 
-        background-position: 0% 50%;
-        filter: hue-rotate(360deg) brightness(1);
+        transform: rotate(0deg) scale(0.9); 
+        opacity: 0.4;
       }
     `} 4s ease-in-out infinite;
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-    border-radius: 1.5rem;
     z-index: -1;
   }
-
-  @media (max-width: 576px) {
-    padding: 2rem 1.5rem;
-    margin: 1rem;
-    max-height: 90vh;
-  }
 `;
 
-const ScrollableContent = styled.div`
-  max-height: 70vh;
-  overflow-y: auto;
-  padding-right: 0.5rem;
-
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 6px;
+const LottieContainer = styled(motion.div)`
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, 
+    rgba(59, 130, 246, 0.2) 0%, 
+    rgba(6, 182, 212, 0.15) 30%,
+    rgba(16, 185, 129, 0.1) 60%,
+    transparent 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 0 50px rgba(59, 130, 246, 0.4),
+    0 0 100px rgba(6, 182, 212, 0.3),
+    0 0 150px rgba(16, 185, 129, 0.2),
+    inset 0 0 40px rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  
+  @media (max-width: 768px) {
+    width: 160px;
+    height: 160px;
   }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+  
+  @media (max-width: 480px) {
+    width: 140px;
+    height: 140px;
   }
-
-  &::-webkit-scrollbar-thumb {
-    background: linear-gradient(45deg, #3b82f6, #06b6d4);
-    border-radius: 3px;
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(45deg, #2563eb, #0891b2);
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
-  }
-
-  /* Firefox scrollbar */
-  scrollbar-width: thin;
-  scrollbar-color: #3b82f6 rgba(255, 255, 255, 0.05);
-
-  @media (max-width: 576px) {
-    max-height: 75vh;
-  }
-`;
-
-const ModalContent = styled.div`
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  color: white;
 `;
 
 const WelcomeTitle = styled(motion.h1)`
-  font-size: 2.2rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(45deg, #3b82f6, #06b6d4);
-  background-size: 100%;
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(
+    135deg,
+    #3b82f6 0%,
+    #06b6d4 25%,
+    #10b981 50%,
+    #f59e0b 75%,
+    #ef4444 100%
+  );
+  background-size: 300% 300%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-
-  @media (max-width: 576px) {
-    font-size: 1.8rem;
+  text-shadow: 0 0 40px rgba(59, 130, 246, 0.5);
+  animation: ${keyframes`
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  `} 4s ease-in-out infinite;
+  
+  @media (max-width: 768px) {
+    font-size: 2.5rem;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 2rem;
   }
 `;
 
 const WelcomeSubtitle = styled(motion.p)`
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
+  font-size: 1.5rem;
+  color: #94a3b8;
+  margin-bottom: 3rem;
   line-height: 1.6;
-  color: #cbd5e1;
-`;
-
-const CardsContainer = styled(motion.div)`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  margin: 2rem 0;
-`;
-
-const ModalCard = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  text-align: left;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #3b82f6, transparent);
-    transition: left 0.5s ease;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(59, 130, 246, 0.5);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 20px rgba(59, 130, 246, 0.2);
-
-    &::before {
-      left: 100%;
-    }
+  text-shadow: 0 0 20px rgba(148, 163, 184, 0.3);
+  
+  @media (max-width: 768px) {
+    font-size: 1.2rem;
   }
 `;
 
-const CardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  margin-bottom: 1rem;
-`;
-
-const CardIcon = styled.div`
-  font-size: 1.8rem;
-  margin-right: 0.8rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+const HologramEffect = styled(motion.div)`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
   border: 1px solid rgba(59, 130, 246, 0.3);
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
-`;
-
-const CardTitle = styled.h3`
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #f1f5f9;
-  margin: 0;
-`;
-
-const CardDescription = styled.p`
-  font-size: 0.95rem;
-  color: #94a3b8;
-  line-height: 1.5;
-  margin: 0;
-`;
-
-const ContactSection = styled(motion.div)`
-  background: rgba(6, 182, 212, 0.05);
-  border: 1px solid rgba(6, 182, 212, 0.3);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  margin: 2rem 0 1.5rem 0;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: "";
+  border-radius: 50%;
+  
+  &::before, &::after {
+    content: '';
     position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: conic-gradient(
-      transparent,
-      rgba(6, 182, 212, 0.1),
-      transparent
-    );
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    border-radius: 50%;
+  }
+  
+  &::before {
+    transform: scale(1.2);
     animation: ${keyframes`
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    `} 8s linear infinite;
-    z-index: -1;
+      0% { opacity: 0.2; transform: scale(1.2) rotate(0deg); }
+      50% { opacity: 0.5; }
+      100% { opacity: 0.2; transform: scale(1.2) rotate(360deg); }
+    `} 3s linear infinite;
   }
-
+  
   &::after {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    background: rgba(6, 182, 212, 0.05);
-    border-radius: 1rem;
-    z-index: -1;
+    transform: scale(1.4);
+    animation: ${keyframes`
+      0% { opacity: 0.1; transform: scale(1.4) rotate(360deg); }
+      50% { opacity: 0.3; }
+      100% { opacity: 0.1; transform: scale(1.4) rotate(0deg); }
+    `} 4s linear infinite;
   }
 `;
 
-const ContactEmail = styled.div`
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #06b6d4;
-  margin-bottom: 0.5rem;
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-`;
-
-const ContactText = styled.p`
-  font-size: 0.9rem;
-  color: #94a3b8;
-  margin: 0;
-`;
-
-const ModalButtons = styled.div`
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 2rem;
-  flex-wrap: wrap;
-`;
-
-const ModalButton = styled(motion.button)`
-  padding: 0.8rem 1.8rem;
-  border: none;
-  border-radius: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  position: relative;
+const LoadingBar = styled(motion.div)`
+  width: 300px;
+  height: 4px;
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 2px;
   overflow: hidden;
-
-  &::before {
-    content: "";
+  position: relative;
+  margin-top: 2rem;
+  
+  &::after {
+    content: '';
     position: absolute;
     top: 0;
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(59, 130, 246, 0.8), 
+      rgba(6, 182, 212, 0.8), 
       transparent
     );
-    transition: left 0.5s ease;
+    animation: ${keyframes`
+      0% { left: -100%; }
+      100% { left: 100%; }
+    `} 1.5s ease-in-out infinite;
   }
-
-  &.primary {
-    background: linear-gradient(45deg, #3b82f6, #06b6d4);
-    color: white;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-
-      &::before {
-        left: 100%;
-      }
-    }
-  }
-
-  &.secondary {
-    background: rgba(255, 255, 255, 0.08);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.12);
-      transform: translateY(-1px);
-      box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
-
-      &::before {
-        left: 100%;
-      }
-    }
-  }
-
-  @media (max-width: 576px) {
-    width: 100%;
-    margin-bottom: 0.5rem;
+  
+  @media (max-width: 768px) {
+    width: 250px;
   }
 `;
 
-const CloseButton = styled(motion.button)`
+const TechLines = styled(motion.div)`
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  color: #94a3b8;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(59, 130, 246, 0.8), 
+      rgba(6, 182, 212, 0.6),
+      rgba(16, 185, 129, 0.8),
+      transparent
+    );
+    height: 2px;
+    width: 100%;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+  
+  &::before {
+    top: 25%;
+    animation: ${keyframes`
+      0% { 
+        transform: translateX(-120%) scaleX(0.5); 
+        opacity: 0;
+      }
+      50% { 
+        transform: translateX(0%) scaleX(1); 
+        opacity: 1;
+      }
+      100% { 
+        transform: translateX(120%) scaleX(0.5); 
+        opacity: 0;
+      }
+    `} 4s ease-in-out infinite;
+  }
+  
+  &::after {
+    bottom: 25%;
+    animation: ${keyframes`
+      0% { 
+        transform: translateX(120%) scaleX(0.5); 
+        opacity: 0;
+      }
+      50% { 
+        transform: translateX(0%) scaleX(1); 
+        opacity: 1;
+      }
+      100% { 
+        transform: translateX(-120%) scaleX(0.5); 
+        opacity: 0;
+      }
+    `} 5s ease-in-out infinite 1s;
+  }
+`;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: white;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.4);
+// Nouveaux composants pour plus d'animations
+const FloatingOrbs = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+`;
+
+const Orb = styled(motion.div)<{ size: number; color: string }>`
+  position: absolute;
+  width: ${props => props.size}px;
+  height: ${props => props.size}px;
+  border-radius: 50%;
+  background: radial-gradient(circle, ${props => props.color}, transparent);
+  filter: blur(2px);
+  opacity: 0.6;
+`;
+
+const ScanLines = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(59, 130, 246, 0.03) 2px,
+    rgba(59, 130, 246, 0.03) 4px
+  );
+  animation: ${keyframes`
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(4px); }
+  `} 0.1s linear infinite;
+  pointer-events: none;
+`;
+
+const LightBeams = styled(motion.div)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    background: linear-gradient(
+      45deg,
+      transparent,
+      rgba(59, 130, 246, 0.3),
+      transparent
+    );
+    width: 2px;
+    height: 100%;
+    transform-origin: center;
+  }
+  
+  &::before {
+    left: 20%;
+    animation: ${keyframes`
+      0% { 
+        transform: rotate(0deg) scaleY(0);
+        opacity: 0;
+      }
+      50% { 
+        transform: rotate(45deg) scaleY(1);
+        opacity: 1;
+      }
+      100% { 
+        transform: rotate(90deg) scaleY(0);
+        opacity: 0;
+      }
+    `} 8s ease-in-out infinite;
+  }
+  
+  &::after {
+    right: 20%;
+    animation: ${keyframes`
+      0% { 
+        transform: rotate(90deg) scaleY(0);
+        opacity: 0;
+      }
+      50% { 
+        transform: rotate(45deg) scaleY(1);
+        opacity: 1;
+      }
+      100% { 
+        transform: rotate(0deg) scaleY(0);
+        opacity: 0;
+      }
+    `} 8s ease-in-out infinite 2s;
   }
 `;
 
@@ -1457,6 +1818,12 @@ const faqData = [
     answer:
       "Absolument ! SmartPlanning est entièrement responsive et fonctionne parfaitement sur tous les appareils : ordinateurs, tablettes et smartphones.",
   },
+  {
+    icon: "💰",
+    question: "Quels sont les tarifs de SmartPlanning ?",
+    answer:
+      "SmartPlanning propose 3 offres adaptées à tous types d'entreprises : Starter (39€/mois, jusqu'à 25 employés), Professional (89€/mois, jusqu'à 100 employés + chatbot IA), et Enterprise (179€/mois, employés illimités + Machine Learning). Toutes nos offres incluent 30 jours d'essai gratuit et la formation de vos équipes.",
+  },
 ];
 
 // Données pour les avis utilisateurs
@@ -1497,8 +1864,8 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   const [visibleBenefits, setVisibleBenefits] = useState<number[]>([]);
   const benefitsRef = useRef<HTMLDivElement | null>(null);
   const [videoPlayed, setVideoPlayed] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(true);
 
   // ✨ OPTIMISATION MOBILE : Détection du type d'appareil pour optimiser les performances
   // Désactive les animations framer-motion coûteuses sur mobile lors du premier rendu
@@ -1556,26 +1923,70 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     setVideoPlayed(true);
   };
 
-  const closeModal = () => {
-    setShowWelcomeModal(false);
-  };
+  const [particles, setParticles] = useState<Array<{id: number; x: number; y: number; delay: number; duration: number}>>([]);
+  const [orbs, setOrbs] = useState<Array<{id: number; x: number; y: number; size: number; color: string; duration: number; delay: number}>>([]);
+  const [chatbotAnimation, setChatbotAnimation] = useState<any>(null);
 
-  const handleContactRedirect = () => {
-    setShowWelcomeModal(false);
-    setTimeout(() => {
-      window.location.href = "/contact";
-    }, 300);
-  };
+  // Régénérer les particules et orbes quand isMobile change
+  useEffect(() => {
+    const count = isMobile ? 8 : 20; // Moins de particules sur mobile pour optimiser les performances
+    const newParticles = Array.from({ length: count }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 3 + Math.random() * 2,
+    }));
+    setParticles(newParticles);
 
-  const sectionRef = useRef(null);
+    // Génération des orbes flottants
+    const orbCount = isMobile ? 4 : 8;
+    const colors = [
+      'rgba(59, 130, 246, 0.4)',
+      'rgba(6, 182, 212, 0.4)', 
+      'rgba(16, 185, 129, 0.4)',
+      'rgba(168, 85, 247, 0.4)',
+      'rgba(245, 158, 11, 0.4)'
+    ];
+    
+    const newOrbs = Array.from({ length: orbCount }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 30 + Math.random() * 50,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      duration: 8 + Math.random() * 4,
+      delay: Math.random() * 3,
+    }));
+    setOrbs(newOrbs);
+  }, [isMobile]);
 
-  // Données pour l'animation des particules
-  const particles = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-  }));
+  // Chargement de l'animation chatbot
+  useEffect(() => {
+    const loadChatbotAnimation = async () => {
+      try {
+        const response = await fetch('/animations/chatbot.json');
+        const animationData = await response.json();
+        setChatbotAnimation(animationData);
+      } catch (error) {
+        console.warn('Impossible de charger l\'animation chatbot:', error);
+        // Fallback vers l'animation de planning
+        setChatbotAnimation(planningAnimation);
+      }
+    };
+
+    loadChatbotAnimation();
+  }, []);
+
+  // Gestion de l'écran de bienvenue - Animation plus longue avec transition fluide
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowWelcomeScreen(false);
+    }, isMobile ? 4500 : 5500); // Animation plus longue pour une meilleure immersion
+
+    return () => clearTimeout(timer);
+  }, [isMobile]);
+
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -1583,7 +1994,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const benefits = Array.from(entry.target.children);
-            benefits.forEach((benefit, index) => {
+            benefits.forEach((_, index) => {
               setTimeout(() => {
                 setVisibleBenefits((prev) => [...prev, index]);
               }, index * 200);
@@ -1626,19 +2037,42 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     topRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Données structurées JSON-LD optimisées pour le SEO
+  // Données structurées JSON-LD optimisées pour le SEO avec tarification
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: "SmartPlanning",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "EUR",
-      description: "Version bêta gratuite",
-    },
+    offers: [
+      {
+        "@type": "Offer",
+        name: "Starter",
+        price: "39",
+        priceCurrency: "EUR",
+        description: "Solution idéale pour petites équipes jusqu'à 25 employés avec IA basique",
+        availability: "https://schema.org/InStock",
+        validFrom: "2024-01-01"
+      },
+      {
+        "@type": "Offer",
+        name: "Professional",
+        price: "89",
+        priceCurrency: "EUR",
+        description: "Pour entreprises moyennes jusqu'à 100 employés avec IA avancée et chatbot inclus",
+        availability: "https://schema.org/InStock",
+        validFrom: "2024-01-01"
+      },
+      {
+        "@type": "Offer",
+        name: "Enterprise",
+        price: "179",
+        priceCurrency: "EUR",
+        description: "Solution complète pour grandes entreprises avec IA + ML et employés illimités",
+        availability: "https://schema.org/InStock",
+        validFrom: "2024-01-01"
+      }
+    ],
     description:
       "SmartPlanning est un SaaS de gestion de plannings et d'équipes pour entreprises. Solution intelligente avec IA pour optimiser vos plannings, gérer vos employés et automatiser vos ressources humaines.",
     featureList: [
@@ -1721,6 +2155,14 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         acceptedAnswer: {
           "@type": "Answer",
           text: "SmartPlanning est accessible directement depuis votre navigateur sur smartplanning.fr. Il suffit de créer un compte gratuit pour commencer à gérer vos plannings et équipes. Notre application est responsive et fonctionne sur ordinateurs, tablettes et smartphones.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Quels sont les tarifs de SmartPlanning ?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "SmartPlanning propose 3 offres : Starter à 39€/mois (jusqu'à 25 employés), Professional à 89€/mois (jusqu'à 100 employés avec chatbot IA), et Enterprise à 179€/mois (employés illimités avec Machine Learning). Toutes les offres incluent 30 jours d'essai gratuit.",
         },
       },
       {
@@ -1808,156 +2250,186 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
       </Helmet>
 
-      {/* Modal de bienvenue */}
-      {showWelcomeModal && (
-        <ModalOverlay
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <ModalContainer
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+      {/* Écran de bienvenue futuriste */}
+      <AnimatePresence>
+        {showWelcomeScreen && (
+          <WelcomeScreenOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            transition={{ 
+              duration: 1.2,
+              ease: "easeInOut"
+            }}
           >
-            <CloseButton
-              onClick={closeModal}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              aria-label="Fermer la modal de bienvenue"
+            {/* Grille futuriste animée */}
+            <FuturisticGrid />
+            
+            {/* Lignes de scan style CRT */}
+            <ScanLines />
+            
+            {/* Rayons lumineux */}
+            <LightBeams
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8, duration: 1.5 }}
+            />
+            
+            {/* Lignes technologiques */}
+            <TechLines
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 1 }}
+            />
+            
+            {/* Orbes flottants */}
+            <FloatingOrbs>
+              {orbs.map((orb) => (
+                <Orb
+                  key={orb.id}
+                  size={orb.size}
+                  color={orb.color}
+                  initial={{ 
+                    opacity: 0, 
+                    scale: 0,
+                    x: `${orb.x}%`,
+                    y: `${orb.y}%`
+                  }}
+                  animate={{ 
+                    opacity: [0, 0.6, 0.8, 0.4, 0],
+                    scale: [0, 1, 1.2, 0.8, 0],
+                    x: [`${orb.x}%`, `${orb.x + 20}%`, `${orb.x - 10}%`, `${orb.x + 30}%`],
+                    y: [`${orb.y}%`, `${orb.y - 30}%`, `${orb.y - 60}%`, `${orb.y - 90}%`],
+                    rotate: [0, 180, 360, 540]
+                  }}
+                  transition={{
+                    duration: orb.duration,
+                    delay: orb.delay,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+            </FloatingOrbs>
+            
+            {/* Particules flottantes */}
+            <FloatingParticles>
+              {particles.map((particle) => (
+                <Particle
+                  key={particle.id}
+                  delay={particle.delay}
+                  duration={particle.duration}
+                  x={particle.x}
+                  y={particle.y}
+                  initial={{ 
+                    opacity: 0, 
+                    scale: 0,
+                    x: `${particle.x}%`,
+                    y: `${particle.y}%`
+                  }}
+                  animate={{ 
+                    opacity: [0, 1, 1, 0],
+                    scale: [0, 1, 1.2, 0],
+                    y: [`${particle.y}%`, `${particle.y - 20}%`, `${particle.y - 40}%`, `${particle.y - 60}%`]
+                  }}
+                  transition={{
+                    duration: particle.duration,
+                    delay: particle.delay,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+            </FloatingParticles>
+            
+            {/* Effet hologramme */}
+            <HologramEffect
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1, duration: 0.8 }}
+            />
+            
+            {/* Contenu principal */}
+            <WelcomeContainer
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2, duration: 0.8 }}
             >
-              ✕
-            </CloseButton>
+              <FuturisticLogo
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ 
+                  delay: 1.8, 
+                  duration: 1.0,
+                  type: "spring",
+                  stiffness: 80
+                }}
+              >
+                <LottieContainer>
+                  <Suspense fallback={<div style={{ width: 150, height: 150, background: 'radial-gradient(circle, rgba(59, 130, 246, 0.3), transparent)', borderRadius: '50%' }} />}>
+                    {chatbotAnimation ? (
+                      <EnhancedLottie 
+                        animationData={chatbotAnimation}
+                        loop={true}
+                        style={{ 
+                          width: '80%', 
+                          height: '80%',
+                          filter: 'brightness(1.2) contrast(1.1) saturate(1.3)'
+                        }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: '80%', 
+                        height: '80%', 
+                        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4), rgba(6, 182, 212, 0.3), transparent)', 
+                        borderRadius: '50%',
+                        animation: 'pulse 2s infinite'
+                      }} />
+                    )}
+                  </Suspense>
+                </LottieContainer>
+              </FuturisticLogo>
+              
+              <WelcomeTitle
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 2.4, duration: 0.8 }}
+              >
+                SmartPlanning
+              </WelcomeTitle>
+              
+              <WelcomeSubtitle
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 3.0, duration: 0.8 }}
+              >
+                L'avenir de la gestion d'équipes
+              </WelcomeSubtitle>
+              
+              <LoadingBar
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 3.6, duration: 1.2 }}
+              />
+            </WelcomeContainer>
+          </WelcomeScreenOverlay>
+        )}
+      </AnimatePresence>
 
-            <ScrollableContent>
-              <ModalContent>
-                <WelcomeTitle
-                  initial={{ y: -20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2, duration: 0.5 }}
-                >
-                  Bienvenue dans l'aventure SmartPlanning ! 🚀
-                </WelcomeTitle>
+      <motion.div
+        initial={{ opacity: showWelcomeScreen ? 0 : 1 }}
+        animate={{ opacity: showWelcomeScreen ? 0 : 1 }}
+        transition={{ 
+          duration: 1.5,
+          ease: "easeOut",
+          delay: showWelcomeScreen ? 0 : 0.5
+        }}
+        style={{ paddingTop: '90px' }} // Compensation pour la navbar fixe
+      >
+        <Header />
 
-                <WelcomeSubtitle
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.5 }}
-                >
-                  On a quelques petites choses sympas à vous dire avant de
-                  commencer ! 😊
-                </WelcomeSubtitle>
-
-                <CardsContainer
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.6, duration: 0.5 }}
-                >
-                  <ModalCard
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CardHeader>
-                      <CardIcon>🎁</CardIcon>
-                      <CardTitle>Version Béta</CardTitle>
-                    </CardHeader>
-                    <CardDescription>
-                      Notre version bêta est 100% gratuite. Profitez-en pour
-                      tester toutes les fonctionnalités sans contrainte.
-                    </CardDescription>
-                  </ModalCard>
-
-                  <ModalCard
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CardHeader>
-                      <CardIcon>🔒</CardIcon>
-                      <CardTitle>Sécurité maximum</CardTitle>
-                    </CardHeader>
-                    <CardDescription>
-                      Vos données sont cryptées, sécurisées et conformes RGPD.
-                      Jamais partagées, toujours protégées.
-                    </CardDescription>
-                  </ModalCard>
-
-                  <ModalCard
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CardHeader>
-                      <CardIcon>⚡</CardIcon>
-                      <CardTitle>Lancement imminent</CardTitle>
-                    </CardHeader>
-                    <CardDescription>
-                      Vous êtes en avant-première ! La version officielle arrive
-                      très bientôt avec encore plus de features.
-                    </CardDescription>
-                  </ModalCard>
-
-                  <ModalCard
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CardHeader>
-                      <CardIcon>💎</CardIcon>
-                      <CardTitle>Vos avis comptent</CardTitle>
-                    </CardHeader>
-                    <CardDescription>
-                      On bosse dur pour vous offrir le meilleur outil possible.
-                      Vos retours nous aident à nous améliorer !
-                    </CardDescription>
-                  </ModalCard>
-                </CardsContainer>
-
-                <ContactSection
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
-                >
-                  <ContactEmail>📧 contact@smartplanning.fr</ContactEmail>
-                  <ContactText>
-                    Pour vos retours, questions, suggestions ou juste pour nous
-                    dire bonjour ! 👋
-                  </ContactText>
-                </ContactSection>
-
-                <ModalButtons>
-                  <ModalButton
-                    className="primary"
-                    onClick={handleContactRedirect}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 1, duration: 0.3 }}
-                  >
-                    💬 Donner mon avis
-                  </ModalButton>
-                  <ModalButton
-                    className="secondary"
-                    onClick={closeModal}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 1.1, duration: 0.3 }}
-                  >
-                    🚀 Découvrir SmartPlanning
-                  </ModalButton>
-                </ModalButtons>
-              </ModalContent>
-            </ScrollableContent>
-          </ModalContainer>
-        </ModalOverlay>
-      )}
-
-      <Header />
-
-      <main>
-        <HeroSection as="section" role="banner">
+        <main>
+        <HeroSection id="home" as="section" role="banner">
           <BackgroundDecoration className="top-right" />
           <BackgroundDecoration className="bottom-left" />
 
@@ -2038,7 +2510,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         </HeroSection>
 
         {/* Section Avantages par profil - SEO optimisée */}
-        <section aria-labelledby="avantages-profils-title">
+        <section id="features" aria-labelledby="avantages-profils-title">
           <FeaturesSection>
             <SectionTitle id="avantages-profils-title" as="h2">
               SmartPlanning s'adapte à votre profil
@@ -2201,7 +2673,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         </section>
 
         {/* Section Vidéo Démo - SEO optimisée */}
-        <section id="video-demo" aria-labelledby="demo-title">
+        <section id="demo" aria-labelledby="demo-title">
           <DemoSection ref={demoRef}>
             <DemoContainer>
               <SectionTitle id="demo-title" as="h2">
@@ -2408,7 +2880,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </div>
         </BenefitsSection>
 
-        <UserReviewsSection>
+        <UserReviewsSection id="testimonials">
           <SectionTitle>Ils parlent de SmartPlanning</SectionTitle>
           <SectionSubtitle>
             Découvrez ce que pensent nos premiers utilisateurs
@@ -2437,78 +2909,257 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </UserReviewsGrid>
         </UserReviewsSection>
 
-        <BetaSection ref={sectionRef}>
-          <BetaContent>
-            <BetaTitle>🎉 SmartPlanning est en bêta gratuite ! 🎁</BetaTitle>
-            <BetaDescription>
-              Profitez de notre version bêta gratuite et contribuez à
-              l'amélioration de SmartPlanning !
-            </BetaDescription>
-            <BetaFeatures>
-              <BetaFeature
-                whileHover={{ scale: 1.05 }}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3 }}
-              >
-                <BetaFeatureIcon>🎁</BetaFeatureIcon>
-                <BetaFeatureText>
-                  Accès complet gratuit pendant la phase bêta
-                </BetaFeatureText>
-              </BetaFeature>
-              <BetaFeature
-                whileHover={{ scale: 1.05 }}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-              >
-                <BetaFeatureIcon>💡</BetaFeatureIcon>
-                <BetaFeatureText>
-                  1 mois gratuit à partir du lancement du plan tarifaire
-                </BetaFeatureText>
-              </BetaFeature>
-              <BetaFeature
-                whileHover={{ scale: 1.05 }}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-              >
-                <BetaFeatureIcon>🤝</BetaFeatureIcon>
-                <BetaFeatureText>
-                  Contribuez à l'amélioration du produit
-                </BetaFeatureText>
-              </BetaFeature>
-              <BetaFeature
-                whileHover={{ scale: 1.05 }}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: 0.3 }}
-              >
-                <BetaFeatureIcon>✉️</BetaFeatureIcon>
-                <BetaFeatureText>
-                  Donnez votre avis et signalez les bugs
-                </BetaFeatureText>
-              </BetaFeature>
-            </BetaFeatures>
-            <BetaButtonContainer>
-              <Link to="/contact">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="beta-feedback-button"
-                >
-                  🗣️ Donner votre avis
-                </Button>
-              </Link>
-            </BetaButtonContainer>
-          </BetaContent>
-        </BetaSection>
 
-        <FAQSection>
+        {/* Section Tarifs - Moderne et professionnelle */}
+        <section id="tarifs" aria-labelledby="tarifs-title">
+          <FeaturesSection style={{ background: `linear-gradient(135deg, ${theme?.colors?.background || '#ffffff'} 0%, ${theme?.colors?.surface || '#f8fafc'} 100%)` }}>
+            <SectionTitle id="tarifs-title" as="h2">
+              Nos offres SmartPlanning
+            </SectionTitle>
+            <SectionSubtitle>
+              Choisissez l'offre qui correspond à vos besoins. Solutions professionnelles pour tous types d'entreprises.
+            </SectionSubtitle>
+            
+            <PricingContainer>
+              {/* Offre Starter */}
+              <PricingCard
+                whileHover={{ scale: 1.02, y: -5 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <PricingHeader>
+                  <PricingTitle>Starter</PricingTitle>
+                  <PricingPrice>
+                    <span className="currency">€</span>
+                    <span className="price">39</span>
+                    <PricingPeriod>/mois</PricingPeriod>
+                  </PricingPrice>
+                  <PricingSubtext>Idéal pour petites équipes</PricingSubtext>
+                </PricingHeader>
+                
+                <PricingFeatures>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Planification IA basique
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Jusqu'à 25 employés
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Export PDF & Excel
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Gestion des congés
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Rapports de base
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Support email
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Interface mobile
+                  </PricingFeature>
+                </PricingFeatures>
+                
+                <PricingButton
+                  as={Link}
+                  to="/inscription"
+                  className="secondary"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  🚀 Commencer
+                </PricingButton>
+              </PricingCard>
+
+              {/* Offre Professional */}
+              <PricingCard
+                className="popular"
+                whileHover={{ scale: 1.03, y: -10 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <PricingHeader>
+                  <PricingTitle>Professional</PricingTitle>
+                  <PricingPrice>
+                    <span className="currency">€</span>
+                    <span className="price">89</span>
+                    <PricingPeriod>/mois</PricingPeriod>
+                  </PricingPrice>
+                  <PricingSubtext>Pour entreprises moyennes</PricingSubtext>
+                </PricingHeader>
+                
+                <PricingFeatures>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Planification IA avancée
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Jusqu'à 100 employés
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Multi-sites & équipes
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Analytics avancées
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    API & intégrations
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Support prioritaire
+                  </PricingFeature>
+                  <PricingFeature className="bonus">
+                    <FeatureCheck>🎁</FeatureCheck>
+                    Chatbot IA inclus
+                  </PricingFeature>
+                </PricingFeatures>
+                
+                <PricingButton
+                  as={Link}
+                  to="/inscription"
+                  className="primary"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  💎 Choisir Pro
+                </PricingButton>
+                
+                <PricingBadge>🔥 Populaire</PricingBadge>
+              </PricingCard>
+
+              {/* Offre Enterprise */}
+              <PricingCard
+                whileHover={{ scale: 1.02, y: -5 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <PricingHeader>
+                  <PricingTitle>Enterprise</PricingTitle>
+                  <PricingPrice>
+                    <span className="currency">€</span>
+                    <span className="price">179</span>
+                    <PricingPeriod>/mois</PricingPeriod>
+                  </PricingPrice>
+                  <PricingSubtext>Grandes entreprises</PricingSubtext>
+                </PricingHeader>
+                
+                <PricingFeatures>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    IA complète + Machine Learning
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Employés illimités
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Multi-sites internationaux
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Business Intelligence
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    API complète + webhooks
+                  </PricingFeature>
+                  <PricingFeature>
+                    <FeatureCheck>✅</FeatureCheck>
+                    Support 24/7 dédié
+                  </PricingFeature>
+                  <PricingFeature className="exclusive">
+                    <FeatureCheck>⭐</FeatureCheck>
+                    Formation & onboarding
+                  </PricingFeature>
+                  <PricingFeature className="exclusive">
+                    <FeatureCheck>🔐</FeatureCheck>
+                    Sécurité entreprise (SSO)
+                  </PricingFeature>
+                </PricingFeatures>
+                
+                <PricingButton
+                  as={Link}
+                  to="/contact"
+                  className="secondary"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  📞 Nous contacter
+                </PricingButton>
+              </PricingCard>
+            </PricingContainer>
+
+            {/* Section garanties et informations */}
+            <PricingGuarantees>
+              <GuaranteeItem
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <GuaranteeIcon>🔒</GuaranteeIcon>
+                <GuaranteeText>
+                  <strong>Sécurité garantie</strong><br />
+                  Données cryptées et conformes RGPD
+                </GuaranteeText>
+              </GuaranteeItem>
+              
+              <GuaranteeItem
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <GuaranteeIcon>🇫🇷</GuaranteeIcon>
+                <GuaranteeText>
+                  <strong>Made in France</strong><br />
+                  Solution développée et hébergée en France
+                </GuaranteeText>
+              </GuaranteeItem>
+              
+              <GuaranteeItem
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <GuaranteeIcon>💬</GuaranteeIcon>
+                <GuaranteeText>
+                  <strong>Support réactif</strong><br />
+                  Équipe francophone disponible
+                </GuaranteeText>
+              </GuaranteeItem>
+            </PricingGuarantees>
+            
+            <PricingFooter>
+              <PricingFooterText>
+                🎯 <strong>Toutes nos offres incluent :</strong> 30 jours d'essai gratuit, migration de données incluse, et formation personnalisée pour votre équipe !
+              </PricingFooterText>
+            </PricingFooter>
+          </FeaturesSection>
+        </section>
+
+        <FAQSection id="faq">
           <SectionTitle>Foire aux questions</SectionTitle>
           <SectionSubtitle>
             Tout ce que vous devez savoir sur SmartPlanning
@@ -2603,6 +3254,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </ScrollToTopButton>
         )}
       </AnimatePresence>
+      </motion.div>
     </Container>
   );
 };
