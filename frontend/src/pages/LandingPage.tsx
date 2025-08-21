@@ -824,6 +824,153 @@ const CTAButton = styled(motion.button)`
   }
 `;
 
+// Nouveau bouton CTA discret pour contact
+const ContactCTAButton = styled(motion.button)`
+  background: transparent;
+  color: ${({ theme }) => theme.colors.primary};
+  border: 2px solid ${({ theme }) => theme.colors.primary};
+  padding: 0.8rem 1.5rem;
+  border-radius: 30px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadows.medium};
+  }
+`;
+
+// Bouton CTA flottant moderne
+const FloatingContactCTA = styled(motion.div)`
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 1000;
+  
+  @media (max-width: 768px) {
+    bottom: 1rem;
+    left: 1rem;
+  }
+`;
+
+const FloatingButton = styled(motion.button)`
+  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, ${({ theme }) => theme.colors.secondary || theme.colors.primary} 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 1rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  
+  &:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.85rem;
+  }
+`;
+
+// Bouton CTA subtle en fin de section
+const SectionContactCTA = styled(motion.div)`
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid ${({ theme }) => theme.colors.border || '#e2e8f0'};
+`;
+
+const SubtleContactButton = styled(motion.a)`
+  color: ${({ theme }) => theme.colors.text.secondary};
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme }) => theme.colors.surface};
+    transform: translateY(-1px);
+  }
+`;
+
+// Bouton CTA urgence/démo
+const UrgentCTAButton = styled(motion.button)`
+  background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  &:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+`;
+
+// Container pour organiser les CTA
+const CTAGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1.5rem;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+`;
+
 // Composants pour la section de tarifs modernes
 const PricingContainer = styled.div`
   display: grid;
@@ -2483,6 +2630,18 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 </button>
               </CTAButtonContainer>
             </CTAButtons>
+            
+            {/* CTA secondaire dans le Hero */}
+            <CTAGroup style={{ marginTop: "1rem" }}>
+              <Link to="/contact">
+                <ContactCTAButton
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  📞 Parler à un conseiller
+                </ContactCTAButton>
+              </Link>
+            </CTAGroup>
           </HeroContent>
           <AnimationContainer>
             <Suspense
@@ -2563,6 +2722,18 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                 "directors"
               )}
             </FeaturesGrid>
+            
+            {/* CTA subtil après la première section features */}
+            <SectionContactCTA>
+              <SubtleContactButton 
+                as={Link}
+                to="/contact"
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                💬 Besoin d'aide pour choisir ? Contactez-nous
+              </SubtleContactButton>
+            </SectionContactCTA>
           </FeaturesSection>
         </section>
 
@@ -2802,6 +2973,26 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                   </ImageWrapper>
                 </ImagesContainer>
               </ImageCarouselCard>
+              
+              {/* CTA après la démo pour inciter au contact */}
+              <CTAGroup>
+                <Link to="/contact">
+                  <UrgentCTAButton
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    🚀 Obtenir une démo personnalisée
+                  </UrgentCTAButton>
+                </Link>
+                <Link to="/contact">
+                  <ContactCTAButton
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    💬 Discuter avec un expert
+                  </ContactCTAButton>
+                </Link>
+              </CTAGroup>
             </DemoContainer>
           </DemoSection>
         </section>
@@ -2907,6 +3098,18 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               </UserReviewCard>
             ))}
           </UserReviewsGrid>
+          
+          {/* CTA discret après les témoignages */}
+          <SectionContactCTA>
+            <SubtleContactButton 
+              as={Link}
+              to="/contact"
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              👥 Rejoignez nos clients satisfaits
+            </SubtleContactButton>
+          </SectionContactCTA>
         </UserReviewsSection>
 
 
@@ -3254,6 +3457,21 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           </ScrollToTopButton>
         )}
       </AnimatePresence>
+      
+      {/* Bouton CTA flottant pour contact */}
+      <FloatingContactCTA>
+        <Link to="/contact">
+          <FloatingButton
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 2, type: "spring" }}
+          >
+            💬 Contact
+          </FloatingButton>
+        </Link>
+      </FloatingContactCTA>
       </motion.div>
     </Container>
   );
