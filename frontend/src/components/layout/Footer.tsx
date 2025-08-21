@@ -37,6 +37,17 @@ const FooterContent = styled.div`
   }
 `;
 
+const FooterBrand = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  
+  @media (min-width: 768px) {
+    align-items: flex-start;
+  }
+`;
+
 const FooterLogo = styled(Link)`
   font-size: 1.6rem;
   font-weight: 700;
@@ -50,6 +61,64 @@ const FooterLogo = styled(Link)`
 const LogoAnimation = styled.div`
   width: 50px;
   height: 50px;
+`;
+
+const PromoText = styled.p<DarkModeProps>`
+  font-size: 0.85rem;
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
+  margin: 0;
+  max-width: 250px;
+  line-height: 1.4;
+  text-align: center;
+  
+  @media (min-width: 768px) {
+    text-align: left;
+  }
+`;
+
+const PaymentBadges = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  
+  @media (min-width: 768px) {
+    justify-content: flex-start;
+  }
+`;
+
+const PaymentBadge = styled.div<DarkModeProps>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: ${({ $isDarkMode }) => ($isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(79, 70, 229, 0.05)')};
+  border: 1px solid ${({ $isDarkMode }) => ($isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(79, 70, 229, 0.1)')};
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: ${({ $isDarkMode }) => ($isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(79, 70, 229, 0.08)')};
+    border-color: #4f46e5;
+  }
+`;
+
+const SecureText = styled.div<DarkModeProps>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: ${({ $isDarkMode }) => ($isDarkMode ? "#10B981" : "#059669")};
+  margin-top: 0.5rem;
+  justify-content: center;
+  
+  @media (min-width: 768px) {
+    justify-content: flex-start;
+  }
 `;
 
 const FooterLinks = styled.div`
@@ -122,18 +191,60 @@ const Footer: React.FC<{ scrollToTop?: () => void }> = ({ scrollToTop }) => {
   return (
     <FooterContainer $isDarkMode={isDarkMode}>
       <FooterContent>
-        <FooterLogo to="/" onClick={scrollToTop}>
-          <LogoAnimation>
-            <Suspense fallback={<div style={{ width: 50, height: 50 }} />}>
-              <EnhancedLottie
-                animationData={planningAnimation}
-                loop={true}
-                style={{ width: "50px", height: "50px" }}
-              />
-            </Suspense>
-          </LogoAnimation>
-          SmartPlanning
-        </FooterLogo>
+        <FooterBrand>
+          <FooterLogo to="/" onClick={scrollToTop}>
+            <LogoAnimation>
+              <Suspense fallback={<div style={{ width: 50, height: 50 }} />}>
+                <EnhancedLottie
+                  animationData={planningAnimation}
+                  loop={true}
+                  style={{ width: "50px", height: "50px" }}
+                />
+              </Suspense>
+            </LogoAnimation>
+            SmartPlanning
+          </FooterLogo>
+          
+          <PromoText $isDarkMode={isDarkMode}>
+            La solution SaaS intelligente pour optimiser vos plannings d'équipe et révolutionner votre gestion RH.
+          </PromoText>
+          
+          <PaymentBadges>
+            <PaymentBadge $isDarkMode={isDarkMode}>
+              <svg width="24" height="15" viewBox="0 0 24 15" fill="none">
+                <rect width="24" height="15" rx="2" fill="#1434CB"/>
+                <text x="12" y="10" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">VISA</text>
+              </svg>
+              Visa
+            </PaymentBadge>
+            
+            <PaymentBadge $isDarkMode={isDarkMode}>
+              <svg width="24" height="15" viewBox="0 0 24 15" fill="none">
+                <rect width="24" height="15" rx="2" fill="#EB001B"/>
+                <circle cx="8" cy="7.5" r="5" fill="#EB001B" opacity="0.8"/>
+                <circle cx="16" cy="7.5" r="5" fill="#FF5F00" opacity="0.8"/>
+              </svg>
+              Mastercard
+            </PaymentBadge>
+            
+            <PaymentBadge $isDarkMode={isDarkMode}>
+              <svg width="24" height="15" viewBox="0 0 24 15" fill="none">
+                <rect width="24" height="15" rx="2" fill="#0070BA"/>
+                <text x="12" y="6" textAnchor="middle" fill="white" fontSize="4" fontWeight="bold">PayPal</text>
+                <text x="12" y="11" textAnchor="middle" fill="white" fontSize="3">SECURE</text>
+              </svg>
+              PayPal
+            </PaymentBadge>
+          </PaymentBadges>
+          
+          <SecureText $isDarkMode={isDarkMode}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+              <path d="M10 17l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" fill="white"/>
+            </svg>
+            Paiements 100% sécurisés
+          </SecureText>
+        </FooterBrand>
 
         <FooterLinks>
           <FooterLink to="/mentions-legales" $isDarkMode={isDarkMode}>

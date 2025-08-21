@@ -1,45 +1,292 @@
 /**
- * LoginPage - Page de connexion utilisateur
+ * LoginPage - Page de connexion futuriste
  *
- * Permet aux utilisateurs de se connecter à l'application SmartPlanning
- * via email/mot de passe ou OAuth Google. Utilise les composants
- * du design system pour une expérience cohérente.
+ * Design ultra-moderne avec animations avancées et layout full-width
+ * Optimisé pour une expérience utilisateur immersive
  */
-import { motion } from "framer-motion";
-import React, { useContext, useEffect, useState } from "react";
+import { AnimatePresence, motion, useInView } from "framer-motion";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import styled from "styled-components";
+import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiCheck, FiAlertCircle } from "react-icons/fi";
+import styled, { keyframes } from "styled-components";
 import Footer from "../components/layout/Footer";
 import Header from "../components/layout/Header";
-import PageWrapper from "../components/layout/PageWrapper";
 import SEO from "../components/layout/SEO";
 import { useTheme } from "../components/ThemeProvider";
-import Button from "../components/ui/Button";
-import FormContainer from "../components/ui/FormContainer";
-import InputField from "../components/ui/InputField";
-import PasswordField from "../components/ui/PasswordField";
 import Toast from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
 import { useToast } from "../hooks/useToast";
 
-// Clé utilisée pour stocker l'email dans le localStorage
+// Clés localStorage
 const REMEMBER_EMAIL_KEY = "smartplanning_remembered_email";
-
-// Clé utilisée pour stocker l'état de la case "Se souvenir de moi"
 const REMEMBER_ME_KEY = "smartplanning_remember_me";
+
+// Animations keyframes
+const gradientShift = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
+const pulse = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+`;
+
+const float = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+`;
+
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
+// Container principal full-width
+const PageContainer = styled.div`
+  min-height: 100vh;
+  background: ${({ theme }) => theme.colors.background};
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(79, 70, 229, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 50% 10%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  padding-top: 6rem; /* Espace pour la navbar */
+  
+  @media (max-width: 768px) {
+    padding-top: 5rem;
+  }
+`;
+
+// Particules d'arrière-plan
+const BackgroundParticles = styled(motion.div)`
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+`;
+
+const Particle = styled(motion.div)`
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: linear-gradient(45deg, #4f46e5, #8b5cf6);
+  border-radius: 50%;
+  opacity: 0.7;
+`;
+
+// Layout principal responsive
+const MainContent = styled.div`
+  width: 100%;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: 1fr 500px;
+  gap: 4rem;
+  align-items: center;
+  z-index: 1;
+  position: relative;
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    gap: 2rem;
+    text-align: center;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 0;
+    gap: 1.5rem;
+  }
+`;
+
+// Section d'info à gauche
+const InfoSection = styled(motion.div)`
+  @media (max-width: 1024px) {
+    order: 2;
+  }
+`;
+
+const InfoTitle = styled(motion.h1)`
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, #4f46e5, #8b5cf6, #06b6d4);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: ${gradientShift} 6s ease infinite;
+  margin-bottom: 1.5rem;
+  line-height: 1.1;
+`;
+
+const InfoSubtitle = styled(motion.p)`
+  font-size: 1.2rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  line-height: 1.6;
+  margin-bottom: 2rem;
+`;
+
+const FeatureList = styled(motion.ul)`
+  list-style: none;
+  padding: 0;
+  margin: 0;
+`;
+
+const FeatureItem = styled(motion.li)`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: ${({ theme }) => theme.colors.text.primary};
+  font-size: 1rem;
+`;
+
+const FeatureIcon = styled.div`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  animation: ${float} 3s ease-in-out infinite;
+`;
+
+// Formulaire futuriste
+const LoginContainer = styled(motion.div)`
+  background: ${({ theme }) => theme.colors.surface};
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+  z-index: 10; /* S'assurer que le formulaire passe au-dessus */
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #4f46e5, #8b5cf6, #06b6d4);
+    background-size: 300% 100%;
+    animation: ${gradientShift} 3s ease infinite;
+  }
+  
+  @media (max-width: 1024px) {
+    order: 1;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 2rem;
+    border-radius: 16px;
+  }
+`;
+
+const LoginTitle = styled.h2`
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text.primary};
+  margin-bottom: 0.5rem;
+  text-align: center;
+`;
+
+const LoginSubtitle = styled.p`
+  color: ${({ theme }) => theme.colors.text.secondary};
+  text-align: center;
+  margin-bottom: 2rem;
+`;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 `;
 
-const FormGroup = styled.div`
+const FormGroup = styled(motion.div)`
+  position: relative;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.text.primary};
+  margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
+`;
+
+const InputWrapper = styled.div`
+  position: relative;
   display: flex;
-  flex-direction: column;
+  align-items: center;
 `;
 
-const RememberForgotRow = styled.div`
+const InputField = styled(motion.input)`
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  border: 2px solid rgba(79, 70, 229, 0.2);
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.text.primary};
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+    transform: translateY(-2px);
+  }
+  
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.text.secondary};
+  }
+`;
+
+const InputIcon = styled.div`
+  position: absolute;
+  left: 1rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  transition: color 0.3s ease;
+  z-index: 1;
+`;
+
+const PasswordToggle = styled.button`
+  position: absolute;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const OptionsRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -52,86 +299,165 @@ const CheckboxContainer = styled.div`
   gap: 0.5rem;
 `;
 
-const CheckboxLabel = styled.label<{ $isDarkMode?: boolean }>`
-  font-size: 0.875rem;
-  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
+const Checkbox = styled.input`
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid rgba(79, 70, 229, 0.3);
+  background: ${({ theme }) => theme.colors.background};
   cursor: pointer;
-`;
-
-const ForgotPassword = styled(Link)<{ $isDarkMode?: boolean }>`
-  font-size: 0.875rem;
-  color: #4f46e5;
-  text-decoration: none;
-  transition: color 0.2s;
-
-  &:hover {
-    text-decoration: underline;
+  
+  &:checked {
+    background: #4f46e5;
+    border-color: #4f46e5;
   }
 `;
 
-const StyledButton = styled(Button)`
-  margin-top: 1rem;
-  width: 100%;
+const CheckboxLabel = styled.label`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
+  cursor: pointer;
+  user-select: none;
 `;
 
-const Divider = styled.div<{ $isDarkMode?: boolean }>`
+const ForgotLink = styled(Link)`
+  font-size: 0.875rem;
+  color: #4f46e5;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: #8b5cf6;
+  }
+`;
+
+const SubmitButton = styled(motion.button)<{ isLoading?: boolean }>`
+  padding: 1.2rem 2rem;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+  background-size: 200% 200%;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: ${({ isLoading }) => (isLoading ? 'not-allowed' : 'pointer')};
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  margin-top: 1rem;
+  
+  &:hover:not(:disabled) {
+    background-position: 100% 0;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(79, 70, 229, 0.4);
+  }
+  
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+`;
+
+const Divider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: 2rem 0;
 
   &::before,
   &::after {
     content: "";
     flex: 1;
-    border-bottom: 1px solid
-      ${({ $isDarkMode }) => ($isDarkMode ? "#2D3748" : "#E2E8F0")};
+    border-bottom: 1px solid rgba(79, 70, 229, 0.2);
   }
 
   span {
     padding: 0 1rem;
     font-size: 0.875rem;
-    color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
+    color: ${({ theme }) => theme.colors.text.secondary};
   }
 `;
 
-const GoogleButton = styled.button<{ $isDarkMode?: boolean }>`
+const GoogleButton = styled(motion.button)`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  background-color: ${({ $isDarkMode }) => ($isDarkMode ? "#1A2234" : "#FFFFFF")};
-  border: 1px solid ${({ $isDarkMode }) => ($isDarkMode ? "#2D3748" : "#E2E8F0")};
-  color: ${({ $isDarkMode }) => ($isDarkMode ? "#F1F5F9" : "#1A202C")};
-  font-size: 0.875rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.background};
+  border: 2px solid rgba(79, 70, 229, 0.2);
+  color: ${({ theme }) => theme.colors.text.primary};
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
 
   &:hover {
-    background-color: ${({ $isDarkMode }) =>
-      $isDarkMode ? "#242f48" : "#F8F9FA"};
+    border-color: #4f46e5;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(79, 70, 229, 0.2);
   }
 `;
 
-const RegisterLink = styled.div<{ $isDarkMode?: boolean }>`
-  margin-top: 1.5rem;
+const RegisterLink = styled.div`
+  margin-top: 2rem;
   text-align: center;
-  font-size: 0.875rem;
-  color: ${({ $isDarkMode }) => ($isDarkMode ? "#94A3B8" : "#6b7280")};
+  font-size: 0.9rem;
+  color: ${({ theme }) => theme.colors.text.secondary};
 
   a {
     color: #4f46e5;
     text-decoration: none;
     margin-left: 0.25rem;
-    font-weight: 500;
+    font-weight: 600;
+    transition: color 0.3s ease;
 
     &:hover {
-      text-decoration: underline;
+      color: #8b5cf6;
     }
   }
+`;
+
+// Messages de feedback
+const FeedbackMessage = styled(motion.div)<{ type: 'success' | 'error' }>`
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  
+  ${({ type }) => type === 'success' ? `
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  ` : `
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  `}
 `;
 
 const LoginPage: React.FC = () => {
@@ -139,13 +465,25 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const auth = useContext(AuthContext);
   const { toast, showErrorToast, hideToast } = useToast();
+  const containerRef = useRef(null);
+  const isInView = useInView(containerRef);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
   });
+
+  // Animation des particules
+  const particles = Array.from({ length: 6 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    delay: Math.random() * 5,
+  }));
 
   // Récupérer l'email et l'état de "Se souvenir de moi" lors du chargement de la page
   useEffect(() => {
@@ -168,16 +506,19 @@ const LoginPage: React.FC = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+
+    // Clear error when user starts typing
+    if (error) {
+      setError(null);
+    }
   };
 
   // Fonction pour gérer la sauvegarde de l'email
   const handleRememberMe = () => {
     if (formData.rememberMe) {
-      // Si "Se souvenir de moi" est coché, sauvegarder l'email
       localStorage.setItem(REMEMBER_EMAIL_KEY, formData.email);
       localStorage.setItem(REMEMBER_ME_KEY, "true");
     } else {
-      // Sinon, supprimer l'email sauvegardé
       localStorage.removeItem(REMEMBER_EMAIL_KEY);
       localStorage.removeItem(REMEMBER_ME_KEY);
     }
@@ -189,39 +530,30 @@ const LoginPage: React.FC = () => {
     setError(null);
 
     try {
-      // Vérifier que auth n'est pas undefined
       if (!auth) {
         setError("Erreur de contexte d'authentification");
         showErrorToast("Erreur de contexte d'authentification");
         return;
       }
 
-      // Gérer l'option "Se souvenir de moi" avant la connexion
       handleRememberMe();
-
-      // Passer les paramètres individuellement au lieu d'un objet
       await auth.login(formData.email, formData.password);
-      // Rediriger vers le tableau de bord
       navigate("/tableau-de-bord");
     } catch (error: any) {
       console.error("Login error:", error);
 
-      // Réinitialiser le mot de passe en cas d'échec
       setFormData((prev) => ({
         ...prev,
         password: "",
       }));
 
-      // Afficher le message d'erreur approprié
       if (error.response) {
-        // Vérifier spécifiquement les erreurs 401
         if (error.response.status === 401) {
           const errorMessage =
             "Identifiants incorrects. Vérifiez votre adresse email et votre mot de passe.";
           setError(errorMessage);
           showErrorToast(errorMessage);
         } else {
-          // Pour les autres erreurs de réponse
           const errorMessage =
             error.response.data?.message ||
             "Une erreur est survenue. Veuillez réessayer plus tard.";
@@ -229,18 +561,15 @@ const LoginPage: React.FC = () => {
           showErrorToast(errorMessage);
         }
       } else if (error.message) {
-        // Pour les erreurs avec un message
         setError(error.message);
         showErrorToast(error.message);
       } else {
-        // Pour les erreurs sans détails
         const errorMessage =
           "Une erreur est survenue. Veuillez réessayer plus tard.";
         setError(errorMessage);
         showErrorToast(errorMessage);
       }
     } finally {
-      // Ajouter un petit délai avant de réactiver le bouton pour une meilleure UX
       setTimeout(() => {
         setIsLoading(false);
       }, 300);
@@ -248,32 +577,24 @@ const LoginPage: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    // Rediriger vers l'URL d'authentification Google du backend
     const apiUrl =
       import.meta.env.VITE_API_URL || "https://smartplanning.onrender.com/api";
     window.location.href = `${apiUrl}/auth/google`;
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
     <>
       <SEO
-        title="Connexion - SmartPlanning"
-        description="Connectez-vous à votre compte SmartPlanning pour accéder à votre espace de gestion."
+        title="Connexion - SmartPlanning | Accédez à votre espace"
+        description="Connectez-vous à votre compte SmartPlanning pour accéder à votre espace de gestion de planning professionnel."
       />
       
-      {/* NOINDEX - Force trafic vers homepage */}
       <meta name="robots" content="noindex, nofollow" />
       <link rel="canonical" href="https://smartplanning.fr/" />
-
-      <style>
-        {`
-          .login-field input {
-            background-color: ${isDarkMode ? "#2D3748" : "white"} !important;
-            color: ${isDarkMode ? "white" : "#1A202C"} !important;
-            border-color: ${isDarkMode ? "#4A5568" : "#E2E8F0"} !important;
-          }
-        `}
-      </style>
 
       <Header />
 
@@ -286,149 +607,257 @@ const LoginPage: React.FC = () => {
         duration={5000}
       />
 
-      <PageWrapper>
-        <FormContainer
-          title="Connexion à SmartPlanning"
-          description="Accédez à votre espace de gestion de planning"
-        >
-          <Form onSubmit={handleSubmit}>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="error-message"
-                style={{ color: "red", marginBottom: "1rem" }}
-              >
-                {error}
-              </motion.div>
-            )}
+      <PageContainer ref={containerRef}>
+        {/* Particules d'arrière-plan */}
+        <BackgroundParticles>
+          {particles.map((particle) => (
+            <Particle
+              key={particle.id}
+              style={{
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+              }}
+              animate={{
+                y: [-15, 15, -15],
+                opacity: [0.4, 0.8, 0.4],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                delay: particle.delay,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </BackgroundParticles>
 
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <FormGroup>
-                <InputField
-                  type="email"
-                  label="Adresse email"
-                  name="email"
-                  placeholder="Saisissez votre adresse email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="dark-input login-field"
-                />
-              </FormGroup>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
-              <FormGroup>
-                <PasswordField
-                  label="Mot de passe"
-                  name="password"
-                  placeholder="Saisissez votre mot de passe"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="dark-input login-field"
-                />
-              </FormGroup>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-            >
-              <RememberForgotRow>
-                <CheckboxContainer>
-                  <input
-                    type="checkbox"
-                    id="rememberMe"
-                    name="rememberMe"
-                    checked={formData.rememberMe}
-                    onChange={handleChange}
-                  />
-                  <CheckboxLabel htmlFor="rememberMe" $isDarkMode={isDarkMode}>
-                    Se souvenir de moi
-                  </CheckboxLabel>
-                </CheckboxContainer>
-
-                <ForgotPassword to="/forgot-password" $isDarkMode={isDarkMode}>
-                  Mot de passe oublié ?
-                </ForgotPassword>
-              </RememberForgotRow>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-            >
-              <StyledButton
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={isLoading}
-                className="w-full"
-              >
-                {isLoading ? "Connexion en cours..." : "Se connecter"}
-              </StyledButton>
-            </motion.div>
-          </Form>
-
-          <Divider $isDarkMode={isDarkMode}>
-            <span>ou</span>
-          </Divider>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.5 }}
+        <MainContent>
+          {/* Section d'information */}
+          <InfoSection
+            initial={{ opacity: 0, x: -50 }}
+            animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <GoogleButton
-              type="button"
-              onClick={handleGoogleLogin}
-              $isDarkMode={isDarkMode}
+            <InfoTitle
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 18 18"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z"
-                  fill="#EA4335"
-                />
-              </svg>
-              Continuer avec Google
-            </GoogleButton>
-          </motion.div>
+              Bienvenue sur SmartPlanning
+            </InfoTitle>
+            <InfoSubtitle
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+              transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+            >
+              La solution SaaS intelligente pour optimiser vos plannings d'équipe et révolutionner votre gestion RH.
+            </InfoSubtitle>
+            <FeatureList>
+              {[
+                "Planification automatisée par IA",
+                "Gestion d'équipes simplifiée",
+                "Tableaux de bord en temps réel",
+                "Support client dédié"
+              ].map((feature, index) => (
+                <FeatureItem
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
+                  transition={{ duration: 0.5, delay: 0.4 + index * 0.1, ease: "easeOut" }}
+                >
+                  <FeatureIcon>
+                    <FiCheck size={12} />
+                  </FeatureIcon>
+                  {feature}
+                </FeatureItem>
+              ))}
+            </FeatureList>
+          </InfoSection>
 
-          <RegisterLink $isDarkMode={isDarkMode}>
-            Pas encore inscrit ?<Link to="/inscription">Créer un compte</Link>
-          </RegisterLink>
-        </FormContainer>
-      </PageWrapper>
+          {/* Formulaire de connexion */}
+          <LoginContainer
+            initial={{ opacity: 0, x: 50 }}
+            animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 50 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+          >
+            <LoginTitle>Connexion</LoginTitle>
+            <LoginSubtitle>
+              Accédez à votre espace de gestion SmartPlanning
+            </LoginSubtitle>
+
+            <AnimatePresence>
+              {error && (
+                <FeedbackMessage
+                  type="error"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FiAlertCircle size={18} />
+                  {error}
+                </FeedbackMessage>
+              )}
+            </AnimatePresence>
+
+            <Form onSubmit={handleSubmit}>
+              <FormGroup
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <Label>Adresse email</Label>
+                <InputWrapper>
+                  <InputIcon>
+                    <FiMail size={18} />
+                  </InputIcon>
+                  <InputField
+                    type="email"
+                    name="email"
+                    placeholder="votre.email@exemple.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    whileFocus={{ scale: 1.02 }}
+                    required
+                  />
+                </InputWrapper>
+              </FormGroup>
+
+              <FormGroup
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Label>Mot de passe</Label>
+                <InputWrapper>
+                  <InputIcon>
+                    <FiLock size={18} />
+                  </InputIcon>
+                  <InputField
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    placeholder="Votre mot de passe"
+                    value={formData.password}
+                    onChange={handleChange}
+                    whileFocus={{ scale: 1.02 }}
+                    required
+                  />
+                  <PasswordToggle
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                  >
+                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </PasswordToggle>
+                </InputWrapper>
+              </FormGroup>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <OptionsRow>
+                  <CheckboxContainer>
+                    <Checkbox
+                      type="checkbox"
+                      id="rememberMe"
+                      name="rememberMe"
+                      checked={formData.rememberMe}
+                      onChange={handleChange}
+                    />
+                    <CheckboxLabel htmlFor="rememberMe">
+                      Se souvenir de moi
+                    </CheckboxLabel>
+                  </CheckboxContainer>
+
+                  <ForgotLink to="/forgot-password">
+                    Mot de passe oublié ?
+                  </ForgotLink>
+                </OptionsRow>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                <SubmitButton
+                  type="submit"
+                  disabled={isLoading}
+                  isLoading={isLoading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isLoading ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        ⟳
+                      </motion.div>
+                      Connexion en cours...
+                    </>
+                  ) : (
+                    <>
+                      <FiLogIn />
+                      Se connecter
+                    </>
+                  )}
+                </SubmitButton>
+              </motion.div>
+            </Form>
+
+            <Divider>
+              <span>ou</span>
+            </Divider>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <GoogleButton
+                type="button"
+                onClick={handleGoogleLogin}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 18 18"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                Continuer avec Google
+              </GoogleButton>
+            </motion.div>
+
+            <RegisterLink>
+              Pas encore inscrit ?
+              <Link to="/inscription">Créer un compte</Link>
+            </RegisterLink>
+          </LoginContainer>
+        </MainContent>
+      </PageContainer>
 
       <Footer />
     </>
