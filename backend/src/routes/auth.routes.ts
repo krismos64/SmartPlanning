@@ -2,7 +2,6 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import passport from "passport";
 import { generateToken } from "../config/passport";
 import Company from "../models/Company.model";
 import User, { UserDocument } from "../models/User.model";
@@ -736,72 +735,5 @@ router.patch(
   }
 );
 
-/**
- * @route GET /api/auth/google
- * @desc Initialise l'authentification via Google OAuth
- * @access Public
- */
-router.get("/google", (req: Request, res: Response, next: NextFunction) => {
-  (
-    passport.authenticate("google", {
-      scope: ["profile", "email"],
-      accessType: "offline",
-      prompt: "select_account",
-      redirect_uri: "https://smartplanning.fr/api/auth/google/callback",
-    } as any) as express.RequestHandler
-  )(req, res, next);
-});
-
-/**
- * @route GET /api/auth/google/callback
- * @desc Callback de l'authentification Google OAuth
- * @access Public
- */
-router.get(
-  "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: `${
-      process.env.CLIENT_URL ||
-      process.env.FRONTEND_URL ||
-      "https://smartplanning.fr"
-    }/connexion?error=googleauth`,
-    session: false,
-  }),
-  (req: Request, res: Response) => {
-    try {
-      // L'utilisateur est authentifié à ce stade
-      if (!req.user) {
-        return res.redirect(
-          `${
-            process.env.CLIENT_URL ||
-            process.env.FRONTEND_URL ||
-            "https://smartplanning.fr"
-          }/connexion?error=usernotfound`
-        );
-      }
-
-      // Générer un token JWT pour l'utilisateur
-      const token = generateToken((req.user as UserDocument).toObject());
-
-      // Rediriger vers la page de callback OAuth du frontend avec le token JWT dans l'URL
-      res.redirect(
-        `${
-          process.env.CLIENT_URL ||
-          process.env.FRONTEND_URL ||
-          "https://smartplanning.fr"
-        }/oauth/callback?token=${token}`
-      );
-    } catch (error) {
-      console.error("Erreur lors de l'authentification Google OAuth:", error);
-      res.redirect(
-        `${
-          process.env.CLIENT_URL ||
-          process.env.FRONTEND_URL ||
-          "https://smartplanning.fr"
-        }/connexion?error=internal`
-      );
-    }
-  }
-);
 
 export default router;

@@ -1969,7 +1969,7 @@ const faqData = [
     icon: "💰",
     question: "Quels sont les tarifs de SmartPlanning ?",
     answer:
-      "SmartPlanning propose 3 offres adaptées à tous types d'entreprises : Starter (39€/mois, jusqu'à 25 employés), Professional (89€/mois, jusqu'à 100 employés + chatbot IA), et Enterprise (179€/mois, employés illimités + Machine Learning). Toutes nos offres incluent 30 jours d'essai gratuit et la formation de vos équipes.",
+      "SmartPlanning propose 3 offres adaptées à tous types d'entreprises : Starter (39€/mois, jusqu'à 25 employés), Professional (89€/mois, jusqu'à 100 employés + chatbot IA), et Enterprise (179€/mois, employés illimités + Machine Learning).",
   },
 ];
 

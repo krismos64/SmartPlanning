@@ -12,12 +12,6 @@ export type LoginHistoryItem = {
 // Type pour les rôles utilisateur
 export type UserRole = "admin" | "directeur" | "manager" | "employee";
 
-// Interface pour les données Google OAuth
-export interface GoogleProfile {
-  id: string;
-  email: string;
-  name: string;
-}
 
 // Type pour les préférences utilisateur
 export type UserPreferences = {
@@ -45,7 +39,6 @@ export interface IUser {
   createdAt?: Date;
   updatedAt?: Date;
   lastLogin?: Date;
-  google?: GoogleProfile;
   photoUrl?: string;
   bio?: string;
   phone?: string;
@@ -61,24 +54,6 @@ export interface UserModel extends Model<UserDocument> {
   findByEmail(email: string): Promise<UserDocument>;
 }
 
-// Schéma pour le profil Google
-const googleSchema = new Schema(
-  {
-    id: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-    },
-    name: {
-      type: String,
-      required: true,
-    },
-  },
-  { _id: false }
-);
 
 // Définition du schéma Mongoose
 const userSchema = new Schema<UserDocument>(
@@ -107,9 +82,8 @@ const userSchema = new Schema<UserDocument>(
     password: {
       type: String,
       required: function (this: UserDocument) {
-        // Le mot de passe n'est pas obligatoire pour les connexions via Google
-        // ou pour les nouveaux employés qui n'ont pas encore créé leur mot de passe
-        return !this.google && !this.resetPasswordToken;
+        // Le mot de passe n'est pas obligatoire pour les nouveaux employés qui n'ont pas encore créé leur mot de passe
+        return !this.resetPasswordToken;
       },
       minlength: [6, "Le mot de passe doit contenir au moins 6 caractères"],
       select: false, // Ne retourne pas le mot de passe par défaut dans les requêtes
@@ -186,10 +160,6 @@ const userSchema = new Schema<UserDocument>(
     lastLogin: {
       type: Date,
     },
-    google: {
-      type: googleSchema,
-      required: false,
-    },
     bio: {
       type: String,
       trim: true,
@@ -210,7 +180,6 @@ const userSchema = new Schema<UserDocument>(
 
 // Index pour améliorer les performances
 userSchema.index({ email: 1 });
-userSchema.index({ "google.id": 1 }); // Index pour les recherches par ID Google
 
 // Méthode statique pour trouver un utilisateur par email
 userSchema.static("findByEmail", function (email: string) {
