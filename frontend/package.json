@@ -24,6 +24,7 @@
     "a11y:report": "eslint src/components src/pages --ext .tsx --format json --output-file accessibility-report.json"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^7.8.0",
     "@types/i18next": "^12.1.0",
     "@types/react-select": "^5.0.0",
     "@types/styled-components": "^5.1.34",

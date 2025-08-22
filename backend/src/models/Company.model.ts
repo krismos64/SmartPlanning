@@ -79,6 +79,14 @@ companySchema.pre("deleteOne", { document: true, query: false }, async function 
     const ChatbotSettings = mongoose.model("ChatbotSettings");
     await ChatbotSettings.deleteMany({ companyId });
     
+    // Supprimer les abonnements Stripe liés à cette entreprise
+    const Subscription = mongoose.model("Subscription");
+    await Subscription.deleteMany({ companyId });
+    
+    // Supprimer les paiements liés à cette entreprise
+    const Payment = mongoose.model("Payment");
+    await Payment.deleteMany({ companyId });
+    
     console.log(`🗑️ Cascade suppression Company ${companyId} terminée`);
     next();
   } catch (error) {
@@ -120,6 +128,14 @@ companySchema.pre("findOneAndDelete", async function (next) {
     
     const ChatbotSettings = mongoose.model("ChatbotSettings");
     await ChatbotSettings.deleteMany({ companyId });
+    
+    // Supprimer les abonnements Stripe liés à cette entreprise
+    const Subscription = mongoose.model("Subscription");
+    await Subscription.deleteMany({ companyId });
+    
+    // Supprimer les paiements liés à cette entreprise
+    const Payment = mongoose.model("Payment");
+    await Payment.deleteMany({ companyId });
     
     console.log(`🗑️ Cascade suppression Company ${companyId} terminée`);
     next();

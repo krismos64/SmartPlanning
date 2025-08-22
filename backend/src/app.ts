@@ -258,6 +258,10 @@ app.use("/api/contact", contactRoutes);
 // Routes d'upload d'images utilisateur (protégées)
 app.use("/api/upload", authenticateToken, uploadRoutes);
 
+// Routes Stripe (paiements et abonnements)
+import stripeRoutes from "./routes/stripe.routes";
+app.use("/api/stripe", stripeRoutes);
+
 // Route par défaut
 app.get("/", (req: Request, res: Response) => {
   res.json({ message: "SmartPlanning API" });
