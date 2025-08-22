@@ -68,6 +68,8 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
     phone,
     companyName,
     companyAddress,
+    companyPostalCode,
+    companyCity,
     companySize,
     acceptTerms,
     acceptMarketing
@@ -91,6 +93,8 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
   const company = new Company({
     name: companyName,
     address: companyAddress,
+    postalCode: companyPostalCode,
+    city: companyCity,
     size: companySize,
     createdBy: null // Sera mis à jour après création de l'utilisateur
   });
@@ -136,6 +140,8 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
       id: savedCompany._id,
       name: savedCompany.name,
       address: (savedCompany as any).address,
+      postalCode: (savedCompany as any).postalCode,
+      city: (savedCompany as any).city,
       size: (savedCompany as any).size
     },
   });

@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-2.2.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2.2.2-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited%20%26%20Enhanced-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-15%2F15%20Pass-brightgreen?style=flat-square)
 ![Cache](https://img.shields.io/badge/Cache-Production%20Ready-red?style=flat-square)
@@ -94,6 +94,13 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - Tableaux de bord personnalisés selon les rôles
 - Responsive design pour une utilisation sur tous les appareils
 - Notifications et alertes configurables
+
+💳 **SaaS & Monétisation (Nouveau v2.2.2)**
+
+- Flow d'inscription optimisé avec adresse structurée (rue, code postal, ville)
+- Redirection intelligente vers choix d'abonnement (39€, 89€, 179€/mois)
+- Intégration Stripe complète avec webhooks de synchronisation
+- Gestion d'erreur gracieuse pour upload photos optionnelles
 
 🔒 **Sécurité et API robuste**
 
@@ -489,17 +496,19 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
 - **[🎆 Planning IA](docs/PLANNING_IA.md)** - AdvancedSchedulingEngine + Wizard Ultra-Moderne
 - **[🌅 Gestion Absences](docs/ABSENCES_MANAGEMENT.md)** - 5 types d'exceptions avancées
 
-### 📊 **Architecture & Technique**
-- **[🏢 Architecture](docs/ARCHITECTURE.md)** - Stack MERN + moteur personnalisé
+### 📊 **Architecture & Technique**  
+- **[🏗️ Architecture Technique](docs/ARCHITECTURE_TECHNIQUE.md)** - Stack MERN + DB + API complet
 - **[📊 Monitoring](docs/MONITORING.md)** - Observabilité + Dashboard Zod français
-- **[🗄 Base de Données](docs/DATABASE.md)** - Modèles + 28 index MongoDB
-- **[📡 API](docs/API.md)** - Endpoints REST + validation Zod
 
 ### 🛠️ **Développement & Tests**
 - **[💻 Développement](docs/DEVELOPMENT.md)** - Setup local + optimisations
 - **[🧪 Tests](docs/TESTING.md)** - Suite complète AdvancedSchedulingEngine
 - **[🚀 Déploiement](docs/DEPLOYMENT.md)** - Production Render + Hostinger
 - **[📋 Changelog](docs/CHANGELOG.md)** - Historique versions détaillé
+
+### 💳 **SaaS & Inscription (Nouveau v2.2.2)**
+- **[🚀 SaaS Complet](docs/SAAS_COMPLETE.md)** - Inscription + Flow + Stripe intégré
+- **[💰 Intégration Stripe](docs/stripe-integration.md)** - Configuration technique détaillée
 
 ## Changelog
 

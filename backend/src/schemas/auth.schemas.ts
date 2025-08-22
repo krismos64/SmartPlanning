@@ -53,9 +53,21 @@ export const registerSchema = z.object({
     .transform(name => name.trim()),
   
   companyAddress: z.string()
-    .min(10, "L'adresse doit contenir au moins 10 caractères")
+    .min(5, "L'adresse doit contenir au moins 5 caractères")
     .max(200, "L'adresse ne peut pas dépasser 200 caractères")
     .transform(addr => addr.trim()),
+  
+  companyPostalCode: z.string()
+    .min(5, "Le code postal doit contenir 5 chiffres")
+    .max(5, "Le code postal doit contenir 5 chiffres")
+    .regex(/^\d{5}$/, "Le code postal doit contenir uniquement des chiffres")
+    .transform(code => code.trim()),
+  
+  companyCity: z.string()
+    .min(2, "La ville doit contenir au moins 2 caractères")
+    .max(100, "La ville ne peut pas dépasser 100 caractères")
+    .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, "La ville contient des caractères invalides")
+    .transform(city => city.trim()),
   
   companySize: z.number()
     .int("La taille d'entreprise doit être un nombre entier")

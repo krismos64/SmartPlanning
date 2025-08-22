@@ -44,9 +44,9 @@ export const PRICING_PLANS = {
     stripePriceId: null,
   },
   standard: {
-    name: 'Standard',
+    name: 'Starter',
     description: 'Pour les petites équipes',
-    price: 29,
+    price: 39,
     currency: '€',
     interval: 'mois',
     features: [
@@ -60,9 +60,9 @@ export const PRICING_PLANS = {
     stripePriceId: 'price_standard_plan_id',
   },
   premium: {
-    name: 'Premium',
+    name: 'Professional',
     description: 'Pour les moyennes entreprises',
-    price: 79,
+    price: 89,
     currency: '€',
     interval: 'mois',
     features: [
@@ -79,7 +79,7 @@ export const PRICING_PLANS = {
   enterprise: {
     name: 'Enterprise',
     description: 'Pour les grandes organisations',
-    price: 199,
+    price: 179,
     currency: '€',
     interval: 'mois',
     features: [

@@ -151,11 +151,21 @@ const PricingCard: React.FC<PricingCardProps> = ({
         </button>
 
         {/* Message d'information */}
-        {plan !== 'free' && (
-          <p className="text-xs text-gray-500 text-center mt-3">
-            Paiement sécurisé via Stripe
+        <div className="text-center mt-3 space-y-1">
+          {plan !== 'free' && (
+            <p className="text-xs text-gray-500">
+              Paiement sécurisé via Stripe
+            </p>
+          )}
+          <p className="text-xs text-green-600 font-medium">
+            ✓ Sans engagement • Annulation en 1 clic
           </p>
-        )}
+          {plan !== 'free' && (
+            <p className="text-xs text-blue-600">
+              📅 Prélèvement mensuel le {new Date().getDate()} de chaque mois
+            </p>
+          )}
+        </div>
       </div>
     </motion.div>
   );

@@ -249,8 +249,8 @@ const CompleteProfilePage: React.FC = () => {
 
         showSuccessToast("Profil complété avec succès !");
 
-        // Rediriger vers la page de profil utilisateur
-        navigate("/user/profile", { replace: true });
+        // Rediriger vers la page de choix d'abonnement
+        navigate("/choose-plan", { replace: true });
       } catch (error) {
         console.error("Erreur lors de la mise à jour du profil:", error);
         showErrorToast("Échec de la mise à jour du profil");

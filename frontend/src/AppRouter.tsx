@@ -64,6 +64,10 @@ const LogicielPlanningRHPage = lazy(() => import("./pages/solutions/LogicielPlan
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const TestimonialsPage = lazy(() => import("./pages/TestimonialsPage"));
 
+// Page de choix d'abonnement et facturation
+const ChoosePlanPage = lazy(() => import("./pages/ChoosePlanPage"));
+const BillingDashboard = lazy(() => import("./components/billing/BillingDashboard"));
+
 
 /**
  * Composant de vérification du profil pour la redirection conditionnelle
@@ -90,7 +94,8 @@ const ProfileChecker: React.FC = () => {
       !location.pathname.startsWith("/unauthorized") &&
       !location.pathname.startsWith("/forgot-password") &&
       !location.pathname.startsWith("/reset-password") &&
-      !location.pathname.startsWith("/create-password")
+      !location.pathname.startsWith("/create-password") &&
+      !location.pathname.startsWith("/choose-plan")
     ) {
       navigate("/complete-profile", { replace: true });
     }
@@ -228,10 +233,22 @@ const AppRouter: React.FC = () => {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/create-password" element={<CreatePasswordPage />} />
         <Route path="/complete-profile" element={<CompleteProfilePage />} />
+        <Route path="/choose-plan" element={<ChoosePlanPage />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />
 
         {/* Route du tableau de bord pour utilisateurs connectés */}
         <Route path="/tableau-de-bord" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        
+        {/* Route de facturation */}
+        <Route 
+          path="/dashboard/billing" 
+          element={
+            <LayoutWithSidebar activeItem="billing" pageTitle="Facturation">
+              <BillingDashboard />
+            </LayoutWithSidebar>
+          } 
+        />
 
         {/* Routes principales de l'application */}
         <Route

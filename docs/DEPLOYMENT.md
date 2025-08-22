@@ -1,17 +1,77 @@
-# 🚀 Guide de déploiement - SmartPlanning Production v2.2.1
+# 🚀 Guide de Déploiement - SmartPlanning v2.2.2
 
 ## Vue d'ensemble
 
-SmartPlanning utilise une architecture découplée ultra-performante déployée en production stable depuis le 14 août 2025 :
+SmartPlanning utilise une architecture découplée ultra-performante avec intégration SaaS optimisée :
 
-**Version** : 2.2.1 Production Déployée (14 Août 2025)  
+**Version** : 2.2.2 SaaS Optimisé (22 Août 2025)  
 **Développeur** : [Christophe Mostefaoui](https://christophe-dev-freelance.fr/) - Expert Freelance  
-**🚀 Innovation majeure** : AdvancedSchedulingEngine personnalisé (99.97% plus rapide)
+**🆕 Nouveautés** : Flow inscription optimisé + Intégration Stripe complète
+
+## 📋 Checklist de Déploiement v2.2.2
+
+### ✅ Pré-Déploiement
+
+#### Backend
+- [ ] Variables d'environnement Stripe configurées (production)
+- [ ] MongoDB compatible avec nouveaux champs Company (`postalCode`, `city`, `size`)
+- [ ] JWT_SECRET minimum 32 caractères configuré
+- [ ] Tests de sécurité passés (15/15)
+- [ ] Endpoints Stripe testés et validés
+
+#### Frontend  
+- [ ] Build production optimisé (`npm run build`)
+- [ ] Variables Stripe frontend configurées
+- [ ] Routes de redirection testées (`/inscription` → `/choose-plan`)
+- [ ] Upload gracieux validé sans blocage
+
+#### Base de Données
+- [ ] Nouveaux champs Company ajoutés avec backward compatibility
+- [ ] Index MongoDB optimisés (28 index composites)
+- [ ] Données de test nettoyées
+
+### 🚀 Innovation majeure AdvancedSchedulingEngine
+- Moteur personnalisé (99.97% plus rapide que solutions externes)
+- Génération native 2-5ms vs 15-30s précédemment
 
 - **Backend** : Render ([https://smartplanning.onrender.com](https://smartplanning.onrender.com)) - API ultra-optimisée
 - **Frontend** : Hostinger ([https://smartplanning.fr](https://smartplanning.fr)) - Interface moderne
 - **Base de données** : MongoDB Atlas (28 index composites ultra-optimisés)
 - **Performance** : Bundle -80%, compression -70%, génération plannings 2-5ms
+
+## 🔧 Variables d'Environnement v2.2.2
+
+### Backend (.env Production)
+```bash
+# STRIPE CONFIGURATION (Production)
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Prix Stripe (Production)
+STRIPE_PRICE_STANDARD=price_live_standard_39_eur
+STRIPE_PRICE_PREMIUM=price_live_premium_89_eur  
+STRIPE_PRICE_ENTERPRISE=price_live_enterprise_179_eur
+
+# Base de données
+MONGODB_URI=mongodb+srv://user:pass@smartplanning.mongodb.net/smartplanning_prod
+
+# Sécurité (CRITIQUE: minimum 32 caractères)
+JWT_SECRET=your-ultra-secure-32-characters-minimum-secret-key
+NODE_ENV=production
+```
+
+### Frontend (.env.production)
+```bash
+# API Production
+VITE_API_URL=https://smartplanning.onrender.com/api
+
+# Stripe Client
+VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
+
+# Environment
+VITE_NODE_ENV=production
+```
 
 ## Prérequis Production
 

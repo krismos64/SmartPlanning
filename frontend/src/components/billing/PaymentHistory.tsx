@@ -218,8 +218,8 @@ const PaymentHistory: React.FC = () => {
                 {payment.receiptUrl && (
                   <a
                     href={payment.receiptUrl}
-                    target=\"_blank\"
-                    rel=\"noopener noreferrer\"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
                     title="Voir le reçu"
                   >

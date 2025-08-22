@@ -7,6 +7,10 @@ export type CompanyPlan = "free" | "standard" | "premium" | "enterprise";
 export interface ICompany extends Document {
   name: string;
   logoUrl?: string;
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  size?: number;
   plan: CompanyPlan;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +28,29 @@ const companySchema = new Schema<ICompany>(
     logoUrl: {
       type: String,
       default: null,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    postalCode: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function(v: string) {
+          return !v || /^\d{5}$/.test(v);
+        },
+        message: "Le code postal doit contenir 5 chiffres"
+      }
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    size: {
+      type: Number,
+      min: [1, "La taille de l'entreprise doit être au moins 1"],
+      max: [10000, "La taille de l'entreprise ne peut pas dépasser 10000"],
     },
     plan: {
       type: String,

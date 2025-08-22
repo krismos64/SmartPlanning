@@ -432,6 +432,10 @@ interface FormErrors {
   confirmPassword?: string;
   acceptTerms?: string;
   companyName?: string;
+  companyAddress?: string;
+  companyPostalCode?: string;
+  companyCity?: string;
+  companySize?: string;
   companyLogo?: string;
   profilePicture?: string;
   phone?: string;
@@ -485,6 +489,10 @@ const RegisterPage: React.FC = () => {
     confirmPassword: "",
     acceptTerms: false,
     companyName: "",
+    companyAddress: "",
+    companyPostalCode: "",
+    companyCity: "",
+    companySize: "",
     companyLogo: "",
     profilePicture: "",
     phone: "",
@@ -563,9 +571,9 @@ const RegisterPage: React.FC = () => {
       return photoUrl;
     } catch (err) {
       console.error("Erreur lors de l'upload de la photo de profil:", err);
-      showErrorToast("Impossible d'uploader la photo de profil");
+      showErrorToast("Upload photo ignoré - vous pourrez l'ajouter après inscription");
       setIsUploadingProfilePicture(false);
-      throw err;
+      return undefined; // Continuer l'inscription sans photo
     }
   };
 
@@ -579,9 +587,9 @@ const RegisterPage: React.FC = () => {
       return logoUrl;
     } catch (err) {
       console.error("Erreur lors de l'upload du logo d'entreprise:", err);
-      showErrorToast("Impossible d'uploader le logo d'entreprise");
+      showErrorToast("Upload logo ignoré - vous pourrez l'ajouter après inscription");
       setIsUploadingCompanyLogo(false);
-      throw err;
+      return undefined; // Continuer l'inscription sans logo
     }
   };
 
@@ -622,6 +630,28 @@ const RegisterPage: React.FC = () => {
       newErrors.companyName = "Le nom de l'entreprise est requis";
     } else if (formData.companyName.trim().length < 2) {
       newErrors.companyName = "Le nom de l'entreprise doit contenir au moins 2 caractères";
+    }
+    
+    if (!formData.companyAddress.trim()) {
+      newErrors.companyAddress = "L'adresse de l'entreprise est requise";
+    } else if (formData.companyAddress.trim().length < 5) {
+      newErrors.companyAddress = "L'adresse doit contenir au moins 5 caractères";
+    }
+    
+    if (!formData.companyPostalCode.trim()) {
+      newErrors.companyPostalCode = "Le code postal est requis";
+    } else if (!/^\d{5}$/.test(formData.companyPostalCode.trim())) {
+      newErrors.companyPostalCode = "Le code postal doit contenir 5 chiffres";
+    }
+    
+    if (!formData.companyCity.trim()) {
+      newErrors.companyCity = "La ville est requise";
+    } else if (formData.companyCity.trim().length < 2) {
+      newErrors.companyCity = "La ville doit contenir au moins 2 caractères";
+    }
+    
+    if (!formData.companySize) {
+      newErrors.companySize = "La taille de l'entreprise est requise";
     }
 
     if (profilePictureFile) {
@@ -696,6 +726,11 @@ const RegisterPage: React.FC = () => {
         email: formData.email,
         password: formData.password,
         companyName: formData.companyName,
+        companyAddress: `${formData.companyAddress}, ${formData.companyPostalCode} ${formData.companyCity}`.trim(),
+        companyPostalCode: formData.companyPostalCode,
+        companyCity: formData.companyCity,
+        companySize: parseInt(formData.companySize),
+        acceptTerms: formData.acceptTerms,
         companyLogo: companyLogoUrl,
         profilePicture: profilePictureUrl,
         phone: formData.phone.trim() || undefined,
@@ -705,10 +740,10 @@ const RegisterPage: React.FC = () => {
 
       console.log("Inscription réussie:", response.data);
 
-      showSuccessToast("Inscription réussie ! Redirection vers le tableau de bord...");
+      showSuccessToast("Inscription réussie ! Redirection vers le choix d'abonnement...");
 
       setTimeout(() => {
-        navigate("/tableau-de-bord");
+        navigate("/choose-plan");
       }, 1500);
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -919,6 +954,46 @@ const RegisterPage: React.FC = () => {
       .register-page input[type="tel"]:hover {
         background-color: ${isDarkMode ? 'rgba(15, 23, 42, 0.98)' : 'rgba(255, 255, 255, 0.98)'} !important;
         color: ${isDarkMode ? '#FFFFFF' : '#1E293B'} !important;
+      }
+      
+      /* Styles pour le sélecteur de taille d'entreprise */
+      .register-page .company-size-select {
+        background-color: ${isDarkMode ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)'} !important;
+        color: ${isDarkMode ? '#FFFFFF' : '#1E293B'} !important;
+        border: 2px solid ${isDarkMode ? 'rgba(71, 85, 105, 0.5)' : 'rgba(203, 213, 225, 0.8)'} !important;
+        font-family: inherit !important;
+        font-weight: 500 !important;
+        font-size: 14px !important;
+      }
+      
+      .register-page .company-size-select:focus {
+        background-color: ${isDarkMode ? 'rgba(15, 23, 42, 1)' : 'rgba(255, 255, 255, 1)'} !important;
+        color: ${isDarkMode ? '#FFFFFF' : '#1E293B'} !important;
+        border-color: ${isDarkMode ? 'rgba(99, 102, 241, 0.8)' : 'rgba(79, 70, 229, 0.8)'} !important;
+        outline: none !important;
+      }
+      
+      .register-page .company-size-select:hover {
+        background-color: ${isDarkMode ? 'rgba(15, 23, 42, 0.98)' : 'rgba(255, 255, 255, 0.98)'} !important;
+        border-color: ${isDarkMode ? 'rgba(99, 102, 241, 0.6)' : 'rgba(79, 70, 229, 0.6)'} !important;
+      }
+      
+      .register-page .company-size-select option {
+        background-color: ${isDarkMode ? '#0f172a' : '#ffffff'} !important;
+        color: ${isDarkMode ? '#FFFFFF' : '#1E293B'} !important;
+        font-family: inherit !important;
+        font-weight: 500 !important;
+      }
+      
+      /* Label pour le sélecteur de taille */
+      .register-page .company-size-label {
+        color: ${isDarkMode ? '#F8FAFC' : '#374151'} !important;
+        font-family: inherit !important;
+        font-weight: 500 !important;
+      }
+      
+      .register-page .company-size-label .text-red-500 {
+        color: #ef4444 !important;
       }
     `;
     
@@ -1185,6 +1260,90 @@ const RegisterPage: React.FC = () => {
                       required
                     />
                     {errors.companyName && <ErrorMessage>{errors.companyName}</ErrorMessage>}
+                  </FormGroup>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.45 }}
+                >
+                  <FormGroup>
+                    <InputField
+                      type="text"
+                      label="Adresse de l'entreprise"
+                      name="companyAddress"
+                      placeholder="123 Rue de l'Innovation"
+                      value={formData.companyAddress}
+                      onChange={handleChange}
+                      required
+                    />
+                    {errors.companyAddress && <ErrorMessage>{errors.companyAddress}</ErrorMessage>}
+                  </FormGroup>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.46 }}
+                >
+                  <FormRow>
+                    <FormGroup>
+                      <InputField
+                        type="text"
+                        label="Code postal"
+                        name="companyPostalCode"
+                        placeholder="75001"
+                        value={formData.companyPostalCode}
+                        onChange={handleChange}
+                        required
+                        maxLength={5}
+                      />
+                      {errors.companyPostalCode && <ErrorMessage>{errors.companyPostalCode}</ErrorMessage>}
+                    </FormGroup>
+                    <FormGroup>
+                      <InputField
+                        type="text"
+                        label="Ville"
+                        name="companyCity"
+                        placeholder="Paris"
+                        value={formData.companyCity}
+                        onChange={handleChange}
+                        required
+                      />
+                      {errors.companyCity && <ErrorMessage>{errors.companyCity}</ErrorMessage>}
+                    </FormGroup>
+                  </FormRow>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.47 }}
+                >
+                  <FormGroup>
+                    <label className="company-size-label block text-sm font-medium mb-2">
+                      Taille de l'entreprise <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="companySize"
+                      value={formData.companySize}
+                      onChange={handleChange}
+                      required
+                      className="company-size-select w-full px-4 py-3 rounded-lg transition-all duration-200"
+                    >
+                      <option value="">Sélectionnez la taille</option>
+                      <option value="5">1-5 employés</option>
+                      <option value="15">6-15 employés</option>
+                      <option value="30">16-30 employés</option>
+                      <option value="50">31-50 employés</option>
+                      <option value="100">51-100 employés</option>
+                      <option value="250">101-250 employés</option>
+                      <option value="500">251-500 employés</option>
+                      <option value="1000">501-1000 employés</option>
+                      <option value="5000">1000+ employés</option>
+                    </select>
+                    {errors.companySize && <ErrorMessage>{errors.companySize}</ErrorMessage>}
                   </FormGroup>
                 </motion.div>
 

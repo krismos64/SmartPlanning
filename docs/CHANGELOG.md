@@ -8,6 +8,55 @@ Ce changelog documente toutes les évolutions, améliorations et corrections app
 
 ---
 
+## 🚀 Version 2.2.2 (22 Août 2025) - **OPTIMISATION SAAS & INSCRIPTION**
+
+### 🎯 **Optimisation Inscription & Flow SaaS**
+
+#### ✨ **Nouvelles Fonctionnalités Inscription**
+- **📋 Adresse Structurée** : Champs séparés pour meilleure qualité données
+  - `companyAddress` : Numéro et rue (ex: "123 Avenue des Champs")
+  - `companyPostalCode` : Code postal avec validation 5 chiffres regex
+  - `companyCity` : Ville avec validation caractères spéciaux
+- **🏢 Sélecteur Taille Entreprise** : Nouveau champ obligatoire
+  - Options : 1-10, 11-50, 51-200, 201-500, 500+ employés
+  - Styling dark mode cohérent avec autres champs
+
+#### 🔄 **Flow SaaS Optimisé**
+- **Redirection Intelligente** : `Inscription → /choose-plan → Payment → Dashboard`
+  - Remplacement redirection directe vers dashboard
+  - Encouragement abonnement premium intégré
+- **Upload Gracieux** : Gestion d'erreur élégante pour photos
+  - Continuation inscription sans blocage si upload échoue
+  - Messages utilisateur informatifs et rassurants
+
+#### 🛡️ **Protections Renforcées**
+- **Validation Zod Avancée** : Champs adresse avec regex français
+- **Compatibilité Backward** : Anciennes entreprises conservent format simple
+- **Progressive Enhancement** : Nouvelles fonctionnalités optionnelles
+
+#### 🎨 **Amélioration UX**
+- **Dark Mode Uniforme** : Styling cohérent tous champs formulaire
+- **Messages Français** : Validation temps réel localisée
+- **Animations Fluides** : Transitions entre étapes optimisées
+
+### 📊 **Impact Base de Données**
+```typescript
+// Nouveau schéma Company étendu
+interface ICompany {
+  address?: string;      // Conservé pour compatibilité
+  postalCode?: string;   // NOUVEAU - Validation 5 chiffres
+  city?: string;         // NOUVEAU - Validation caractères FR
+  size?: number;         // NOUVEAU - Taille entreprise
+}
+```
+
+### 🔗 **Intégration Stripe Perfectionnée**
+- **Flow Complet** : Registration → Auth → Plan Choice → Payment
+- **Variables Configurées** : Prix 39€/89€/179€ opérationnels
+- **Webhooks Synchronisés** : Mise à jour automatique abonnements
+
+---
+
 ## 🚀 Version 2.2.1 (14 Août 2025) - **RÉVOLUTION PRODUCTION**
 
 ### 🎯 **Innovation Majeure : AdvancedSchedulingEngine**
