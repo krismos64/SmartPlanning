@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, Star } from 'lucide-react';
 import { PricingPlan, PRICING_PLANS, formatPlanPrice } from '../../config/stripe.config';
+import { useTheme } from '../../context/ThemeContext';
 
 interface PricingCardProps {
   plan: PricingPlan;
@@ -18,6 +19,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
   loading = false,
   disabled = false,
 }) => {
+  const { theme } = useTheme();
   const planInfo = PRICING_PLANS[plan];
   const isCurrentPlan = currentPlan === plan;
   const isPopular = planInfo.popular;
@@ -40,12 +42,16 @@ const PricingCard: React.FC<PricingCardProps> = ({
 
   const getButtonVariant = () => {
     if (isCurrentPlan) {
-      return 'bg-gray-100 text-gray-600 cursor-not-allowed';
+      return theme === 'dark' 
+        ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+        : 'bg-gray-100 text-gray-600 cursor-not-allowed';
     }
     if (isPopular) {
-      return 'bg-blue-600 hover:bg-blue-700 text-white';
+      return 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transform hover:scale-105';
     }
-    return 'bg-gray-900 hover:bg-gray-800 text-white';
+    return theme === 'dark'
+      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+      : 'bg-gray-900 hover:bg-gray-800 text-white';
   };
 
   return (
@@ -54,8 +60,9 @@ const PricingCard: React.FC<PricingCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className={`
-        relative bg-white rounded-2xl shadow-lg border-2 transition-all duration-300
-        ${isPopular ? 'border-blue-500 scale-105' : 'border-gray-200'}
+        relative rounded-2xl shadow-lg border-2 transition-all duration-300
+        ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}
+        ${isPopular ? 'border-blue-500 scale-105' : theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}
         ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}
         hover:shadow-xl
       `}
@@ -82,30 +89,30 @@ const PricingCard: React.FC<PricingCardProps> = ({
       <div className="p-6">
         {/* En-tête */}
         <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+          <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>
             {planInfo.name}
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
             {planInfo.description}
           </p>
           
           {/* Prix */}
           <div className="mb-6">
             <div className="flex items-baseline justify-center">
-              <span className="text-4xl font-bold text-gray-900">
+              <span className={`text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {planInfo.price}
               </span>
-              <span className="text-xl text-gray-600 ml-1">
+              <span className={`text-xl ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} ml-1`}>
                 {planInfo.currency}
               </span>
               {planInfo.price > 0 && (
-                <span className="text-gray-500 ml-1">
+                <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} ml-1`}>
                   /{planInfo.interval}
                 </span>
               )}
             </div>
             {planInfo.price === 0 && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
                 Aucun engagement
               </p>
             )}
@@ -121,7 +128,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
                   size={20} 
                   className="text-green-500 mt-0.5 flex-shrink-0" 
                 />
-                <span className="text-gray-700 text-sm">
+                <span className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-sm`}>
                   {feature}
                 </span>
               </li>
