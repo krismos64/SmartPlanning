@@ -19,7 +19,9 @@ import InputField from "../components/ui/InputField";
 import PasswordField from "../components/ui/PasswordField";
 import Toast from "../components/ui/Toast";
 import { useToast } from "../hooks/useToast";
+import { useAuth } from "../hooks/useAuth";
 import api from "../services/api";
+import axiosInstance from "../api/axiosInstance";
 
 // Animations
 const gradientShift = keyframes`
@@ -469,6 +471,7 @@ const RegisterPage: React.FC = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const { toast, showErrorToast, showSuccessToast, hideToast } = useToast();
+  const { setUser, setIsAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
   const [isUploadingCompanyLogo, setIsUploadingCompanyLogo] = useState(false);
@@ -740,6 +743,25 @@ const RegisterPage: React.FC = () => {
 
       console.log("Inscription réussie:", response.data);
 
+      // Mettre à jour le contexte d'authentification
+      if (response.data.success && response.data.user) {
+        const { user, token } = response.data;
+        
+        // Si un token est fourni, le stocker
+        if (token) {
+          localStorage.setItem('token', token);
+          axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // Mettre à jour l'état d'authentification
+        setUser({
+          ...user,
+          userId: user.id || user._id,
+          companyId: user.companyId
+        });
+        setIsAuthenticated(true);
+      }
+
       showSuccessToast("Inscription réussie ! Redirection vers le choix d'abonnement...");
 
       setTimeout(() => {
@@ -747,8 +769,16 @@ const RegisterPage: React.FC = () => {
       }, 1500);
     } catch (error: any) {
       console.error("Registration error:", error);
+      console.error("Error response data:", error.response?.data);
       if (error.response && error.response.data && error.response.data.message) {
         showErrorToast(error.response.data.message);
+      } else if (error.response && error.response.data && error.response.data.errors) {
+        // Afficher les erreurs de validation Zod
+        const errors = error.response.data.errors;
+        const errorMessage = Array.isArray(errors) 
+          ? errors.map((e: any) => e.message || e.field).join(", ")
+          : "Erreur de validation des données";
+        showErrorToast(errorMessage);
       } else {
         showErrorToast(error?.message || "Une erreur est survenue lors de l'inscription");
       }

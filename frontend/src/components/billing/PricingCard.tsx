@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, Star } from 'lucide-react';
 import { PricingPlan, PRICING_PLANS, formatPlanPrice } from '../../config/stripe.config';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 
 interface PricingCardProps {
   plan: PricingPlan;

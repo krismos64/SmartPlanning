@@ -292,11 +292,18 @@ export const createPasswordSchema = () => {
  */
 export const createPhoneSchema = () => {
   return z.string()
-    .regex(
-      /^(?:(?:\+33|0)[1-9](?:[0-9]{8}))$/,
-      "Numéro de téléphone français invalide (format: +33XXXXXXXXX ou 0XXXXXXXXX)"
+    .refine(
+      (phone) => {
+        // Nettoyer les espaces, tirets et points
+        const cleaned = phone.replace(/[\s\-\.]/g, '');
+        // Vérifier le format français
+        return /^(?:(?:\+33|0033|0)[1-9](?:[0-9]{8}))$/.test(cleaned);
+      },
+      {
+        message: "Numéro de téléphone français invalide (format: 06XXXXXXXX ou +336XXXXXXXX)"
+      }
     )
-    .transform(phone => phone.replace(/\s/g, ''));
+    .transform(phone => phone.replace(/[\s\-\.]/g, '')); // Nettoyer pour le stockage
 };
 
 export default validateRequest;

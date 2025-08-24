@@ -72,7 +72,9 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
     companyCity,
     companySize,
     acceptTerms,
-    acceptMarketing
+    acceptMarketing,
+    companyLogo,
+    profilePicture
   } = req.body;
 
   // Vérifier si l'utilisateur existe déjà
@@ -96,6 +98,7 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
     postalCode: companyPostalCode,
     city: companyCity,
     size: companySize,
+    logoUrl: companyLogo, // Ajouter le logo de l'entreprise si fourni
     createdBy: null // Sera mis à jour après création de l'utilisateur
   });
 
@@ -108,6 +111,7 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
     email,
     password, // Le hashage est géré par le middleware pre-save dans User.model.ts
     phone,
+    photoUrl: profilePicture, // Ajouter la photo de profil si fournie
     role: "directeur", // Rôle fixé en dur à "directeur"
     companyId: savedCompany._id,
     isEmailVerified: true, // On considère l'email vérifié à l'inscription

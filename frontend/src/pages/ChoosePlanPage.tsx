@@ -7,7 +7,7 @@ import { PricingPlan, PRICING_PLANS } from '../config/stripe.config';
 import { stripeService } from '../services/stripe.service';
 import { getStripe } from '../config/stripe.config';
 import toast from 'react-hot-toast';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 
 const ChoosePlanPage: React.FC = () => {
   const navigate = useNavigate();

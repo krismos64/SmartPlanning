@@ -81,7 +81,11 @@ export const registerSchema = z.object({
     }),
   
   // Consentement marketing (optionnel)
-  acceptMarketing: z.boolean().optional().default(false)
+  acceptMarketing: z.boolean().optional().default(false),
+  
+  // Images optionnelles (URLs Cloudinary)
+  companyLogo: z.string().optional(),
+  profilePicture: z.string().optional()
 });
 
 /**
