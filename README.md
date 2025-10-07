@@ -468,8 +468,8 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | ------------------------------ | ---------------------------------------------------------------------------- |
 | **Frontend**                   | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie |
 | **Backend**                    | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet                     |
-| **Cache & Performance**        | Redis 5.7+, IORedis, 28 Index MongoDB composites, Agrégation pipelines      |
-| **Base de données**            | MongoDB Atlas, Mongoose (ODM), Index ultra-optimisés                               |
+| **Cache & Performance**        | Redis 5.7+, IORedis, 28 Index MongoDB composites, Agrégation pipelines       |
+| **Base de données**            | MongoDB Atlas, Mongoose (ODM), Index ultra-optimisés                         |
 | **Intelligence artificielle**  | OpenRouter API, Gemini 2.0 Flash, Canvas-confetti pour animations            |
 | **Authentification**           | JWT hybride (cookies httpOnly + localStorage), Google OAuth 2.0, Passport.js |
 | **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                     |
@@ -488,25 +488,30 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 Documentation complète réorganisée et optimisée (14 Août 2025) :
 
 ### 🚀 **Guides Utilisateur**
+
 - **[Guide Démarrage Rapide](docs/GETTING_STARTED.md)** - Commencez en 5 minutes !
 - **[❓ FAQ](docs/FAQ.md)** - Questions fréquentes et réponses
 - **[🔧 Troubleshooting](docs/TROUBLESHOOTING.md)** - Résolution problèmes
 
-### 🤖 **Intelligence Artificielle & Planning**  
+### 🤖 **Intelligence Artificielle & Planning**
+
 - **[🎆 Planning IA](docs/PLANNING_IA.md)** - AdvancedSchedulingEngine + Wizard Ultra-Moderne
 - **[🌅 Gestion Absences](docs/ABSENCES_MANAGEMENT.md)** - 5 types d'exceptions avancées
 
-### 📊 **Architecture & Technique**  
+### 📊 **Architecture & Technique**
+
 - **[🏗️ Architecture Technique](docs/ARCHITECTURE_TECHNIQUE.md)** - Stack MERN + DB + API complet
 - **[📊 Monitoring](docs/MONITORING.md)** - Observabilité + Dashboard Zod français
 
 ### 🛠️ **Développement & Tests**
+
 - **[💻 Développement](docs/DEVELOPMENT.md)** - Setup local + optimisations
 - **[🧪 Tests](docs/TESTING.md)** - Suite complète AdvancedSchedulingEngine
 - **[🚀 Déploiement](docs/DEPLOYMENT.md)** - Production Render + Hostinger
 - **[📋 Changelog](docs/CHANGELOG.md)** - Historique versions détaillé
 
 ### 💳 **SaaS & Inscription (Nouveau v2.2.2)**
+
 - **[🚀 SaaS Complet](docs/SAAS_COMPLETE.md)** - Inscription + Flow + Stripe intégré
 - **[💰 Intégration Stripe](docs/stripe-integration.md)** - Configuration technique détaillée
 
@@ -541,8 +546,6 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
   - **Sécurité maintenue** : 15/15 tests sécurité préservés
   - **Performance optimale** : Planning Wizard 2-5ms sans Redis
   - **Monitoring actif** : OpenTelemetry et métriques disponibles
-
-### Version 2.2.0 (Optimisations Ultra-Performantes - Août 2025)
 
 - **🚀 Optimisations majeures de performance**
 
@@ -1151,11 +1154,11 @@ Pour des déploiements alternatifs, consultez le [Guide de déploiement](docs/DE
 **📊 Score global des bonnes pratiques : 9.4/10** ⬆️ (+0.2) **PRODUCTION DÉPLOYÉE**
 
 - Structure et organisation : 8/10 ✅
-- TypeScript et typage : 8/10 ✅ 
+- TypeScript et typage : 8/10 ✅
 - Sécurité : 10/10 ✅ **PARFAIT - 15/15 tests**
 - Performance : 10/10 ✅ **PARFAIT - 28 Index MongoDB + Optimisations prod**
 - Accessibilité : 9/10 ✅ **COMPLÉTÉ**
-- SEO : 9/10 ✅ 
+- SEO : 9/10 ✅
 - Tests : 8/10 ✅ **AMÉLIORÉ**
 - Documentation : 10/10 ✅ ⬆️ (+1) **PARFAIT - README mis à jour**
 - Déploiement : 10/10 ✅ ⬆️ **NOUVEAU - Production fonctionnelle**
