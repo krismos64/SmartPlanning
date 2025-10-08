@@ -53,7 +53,7 @@ SmartPlanning intègre un système de monitoring ultra-avancé basé sur OpenTel
 - `legal_compliance_rate` : Conformité légale automatique 100%
 - `planning_strategies_performance` : Performance par stratégie intelligente
 - `cache_hit_rate` : Taux succès cache Redis optimisé
-- `mongodb_query_time` : Performance requêtes <50ms (28 index)
+- `postgresql_query_time` : Performance requêtes <50ms (index optimisés)
 
 #### Système
 - `active_users` : Nombre d'utilisateurs actifs
@@ -83,7 +83,7 @@ Le dashboard ultra-moderne `/monitoring` propose 6 sections révolutionnaires :
 3. **Erreurs Zod** : Dashboard français avec graphiques interactifs
 4. **AdvancedSchedulingEngine** : Section dédiée moteur personnalisé 🆕
 5. **Alertes** : Notifications intelligentes avec seuils adaptatifs
-6. **Système** : Santé production avec métriques MongoDB Atlas
+6. **Système** : Santé production avec métriques PostgreSQL
 
 ### 📊 **Section "Erreurs Zod" - Dashboard Ultra-Moderne v2.2.1**
 
@@ -290,9 +290,9 @@ const createCompanySchema = z.object({
 
 #### Fonctions utilitaires
 ```typescript
-// Validation ObjectId MongoDB
-const createObjectIdSchema = () => 
-  z.string().regex(/^[0-9a-fA-F]{24}$/, "ID MongoDB invalide");
+// Validation UUID PostgreSQL
+const createUuidSchema = () =>
+  z.string().uuid("ID invalide");
 
 // Validation email
 const createEmailSchema = () => 
@@ -467,7 +467,7 @@ const MonitoringPage: React.FC = () => {
 | Utilisation mémoire | >60% | >80% |
 | Temps réponse API | >500ms | >1s |
 | Erreurs de validation | >50 | >100 |
-| MongoDB requêtes | >100ms | >200ms |
+| PostgreSQL requêtes | >100ms | >200ms |
 | Cache hit rate | <80% | <60% |
 
 ### Types d'alertes
@@ -633,7 +633,7 @@ router.post('/companies',
 ### Phase 2.2.1 ✅ (Production Déployée - 14 Août 2025)
 - ✅ **AdvancedSchedulingEngine monitoring** : Métriques moteur personnalisé
 - ✅ **Performance révolutionnaire** : Suivi 2-5ms génération native
-- ✅ **Monitoring MongoDB Atlas** : 28 index + requêtes <50ms
+- ✅ **Monitoring PostgreSQL** : Index optimisés + requêtes <50ms
 - ✅ **Cache Redis intelligent** : Métriques hit rate avec dégradation gracieuse
 - ✅ **Dashboard production** : Section dédiée AdvancedSchedulingEngine
 - ✅ **Métriques économiques** : Tracking économies coûts API externes
@@ -649,7 +649,7 @@ router.post('/companies',
 - Machine learning pour anomalies AdvancedSchedulingEngine
 - Prédictions intelligentes de charge planning
 - Optimisations automatiques stratégies génération
-- Rapports analytics avancés MongoDB Atlas
+- Rapports analytics avancés PostgreSQL
 
 ## 🚀 Section AdvancedSchedulingEngine - Monitoring Révolutionnaire
 
@@ -796,10 +796,10 @@ Pour toute question ou problème :
 **Production** : https://smartplanning.fr/monitoring (Dashboard accessible)
 
 **🏆 Résultats exceptionnels** :
-✅ Monitoring complet AdvancedSchedulingEngine (99.97% amélioration)  
-✅ Dashboard temps réel ultra-moderne avec 6 sections  
-✅ Métriques MongoDB Atlas optimisées (28 index)  
-✅ OpenTelemetry production avec cache intelligent  
+✅ Monitoring complet AdvancedSchedulingEngine (99.97% amélioration)
+✅ Dashboard temps réel ultra-moderne avec 6 sections
+✅ Métriques PostgreSQL optimisées (index et contraintes)
+✅ OpenTelemetry production avec cache intelligent
 ✅ Validation Zod française avec graphiques interactifs
 
 *Monitoring révolutionnaire développé par [Christophe Mostefaoui](https://christophe-dev-freelance.fr/)*

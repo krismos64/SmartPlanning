@@ -6,7 +6,7 @@
 
 - **Node.js** >= 18.0.0 (recommandé: 18.x ou 20.x LTS)
 - **npm** >= 8.0.0 ou **yarn** >= 1.22.0
-- **MongoDB** (local ou MongoDB Atlas recommandé)
+- **PostgreSQL** (local ou cloud recommandé)
 - **Git** pour le versioning
 - **Compte Google Cloud** (pour OAuth - optionnel)
 - **Compte OpenRouter** (pour l'Assistant IA Planning avec Gemini 2.0 Flash - recommandé)  
@@ -80,7 +80,7 @@ smartplanning/
 │   ├── src/
 │   │   ├── config/            # Configuration (DB, env, passport)
 │   │   ├── middlewares/       # Middlewares Express
-│   │   ├── models/            # Modèles MongoDB/Mongoose
+│   │   ├── prisma/            # Schéma Prisma et migrations
 │   │   ├── routes/            # Routes API
 │   │   ├── scripts/           # Scripts de migration/admin
 │   │   └── utils/             # Utilitaires
@@ -351,7 +351,7 @@ NODE_ENV=development npm run dev
 
 ### Backend
 
-- Indices MongoDB optimisés
+- Index PostgreSQL optimisés et contraintes relationnelles
 - Pagination des résultats
 - Cache des requêtes fréquentes
 - Compression gzip
@@ -453,7 +453,7 @@ cd frontend && npm run dev
 - **Validation légale intégrée** : Conformité automatique (11h repos, pauses)
 - **Système de fallback** : Génération alternative garantie en cas d'échec
 - **Validation Zod** : Schémas complets avec messages d'erreur français
-- **MongoDB persistence** : Sauvegarde automatique avec modèle GeneratedSchedule
+- **PostgreSQL persistence** : Sauvegarde automatique avec schéma Prisma
 
 **Développement et tests** :
 ```bash
@@ -526,10 +526,10 @@ mongosh "mongodb://localhost:27017/smartplanning"
    - Vérifier la configuration dans `backend/src/app.ts`
    - S'assurer que l'origine frontend est autorisée
 
-3. **Erreurs MongoDB**
+3. **Erreurs PostgreSQL**
 
-   - Vérifier la connexion dans `backend/src/config/db.ts`
-   - Contrôler les variables d'environnement
+   - Vérifier la connexion Prisma dans `backend/src/config/db.ts`
+   - Contrôler les variables d'environnement DATABASE_URL
 
 4. **Build frontend échoue**
    - Vérifier les variables d'environnement VITE\_\*
@@ -589,7 +589,7 @@ mongosh "mongodb://localhost:27017/smartplanning"
 **AdvancedSchedulingEngine Révolutionnaire :**
 - 🚀 **Performance native** : 2-5ms génération TypeScript (vs 15-30s IA)
 - ⚡ **Zéro dépendance** : Élimination coûts API, fiabilité 100%
-- 🏗️ **Architecture optimisée** : 28 index MongoDB + cache intelligent
+- 🏗️ **Architecture optimisée** : Index PostgreSQL optimisés + cache intelligent
 - 🔒 **Sécurité parfaite** : 15/15 tests (100% protection)
 
 **Interface Ultra-Moderne :**
@@ -614,7 +614,7 @@ npm run dev          # Frontend (terminal 2)
 
 # Tests et optimisation
 npm run test:security    # 15/15 tests sécurité ✅
-npm run optimize-database # 28 index MongoDB
+npm run optimize-database # Optimisation PostgreSQL
 npm run test:planning    # Tests AdvancedSchedulingEngine
 ```
 

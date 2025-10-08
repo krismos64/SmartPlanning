@@ -85,13 +85,13 @@ interface ICompany {
 - **Performance Bundle** : Réduction 80% (1.9MB → 389KB)
 - **Compression Production** : Gzip/Brotli niveau 6 (-70% données)
 - **Sécurité Maximale** : 15/15 tests sécurité validés (100%)
-- **MongoDB Optimisé** : 28 index composites, requêtes <50ms
+- **PostgreSQL Optimisé** : Index et contraintes optimisés, requêtes <50ms
 - **Cache Intelligent** : Désactivé production, dégradation gracieuse
 
 #### 🌐 **Déploiement Production**
 - **Frontend Hostinger** : https://smartplanning.fr (stable)
 - **Backend Render** : https://smartplanning.onrender.com (optimisé)
-- **Database MongoDB Atlas** : Cluster cloud ultra-performant
+- **Database PostgreSQL** : Base de données relationnelle ultra-performante
 - **Health Monitoring** : Surveillance 24/7 avec métriques temps réel
 
 #### 📚 **Documentation Complète**
@@ -128,7 +128,7 @@ interface ICompany {
 ### 🚀 **Refactoring Majeur**
 - **Architecture Découplée** : Frontend/Backend séparation complète
 - **TypeScript Strict** : Typage fort intégral application
-- **MongoDB Atlas** : Migration cloud avec 15 index optimisés
+- **PostgreSQL** : Base de données relationnelle avec index optimisés
 - **JWT Sécurisé** : Cookies httpOnly + refresh tokens
 
 ### ✨ **Nouvelles Fonctionnalités**
@@ -161,7 +161,7 @@ interface ICompany {
 
 ### 🐛 **Corrections Sécurité**
 - **XSS Prevention** : Sanitisation inputs renforcée
-- **SQL Injection** : Protection paramètres MongoDB
+- **SQL Injection** : Protection paramètres PostgreSQL avec Prisma
 - **Session Security** : Gestion cookies SameSite=Strict
 
 ---
@@ -224,18 +224,18 @@ interface ICompany {
 
 ### 🐛 **Corrections**
 - **Memory Management** : Optimisation garbage collection
-- **Connection Pooling** : MongoDB connexions optimisées
+- **Connection Pooling** : PostgreSQL connexions optimisées avec Prisma
 - **Error Logging** : Winston structured logging
 
 ---
 
 ## 💾 Version 1.5.0 (Janvier 2025) - **BASE DE DONNÉES**
 
-### 🗄️ **MongoDB Avancé**
-- **Aggregation Pipelines** : Requêtes analytiques optimisées
-- **Index Strategy** : 15 index composites performance
-- **Backup Automation** : Sauvegarde quotidienne Atlas
-- **Migration Scripts** : Outils migration données sécurisés
+### 🗄️ **PostgreSQL Avancé**
+- **Requêtes analytiques** : Requêtes SQL optimisées avec Prisma
+- **Index Strategy** : Index et contraintes relationnelles optimisés
+- **Backup Automation** : Sauvegarde quotidienne automatisée
+- **Migration Scripts** : Outils Prisma Migrate pour migrations sécurisées
 
 ### ✨ **Nouvelles Fonctionnalités**
 - **📊 Analytics Dashboard** : Métriques business temps réel
@@ -258,8 +258,8 @@ interface ICompany {
 - **📅 Planning Basique** : Création manuelle plannings
 - **🏢 Multi-Entreprises** : Isolation données par organisation
 
-### 🏗️ **Architecture MERN**
-- **MongoDB** : Base données NoSQL flexible
+### 🏗️ **Architecture Moderne**
+- **PostgreSQL** : Base de données relationnelle performante
 - **Express.js** : API REST robuste et sécurisée
 - **React** : Interface moderne avec hooks
 - **Node.js** : Backend JavaScript performant

@@ -2,7 +2,7 @@
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
@@ -10,7 +10,7 @@
 ![Security](https://img.shields.io/badge/Security-Audited%20%26%20Enhanced-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-15%2F15%20Pass-brightgreen?style=flat-square)
 ![Cache](https://img.shields.io/badge/Cache-Production%20Ready-red?style=flat-square)
-![Database](https://img.shields.io/badge/MongoDB-28%20Indexes-green?style=flat-square)
+![Database](https://img.shields.io/badge/PostgreSQL-Optimized%20Indexes-green?style=flat-square)
 ![Performance](https://img.shields.io/badge/Performance-Ultra%20Fast-brightgreen?style=flat-square)
 ![E2E Tests](https://img.shields.io/badge/E2E%20Tests-Cypress-brightgreen?style=flat-square)
 ![Code Coverage](https://img.shields.io/badge/Code%20Coverage-79.76%25-brightgreen?style=flat-square)
@@ -42,7 +42,7 @@ Notre plateforme a été **révolutionnée** avec des optimisations de pointe po
 - ✅ **Code-splitting avancé** : 70+ chunks avec lazy loading intelligent
 - ✅ **Compression gzip/brotli** : -70% de données transférées
 - ✅ **Cache production désactivé** : Dégradation gracieuse, base optimisée
-- ✅ **28 Index MongoDB** : Requêtes ultra-rapides <100ms
+- ✅ **Index PostgreSQL optimisés** : Requêtes ultra-rapides <100ms
 - ✅ **AdvancedSchedulingEngine** : Génération native 2-5ms (99.97% plus rapide)
 - ✅ **Rate limiting DoS** : Protection 100 req/15min par IP
 - ✅ **Sécurité renforcée** : 15/15 tests sécurité, SameSite=Strict
@@ -120,7 +120,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 **Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN  
 **Statut déploiement** : ✅ **Production déployée** - Backend sur Render + Frontend sur Hostinger  
 **Sécurité** : ✅ **Sécurité renforcée** - 15/15 tests de sécurité réussis (100% de couverture)  
-**Performance** : ✅ **Ultra-optimisé** - Cache désactivé en prod + 28 index MongoDB + Planning 2-5ms  
+**Performance** : ✅ **Ultra-optimisé** - Cache désactivé en prod + Index PostgreSQL optimisés + Planning 2-5ms  
 **Génération de planning** : ✅ **Assistant IA complet** - Wizard 7 étapes avec génération rapide  
 **Déploiement** : ✅ **Succès complet** - API fonctionnelle et accessible en production
 
@@ -130,7 +130,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 - Structure complète du projet (frontend/backend)
 - Configuration TypeScript
-- Configuration de MongoDB avec Mongoose
+- Configuration de PostgreSQL avec Prisma
 - Système de routes API Express
 
 ✅ **Architecture API et communication frontend-backend**
@@ -266,7 +266,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
   - Schémas d'authentification : registration, login, password reset
   - Schémas d'entreprise : création, modification, validation SIRET
   - Schémas d'employé : compétences, horaires, disponibilités
-  - Validation des ObjectId MongoDB et types personnalisés
+  - Validation des types PostgreSQL et types personnalisés
 - **Dashboard de monitoring des erreurs**
   - Section "Erreurs Zod" dans le dashboard de monitoring
   - Métriques temps réel par route : body, params, query errors
@@ -285,10 +285,10 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 - **✨ Design glassmorphism** : Effets de verre avec transparences et backdrop-blur
 - **🎨 Animations avancées** : Framer Motion avec particules flottantes et micro-interactions
 - **🔄 Cache Redis intelligent** : Plannings cachés 24h, +21% amélioration performance
-- **⚡ Génération ultra-rapide** : 2-5ms avec 28 index MongoDB optimisés
+- **⚡ Génération ultra-rapide** : 2-5ms avec index PostgreSQL optimisés
 - **🔒 Sécurité renforcée** : 15/15 tests sécurité, SameSite=Strict, validation stricte
 - **📊 Analytics temps réel** : Monitoring performance et métriques d'utilisation
-- **🎉 Intégration backend complète** : API optimisée avec cache et agrégation MongoDB
+- **🎉 Intégration backend complète** : API optimisée avec cache et requêtes PostgreSQL
 - **❌ Gestion des absences** : Système complet de gestion des absences exceptionnelles
 - **📅 Absences multiples** : Support de plusieurs absences par employé avec types variés
 
@@ -446,7 +446,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
   - Suite de 15 tests de sécurité automatisés (14/15 réussis)
   - Tests d'authentification, autorisation et protection des cookies
   - Tests de protection contre XSS, injection NoSQL et attaques CSRF
-  - Infrastructure de test avec MongoDB Memory Server
+  - Infrastructure de test avec PostgreSQL test database
   - Documentation CI/CD pour intégration continue des tests sécuritaires
 
 **Fonctionnalités précédentes**
@@ -468,13 +468,13 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | ------------------------------ | ---------------------------------------------------------------------------- |
 | **Frontend**                   | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie |
 | **Backend**                    | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet                     |
-| **Cache & Performance**        | Redis 5.7+, IORedis, 28 Index MongoDB composites, Agrégation pipelines       |
-| **Base de données**            | MongoDB Atlas, Mongoose (ODM), Index ultra-optimisés                         |
+| **Cache & Performance**        | Redis 5.7+, IORedis, Index PostgreSQL optimisés, Requêtes efficientes       |
+| **Base de données**            | PostgreSQL, Prisma (ORM), Index ultra-optimisés                         |
 | **Intelligence artificielle**  | OpenRouter API, Gemini 2.0 Flash, Canvas-confetti pour animations            |
 | **Authentification**           | JWT hybride (cookies httpOnly + localStorage), Google OAuth 2.0, Passport.js |
 | **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                     |
-| **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), MongoDB Atlas                |
-| **Tests et sécurité**          | Jest, Cypress, Supertest, MongoDB Memory Server, Tests de sécurité (14/15)   |
+| **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), PostgreSQL Cloud                |
+| **Tests et sécurité**          | Jest, Cypress, Supertest, PostgreSQL test database, Tests de sécurité (14/15)   |
 | **Performance**                | Code-splitting Vite, Lazy loading, Compression gzip/brotli (-70%)            |
 | **Monitoring & Observabilité** | OpenTelemetry, Métriques temps réel, Alertes intelligentes, Dashboards admin |
 | **Validation des données**     | Zod, Middleware de validation, Messages d'erreur français, Monitoring        |
@@ -523,7 +523,7 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
 
   - **Backend déployé sur Render** : API accessible à https://smartplanning.onrender.com
   - **Frontend déployé sur Hostinger** : Application accessible à https://smartplanning.fr
-  - **Base de données MongoDB Atlas** : Cluster cloud configuré et opérationnel
+  - **Base de données PostgreSQL Cloud** : Cluster cloud configuré et opérationnel
   - **Configuration cross-origin** : Communication frontend/backend optimisée
 
 - **🔧 Corrections de déploiement**
@@ -542,7 +542,7 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
 
 - **📊 État de déploiement**
 
-  - **API fonctionnelle** : Réponse en < 1s, MongoDB connectée
+  - **API fonctionnelle** : Réponse en < 1s, PostgreSQL connectée
   - **Sécurité maintenue** : 15/15 tests sécurité préservés
   - **Performance optimale** : Planning Wizard 2-5ms sans Redis
   - **Monitoring actif** : OpenTelemetry et métriques disponibles
@@ -551,9 +551,9 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
 
   - **Cache Redis intelligent** : Implémentation d'un système de cache Redis avec TTL adapté
   - **Amélioration 21%** : Réduction temps de réponse Planning Wizard (42ms → 33ms)
-  - **28 index MongoDB** : Création automatique d'index composites optimisés
+  - **Index PostgreSQL optimisés** : Création automatique d'index composites optimisés
   - **Requêtes <100ms** : Performances exceptionnelles sur toutes les opérations DB
-  - **Agrégation intelligente** : Pipelines MongoDB optimisés pour analytics
+  - **Requêtes efficientes** : Queries PostgreSQL optimisées pour analytics
 
 - **🔒 Sécurité renforcée (15/15 tests)**
 
@@ -583,7 +583,7 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
   - **Service cache centralisé** : `cache.service.ts` avec gestion d'erreurs
   - **Middleware cache** : Intégration automatique dans les routes API
   - **Agrégation service** : Pipelines optimisés pour statistiques complexes
-  - **Script optimisation** : Création automatique des index MongoDB
+  - **Script optimisation** : Création automatique des index PostgreSQL
   - **Tests E2E** : Suite Cypress pour validation des optimisations
 
 ## Changelog
@@ -816,7 +816,7 @@ Documentation complète réorganisée et optimisée (14 Août 2025) :
 
   - **Infrastructure de test robuste**
 
-    - Configuration Jest avec TypeScript et MongoDB Memory Server
+    - Configuration Jest avec TypeScript et PostgreSQL test database
     - Environnement de test isolé avec setup/teardown automatique
     - Variables d'environnement dédiées aux tests
 
@@ -963,7 +963,7 @@ Créez un fichier `.env` dans le dossier `backend` avec les variables suivantes 
 
 ```bash
 # Base de données
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/smartplanning
+DATABASE_URL=postgresql://username:password@host:5432/smartplanning?schema=public
 
 # Authentification JWT
 JWT_SECRET=votre_secret_jwt_très_sécurisé_minimum_32_caractères
@@ -1117,7 +1117,7 @@ L'application SmartPlanning est déployée en production :
 
 - **Frontend** : Déployé sur Hostinger à l'adresse [https://smartplanning.fr](https://smartplanning.fr)
 - **Backend** : Déployé sur Render à l'adresse [https://smartplanning.onrender.com](https://smartplanning.onrender.com)
-- **Base de données** : MongoDB Atlas (cluster cloud)
+- **Base de données** : PostgreSQL Cloud (cluster cloud)
 
 ### Autres options de déploiement
 
@@ -1156,7 +1156,7 @@ Pour des déploiements alternatifs, consultez le [Guide de déploiement](docs/DE
 - Structure et organisation : 8/10 ✅
 - TypeScript et typage : 8/10 ✅
 - Sécurité : 10/10 ✅ **PARFAIT - 15/15 tests**
-- Performance : 10/10 ✅ **PARFAIT - 28 Index MongoDB + Optimisations prod**
+- Performance : 10/10 ✅ **PARFAIT - Index PostgreSQL optimisés + Optimisations prod**
 - Accessibilité : 9/10 ✅ **COMPLÉTÉ**
 - SEO : 9/10 ✅
 - Tests : 8/10 ✅ **AMÉLIORÉ**

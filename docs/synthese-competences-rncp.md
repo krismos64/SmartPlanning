@@ -118,11 +118,11 @@ frontend/src/pages/
 **✅ Compétence validée**
 
 **Preuves** :
-- MongoDB Atlas avec 14 collections
-- Schémas Mongoose avec validation stricte
-- Relations bidirectionnelles (refs + virtuals)
-- 28 index composites pour performances
-- Scripts de migration et seed data
+- PostgreSQL avec 14 tables relationnelles
+- Schéma Prisma avec validation stricte
+- Relations bidirectionnelles avec clés étrangères
+- Index et contraintes optimisés pour performances
+- Scripts de migration Prisma et seed data
 
 **Modèles de données** :
 ```
@@ -153,10 +153,10 @@ backend/src/models/
 **✅ Compétence validée**
 
 **Preuves** :
-- Mongoose ODM avec TypeScript
+- Prisma ORM avec TypeScript
 - Middleware de validation Zod
-- Transactions MongoDB pour opérations critiques
-- Connection pooling optimisé
+- Transactions PostgreSQL pour opérations critiques
+- Connection pooling optimisé avec Prisma
 - Scripts de maintenance (18+ scripts utilitaires)
 
 **Scripts d'administration** :
@@ -183,7 +183,7 @@ npm run migrate             # Migrations
 
 **Architecture en couches** :
 ```
-Routes → Controllers → Services → Models → MongoDB
+Routes → Controllers → Services → Prisma → PostgreSQL
          ↓
     Middlewares (auth, validation, rate-limit)
 ```
@@ -309,7 +309,7 @@ POST /api/stripe/create-checkout-session
 - Modélisation conceptuelle (MCD)
 - Schémas logiques avec relations complexes
 - Normalisation 3NF
-- 14 collections MongoDB interconnectées
+- 14 tables PostgreSQL interconnectées
 - Diagrammes UML de la base de données
 
 **Relations principales** :
@@ -337,8 +337,8 @@ Subscription (1) ←→ (N) Payments
 **✅ Compétence validée**
 
 **Preuves** :
-- MongoDB Atlas production (cluster M10)
-- Réplication 3 nœuds pour haute disponibilité
+- PostgreSQL production avec haute disponibilité
+- Réplication pour haute disponibilité
 - Backup automatiques quotidiennes
 - Point-in-time recovery activé
 - Monitoring Prometheus + Grafana
@@ -366,11 +366,11 @@ Monitoring: Datadog + Atlas metrics
 **✅ Compétence validée**
 
 **Preuves** :
-- Aggregation pipelines MongoDB complexes
-- Triggers pour synchronisation automatique
+- Requêtes SQL complexes avec Prisma
+- Triggers PostgreSQL pour synchronisation automatique
 - Fonctions de validation custom
-- Procédures stockées (via Mongoose middleware)
-- Requêtes optimisées avec explain()
+- Procédures stockées PostgreSQL
+- Requêtes optimisées avec EXPLAIN ANALYZE
 
 **Exemple d'aggregation pipeline** :
 ```typescript
@@ -392,13 +392,17 @@ const stats = await Employee.aggregate([
 ]);
 ```
 
-**Middleware Mongoose** :
-```typescript
-// Cascade deletion automatique
-employeeSchema.pre('remove', async function() {
-  await WeeklySchedule.deleteMany({ employee: this._id });
-  await VacationRequest.deleteMany({ employee: this._id });
-});
+**Triggers PostgreSQL** :
+```sql
+-- Cascade deletion automatique
+CREATE OR REPLACE FUNCTION delete_employee_data()
+RETURNS TRIGGER AS $$
+BEGIN
+  DELETE FROM weekly_schedules WHERE employee_id = OLD.id;
+  DELETE FROM vacation_requests WHERE employee_id = OLD.id;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 **Document Confluence** : BC13 - Programmation Base de Données
@@ -455,7 +459,7 @@ SmartPlanning démontre une **maîtrise complète des 13 compétences** du titre
 
 1. **Bloc 1 (Frontend)** : Application React moderne, accessible, performante avec e-commerce Stripe
 2. **Bloc 2 (Backend)** : API REST robuste, architecture modulaire, gestion projet professionnelle
-3. **Bloc 3 (BDD)** : Modélisation complexe, optimisations avancées, production MongoDB Atlas
+3. **Bloc 3 (BDD)** : Modélisation complexe, optimisations avancées, production PostgreSQL
 
 ### Innovation et Valeur Ajoutée
 - **Algorithme propriétaire** 99.97% plus rapide que solutions du marché

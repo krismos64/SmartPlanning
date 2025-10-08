@@ -14,7 +14,7 @@ SmartPlanning utilise une architecture découplée ultra-performante avec intég
 
 #### Backend
 - [ ] Variables d'environnement Stripe configurées (production)
-- [ ] MongoDB compatible avec nouveaux champs Company (`postalCode`, `city`, `size`)
+- [ ] PostgreSQL compatible avec nouveaux champs Company (`postalCode`, `city`, `size`)
 - [ ] JWT_SECRET minimum 32 caractères configuré
 - [ ] Tests de sécurité passés (15/15)
 - [ ] Endpoints Stripe testés et validés
@@ -27,7 +27,7 @@ SmartPlanning utilise une architecture découplée ultra-performante avec intég
 
 #### Base de Données
 - [ ] Nouveaux champs Company ajoutés avec backward compatibility
-- [ ] Index MongoDB optimisés (28 index composites)
+- [ ] Index PostgreSQL optimisés et contraintes relationnelles
 - [ ] Données de test nettoyées
 
 ### 🚀 Innovation majeure AdvancedSchedulingEngine
@@ -36,7 +36,7 @@ SmartPlanning utilise une architecture découplée ultra-performante avec intég
 
 - **Backend** : Render ([https://smartplanning.onrender.com](https://smartplanning.onrender.com)) - API ultra-optimisée
 - **Frontend** : Hostinger ([https://smartplanning.fr](https://smartplanning.fr)) - Interface moderne
-- **Base de données** : MongoDB Atlas (28 index composites ultra-optimisés)
+- **Base de données** : PostgreSQL (index optimisés et contraintes relationnelles)
 - **Performance** : Bundle -80%, compression -70%, génération plannings 2-5ms
 
 ## 🔧 Variables d'Environnement v2.2.2
@@ -54,7 +54,7 @@ STRIPE_PRICE_PREMIUM=price_live_premium_89_eur
 STRIPE_PRICE_ENTERPRISE=price_live_enterprise_179_eur
 
 # Base de données
-MONGODB_URI=mongodb+srv://user:pass@smartplanning.mongodb.net/smartplanning_prod
+DATABASE_URL=postgresql://user:password@host:5432/smartplanning_prod?schema=public
 
 # Sécurité (CRITIQUE: minimum 32 caractères)
 JWT_SECRET=your-ultra-secure-32-characters-minimum-secret-key
@@ -76,7 +76,7 @@ VITE_NODE_ENV=production
 ## Prérequis Production
 
 - **Node.js** >= 18.0.0 (Backend Render)
-- **MongoDB Atlas** : Cluster cloud avec 28 index optimisés
+- **PostgreSQL** : Base de données relationnelle avec index optimisés
 - **Comptes déployement** : Render (API) + Hostinger (Frontend)
 - **Variables d'environnement** : Production configurées et sécurisées
 - **AdvancedSchedulingEngine** : Moteur personnalisé intégré (aucune API externe requise)
@@ -88,7 +88,7 @@ VITE_NODE_ENV=production
 
 ```env
 # Base de données
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/smartplanning
+DATABASE_URL=postgresql://username:password@host:5432/smartplanning?schema=public
 
 # Authentification
 JWT_SECRET=votre_secret_jwt_très_sécurisé
@@ -178,13 +178,13 @@ VITE_CODE_SPLITTING=true
 4. **Configuration des variables d'environnement sur Render**
    - Configurer toutes les variables listées dans la section Variables d'environnement
    - **IMPORTANT** : Utiliser NODE_ENV=production
-   - Configurer MONGODB_URI avec votre cluster MongoDB Atlas
+   - Configurer DATABASE_URL avec votre base de données PostgreSQL
    - Ajouter les domaines autorisés pour CORS (smartplanning.fr)
 
 5. **Optimisations performance révolutionnaires (v2.2.1)**
    - **AdvancedSchedulingEngine** : Génération native 2-5ms (99.97% plus rapide)
    - **Compression ultra-optimisée** : gzip/brotli niveau 6, -70% données transférées
-   - **MongoDB Atlas optimisé** : 28 index composites, requêtes <50ms
+   - **PostgreSQL optimisé** : Index et contraintes optimisés, requêtes <50ms
    - **Cache intelligent adaptatif** : Redis désactivé prod, dégradation gracieuse
    - **Rate limiting avancé** : 100 req/15min, exemptions intelligentes
    - **Headers sécurité** : Helmet + CORS strict smartplanning.fr
@@ -265,11 +265,11 @@ cd backend && npm run cleanup-orphaned
 ### Sauvegarde
 
 ```bash
-# Export MongoDB
-mongodump --uri="votre_mongodb_uri" --out=backup/
+# Export PostgreSQL
+pg_dump postgresql://username:password@host:5432/smartplanning > backup.sql
 
-# Import MongoDB
-mongorestore --uri="votre_mongodb_uri" backup/
+# Import PostgreSQL
+psql postgresql://username:password@host:5432/smartplanning < backup.sql
 ```
 
 ## Monitoring
@@ -286,7 +286,7 @@ mongorestore --uri="votre_mongodb_uri" backup/
 - **Uptime** : 99.9% disponibilité (Render monitoring)
 - **Performance API** : <1s réponse moyenne
 - **Planning génération** : 2-5ms constantes
-- **Base de données** : <50ms requêtes MongoDB Atlas
+- **Base de données** : <50ms requêtes PostgreSQL
 - **Bundle frontend** : 389KB optimisé (-80%)
 - **Compression** : -70% données transférées
 
@@ -299,10 +299,10 @@ mongorestore --uri="votre_mongodb_uri" backup/
    - Vérifier la configuration des origins autorisées
    - S'assurer que FRONTEND_URL correspond au domaine de production
 
-2. **MongoDB Connection**
+2. **PostgreSQL Connection**
 
-   - Vérifier MONGODB_URI
-   - Contrôler les IP autorisées dans MongoDB Atlas
+   - Vérifier DATABASE_URL
+   - Contrôler les paramètres de connexion et certificats SSL
 
 3. **Build Frontend**
    - Vérifier les variables d'environnement VITE\_\*
@@ -344,7 +344,7 @@ En cas de problème :
 - **Rate limiting** : Protection contre les attaques par déni de service
 - **Headers** : Sécurité renforcée avec Helmet.js
 - **Authentification** : Support OAuth Google + authentification locale
-- **Base de données** : Connexions chiffrées vers MongoDB Atlas
+- **Base de données** : Connexions chiffrées vers PostgreSQL avec SSL
 
 ### Tests de sécurité
 
@@ -395,9 +395,9 @@ npm run test:security
 
 **Architecture Production :**
 - 📦 **Bundle optimisé** : 389KB (-80% réduction)
-- 🗜️ **Compression** : -70% données transférées  
+- 🗜️ **Compression** : -70% données transférées
 - 🏃‍♂️ **API réponse** : <1s moyenne
-- 💾 **Base données** : <50ms requêtes MongoDB Atlas
+- 💾 **Base données** : <50ms requêtes PostgreSQL
 - 🔒 **Sécurité** : 15/15 tests (100% protection)
 
 ### URLs Production Stables

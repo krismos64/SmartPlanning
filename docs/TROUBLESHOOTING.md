@@ -31,7 +31,7 @@ Ce guide vous aide à résoudre les problèmes courants rencontrés avec SmartPl
 3. **Vérifier status services** :
    - **Render** : Dashboard services backend
    - **Hostinger** : Panel hébergement frontend
-   - **MongoDB Atlas** : Cluster database status
+   - **PostgreSQL** : Base de données status
 
 **Escalade** : Si problème persiste > 5 minutes, contacter [Christophe Mostefaoui](https://christophe-dev-freelance.fr/)
 
@@ -221,24 +221,24 @@ const optimizePayload = (data) => {
 
 ## 🗄️ Problèmes Base de Données
 
-### 💾 MongoDB erreurs connexion
+### 💾 PostgreSQL erreurs connexion
 
 **Symptômes** : Erreurs 500, données non sauvegardées
 
-**Diagnostics MongoDB Atlas** :
-1. **Connexion cluster** :
+**Diagnostics PostgreSQL** :
+1. **Connexion base de données** :
    ```javascript
-   // Test connexion depuis backend
-   const { MongoClient } = require('mongodb');
-   
+   // Test connexion depuis backend avec Prisma
+   const { PrismaClient } = require('@prisma/client');
+
    async function testConnection() {
      try {
-       const client = new MongoClient(process.env.MONGODB_URI);
-       await client.connect();
-       console.log('✅ MongoDB connecté');
-       await client.close();
+       const prisma = new PrismaClient();
+       await prisma.$connect();
+       console.log('✅ PostgreSQL connecté');
+       await prisma.$disconnect();
      } catch (error) {
-       console.error('❌ MongoDB erreur:', error.message);
+       console.error('❌ PostgreSQL erreur:', error.message);
      }
    }
    ```
@@ -251,8 +251,8 @@ const optimizePayload = (data) => {
 **Symptômes** : Réponses API > 2 secondes
 
 **Solutions optimisation** :
-1. **Index MongoDB** : Vérifier 28 index actifs
-2. **Requêtes complexes** : Analyser explain plans
+1. **Index PostgreSQL** : Vérifier index actifs et contraintes
+2. **Requêtes complexes** : Analyser plans avec EXPLAIN ANALYZE
 3. **Cache invalidé** : Bien que désactivé prod, vérifier TTL
 
 ---
@@ -268,7 +268,7 @@ const optimizePayload = (data) => {
 # Obligatoires production
 NODE_ENV=production
 PORT=5050
-MONGODB_URI=mongodb+srv://...
+DATABASE_URL=postgresql://username:password@host:5432/smartplanning?schema=public
 JWT_SECRET=32+_caractères_minimum
 
 # Optionnelles mais recommandées
@@ -279,7 +279,7 @@ CLOUDINARY_CLOUD_NAME=...
 **Validation** :
 ```javascript
 // Script validation environnement
-const requiredVars = ['NODE_ENV', 'PORT', 'MONGODB_URI', 'JWT_SECRET'];
+const requiredVars = ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_SECRET'];
 const missing = requiredVars.filter(var => !process.env[var]);
 
 if (missing.length > 0) {
@@ -326,8 +326,8 @@ echo "AdvancedSchedulingEngine:"
 curl -s -X POST https://smartplanning.onrender.com/api/autoGenerate/health \
   -H "Content-Type: application/json" | jq .
 
-# 4. Test MongoDB (nécessite auth)
-echo "Base données: (Vérifier Atlas Dashboard)"
+# 4. Test PostgreSQL (nécessite auth)
+echo "Base données: (Vérifier connexion PostgreSQL)"
 ```
 
 ### 🕵️ Logs Production
@@ -335,7 +335,7 @@ echo "Base données: (Vérifier Atlas Dashboard)"
 **Localisation logs** :
 1. **Render Backend** : Dashboard → Logs en temps réel
 2. **Frontend** : Console navigateur (F12)
-3. **MongoDB** : Atlas Dashboard → Monitoring
+3. **PostgreSQL** : Dashboard connexion → Monitoring
 
 **Niveaux logs critiques** :
 ```
@@ -413,7 +413,7 @@ Logs:
 1. **Logs monitoring** : Vérification quotidienne alertes
 2. **Performance baseline** : Comparaison métriques mensuelles
 3. **Security updates** : Suivi notifications sécurité
-4. **Backup verification** : Test restauration MongoDB
+4. **Backup verification** : Test restauration PostgreSQL
 
 ---
 

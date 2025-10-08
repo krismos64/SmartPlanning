@@ -162,7 +162,7 @@ SmartPlanning propose une **gestion multi-équipes native** :
 ### Le cache est-il activé en production ?
 
 **Cache intelligent désactivé** en production pour stabilité maximale avec **dégradation gracieuse** :
-- **Base optimisée** : 28 index MongoDB composites (<50ms requêtes)
+- **Base optimisée** : Index PostgreSQL et contraintes optimisés (<50ms requêtes)
 - **Bundle optimisé** : 389KB (-80% réduction) avec lazy loading
 - **Compression** : Gzip/Brotli niveau 6 (-70% données)
 
@@ -176,7 +176,7 @@ SmartPlanning propose une **gestion multi-équipes native** :
 ```bash
 NODE_ENV=production
 PORT=5050
-MONGODB_URI=mongodb+srv://...
+DATABASE_URL=postgresql://username:password@host:5432/smartplanning?schema=public
 JWT_SECRET=32+_caractères_minimum
 # AdvancedSchedulingEngine : Plus d'API externe requise !
 ```
@@ -191,8 +191,8 @@ VITE_GOOGLE_CLIENT_ID=votre_id_client
 
 **Architecture production déployée** :
 - **Backend** : Render (https://smartplanning.onrender.com)
-- **Frontend** : Hostinger (https://smartplanning.fr)  
-- **Base données** : MongoDB Atlas cloud
+- **Frontend** : Hostinger (https://smartplanning.fr)
+- **Base données** : PostgreSQL cloud
 - **Déploiement** : Automatique depuis GitHub (branche main)
 
 ---

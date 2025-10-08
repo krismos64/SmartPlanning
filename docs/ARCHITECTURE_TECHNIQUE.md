@@ -2,7 +2,7 @@
 
 ## 🎯 Vue d'ensemble
 
-SmartPlanning utilise une architecture MERN (MongoDB, Express, React, Node.js) découplée ultra-performante avec des optimisations de pointe pour les performances et la sécurité.
+SmartPlanning utilise une architecture moderne (PostgreSQL, Express, React, Node.js) découplée ultra-performante avec des optimisations de pointe pour les performances et la sécurité.
 
 **Version :** 2.2.2 SaaS Optimisé  
 **Innovation :** AdvancedSchedulingEngine personnalisé + Intégration Stripe complète
@@ -17,14 +17,14 @@ Frontend (React 18 + TypeScript)
 ├── Bundle optimisé : 1.9MB → 389KB (-80%)
 └── Code-splitting : 70+ chunks lazy loading
 
-Backend (Node.js 18 + TypeScript)  
+Backend (Node.js 18 + TypeScript)
 ├── Express.js + TypeScript strict
-├── MongoDB Atlas + Mongoose ODM
+├── PostgreSQL + Prisma ORM
 ├── JWT sécurisé + cookies httpOnly
 └── AdvancedSchedulingEngine personnalisé
 
-Database (MongoDB Atlas)
-├── 28 index composites optimisés
+Database (PostgreSQL)
+├── Index optimisés et contraintes relationnelles
 ├── Requêtes <100ms garanties
 ├── Cascade deletion automatique
 └── Intégrité référentielle complète
@@ -33,10 +33,10 @@ Database (MongoDB Atlas)
 ### Déploiement Production
 - **Frontend** : [smartplanning.fr](https://smartplanning.fr) (Hostinger)
 - **Backend** : [smartplanning.onrender.com](https://smartplanning.onrender.com) (Render)  
-- **Database** : MongoDB Atlas (cluster cloud)
+- **Database** : PostgreSQL (cluster cloud)
 - **Performance** : Compression gzip/brotli niveau 6 (-70%)
 
-## 📊 Base de Données - MongoDB
+## 📊 Base de Données - PostgreSQL
 
 ### Modèles Principaux
 
@@ -141,19 +141,19 @@ interface IWeeklySchedule extends Document {
 }
 ```
 
-### Index MongoDB Optimisés (28 index)
+### Index PostgreSQL Optimisés
 
 #### Index Composites Critiques
-```javascript
-// Performance requêtes fréquentes
-db.users.createIndex({ "companyId": 1, "role": 1, "isActive": 1 });
-db.employees.createIndex({ "companyId": 1, "teamId": 1 });
-db.weeklySchedules.createIndex({ "employeeId": 1, "weekStartDate": -1 });
-db.subscriptions.createIndex({ "companyId": 1, "status": 1 });
+```sql
+-- Performance requêtes fréquentes
+CREATE INDEX idx_users_company_role_active ON users(company_id, role, is_active);
+CREATE INDEX idx_employees_company_team ON employees(company_id, team_id);
+CREATE INDEX idx_weekly_schedules_employee_date ON weekly_schedules(employee_id, week_start_date DESC);
+CREATE INDEX idx_subscriptions_company_status ON subscriptions(company_id, status);
 
-// Unicité métier
-db.companies.createIndex({ "name": 1 }, { unique: true });
-db.users.createIndex({ "email": 1 }, { unique: true });
+-- Contraintes d'unicité métier
+CREATE UNIQUE INDEX idx_companies_name_unique ON companies(name);
+CREATE UNIQUE INDEX idx_users_email_unique ON users(email);
 ```
 
 #### Performance Garantie
