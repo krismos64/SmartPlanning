@@ -5,14 +5,18 @@
  * les plannings générés automatiquement.
  */
 import express, { Response } from "express";
-import mongoose from "mongoose";
+import prisma from "../config/prisma";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
-import GeneratedScheduleModel, {
-  ScheduleData,
-} from "../models/GeneratedSchedule.model";
 
 // Création du router
 const router = express.Router();
+
+/**
+ * Interface pour les données de planning (JSONB)
+ */
+interface ScheduleData {
+  [key: string]: any;
+}
 
 /**
  * Interface pour les requêtes de mise à jour de planning
@@ -36,7 +40,8 @@ router.put(
       const scheduleId = req.params.id;
 
       // Vérification de la validité de l'ID
-      if (!mongoose.Types.ObjectId.isValid(scheduleId)) {
+      const scheduleIdNum = parseInt(scheduleId, 10);
+      if (isNaN(scheduleIdNum)) {
         return res.status(400).json({
           success: false,
           message: "ID de planning invalide",
@@ -63,7 +68,9 @@ router.put(
       }
 
       // Recherche du planning à mettre à jour
-      const schedule = await GeneratedScheduleModel.findById(scheduleId);
+      const schedule = await prisma.generatedSchedule.findUnique({
+        where: { id: scheduleIdNum }
+      });
 
       // Vérification que le planning existe
       if (!schedule) {
@@ -94,24 +101,28 @@ router.put(
           }
 
           // Mise à jour des données du planning
-          schedule.scheduleData = scheduleData;
-          await schedule.save();
+          const updatedSchedule = await prisma.generatedSchedule.update({
+            where: { id: scheduleIdNum },
+            data: { schedule: scheduleData as any }
+          });
 
           return res.status(200).json({
             success: true,
             message: "Planning mis à jour avec succès",
-            data: schedule,
+            data: updatedSchedule,
           });
 
         case "reject":
           // Mise à jour du statut du planning à "rejected"
-          schedule.status = "rejected" as any;
-          await schedule.save();
+          const rejectedSchedule = await prisma.generatedSchedule.update({
+            where: { id: scheduleIdNum },
+            data: { status: "rejected" }
+          });
 
           return res.status(200).json({
             success: true,
             message: "Planning rejeté avec succès",
-            data: schedule,
+            data: rejectedSchedule,
           });
 
         default:

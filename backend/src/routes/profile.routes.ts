@@ -4,7 +4,7 @@
  * sans vérification de rôle (uniquement authentification)
  */
 import { Response, Router } from "express";
-import User from "../models/User.model";
+import prisma from "../config/prisma";
 import authMiddleware, { AuthRequest } from "../middlewares/auth.middleware";
 import { notifyProfileUpdate } from "../services/userSyncService";
 
@@ -35,22 +35,38 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
       });
     }
 
+    const userIdNum = parseInt(userId, 10);
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID utilisateur invalide",
+      });
+    }
+
     // Extraire uniquement les champs modifiables
     const { firstName, lastName, email, photoUrl } = req.body;
 
+    // Préparer les données de mise à jour
+    const updateData: any = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (email !== undefined) updateData.email = email;
+    if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+
     // Mettre à jour les informations de l'utilisateur
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          ...(firstName !== undefined && { firstName }),
-          ...(lastName !== undefined && { lastName }),
-          ...(email !== undefined && { email }),
-          ...(photoUrl !== undefined && { photoUrl }),
-        },
+    const updatedUser = await prisma.user.update({
+      where: { id: userIdNum },
+      data: updateData,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        photoUrl: true,
+        role: true,
+        profileCompleted: true,
       },
-      { new: true, runValidators: true }
-    );
+    });
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -61,8 +77,10 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
 
     // Vérifier si le profil est maintenant complet et mettre à jour profileCompleted
     if (updatedUser.firstName && updatedUser.lastName && updatedUser.email && updatedUser.photoUrl) {
-      updatedUser.profileCompleted = true;
-      await updatedUser.save();
+      await prisma.user.update({
+        where: { id: userIdNum },
+        data: { profileCompleted: true },
+      });
       console.log("✅ Profil marqué comme complet pour l'utilisateur:", userId);
     }
 
@@ -74,7 +92,7 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
     return res.status(200).json({
       success: true,
       data: {
-        _id: updatedUser._id,
+        _id: updatedUser.id,
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
         email: updatedUser.email,

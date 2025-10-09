@@ -1,6 +1,8 @@
 /**
  * Routes de Performance et Monitoring pour SmartPlanning
- * 
+ *
+ * MIGRATION POSTGRESQL: Migré de MongoDB vers Prisma ORM
+ *
  * Ces routes fournissent des endpoints pour surveiller les performances
  * de la base de données, du cache Redis, et générer des rapports
  * d'utilisation pour l'administration.
@@ -12,6 +14,7 @@ import checkRole from '../middlewares/checkRole.middleware';
 import AggregationService from '../services/aggregation.service';
 import { cacheService } from '../services/cache.service';
 import { getCacheStats, flushCache } from '../middlewares/cache.middleware';
+import prisma from '../config/prisma';
 
 const router = express.Router();
 
@@ -20,22 +23,27 @@ const router = express.Router();
  * @desc Obtient les statistiques complètes de performance du système
  * @access Admin only
  */
-router.get('/stats', 
+router.get('/stats',
   authenticateToken,
   checkRole(['admin']),
   async (req: AuthRequest, res) => {
     try {
       const startTime = Date.now();
-      
+
       // Obtenir les statistiques du cache
       const cacheStats = await cacheService.getStats();
-      
-      // Obtenir les statistiques de la base de données
-      const dbStats = await req.app.locals.db?.db?.stats() || {};
-      
+
+      // Statistiques PostgreSQL basiques
+      const [companiesCount, usersCount, employeesCount, teamsCount] = await Promise.all([
+        prisma.company.count(),
+        prisma.user.count(),
+        prisma.employee.count(),
+        prisma.team.count()
+      ]);
+
       // Calculer le temps de réponse
       const responseTime = Date.now() - startTime;
-      
+
       res.json({
         success: true,
         data: {
@@ -46,10 +54,13 @@ router.get('/stats',
           },
           database: {
             connected: true,
-            collections: dbStats.collections || 0,
-            dataSize: dbStats.dataSize ? `${Math.round(dbStats.dataSize / 1024 / 1024)}MB` : 'N/A',
-            indexSize: dbStats.indexSize ? `${Math.round(dbStats.indexSize / 1024 / 1024)}MB` : 'N/A',
-            documents: dbStats.objects || 0
+            provider: 'PostgreSQL',
+            tables: {
+              companies: companiesCount,
+              users: usersCount,
+              employees: employeesCount,
+              teams: teamsCount
+            }
           },
           cache: {
             ...cacheStats,
@@ -57,7 +68,7 @@ router.get('/stats',
           },
           performance: {
             planningGenerationAverage: '2-5ms',
-            indexOptimization: 'Actif (28 index créés)',
+            indexOptimization: 'Actif (PostgreSQL indexes)',
             cacheHitRate: 'Monitoring en temps réel'
           }
         }
@@ -83,9 +94,18 @@ router.get('/company-analytics/:companyId',
   checkRole(['admin', 'directeur']),
   async (req: AuthRequest, res) => {
     try {
-      const { companyId } = req.params;
+      const companyIdStr = req.params.companyId;
+      const companyId = parseInt(companyIdStr, 10);
+
+      if (isNaN(companyId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID d\'entreprise invalide'
+        });
+      }
+
       const startTime = Date.now();
-      
+
       // Vérifier que l'utilisateur peut accéder à cette entreprise
       if (req.user?.role !== 'admin' && req.user?.companyId !== companyId) {
         return res.status(403).json({
@@ -137,7 +157,16 @@ router.get('/compliance-report/:companyId',
   checkRole(['admin', 'directeur', 'manager']),
   async (req: AuthRequest, res) => {
     try {
-      const { companyId } = req.params;
+      const companyIdStr = req.params.companyId;
+      const companyId = parseInt(companyIdStr, 10);
+
+      if (isNaN(companyId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID d\'entreprise invalide'
+        });
+      }
+
       const { year, weekNumber } = req.query;
 
       // Valeurs par défaut : semaine courante
@@ -154,8 +183,8 @@ router.get('/compliance-report/:companyId',
       }
 
       const report = await AggregationService.getComplianceReport(
-        companyId, 
-        reportYear, 
+        companyId,
+        reportYear,
         reportWeek
       );
 
@@ -184,8 +213,16 @@ router.get('/usage-analytics/:companyId',
   checkRole(['admin']),
   async (req: AuthRequest, res) => {
     try {
-      const { companyId } = req.params;
-      
+      const companyIdStr = req.params.companyId;
+      const companyId = parseInt(companyIdStr, 10);
+
+      if (isNaN(companyId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID d\'entreprise invalide'
+        });
+      }
+
       const analytics = await AggregationService.getUsageAnalytics(companyId);
 
       res.json({
@@ -217,15 +254,16 @@ router.post('/optimize-indexes',
   checkRole(['admin']),
   async (req: AuthRequest, res) => {
     try {
-      console.log('🔧 Lancement optimisation des index...');
-      
-      // Pour le moment, on simule l'optimisation
-      // TODO: Implémenter l'optimisation directement dans ce service
-      console.log('✅ Optimisation des index simulée (script externe temporairement désactivé)');
+      console.log('🔧 Lancement optimisation des index PostgreSQL...');
+
+      // Exécuter ANALYZE sur toutes les tables principales pour mise à jour des statistiques
+      await prisma.$executeRaw`ANALYZE "user", "company", "employee", "team", "generatedSchedule", "vacationRequest";`;
+
+      console.log('✅ Optimisation des index PostgreSQL effectuée');
 
       res.json({
         success: true,
-        message: 'Optimisation des index lancée en arrière-plan',
+        message: 'Optimisation des index PostgreSQL effectuée',
         timestamp: new Date().toISOString()
       });
 
@@ -274,9 +312,9 @@ router.get('/health-check', async (req, res) => {
       }
     };
 
-    // Test MongoDB
+    // Test PostgreSQL
     try {
-      await require('mongoose').connection.db.admin().ping();
+      await prisma.$queryRaw`SELECT 1`;
       health.services.database = true;
     } catch (error) {
       health.services.database = false;
@@ -289,7 +327,7 @@ router.get('/health-check', async (req, res) => {
       health.status = 'degraded';
     }
 
-    const statusCode = health.status === 'healthy' ? 200 : 
+    const statusCode = health.status === 'healthy' ? 200 :
                       health.status === 'degraded' ? 202 : 503;
 
     res.status(statusCode).json({

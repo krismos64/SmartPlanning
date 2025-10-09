@@ -6,7 +6,8 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
+// MIGRATION PostgreSQL: Profiling désactivé temporairement
+// import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 export interface SentryConfig {
   dsn: string;
@@ -50,14 +51,14 @@ export const initSentry = (): void => {
     
     // Intégrations spécialisées
     integrations: [
-      // Profiling performance
-      nodeProfilingIntegration(),
-      
+      // MIGRATION PostgreSQL: Profiling désactivé temporairement (module natif manquant)
+      // nodeProfilingIntegration(),
+
       // Intégration Express automatique
       Sentry.httpIntegration(),
-      
-      // Intégration MongoDB
-      Sentry.mongooseIntegration(),
+
+      // MIGRATION PostgreSQL: MongoDB supprimé
+      // Sentry.mongooseIntegration(),
     ],
     
     // Configuration avancée

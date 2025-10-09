@@ -7,7 +7,7 @@
 
 import express, { Response } from "express";
 import { AuthRequest, authenticateToken } from "../middlewares/auth.middleware";
-import User from "../models/User.model";
+import prisma from "../config/prisma";
 import {
   passwordRequirementsMessage,
   validatePasswordComplexity,
@@ -36,8 +36,22 @@ router.put(
         });
       }
 
-      // Récupérer l'utilisateur avec son mot de passe (qui est normalement exclu par défaut)
-      const user = await User.findById(userId).select("+password");
+      // Récupérer l'utilisateur avec son mot de passe
+      const userIdNum = parseInt(userId, 10);
+      if (isNaN(userIdNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID utilisateur invalide",
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userIdNum },
+        select: {
+          id: true,
+          password: true,
+        },
+      });
 
       if (!user) {
         return res.status(404).json({
@@ -46,8 +60,10 @@ router.put(
         });
       }
 
-      // Vérifier l'ancien mot de passe
-      const isMatch = await user.comparePassword(currentPassword);
+      // Vérifier l'ancien mot de passe (utiliser bcrypt comme dans le modèle User)
+      const bcrypt = require('bcrypt');
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+
       if (!isMatch) {
         return res.status(401).json({
           success: false,
@@ -63,10 +79,14 @@ router.put(
         });
       }
 
-      // Assigner directement le nouveau mot de passe
-      // Le hook Mongoose pre("save") se chargera du hashage
-      user.password = newPassword;
-      await user.save();
+      // Hasher le nouveau mot de passe
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Mettre à jour le mot de passe
+      await prisma.user.update({
+        where: { id: userIdNum },
+        data: { password: hashedPassword },
+      });
 
       res.status(200).json({
         success: true,

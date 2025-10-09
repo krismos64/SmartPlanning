@@ -3,8 +3,8 @@ import crypto from "crypto";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { generateToken } from "../config/passport";
-import Company from "../models/Company.model";
-import User, { UserDocument } from "../models/User.model";
+// MIGRATION: Remplacer Mongoose par Prisma
+import prisma from "../config/prisma";
 import { sendPasswordResetEmail } from "../utils/email";
 import { sendTestEmail } from "../utils/emailTest";
 import {
@@ -15,21 +15,21 @@ import {
 import { securityConfig, clearAuthCookies } from "../config/security.config";
 
 // Import des schémas de validation et middleware
-import { 
-  registerSchema, 
-  loginSchema, 
-  forgotPasswordSchema, 
+import {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
   validateBody,
   validateParams
 } from "../schemas";
-import { 
-  asyncHandler, 
-  ValidationError, 
-  AuthenticationError, 
+import {
+  asyncHandler,
+  ValidationError,
+  AuthenticationError,
   ConflictError,
-  NotFoundError 
+  NotFoundError
 } from "../middlewares/errorHandler.middleware";
 
 // Types personnalisés pour la requête Express avec utilisateur
@@ -77,53 +77,76 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
     profilePicture
   } = req.body;
 
-  // Vérifier si l'utilisateur existe déjà
-  const existingUser = await User.findOne({ email });
+  // MIGRATION: Vérifier si l'utilisateur existe déjà avec Prisma
+  const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
     throw new ConflictError("Un utilisateur avec cet email existe déjà");
   }
 
-  // Vérifier l'unicité du nom d'entreprise
-  const existingCompany = await Company.findOne({ name: companyName });
+  // MIGRATION: Vérifier l'unicité du nom d'entreprise avec Prisma
+  const existingCompany = await prisma.company.findFirst({
+    where: { name: companyName }
+  });
   if (existingCompany) {
     throw new ConflictError(
       "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier."
     );
   }
 
-  // Créer l'entreprise d'abord
-  const company = new Company({
-    name: companyName,
-    address: companyAddress,
-    postalCode: companyPostalCode,
-    city: companyCity,
-    size: companySize,
-    logoUrl: companyLogo, // Ajouter le logo de l'entreprise si fourni
-    createdBy: null // Sera mis à jour après création de l'utilisateur
+  // MIGRATION: Hasher le mot de passe manuellement (Prisma n'a pas de pre-save hooks)
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // MIGRATION: Utiliser une transaction Prisma pour créer entreprise + utilisateur
+  const result = await prisma.$transaction(async (tx) => {
+    // Créer l'entreprise d'abord
+    const company = await tx.company.create({
+      data: {
+        name: companyName,
+        address: companyAddress,
+        postalCode: companyPostalCode,
+        city: companyCity,
+        size: companySize,
+        logoUrl: companyLogo || null,
+        plan: 'free', // Plan par défaut
+      }
+    });
+
+    // Créer l'utilisateur directeur
+    const user = await tx.user.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
+        phone: phone || null,
+        photoUrl: profilePicture || null,
+        role: "directeur", // Rôle fixé en dur à "directeur"
+        companyId: company.id,
+        isEmailVerified: true, // On considère l'email vérifié à l'inscription
+        status: "active",
+      }
+    });
+
+    // Mettre à jour l'entreprise avec l'ID du créateur
+    await tx.company.update({
+      where: { id: company.id },
+      data: { createdBy: user.id }
+    });
+
+    return { company, user };
   });
-
-  const savedCompany = await company.save();
-
-  // Créer l'utilisateur directeur
-  const newUser = await User.create({
-    firstName,
-    lastName,
-    email,
-    password, // Le hashage est géré par le middleware pre-save dans User.model.ts
-    phone,
-    photoUrl: profilePicture, // Ajouter la photo de profil si fournie
-    role: "directeur", // Rôle fixé en dur à "directeur"
-    companyId: savedCompany._id,
-    isEmailVerified: true, // On considère l'email vérifié à l'inscription
-    status: "active",
-  });
-
-  // Mettre à jour l'entreprise avec l'ID du créateur
-  await Company.findByIdAndUpdate(savedCompany._id, { createdBy: newUser._id });
 
   // Génération du token JWT avec cookies sécurisés
-  const token = generateToken(newUser.toObject());
-  
+  const tokenPayload = {
+    id: result.user.id,
+    email: result.user.email,
+    role: result.user.role,
+    firstName: result.user.firstName,
+    lastName: result.user.lastName,
+    companyId: result.user.companyId,
+  };
+  const token = generateToken(tokenPayload);
+
   // Configuration des cookies avec sécurité renforcée
   res.cookie('token', token, securityConfig.cookieOptions);
 
@@ -132,21 +155,21 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
     success: true,
     message: "Inscription réussie",
     user: {
-      id: newUser._id,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      email: newUser.email,
-      role: newUser.role,
-      companyId: newUser.companyId,
-      phone: newUser.phone
+      id: result.user.id,
+      firstName: result.user.firstName,
+      lastName: result.user.lastName,
+      email: result.user.email,
+      role: result.user.role,
+      companyId: result.user.companyId,
+      phone: result.user.phone
     },
     company: {
-      id: savedCompany._id,
-      name: savedCompany.name,
-      address: (savedCompany as any).address,
-      postalCode: (savedCompany as any).postalCode,
-      city: (savedCompany as any).city,
-      size: (savedCompany as any).size
+      id: result.company.id,
+      name: result.company.name,
+      address: result.company.address,
+      postalCode: result.company.postalCode,
+      city: result.company.city,
+      size: result.company.size
     },
   });
 }));
@@ -158,11 +181,13 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
  */
 router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
-  
+
   console.log("🔐 Tentative de connexion pour:", email);
 
-  // Récupérer l'utilisateur avec son mot de passe
-  const user = await User.findOne({ email }).select("+password");
+  // MIGRATION: Récupérer l'utilisateur avec Prisma (password inclus)
+  const user = await prisma.user.findUnique({
+    where: { email }
+  });
 
   if (!user) {
     console.warn("❌ Utilisateur non trouvé pour l'email :", email);
@@ -172,7 +197,7 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
   console.log("✅ Utilisateur trouvé pour connexion");
 
   // Vérifier que l'utilisateur est actif
-  if (user.status !== 'active') {
+  if (!user.isActive) {
     throw new AuthenticationError("Compte désactivé. Contactez l'administrateur.");
   }
 
@@ -185,7 +210,7 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
       );
     }
 
-    console.error("❌ Champ 'password' manquant malgré .select('+password')");
+    console.error("❌ Champ 'password' manquant");
     throw new AuthenticationError("Problème d'authentification. Contactez le support.");
   }
 
@@ -200,7 +225,15 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
   console.log("✅ Mot de passe vérifié avec succès pour:", email);
 
   // Générer le token JWT
-  const token = generateToken((user as UserDocument).toObject());
+  const tokenPayload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    companyId: user.companyId,
+  };
+  const token = generateToken(tokenPayload);
   console.log("✅ Token JWT généré avec succès");
 
   // Configuration des cookies avec sécurité renforcée
@@ -227,7 +260,7 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
     success: true,
     message: "Connexion réussie",
     user: {
-        id: user._id,
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -249,7 +282,23 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
  */
 router.get("/me", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const user = await User.findById((req.user as any)?._id).select("-password");
+    // MIGRATION: Récupérer avec Prisma (sans password)
+    const user = await prisma.user.findUnique({
+      where: { id: (req.user as any)?.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        status: true,
+        companyId: true,
+        photoUrl: true,
+        profileCompleted: true,
+        phone: true,
+      }
+    });
+
     if (!user) {
       return res
         .status(404)
@@ -259,14 +308,15 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       data: {
-        _id: user._id,
+        _id: user.id, // Compatibilité avec ancien format
+        id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: user.role,
         status: user.status,
         companyId: user.companyId,
-        teamIds: user.teamIds || [],
+        teamIds: [], // TODO: Gérer la relation many-to-many si nécessaire
         photoUrl: user.photoUrl || undefined,
         profileCompleted: user.profileCompleted || false,
       },
@@ -285,7 +335,7 @@ router.post("/logout", (req: Request, res: Response) => {
   try {
     // FIX #5: Utiliser la fonction centralisée pour nettoyer les cookies
     clearAuthCookies(res);
-    
+
     console.log("✅ Déconnexion utilisateur réussie");
 
     res.status(200).json({
@@ -315,8 +365,8 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
       });
     }
 
-    // Rechercher l'utilisateur par email
-    const user = await User.findOne({ email });
+    // MIGRATION: Rechercher l'utilisateur par email avec Prisma
+    const user = await prisma.user.findUnique({ where: { email } });
     console.log("🔍 Utilisateur trouvé:", user ? "Oui" : "Non");
 
     // Générer un token même si l'utilisateur n'existe pas (pour éviter l'énumération d'email)
@@ -331,11 +381,14 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
         .update(resetToken)
         .digest("hex");
 
-      // Sauvegarder le token et sa date d'expiration (1 heure)
-      user.resetPasswordToken = resetPasswordToken;
-      user.resetPasswordExpire = new Date(Date.now() + 3600000); // 1 heure
-
-      await user.save();
+      // MIGRATION: Sauvegarder avec Prisma
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetPasswordToken,
+          resetPasswordExpire: new Date(Date.now() + 3600000), // 1 heure
+        }
+      });
       console.log("💾 Token sauvegardé en base de données");
 
       // Créer le lien de réinitialisation avec l'URL correcte
@@ -400,7 +453,6 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
             "📧 Email de test envoyé. URL de prévisualisation:",
             previewUrl
           );
-          // On pourrait stocker cette URL quelque part pour l'administrateur
         }
       } catch (emailError) {
         console.error(
@@ -418,7 +470,6 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
             "📧 Email de test envoyé. URL de prévisualisation:",
             previewUrl
           );
-          // On pourrait stocker cette URL quelque part pour l'administrateur
         } catch (backupError) {
           console.error("📧 Échec de la méthode de secours:", backupError);
         }
@@ -470,11 +521,13 @@ router.post("/reset-password", async (req: Request, res: Response) => {
       .update(token)
       .digest("hex");
 
-    // Rechercher l'utilisateur par email et token
-    const user = await User.findOne({
-      email,
-      resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() }, // Vérifier que le token n'a pas expiré
+    // MIGRATION: Rechercher l'utilisateur avec Prisma
+    const user = await prisma.user.findFirst({
+      where: {
+        email,
+        resetPasswordToken,
+        resetPasswordExpire: { gt: new Date() }, // Token non expiré
+      }
     });
 
     if (!user) {
@@ -484,13 +537,18 @@ router.post("/reset-password", async (req: Request, res: Response) => {
       });
     }
 
-    // Mettre à jour le mot de passe
-    user.password = newPassword;
-    // Supprimer les champs de réinitialisation
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    // MIGRATION: Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await user.save();
+    // MIGRATION: Mettre à jour avec Prisma
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpire: null,
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -535,12 +593,14 @@ router.post("/create-password", async (req: Request, res: Response) => {
       .update(token)
       .digest("hex");
 
-    // Rechercher l'utilisateur par email et token
-    const user = await User.findOne({
-      email,
-      resetPasswordToken: createPasswordTokenHash, // Réutilise le champ resetPasswordToken
-      resetPasswordExpire: { $gt: Date.now() }, // Vérifier que le token n'a pas expiré
-      role: "employee", // S'assurer que c'est bien un employé
+    // MIGRATION: Rechercher l'utilisateur avec Prisma
+    const user = await prisma.user.findFirst({
+      where: {
+        email,
+        resetPasswordToken: createPasswordTokenHash,
+        resetPasswordExpire: { gt: new Date() }, // Token non expiré
+        role: "employee", // S'assurer que c'est bien un employé
+      }
     });
 
     if (!user) {
@@ -558,14 +618,18 @@ router.post("/create-password", async (req: Request, res: Response) => {
       });
     }
 
-    // Mettre à jour le mot de passe et vérifier l'email
-    user.password = password;
-    user.isEmailVerified = true;
-    // Supprimer les champs de token
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    // MIGRATION: Hasher le mot de passe et mettre à jour avec Prisma
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        isEmailVerified: true,
+        resetPasswordToken: null,
+        resetPasswordExpire: null,
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -604,8 +668,8 @@ router.patch(
       // Récupérer les données du corps de la requête
       const { companyName, companyLogo, phone, profilePicture, bio } = req.body;
 
-      // Vérifier que l'utilisateur existe
-      const user = await User.findById(userId);
+      // MIGRATION: Vérifier que l'utilisateur existe avec Prisma
+      const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -627,8 +691,10 @@ router.patch(
           });
         }
 
-        // Vérification de l'unicité du nom d'entreprise
-        const existingCompany = await Company.findOne({ name: companyName });
+        // MIGRATION: Vérification de l'unicité du nom d'entreprise avec Prisma
+        const existingCompany = await prisma.company.findFirst({
+          where: { name: companyName }
+        });
         if (existingCompany) {
           return res.status(409).json({
             success: false,
@@ -649,15 +715,17 @@ router.patch(
           });
         }
 
-        // Création de la nouvelle entreprise
-        const newCompany = await Company.create({
-          name: companyName,
-          logoUrl: companyLogo || null,
-          plan: "free", // Plan par défaut
+        // MIGRATION: Création de la nouvelle entreprise avec Prisma
+        const newCompany = await prisma.company.create({
+          data: {
+            name: companyName,
+            logoUrl: companyLogo || null,
+            plan: "free", // Plan par défaut
+          }
         });
 
         // Associer l'ID de l'entreprise à l'utilisateur
-        updates.companyId = newCompany._id;
+        updates.companyId = newCompany.id;
       }
 
       // Mise à jour des autres champs si fournis
@@ -674,7 +742,7 @@ router.patch(
           updates.phone = phone;
         } else if (phone === "") {
           // Permettre de supprimer le numéro de téléphone
-          updates.phone = undefined;
+          updates.phone = null;
         }
       }
 
@@ -691,7 +759,7 @@ router.patch(
             message: "URL de la photo de profil invalide",
           });
         }
-        updates.photoUrl = profilePicture || undefined;
+        updates.photoUrl = profilePicture || null;
       }
 
       // Mise à jour de la bio si fournie
@@ -707,12 +775,11 @@ router.patch(
         });
       }
 
-      // Effectuer la mise à jour
-      const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true, runValidators: true }
-      );
+      // MIGRATION: Effectuer la mise à jour avec Prisma
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updates
+      });
 
       // Retourner la réponse avec l'utilisateur mis à jour
       res.status(200).json({
@@ -723,16 +790,14 @@ router.patch(
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour du profil:", error);
 
-      // Gestion des erreurs spécifiques de MongoDB
-      if (error.name === "MongoServerError" && error.code === 11000) {
-        // Gestion des violations de contrainte d'unicité
-        if (error.keyPattern?.name) {
-          return res.status(409).json({
-            success: false,
-            message:
-              "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
-          });
-        }
+      // MIGRATION: Gestion des erreurs spécifiques de Prisma
+      if (error.code === 'P2002') {
+        // Violation de contrainte d'unicité
+        return res.status(409).json({
+          success: false,
+          message:
+            "Ce nom d'entreprise existe déjà. Ajoutez une ville ou un suffixe pour le différencier.",
+        });
       }
 
       res.status(500).json({

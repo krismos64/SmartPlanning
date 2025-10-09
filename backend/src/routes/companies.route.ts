@@ -1,6 +1,6 @@
 import express, { Response } from "express";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
-import { Company } from "../models/Company.model";
+import prisma from "../config/prisma";
 
 const router = express.Router();
 
@@ -21,7 +21,17 @@ router.get(
         });
       }
 
-      const company = await Company.findById(req.user.companyId);
+      const companyIdNum = parseInt(req.user.companyId, 10);
+      if (isNaN(companyIdNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise invalide",
+        });
+      }
+
+      const company = await prisma.company.findUnique({
+        where: { id: companyIdNum }
+      });
 
       if (!company) {
         return res.status(404).json({
@@ -56,6 +66,14 @@ router.get(
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
+      const idNum = parseInt(id, 10);
+
+      if (isNaN(idNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise invalide",
+        });
+      }
 
       if (!req.user) {
         return res.status(401).json({
@@ -73,7 +91,9 @@ router.get(
         });
       }
 
-      const company = await Company.findById(id);
+      const company = await prisma.company.findUnique({
+        where: { id: idNum }
+      });
 
       if (!company) {
         return res.status(404).json({

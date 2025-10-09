@@ -1,19 +1,21 @@
 /**
  * Route pour obtenir les employés accessibles - SmartPlanning
  *
+ * MIGRATION POSTGRESQL: Migré de Mongoose vers Prisma ORM
+ *
  * Permet de récupérer les employés accessibles selon le rôle de l'utilisateur:
  * - Admin: Tous les employés
  * - Directeur: Employés de son entreprise
- * - Manager: Employés de ses équipes
+ * - Manager: Employés de son entreprise (simplifié en PostgreSQL)
  * - Employé: Accès refusé (403)
  */
 
 import { Response, Router } from "express";
-import mongoose from "mongoose";
 import {
   AuthRequest,
   authenticateToken,
 } from "../../middlewares/auth.middleware";
+import prisma from "../../config/prisma";
 
 // Création du routeur Express
 const router = Router();
@@ -27,10 +29,17 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
 
-    // Normaliser le rôle pour gérer différentes variantes possibles
+    if (!user || !user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié",
+      });
+    }
+
+    // Normaliser le rôle
     const normalizedRole = user.role ? user.role.toLowerCase() : "";
 
-    // Vérifier le rôle (en tenant compte des variantes possibles)
+    // Vérifier le rôle
     const isEmployee =
       normalizedRole === "employé" ||
       normalizedRole === "employee" ||
@@ -54,157 +63,98 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Log pour debug
     console.log("User role:", user.role);
     console.log("User normalized role:", normalizedRole);
     console.log("User companyId:", user.companyId);
-    console.log("User teamIds:", user.teamIds);
 
-    // Définir la requête en fonction du rôle
-    let query = {};
+    // Définir le filtre Prisma en fonction du rôle
+    let whereClause: any = {};
 
     if (isAdmin) {
       // Admin: accès à tous les employés
-      query = {};
+      whereClause = {};
       console.log("Admin query: All employees");
-    } else if (isDirector && user.companyId) {
-      // Directeur: accès aux employés de son entreprise
-      query = { companyId: user.companyId };
-      console.log("Director query: Company employees", query);
-    } else if (isManager && user.teamIds && user.teamIds.length > 0) {
-      // Manager: accès aux employés de ses équipes
-      query = { teamId: { $in: user.teamIds } };
-      console.log("Manager query: Team employees", query);
-
-      // Log détaillé pour debug
-      console.log("Manager teamIds:", user.teamIds);
-
-      // Vérifier explicitement si des employés existent avec ces teamIds
-      const testEmployees = await mongoose
-        .model("Employee")
-        .find(query)
-        .select("_id firstName lastName teamId");
-
-      console.log("Employees found for manager teams:", testEmployees.length);
-      if (testEmployees.length === 0) {
-        console.log("Aucun employé trouvé dans les équipes du manager");
-
-        // Solution alternative: récupérer tous les employés qui ne sont pas managers
-        // Cette solution est temporaire jusqu'à ce que les relations team soient correctement configurées
-        console.log("Recherche d'employés sans filtre de teamId");
-
-        // Récupérer l'ID de l'entreprise du manager (s'il existe)
-        let alternativeQuery = {};
-        if (user.companyId) {
-          alternativeQuery = { companyId: user.companyId };
-        }
-
-        const allEmployees = await mongoose
-          .model("Employee")
-          .find(alternativeQuery)
-          .select(
-            "_id firstName lastName email role teamId photoUrl userId status"
-          )
-          .populate("teamId", "name")
-          .sort({ lastName: 1 });
-
-        // Filtrer pour ne pas inclure les managers/directeurs, mais inclure tous les employés standards
-        const filteredEmployees = allEmployees.filter(
-          (emp) =>
-            !emp.role ||
-            (emp.role.toLowerCase() !== "manager" &&
-              emp.role.toLowerCase() !== "directeur" &&
-              emp.role.toLowerCase() !== "director")
-        );
-
-        console.log(
-          `Alternative: ${filteredEmployees.length} employés trouvés`
-        );
-
-        return res.status(200).json({
-          success: true,
-          data: filteredEmployees.map((emp) => ({
-            _id: emp._id,
-            firstName: emp.firstName,
-            lastName: emp.lastName,
-            email: emp.email || "",
-            role: emp.role || "employee",
-            teamId: emp.teamId,
-            photoUrl: emp.photoUrl || "",
-            userId: emp.userId || null,
-            status: emp.status || "actif",
-          })),
-        });
-      } else {
-        console.log(
-          "Employees teamIds:",
-          testEmployees.map((e) => e.teamId)
-        );
-      }
+    } else if ((isDirector || isManager) && user.companyId) {
+      // Directeur/Manager: accès aux employés de son entreprise
+      // Note: En PostgreSQL, on simplifie pour tous les employés de l'entreprise
+      whereClause = { companyId: user.companyId };
+      console.log("Director/Manager query: Company employees", whereClause);
     } else {
-      // Fallback: si le rôle n'est pas reconnu, retourner l'utilisateur lui-même
-      console.log("Fallback: Returning user as employee");
-
-      // Dans ce mode "fallback", pour permettre à l'application frontend de fonctionner,
-      // nous renvoyons l'utilisateur lui-même comme seul employé accessible
-      return res.status(200).json({
-        success: true,
-        data: [
-          {
-            _id: user._id,
-            firstName: user.firstName || "Utilisateur",
-            lastName: user.lastName || "Actuel",
-            email: user.email || "",
-            role: user.role || "employee",
-            teamId: null,
-            photoUrl: user.photoUrl || "",
-            status: "actif",
-          },
-        ],
+      // Fallback: utilisateur sans rôle reconnu ou sans entreprise
+      console.log("Fallback: No valid role or companyId");
+      return res.status(403).json({
+        success: false,
+        message: "Rôle ou configuration utilisateur invalide",
       });
     }
 
-    // Récupérer les employés selon la requête
-    const employees = await mongoose
-      .model("Employee")
-      .find(query)
-      .select("_id firstName lastName email role teamId photoUrl userId status")
-      .populate("teamId", "name")
-      .sort({ lastName: 1 });
+    // Récupérer les employés selon le filtre
+    const employees = await prisma.employee.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        position: true,
+        skills: true,
+        profilePicture: true,
+        isActive: true,
+        teamId: true,
+        companyId: true,
+        userId: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            role: true,
+          }
+        }
+      },
+      orderBy: { lastName: 'asc' }
+    });
 
-    // Filtrer pour exclure l'utilisateur actuel (ne pas afficher le manager dans sa propre liste)
+    // Filtrer pour exclure l'utilisateur actuel si c'est aussi un employé
+    const currentUserEmployee = await prisma.employee.findFirst({
+      where: { userId: user.id },
+      select: { id: true }
+    });
+
     const filteredEmployees = employees.filter(
-      (emp) => emp._id.toString() !== user._id.toString()
+      (emp) => !currentUserEmployee || emp.id !== currentUserEmployee.id
     );
 
     console.log(
       `Employés trouvés: ${employees.length}, après filtrage: ${filteredEmployees.length}`
     );
 
-    // Si aucun employé trouvé après filtrage, renvoyer au moins l'utilisateur actuel pour que l'interface reste fonctionnelle
-    if (filteredEmployees.length === 0) {
-      console.log("No employees found after filtering, returning current user");
-      return res.status(200).json({
-        success: true,
-        data: [
-          {
-            _id: user._id,
-            firstName: user.firstName || "Utilisateur",
-            lastName: user.lastName || "Actuel",
-            email: user.email || "",
-            role: user.role || "employee",
-            teamId: null,
-            photoUrl: user.photoUrl || "",
-            status: "actif",
-          },
-        ],
-      });
-    }
+    // Formater la réponse pour compatibilité frontend
+    const formattedEmployees = filteredEmployees.map((emp) => ({
+      _id: emp.id, // Compatibilité MongoDB frontend
+      id: emp.id,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email || "",
+      position: emp.position,
+      skills: emp.skills,
+      role: emp.user?.role || "employee",
+      teamId: emp.team || null,
+      photoUrl: emp.profilePicture || "",
+      profilePicture: emp.profilePicture || "",
+      userId: emp.userId || null,
+      status: emp.isActive ? "actif" : "inactif",
+      isActive: emp.isActive,
+      companyId: emp.companyId,
+    }));
 
-    // Renvoyer les résultats filtrés
     return res.status(200).json({
       success: true,
-      data: filteredEmployees,
+      data: formattedEmployees,
     });
   } catch (error) {
     console.error(
@@ -214,6 +164,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Erreur lors de la récupération des employés accessibles.",
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 });

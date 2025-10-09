@@ -1,15 +1,111 @@
 import express, { Response } from "express";
-import mongoose, { isValidObjectId } from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
-import { TeamModel } from "../models/Team.model";
-import WeeklyScheduleModel from "../models/WeeklySchedule.model";
+import { PrismaClient } from "@prisma/client";
 
 const router = express.Router();
+const prisma = new PrismaClient();
+
+// ================================================================================
+// MIGRATION NOTE: Ce fichier a été migré de MongoDB vers Prisma PostgreSQL
+//
+// Changements majeurs:
+// - MongoDB ObjectId (string) → PostgreSQL INTEGER (number)
+// - Collection WeeklySchedule (employeeId + weekNumber + year) →
+//   Table weekly_schedule (companyId + teamId + weekStartDate/weekEndDate)
+// - Données employés stockées dans le JSON schedule au lieu de documents séparés
+// - Utilisation de transactions Prisma pour garantir l'intégrité
+// - Conversion year/weekNumber → weekStartDate/weekEndDate via getWeekDates()
+//
+// Structure du champ JSON schedule:
+// {
+//   monday: [{ employeeId: 123, startTime: "09:00", endTime: "17:00", position: "...", ... }],
+//   tuesday: [...],
+//   ...
+// }
+// ================================================================================
+
+/**
+ * MIGRATION: Convertit year + weekNumber en dates de début/fin de semaine ISO
+ * @param year - Année (ex: 2025)
+ * @param weekNumber - Numéro de semaine ISO (1-53)
+ * @returns { weekStartDate: Date, weekEndDate: Date }
+ */
+function getWeekDates(
+  year: number,
+  weekNumber: number
+): { weekStartDate: Date; weekEndDate: Date } {
+  // ISO 8601: La semaine 1 est la première semaine avec au moins 4 jours dans l'année
+  const january4th = new Date(year, 0, 4); // 4 janvier
+  const dayOfWeek = january4th.getDay() || 7; // 0 (dimanche) → 7
+  const weekStart = new Date(january4th);
+
+  // Trouver le lundi de la semaine 1
+  weekStart.setDate(january4th.getDate() - dayOfWeek + 1);
+
+  // Ajouter les semaines
+  weekStart.setDate(weekStart.getDate() + (weekNumber - 1) * 7);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6); // Dimanche
+
+  return { weekStartDate: weekStart, weekEndDate: weekEnd };
+}
+
+/**
+ * MIGRATION: Valide et parse un ID en number (au lieu de ObjectId)
+ */
+function parseId(id: string | number, fieldName: string): number {
+  const parsed = typeof id === "number" ? id : parseInt(id, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    throw new Error(`${fieldName} invalide: ${id}`);
+  }
+  return parsed;
+}
+
+/**
+ * MIGRATION: Extrait les jours de la semaine depuis scheduleData (format ancien)
+ * et les convertit en structure compatible Prisma JSON
+ */
+function convertScheduleDataToJson(
+  scheduleData: Record<string, string[]>,
+  employeeId: number,
+  dailyNotes?: Record<string, string>,
+  dailyDates?: Record<string, Date>
+): Record<string, any[]> {
+  const scheduleJson: Record<string, any[]> = {};
+  const daysOfWeek = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ];
+
+  for (const day of daysOfWeek) {
+    const slots = scheduleData[day] || [];
+    scheduleJson[day] = slots.map((slot) => {
+      const [timeRange] = slot.split(" "); // Format: "09:00-17:00"
+      const [startTime, endTime] = timeRange.split("-");
+
+      return {
+        employeeId,
+        startTime,
+        endTime,
+        note: dailyNotes?.[day] || null,
+        date: dailyDates?.[day]?.toISOString() || null,
+      };
+    });
+  }
+
+  return scheduleJson;
+}
 
 /**
  * Route POST /api/weekly-schedules
- * Crée un planning hebdomadaire validé manuellement
+ * MIGRATION: Crée ou met à jour un planning hebdomadaire dans le modèle Prisma
  * Accessible aux managers, directeurs et admins
  */
 router.post(
@@ -29,30 +125,26 @@ router.post(
         totalWeeklyMinutes,
       } = req.body;
 
-      // Logs pour déboguer
-      console.log("Requête reçue pour création de planning");
-      console.log("Headers:", req.headers);
-      console.log("User dans req:", req.user);
-      console.log("Body:", {
+      console.log("MIGRATION: Création planning hebdomadaire", {
         employeeId,
         weekNumber,
         year,
-        scheduleData: Object.keys(scheduleData || {}).length + " jours",
+        scheduleDataDays: Object.keys(scheduleData || {}).length,
         totalWeeklyMinutes,
       });
 
-      // 🔒 Vérification de l'authentification de l'utilisateur
+      // 🔒 Vérification authentification
       if (!req.user || (!req.user.userId && !req.user.id && !req.user._id)) {
-        console.log("Erreur d'authentification: req.user =", req.user);
         return res.status(400).json({
           message: "Utilisateur non authentifié (updatedBy manquant)",
         });
       }
 
-      // Utiliser userId, id ou _id selon ce qui est disponible
       const authenticatedUserId =
         req.user.userId || req.user.id || req.user._id;
-      console.log("ID utilisateur authentifié:", authenticatedUserId);
+
+      // MIGRATION: Parse userId en number
+      const createdById = parseId(authenticatedUserId, "userId");
 
       // 📌 Validation des champs requis
       if (
@@ -79,11 +171,10 @@ router.post(
         });
       }
 
-      if (!isValidObjectId(employeeId)) {
-        return res.status(400).json({ message: "ID employé invalide" });
-      }
+      // MIGRATION: Parse employeeId en number
+      const employeeIdNum = parseId(employeeId, "employeeId");
 
-      // Formater explicitement les dates quotidiennes
+      // Formater les dates quotidiennes
       const formattedDailyDates: Record<string, Date> = {};
       for (const [day, dateValue] of Object.entries(dailyDates)) {
         try {
@@ -122,40 +213,143 @@ router.post(
         }
       }
 
-      // 🔁 Vérifier l'unicité du planning pour cet employé et cette semaine
-      const existing = await WeeklyScheduleModel.findOne({
-        employeeId,
-        weekNumber,
-        year,
+      // MIGRATION: Récupérer companyId et teamId depuis l'employé
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeIdNum },
+        select: { id: true, companyId: true, teamId: true },
       });
 
-      if (existing) {
-        return res.status(409).json({
-          message:
-            "Un planning existe déjà pour cet employé cette semaine et cette année",
+      if (!employee) {
+        return res.status(404).json({
+          message: "Employé non trouvé",
         });
       }
 
-      // ✅ Création du planning avec l'ID de l'utilisateur connecté comme updatedBy
-      const newSchedule = await WeeklyScheduleModel.create({
-        employeeId,
-        weekNumber,
+      if (!employee.teamId) {
+        return res.status(400).json({
+          message: "L'employé doit appartenir à une équipe",
+        });
+      }
+
+      // MIGRATION: Calculer weekStartDate et weekEndDate
+      const { weekStartDate, weekEndDate } = getWeekDates(year, weekNumber);
+
+      console.log("MIGRATION: Dates calculées", {
         year,
-        scheduleData,
-        dailyNotes,
-        dailyDates: formattedDailyDates,
-        totalWeeklyMinutes,
-        notes,
-        status: "approved",
-        updatedBy: authenticatedUserId,
+        weekNumber,
+        weekStartDate,
+        weekEndDate,
+        companyId: employee.companyId,
+        teamId: employee.teamId,
       });
+
+      // MIGRATION: Convertir scheduleData en structure JSON Prisma
+      const scheduleJson = convertScheduleDataToJson(
+        scheduleData,
+        employeeIdNum,
+        dailyNotes,
+        formattedDailyDates
+      );
+
+      // MIGRATION: Vérifier si un planning existe déjà pour cette équipe/semaine
+      const existing = await prisma.weeklySchedule.findFirst({
+        where: {
+          companyId: employee.companyId,
+          teamId: employee.teamId,
+          weekStartDate,
+          weekEndDate,
+        },
+      });
+
+      if (existing) {
+        // MIGRATION: Fusionner avec le planning existant (plusieurs employés de la même équipe)
+        const existingSchedule =
+          (existing.schedule as Record<string, any[]>) || {};
+
+        // Fusionner les horaires de cet employé dans chaque jour
+        for (const [day, slots] of Object.entries(scheduleJson)) {
+          if (!existingSchedule[day]) {
+            existingSchedule[day] = [];
+          }
+
+          // Retirer les anciens slots de cet employé
+          existingSchedule[day] = existingSchedule[day].filter(
+            (slot: any) => slot.employeeId !== employeeIdNum
+          );
+
+          // Ajouter les nouveaux slots
+          existingSchedule[day].push(...slots);
+        }
+
+        // Mettre à jour le planning existant
+        const updatedSchedule = await prisma.weeklySchedule.update({
+          where: { id: existing.id },
+          data: {
+            schedule: existingSchedule,
+            updatedAt: new Date(),
+          },
+        });
+
+        console.log(
+          `MIGRATION: Planning fusionné pour équipe ${employee.teamId}, semaine ${weekNumber}/${year}`
+        );
+
+        return res.status(200).json({
+          message:
+            "Planning mis à jour avec succès (fusionné avec planning existant)",
+          data: {
+            id: updatedSchedule.id,
+            companyId: updatedSchedule.companyId,
+            teamId: updatedSchedule.teamId,
+            weekStartDate: updatedSchedule.weekStartDate,
+            weekEndDate: updatedSchedule.weekEndDate,
+            status: updatedSchedule.status,
+            // Retourner les infos de compatibilité anciennes
+            employeeId: employeeIdNum,
+            weekNumber,
+            year,
+            scheduleData,
+            notes,
+            totalWeeklyMinutes,
+          },
+        });
+      }
+
+      // ✅ Création d'un nouveau planning
+      const newSchedule = await prisma.weeklySchedule.create({
+        data: {
+          companyId: employee.companyId,
+          teamId: employee.teamId,
+          weekStartDate,
+          weekEndDate,
+          schedule: scheduleJson,
+          status: "validated", // MIGRATION: "approved" → "validated"
+          createdById,
+        },
+      });
+
+      console.log(`MIGRATION: Nouveau planning créé ID=${newSchedule.id}`);
 
       return res.status(201).json({
         message: "Planning créé avec succès",
-        data: newSchedule,
+        data: {
+          id: newSchedule.id,
+          companyId: newSchedule.companyId,
+          teamId: newSchedule.teamId,
+          weekStartDate: newSchedule.weekStartDate,
+          weekEndDate: newSchedule.weekEndDate,
+          status: newSchedule.status,
+          // Retourner les infos de compatibilité anciennes
+          employeeId: employeeIdNum,
+          weekNumber,
+          year,
+          scheduleData,
+          notes,
+          totalWeeklyMinutes,
+        },
       });
     } catch (error) {
-      console.error("Erreur lors de la création du planning:", error);
+      console.error("MIGRATION: Erreur création planning:", error);
       return res.status(500).json({
         message: "Erreur serveur lors de la création du planning",
         error: error instanceof Error ? error.message : String(error),
@@ -166,10 +360,8 @@ router.post(
 
 /**
  * Route GET /api/weekly-schedules/week/:year/:weekNumber
- * Récupère les plannings hebdomadaires validés (status: "approved") pour une semaine et une année données
- * Sécurisé avec multitenant: filtre uniquement les employés de l'entreprise de l'utilisateur connecté
- * Pour les employés : seuls leurs propres plannings sont accessibles
- * Accessible aux utilisateurs authentifiés avec roles directeur, manager, employé et admin
+ * MIGRATION: Récupère les plannings hebdomadaires pour une semaine donnée
+ * Sécurisé multitenant: filtre par entreprise de l'utilisateur
  */
 router.get(
   "/week/:year/:weekNumber",
@@ -180,7 +372,6 @@ router.get(
       const { year, weekNumber } = req.params;
       const { teamId, employeeId } = req.query;
 
-      // Validation de l'authentification et récupération de companyId
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -188,13 +379,11 @@ router.get(
         });
       }
 
-      // Pour les admins, pas de restriction de companyId
       const isAdmin = req.user.role === "admin";
       const isEmployee = req.user.role === "employee";
       const userCompanyId = req.user.companyId;
       const userId = req.user.userId || req.user._id || req.user.id;
 
-      // Vérification du companyId seulement pour les non-admins
       if (!isAdmin && !userCompanyId) {
         return res.status(401).json({
           success: false,
@@ -202,8 +391,7 @@ router.get(
         });
       }
 
-      // Logs pour déboguer
-      console.log("Recherche de plannings hebdomadaires:", {
+      console.log("MIGRATION: Recherche plannings hebdomadaires", {
         userId,
         userRole: req.user.role,
         companyId: userCompanyId,
@@ -216,7 +404,6 @@ router.get(
       const yearNumber = parseInt(year, 10);
       const weekNumberValue = parseInt(weekNumber, 10);
 
-      // Validation des paramètres
       if (isNaN(yearNumber) || isNaN(weekNumberValue)) {
         return res.status(400).json({
           success: false,
@@ -224,21 +411,29 @@ router.get(
         });
       }
 
-      // Construction du filtre de base avec restriction par entreprise et statut
-      let aggregationPipeline: any[] = [];
+      // MIGRATION: Calculer weekStartDate et weekEndDate
+      const { weekStartDate, weekEndDate } = getWeekDates(
+        yearNumber,
+        weekNumberValue
+      );
 
-      // Étape de correspondance initiale pour les plannings approuvés
-      const matchStage: any = {
-        status: "approved",
-        year: yearNumber,
-        weekNumber: weekNumberValue,
+      // Construction du filtre Prisma
+      const where: any = {
+        weekStartDate,
+        weekEndDate,
+        status: "validated", // MIGRATION: "approved" → "validated"
       };
+
+      // Filtre par entreprise (sauf admins)
+      if (!isAdmin) {
+        where.companyId = parseId(userCompanyId, "companyId");
+      }
 
       // **RESTRICTION POUR LES EMPLOYÉS**
       if (isEmployee) {
-        // Pour les employés, on doit d'abord trouver leur document Employee
-        const EmployeeModel = require("../models/Employee.model").default;
-        const employee = await EmployeeModel.findOne({ userId: userId }).lean();
+        const employee = await prisma.employee.findFirst({
+          where: { userId: parseId(userId, "userId") },
+        });
 
         if (!employee) {
           return res.status(404).json({
@@ -247,19 +442,15 @@ router.get(
           });
         }
 
-        // Si un teamId est spécifié, vérifier que c'est bien l'équipe de l'employé
-        if (teamId && isValidObjectId(teamId as string)) {
-          // Vérifier que le teamId correspond à l'équipe de l'employé
-          if (employee.teamId && employee.teamId.toString() === teamId) {
+        // Si teamId spécifié, vérifier que c'est bien son équipe
+        if (teamId) {
+          const teamIdNum = parseId(teamId as string, "teamId");
+          if (employee.teamId && employee.teamId === teamIdNum) {
+            where.teamId = teamIdNum;
             console.log(
-              `Employé ${userId} consulte les plannings de son équipe (teamId: ${teamId})`
+              `MIGRATION: Employé ${userId} consulte son équipe ${teamIdNum}`
             );
-            // Ne pas restreindre par employeeId, permettre de voir toute l'équipe
-            // Le filtre par équipe sera appliqué plus tard dans l'agrégation
           } else {
-            console.log(
-              `Employé ${userId} tente d'accéder à une équipe non autorisée (teamId: ${teamId}, son équipe: ${employee.teamId})`
-            );
             return res.status(403).json({
               success: false,
               message:
@@ -267,77 +458,24 @@ router.get(
             });
           }
         } else {
-          // Pas de teamId spécifié, restricter aux plannings de cet employé uniquement
-          matchStage.employeeId = employee._id;
-          console.log(
-            `Employé ${userId} consulte ses propres plannings (employeeId: ${employee._id})`
-          );
+          // Pas de teamId : restreindre à son équipe par défaut
+          if (employee.teamId) {
+            where.teamId = employee.teamId;
+          }
         }
       } else {
-        // Pour les autres rôles (manager, directeur), appliquer les filtres normaux
+        // Pour managers/directeurs
+        if (teamId) {
+          const teamIdNum = parseId(teamId as string, "teamId");
 
-        // Filtre par employé si spécifié
-        if (employeeId && isValidObjectId(employeeId as string)) {
-          matchStage.employeeId = new mongoose.Types.ObjectId(
-            employeeId as string
-          );
-        }
-
-        // Filtre par équipe si spécifié
-        if (teamId && isValidObjectId(teamId as string)) {
-          // Note: le filtre par équipe sera géré via l'agrégation avec Employee
-        }
-      }
-
-      // Construction du pipeline d'agrégation
-      aggregationPipeline = [
-        // Première étape: correspondre aux plannings avec le filtre de base
-        {
-          $match: matchStage,
-        },
-        // Deuxième étape: joindre avec la collection des employés
-        {
-          $lookup: {
-            from: "employees",
-            localField: "employeeId",
-            foreignField: "_id",
-            as: "employeeData",
-          },
-        },
-        // Troisième étape: déstructurer le tableau employeeData
-        {
-          $unwind: "$employeeData",
-        },
-      ];
-
-      // Ajouter les filtres d'entreprise et d'équipe
-      // Filtre par entreprise (sauf pour les admins)
-      if (!isAdmin) {
-        aggregationPipeline.push({
-          $match: {
-            "employeeData.companyId":
-              mongoose.Types.ObjectId.createFromHexString(userCompanyId),
-          },
-        });
-      }
-
-      // Filtre par équipe si spécifié (pour tous les rôles maintenant)
-      if (teamId && isValidObjectId(teamId as string)) {
-        try {
-          console.log("Filtrage par équipe:", teamId);
-
-          const teamQuery = isAdmin
-            ? { _id: teamId }
-            : { _id: teamId, companyId: userCompanyId };
-
-          const team = await TeamModel.findOne(teamQuery).lean();
+          // Vérifier que l'équipe existe et appartient à l'entreprise
+          const team = await prisma.team.findFirst({
+            where: isAdmin
+              ? { id: teamIdNum }
+              : { id: teamIdNum, companyId: parseId(userCompanyId, "companyId") },
+          });
 
           if (!team) {
-            console.log(
-              `Équipe non trouvée${
-                !isAdmin ? " ou n'appartient pas à l'entreprise" : ""
-              }: ${teamId}`
-            );
             return res.status(200).json({
               success: true,
               data: [],
@@ -346,112 +484,154 @@ router.get(
             });
           }
 
-          console.log(`Équipe trouvée: ${team.name}`);
-
-          aggregationPipeline.push({
-            $match: {
-              "employeeData.teamId":
-                mongoose.Types.ObjectId.createFromHexString(teamId as string),
-            },
-          });
-        } catch (err) {
-          console.error("Erreur lors de la vérification de l'équipe:", err);
-          return res.status(500).json({
-            success: false,
-            message: "Erreur lors de la vérification de l'équipe",
-            error: err instanceof Error ? err.message : String(err),
-          });
+          where.teamId = teamIdNum;
         }
       }
 
-      // Ajouter les étapes finales d'agrégation
-      aggregationPipeline.push(
-        // Joindre avec la collection des équipes
-        {
-          $lookup: {
-            from: "teams",
-            localField: "employeeData.teamId",
-            foreignField: "_id",
-            as: "teamData",
+      // MIGRATION: Requête Prisma avec relations
+      const schedules = await prisma.weeklySchedule.findMany({
+        where,
+        include: {
+          team: {
+            select: { id: true, name: true },
+          },
+          company: {
+            select: { id: true, name: true },
+          },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true },
           },
         },
-        // Joindre avec la collection des employés pour les managers
-        {
-          $lookup: {
-            from: "employees",
-            localField: "teamData.managerIds",
-            foreignField: "_id",
-            as: "managerData",
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            employeeId: "$employeeData._id",
-            employeeName: {
-              $concat: [
-                "$employeeData.firstName",
-                " ",
-                "$employeeData.lastName",
-              ],
-            },
-            employeePhotoUrl: "$employeeData.photoUrl",
-            teamId: "$employeeData.teamId",
-            teamName: {
-              $cond: {
-                if: { $gt: [{ $size: "$teamData" }, 0] },
-                then: { $arrayElemAt: ["$teamData.name", 0] },
-                else: null,
-              },
-            },
-            managerName: {
-              $cond: {
-                if: { $gt: [{ $size: "$managerData" }, 0] },
-                then: {
-                  $concat: [
-                    { $arrayElemAt: ["$managerData.firstName", 0] },
-                    " ",
-                    { $arrayElemAt: ["$managerData.lastName", 0] },
-                  ],
+      });
+
+      // MIGRATION: Transformer les données pour compatibilité API
+      const transformedSchedules = [];
+
+      for (const schedule of schedules) {
+        const scheduleJson = (schedule.schedule as Record<string, any[]>) || {};
+
+        // Filtrer par employeeId si spécifié
+        let employeeSchedules: any[] = [];
+
+        if (employeeId) {
+          const employeeIdNum = parseId(employeeId as string, "employeeId");
+
+          // Extraire uniquement les slots de cet employé
+          for (const [day, slots] of Object.entries(scheduleJson)) {
+            const employeeSlots = slots.filter(
+              (slot: any) => slot.employeeId === employeeIdNum
+            );
+            if (employeeSlots.length > 0) {
+              // Récupérer les infos de l'employé
+              const employee = await prisma.employee.findUnique({
+                where: { id: employeeIdNum },
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  photoUrl: true,
                 },
-                else: null,
+              });
+
+              if (employee) {
+                transformedSchedules.push({
+                  _id: `${schedule.id}-${employeeIdNum}`,
+                  employeeId: employee.id,
+                  employeeName: `${employee.firstName} ${employee.lastName}`,
+                  employeePhotoUrl: employee.photoUrl,
+                  teamId: schedule.teamId,
+                  teamName: schedule.team.name,
+                  year: yearNumber,
+                  weekNumber: weekNumberValue,
+                  scheduleData: { [day]: employeeSlots.map((s: any) => `${s.startTime}-${s.endTime}`) },
+                  dailyNotes: {},
+                  notes: null,
+                  totalWeeklyMinutes: 0, // À calculer si nécessaire
+                  status: schedule.status,
+                  createdAt: schedule.createdAt,
+                  updatedAt: schedule.updatedAt,
+                });
+              }
+            }
+          }
+        } else {
+          // Extraire tous les employés du planning
+          const employeeIds = new Set<number>();
+          for (const slots of Object.values(scheduleJson)) {
+            for (const slot of slots as any[]) {
+              if (slot.employeeId) {
+                employeeIds.add(slot.employeeId);
+              }
+            }
+          }
+
+          // Créer un document par employé (compatibilité avec l'ancien modèle)
+          for (const empId of employeeIds) {
+            const employee = await prisma.employee.findUnique({
+              where: { id: empId },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                photoUrl: true,
               },
-            },
-            year: 1,
-            weekNumber: 1,
-            scheduleData: 1,
-            dailyNotes: 1,
-            notes: 1,
-            dailyDates: 1,
-            totalWeeklyMinutes: 1,
-            status: 1,
-            updatedBy: 1,
-            createdAt: 1,
-            updatedAt: 1,
-          },
+            });
+
+            if (!employee) continue;
+
+            const employeeScheduleData: Record<string, string[]> = {};
+            const employeeDailyNotes: Record<string, string> = {};
+
+            for (const [day, slots] of Object.entries(scheduleJson)) {
+              const employeeSlots = (slots as any[]).filter(
+                (slot: any) => slot.employeeId === empId
+              );
+
+              if (employeeSlots.length > 0) {
+                employeeScheduleData[day] = employeeSlots.map(
+                  (s: any) => `${s.startTime}-${s.endTime}`
+                );
+
+                // Extraire les notes si présentes
+                const note = employeeSlots.find((s: any) => s.note)?.note;
+                if (note) {
+                  employeeDailyNotes[day] = note;
+                }
+              }
+            }
+
+            transformedSchedules.push({
+              _id: `${schedule.id}-${empId}`,
+              employeeId: employee.id,
+              employeeName: `${employee.firstName} ${employee.lastName}`,
+              employeePhotoUrl: employee.photoUrl,
+              teamId: schedule.teamId,
+              teamName: schedule.team.name,
+              year: yearNumber,
+              weekNumber: weekNumberValue,
+              scheduleData: employeeScheduleData,
+              dailyNotes: employeeDailyNotes,
+              notes: null,
+              totalWeeklyMinutes: 0, // À calculer si nécessaire
+              status: schedule.status,
+              createdAt: schedule.createdAt,
+              updatedAt: schedule.updatedAt,
+            });
+          }
         }
-      );
+      }
 
       console.log(
-        "Exécution de l'agrégation MongoDB:",
-        JSON.stringify(aggregationPipeline, null, 2)
-      );
-
-      const schedules = await WeeklyScheduleModel.aggregate(
-        aggregationPipeline
-      );
-
-      console.log(
-        `${schedules.length} plannings trouvés après filtrage par entreprise`
+        `MIGRATION: ${transformedSchedules.length} plannings trouvés après transformation`
       );
 
       return res.status(200).json({
         success: true,
-        data: schedules,
-        count: schedules.length,
+        data: transformedSchedules,
+        count: transformedSchedules.length,
       });
     } catch (error) {
-      console.error("Erreur lors de la récupération des plannings:", error);
+      console.error("MIGRATION: Erreur récupération plannings:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la récupération des plannings",
@@ -463,7 +643,7 @@ router.get(
 
 /**
  * Route PUT /api/weekly-schedules/:id
- * Met à jour un planning hebdomadaire existant
+ * MIGRATION: Met à jour un planning hebdomadaire existant
  * Accessible aux managers, directeurs et admins
  */
 router.put(
@@ -484,37 +664,31 @@ router.put(
         totalWeeklyMinutes,
       } = req.body;
 
-      // Logs pour déboguer
-      console.log("Requête reçue pour mise à jour de planning");
-      console.log("ID planning:", id);
-      console.log("User dans req:", req.user);
+      console.log("MIGRATION: Mise à jour planning", { id });
 
-      // 🔒 Vérification de l'authentification de l'utilisateur
       if (!req.user || (!req.user.userId && !req.user.id && !req.user._id)) {
-        console.log("Erreur d'authentification: req.user =", req.user);
         return res.status(400).json({
-          message: "Utilisateur non authentifié (updatedBy manquant)",
+          message: "Utilisateur non authentifié",
         });
       }
 
-      // Vérifier l'existence du planning
-      if (!isValidObjectId(id)) {
-        return res.status(400).json({ message: "ID de planning invalide" });
-      }
+      // MIGRATION: Parse id en number
+      const scheduleId = parseId(id, "scheduleId");
+      const employeeIdNum = parseId(employeeId, "employeeId");
 
-      const existingSchedule = await WeeklyScheduleModel.findById(id);
+      // Vérifier l'existence du planning
+      const existingSchedule = await prisma.weeklySchedule.findUnique({
+        where: { id: scheduleId },
+        include: { team: true },
+      });
+
       if (!existingSchedule) {
         return res.status(404).json({
           message: "Planning introuvable",
         });
       }
 
-      // Utiliser userId, id ou _id selon ce qui est disponible
-      const authenticatedUserId =
-        req.user.userId || req.user.id || req.user._id;
-      console.log("ID utilisateur authentifié:", authenticatedUserId);
-
-      // 📌 Validation des champs requis
+      // Validation des champs
       if (
         !employeeId ||
         !weekNumber ||
@@ -528,7 +702,7 @@ router.put(
         });
       }
 
-      // Formater explicitement les dates quotidiennes
+      // Formater les dates
       const formattedDailyDates: Record<string, Date> = {};
       for (const [day, dateValue] of Object.entries(dailyDates)) {
         try {
@@ -543,7 +717,7 @@ router.put(
         }
       }
 
-      // 🕓 Validation du format des créneaux horaires
+      // Validation format horaire
       const timeRegex =
         /^([0-1][0-9]|2[0-3]):[0-5][0-9]-([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
 
@@ -567,36 +741,62 @@ router.put(
         }
       }
 
-      // Mettre à jour le planning existant avec la méthode findByIdAndUpdate
-      const updateData = {
+      // MIGRATION: Convertir scheduleData en JSON
+      const scheduleJson = convertScheduleDataToJson(
         scheduleData,
+        employeeIdNum,
         dailyNotes,
-        dailyDates: formattedDailyDates,
-        totalWeeklyMinutes,
-        notes,
-        updatedBy: authenticatedUserId,
-      };
+        formattedDailyDates
+      );
 
-      // Log des données de mise à jour
-      console.log("Données de mise à jour:", {
-        ...updateData,
-        dailyNotes: updateData.dailyNotes
-          ? Object.keys(updateData.dailyNotes).length + " entrées"
-          : undefined,
+      // MIGRATION: Fusionner avec le planning existant
+      const existingScheduleJson =
+        (existingSchedule.schedule as Record<string, any[]>) || {};
+
+      for (const [day, slots] of Object.entries(scheduleJson)) {
+        if (!existingScheduleJson[day]) {
+          existingScheduleJson[day] = [];
+        }
+
+        // Retirer les anciens slots de cet employé
+        existingScheduleJson[day] = existingScheduleJson[day].filter(
+          (slot: any) => slot.employeeId !== employeeIdNum
+        );
+
+        // Ajouter les nouveaux slots
+        existingScheduleJson[day].push(...slots);
+      }
+
+      // Mettre à jour
+      const updatedSchedule = await prisma.weeklySchedule.update({
+        where: { id: scheduleId },
+        data: {
+          schedule: existingScheduleJson,
+          updatedAt: new Date(),
+        },
       });
 
-      const updatedSchedule = await WeeklyScheduleModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      );
+      console.log(`MIGRATION: Planning ${scheduleId} mis à jour`);
 
       return res.status(200).json({
         message: "Planning mis à jour avec succès",
-        data: updatedSchedule,
+        data: {
+          id: updatedSchedule.id,
+          companyId: updatedSchedule.companyId,
+          teamId: updatedSchedule.teamId,
+          weekStartDate: updatedSchedule.weekStartDate,
+          weekEndDate: updatedSchedule.weekEndDate,
+          status: updatedSchedule.status,
+          employeeId: employeeIdNum,
+          weekNumber,
+          year,
+          scheduleData,
+          notes,
+          totalWeeklyMinutes,
+        },
       });
     } catch (error) {
-      console.error("Erreur lors de la mise à jour du planning:", error);
+      console.error("MIGRATION: Erreur mise à jour planning:", error);
       return res.status(500).json({
         message: "Erreur serveur lors de la mise à jour du planning",
         error: error instanceof Error ? error.message : String(error),
@@ -607,9 +807,8 @@ router.put(
 
 /**
  * Route GET /api/weekly-schedules/:id
- * Récupère un planning spécifique par son ID
+ * MIGRATION: Récupère un planning spécifique par son ID
  * Pour les employés : seulement leurs propres plannings
- * Accessible aux utilisateurs authentifiés
  */
 router.get(
   "/:id",
@@ -618,14 +817,6 @@ router.get(
     try {
       const { id } = req.params;
 
-      if (!isValidObjectId(id)) {
-        return res.status(400).json({
-          success: false,
-          message: "ID de planning invalide",
-        });
-      }
-
-      // Vérifier l'utilisateur
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -636,12 +827,33 @@ router.get(
       const isEmployee = req.user.role === "employee";
       const userId = req.user.userId || req.user._id || req.user.id;
 
-      let schedule;
+      // MIGRATION: Parse id en number
+      const scheduleId = parseId(id, "scheduleId");
 
+      // Récupérer le planning
+      const schedule = await prisma.weeklySchedule.findUnique({
+        where: { id: scheduleId },
+        include: {
+          team: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+      });
+
+      if (!schedule) {
+        return res.status(404).json({
+          success: false,
+          message: "Planning introuvable",
+        });
+      }
+
+      // **RESTRICTION EMPLOYÉ**
       if (isEmployee) {
-        // Pour les employés, vérifier qu'ils ne peuvent voir que leurs propres plannings
-        const EmployeeModel = require("../models/Employee.model").default;
-        const employee = await EmployeeModel.findOne({ userId: userId }).lean();
+        const employee = await prisma.employee.findFirst({
+          where: { userId: parseId(userId, "userId") },
+        });
 
         if (!employee) {
           return res.status(404).json({
@@ -650,60 +862,70 @@ router.get(
           });
         }
 
-        // Récupérer le planning seulement s'il appartient à cet employé
-        schedule = await WeeklyScheduleModel.findOne({
-          _id: id,
-          employeeId: employee._id,
-        })
-          .populate("employeeId", "firstName lastName")
-          .populate("updatedBy", "firstName lastName")
-          .lean();
+        // Vérifier que le planning concerne cet employé
+        const scheduleJson = (schedule.schedule as Record<string, any[]>) || {};
+        let hasEmployeeData = false;
 
-        if (!schedule) {
+        for (const slots of Object.values(scheduleJson)) {
+          if ((slots as any[]).some((slot: any) => slot.employeeId === employee.id)) {
+            hasEmployeeData = true;
+            break;
+          }
+        }
+
+        if (!hasEmployeeData) {
           return res.status(403).json({
             success: false,
             message: "Vous n'êtes autorisé à voir que vos propres plannings",
           });
         }
-      } else {
-        // Pour les autres rôles, récupération normale
-        schedule = await WeeklyScheduleModel.findById(id)
-          .populate("employeeId", "firstName lastName")
-          .populate("updatedBy", "firstName lastName")
-          .lean();
+      }
 
-        if (!schedule) {
-          return res.status(404).json({
-            success: false,
-            message: "Planning introuvable",
-          });
+      // MIGRATION: Formater la réponse (compatibilité)
+      const scheduleJson = (schedule.schedule as Record<string, any[]>) || {};
+
+      // Extraire les employés
+      const employeeIds = new Set<number>();
+      for (const slots of Object.values(scheduleJson)) {
+        for (const slot of slots as any[]) {
+          if (slot.employeeId) {
+            employeeIds.add(slot.employeeId);
+          }
         }
       }
 
-      // Formatage de la réponse
-      const formattedSchedule = {
-        ...schedule,
-        employeeName: schedule.employeeId
-          ? `${(schedule.employeeId as any).firstName} ${
-              (schedule.employeeId as any).lastName
-            }`
-          : "Employé inconnu",
-        updatedByName: schedule.updatedBy
-          ? `${(schedule.updatedBy as any).firstName} ${
-              (schedule.updatedBy as any).lastName
-            }`
-          : "Utilisateur inconnu",
-        employeeId: schedule.employeeId
-          ? (schedule.employeeId as any)._id
-          : schedule.employeeId,
-      };
+      // Pour l'instant, retourner le premier employé trouvé (limitation)
+      const firstEmployeeId = Array.from(employeeIds)[0];
+      const employee = firstEmployeeId
+        ? await prisma.employee.findUnique({
+            where: { id: firstEmployeeId },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : null;
 
       return res.status(200).json({
         success: true,
-        data: formattedSchedule,
+        data: {
+          _id: schedule.id,
+          employeeId: firstEmployeeId || null,
+          employeeName: employee
+            ? `${employee.firstName} ${employee.lastName}`
+            : "Employé inconnu",
+          teamId: schedule.teamId,
+          teamName: schedule.team.name,
+          year: schedule.weekStartDate.getFullYear(),
+          weekNumber: 1, // À calculer si nécessaire
+          scheduleData: scheduleJson,
+          status: schedule.status,
+          createdAt: schedule.createdAt,
+          updatedAt: schedule.updatedAt,
+          updatedByName: schedule.createdBy
+            ? `${schedule.createdBy.firstName} ${schedule.createdBy.lastName}`
+            : "Utilisateur inconnu",
+        },
       });
     } catch (error) {
-      console.error("Erreur lors de la récupération du planning:", error);
+      console.error("MIGRATION: Erreur récupération planning:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la récupération du planning",
@@ -715,7 +937,7 @@ router.get(
 
 /**
  * Route DELETE /api/weekly-schedules/:id
- * Supprime un planning spécifique
+ * MIGRATION: Supprime un planning spécifique
  * Accessible aux managers, directeurs et admins
  */
 router.delete(
@@ -726,16 +948,14 @@ router.delete(
     try {
       const { id } = req.params;
 
-      // Vérifier la validité de l'ID
-      if (!isValidObjectId(id)) {
-        return res.status(400).json({
-          success: false,
-          message: "ID de planning invalide",
-        });
-      }
+      // MIGRATION: Parse id en number
+      const scheduleId = parseId(id, "scheduleId");
 
-      // Vérifier l'existence du planning
-      const existingSchedule = await WeeklyScheduleModel.findById(id);
+      // Vérifier l'existence
+      const existingSchedule = await prisma.weeklySchedule.findUnique({
+        where: { id: scheduleId },
+      });
+
       if (!existingSchedule) {
         return res.status(404).json({
           success: false,
@@ -743,15 +963,19 @@ router.delete(
         });
       }
 
-      // Supprimer le planning
-      await WeeklyScheduleModel.findByIdAndDelete(id);
+      // Supprimer
+      await prisma.weeklySchedule.delete({
+        where: { id: scheduleId },
+      });
+
+      console.log(`MIGRATION: Planning ${scheduleId} supprimé`);
 
       return res.status(200).json({
         success: true,
         message: "Planning supprimé avec succès",
       });
     } catch (error) {
-      console.error("Erreur lors de la suppression du planning:", error);
+      console.error("MIGRATION: Erreur suppression planning:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la suppression du planning",
@@ -763,7 +987,7 @@ router.delete(
 
 /**
  * Route GET /api/weekly-schedules/admin/all
- * Récupère tous les plannings pour l'admin avec filtres par entreprise, équipe et employé
+ * MIGRATION: Récupère tous les plannings pour l'admin avec filtres
  * Accessible uniquement aux administrateurs
  */
 router.get(
@@ -783,7 +1007,7 @@ router.get(
         limit = 20,
       } = req.query;
 
-      console.log("Admin - Récupération des plannings avec filtres:", {
+      console.log("MIGRATION: Admin récupération plannings", {
         companyId: companyId || "tous",
         teamId: teamId || "tous",
         employeeId: employeeId || "tous",
@@ -794,179 +1018,126 @@ router.get(
         limit,
       });
 
-      // Construction du pipeline d'agrégation
-      const matchStage: any = {
-        status: "approved", // Seulement les plannings approuvés
+      // Construction du filtre Prisma
+      const where: any = {
+        status: "validated",
       };
 
-      // Filtre par année si spécifié
-      if (year) {
-        const yearNumber = parseInt(year as string, 10);
-        if (!isNaN(yearNumber)) {
-          matchStage.year = yearNumber;
-        }
+      if (companyId) {
+        where.companyId = parseId(companyId as string, "companyId");
       }
 
-      // Filtre par semaine si spécifié
-      if (weekNumber) {
+      if (teamId) {
+        where.teamId = parseId(teamId as string, "teamId");
+      }
+
+      // Filtre par année/semaine
+      if (year && weekNumber) {
+        const yearNum = parseInt(year as string, 10);
         const weekNum = parseInt(weekNumber as string, 10);
-        if (!isNaN(weekNum)) {
-          matchStage.weekNumber = weekNum;
+
+        if (!isNaN(yearNum) && !isNaN(weekNum)) {
+          const { weekStartDate, weekEndDate } = getWeekDates(yearNum, weekNum);
+          where.weekStartDate = weekStartDate;
+          where.weekEndDate = weekEndDate;
         }
       }
-
-      // Filtre par employé si spécifié
-      if (employeeId && isValidObjectId(employeeId as string)) {
-        matchStage.employeeId = new mongoose.Types.ObjectId(
-          employeeId as string
-        );
-      }
-
-      const aggregationPipeline: any[] = [
-        { $match: matchStage },
-
-        // Jointure avec les employés
-        {
-          $lookup: {
-            from: "employees",
-            localField: "employeeId",
-            foreignField: "_id",
-            as: "employee",
-          },
-        },
-        { $unwind: "$employee" },
-
-        // Jointure avec les équipes
-        {
-          $lookup: {
-            from: "teams",
-            localField: "employee.teamId",
-            foreignField: "_id",
-            as: "team",
-          },
-        },
-
-        // Jointure avec les entreprises
-        {
-          $lookup: {
-            from: "companies",
-            localField: "employee.companyId",
-            foreignField: "_id",
-            as: "company",
-          },
-        },
-
-        // Jointure avec l'utilisateur qui a mis à jour
-        {
-          $lookup: {
-            from: "users",
-            localField: "updatedBy",
-            foreignField: "_id",
-            as: "updatedByUser",
-          },
-        },
-      ];
-
-      // Filtrage par entreprise
-      if (companyId && isValidObjectId(companyId as string)) {
-        aggregationPipeline.push({
-          $match: {
-            "employee.companyId": new mongoose.Types.ObjectId(
-              companyId as string
-            ),
-          },
-        });
-      }
-
-      // Filtrage par équipe
-      if (teamId && isValidObjectId(teamId as string)) {
-        aggregationPipeline.push({
-          $match: {
-            "employee.teamId": new mongoose.Types.ObjectId(teamId as string),
-          },
-        });
-      }
-
-      // Projection finale
-      aggregationPipeline.push({
-        $project: {
-          _id: 1,
-          year: 1,
-          weekNumber: 1,
-          scheduleData: 1,
-          dailyNotes: 1,
-          dailyDates: 1,
-          totalWeeklyMinutes: 1,
-          notes: 1,
-          status: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          employeeId: "$employee._id",
-          employeeName: {
-            $concat: ["$employee.firstName", " ", "$employee.lastName"],
-          },
-          employeeEmail: "$employee.email",
-          teamId: { $arrayElemAt: ["$team._id", 0] },
-          teamName: { $arrayElemAt: ["$team.name", 0] },
-          companyId: { $arrayElemAt: ["$company._id", 0] },
-          companyName: { $arrayElemAt: ["$company.name", 0] },
-          updatedByName: {
-            $concat: [
-              { $arrayElemAt: ["$updatedByUser.firstName", 0] },
-              " ",
-              { $arrayElemAt: ["$updatedByUser.lastName", 0] },
-            ],
-          },
-        },
-      });
-
-      // Filtrage par recherche textuelle si spécifié
-      if (search && typeof search === "string" && search.trim()) {
-        const searchRegex = new RegExp(search.trim(), "i");
-        aggregationPipeline.push({
-          $match: {
-            $or: [
-              { employeeName: searchRegex },
-              { employeeEmail: searchRegex },
-              { companyName: searchRegex },
-              { teamName: searchRegex },
-            ],
-          },
-        });
-      }
-
-      // Tri par date de mise à jour décroissante
-      aggregationPipeline.push({
-        $sort: { updatedAt: -1 },
-      });
 
       // Pagination
       const pageNum = parseInt(page as string, 10) || 1;
       const limitNum = parseInt(limit as string, 10) || 20;
       const skip = (pageNum - 1) * limitNum;
 
-      // Compter le total pour la pagination
-      const countPipeline = [...aggregationPipeline, { $count: "total" }];
-      const countResult = await WeeklyScheduleModel.aggregate(countPipeline);
-      const total = countResult.length > 0 ? countResult[0].total : 0;
+      // Requête avec relations
+      const schedules = await prisma.weeklySchedule.findMany({
+        where,
+        include: {
+          team: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+        skip,
+        take: limitNum,
+      });
 
-      // Ajouter la pagination à l'agrégation principale
-      aggregationPipeline.push({ $skip: skip }, { $limit: limitNum });
+      const total = await prisma.weeklySchedule.count({ where });
 
-      console.log(
-        "Exécution de l'agrégation pour admin:",
-        JSON.stringify(aggregationPipeline, null, 2)
-      );
+      // MIGRATION: Transformer les données
+      const transformedSchedules = [];
 
-      const schedules = await WeeklyScheduleModel.aggregate(
-        aggregationPipeline
-      );
+      for (const schedule of schedules) {
+        const scheduleJson = (schedule.schedule as Record<string, any[]>) || {};
 
-      console.log(`${schedules.length} plannings trouvés sur ${total} total`);
+        // Extraire les employés
+        const employeeIds = new Set<number>();
+        for (const slots of Object.values(scheduleJson)) {
+          for (const slot of slots as any[]) {
+            if (slot.employeeId) {
+              employeeIds.add(slot.employeeId);
+            }
+          }
+        }
+
+        // Si filtre par employeeId
+        if (employeeId) {
+          const employeeIdNum = parseId(employeeId as string, "employeeId");
+          if (!employeeIds.has(employeeIdNum)) continue;
+        }
+
+        // Récupérer infos employés
+        const employees = await prisma.employee.findMany({
+          where: { id: { in: Array.from(employeeIds) } },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        });
+
+        for (const emp of employees) {
+          transformedSchedules.push({
+            _id: `${schedule.id}-${emp.id}`,
+            year: schedule.weekStartDate.getFullYear(),
+            weekNumber: 1, // À calculer si nécessaire
+            employeeId: emp.id,
+            employeeName: `${emp.firstName} ${emp.lastName}`,
+            employeeEmail: emp.email,
+            teamId: schedule.teamId,
+            teamName: schedule.team.name,
+            companyId: schedule.companyId,
+            companyName: schedule.company.name,
+            status: schedule.status,
+            createdAt: schedule.createdAt,
+            updatedAt: schedule.updatedAt,
+            updatedByName: schedule.createdBy
+              ? `${schedule.createdBy.firstName} ${schedule.createdBy.lastName}`
+              : "Utilisateur inconnu",
+          });
+        }
+      }
+
+      // Filtre recherche textuelle
+      let filteredSchedules = transformedSchedules;
+      if (search && typeof search === "string" && search.trim()) {
+        const searchLower = search.trim().toLowerCase();
+        filteredSchedules = transformedSchedules.filter(
+          (s: any) =>
+            s.employeeName?.toLowerCase().includes(searchLower) ||
+            s.employeeEmail?.toLowerCase().includes(searchLower) ||
+            s.companyName?.toLowerCase().includes(searchLower) ||
+            s.teamName?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      console.log(`MIGRATION: ${filteredSchedules.length} plannings trouvés sur ${total} total`);
 
       return res.status(200).json({
         success: true,
-        data: schedules,
+        data: filteredSchedules,
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(total / limitNum),
@@ -975,10 +1146,7 @@ router.get(
         },
       });
     } catch (error) {
-      console.error(
-        "Erreur lors de la récupération des plannings admin:",
-        error
-      );
+      console.error("MIGRATION: Erreur récupération plannings admin:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la récupération des plannings",
@@ -990,7 +1158,7 @@ router.get(
 
 /**
  * Route GET /api/weekly-schedules/employee/:employeeId
- * Récupère tous les plannings d'un employé spécifique
+ * MIGRATION: Récupère tous les plannings d'un employé spécifique
  * Accessible aux employés (leurs propres plannings) et aux managers/directeurs/admins
  */
 router.get(
@@ -1001,7 +1169,6 @@ router.get(
     try {
       const { employeeId } = req.params;
 
-      // Validation de l'authentification
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -1014,17 +1181,17 @@ router.get(
       const userCompanyId = req.user.companyId;
       const userId = req.user.userId || req.user._id || req.user.id;
 
-      // Validation de l'ID employé
-      if (!isValidObjectId(employeeId)) {
-        return res.status(400).json({
-          success: false,
-          message: "ID employé invalide",
-        });
-      }
+      // MIGRATION: Parse employeeId
+      const employeeIdNum = parseId(employeeId, "employeeId");
 
-      // Vérifier que l'employé existe et appartient à la bonne entreprise
-      const EmployeeModel = require("../models/Employee.model").default;
-      const targetEmployee = await EmployeeModel.findById(employeeId).lean();
+      // Vérifier que l'employé existe
+      const targetEmployee = await prisma.employee.findUnique({
+        where: { id: employeeIdNum },
+        include: {
+          team: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
+        },
+      });
 
       if (!targetEmployee) {
         return res.status(404).json({
@@ -1033,21 +1200,21 @@ router.get(
         });
       }
 
-      // Pour les employés : ils ne peuvent voir que leurs propres plannings
+      // **RESTRICTION EMPLOYÉ**
       if (isEmployee) {
-        const currentEmployee = await EmployeeModel.findOne({
-          userId: userId,
-        }).lean();
+        const currentEmployee = await prisma.employee.findFirst({
+          where: { userId: parseId(userId, "userId") },
+        });
 
-        if (!currentEmployee || currentEmployee._id.toString() !== employeeId) {
+        if (!currentEmployee || currentEmployee.id !== employeeIdNum) {
           return res.status(403).json({
             success: false,
             message: "Vous ne pouvez consulter que vos propres plannings",
           });
         }
       } else if (!isAdmin) {
-        // Pour les managers/directeurs : vérifier que l'employé appartient à leur entreprise
-        if (targetEmployee.companyId.toString() !== userCompanyId) {
+        // Managers/directeurs: vérifier la même entreprise
+        if (targetEmployee.companyId !== parseId(userCompanyId, "companyId")) {
           return res.status(403).json({
             success: false,
             message:
@@ -1056,97 +1223,81 @@ router.get(
         }
       }
 
-      // Construire le pipeline d'agrégation
-      const aggregationPipeline: any[] = [
-        {
-          $match: {
-            employeeId: new mongoose.Types.ObjectId(employeeId),
-            status: "approved", // Seulement les plannings approuvés
-          },
+      // MIGRATION: Récupérer tous les plannings de l'équipe de l'employé
+      const schedules = await prisma.weeklySchedule.findMany({
+        where: {
+          teamId: targetEmployee.teamId,
+          status: "validated",
         },
-
-        // Jointure avec les employés
-        {
-          $lookup: {
-            from: "employees",
-            localField: "employeeId",
-            foreignField: "_id",
-            as: "employee",
-          },
+        include: {
+          team: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
         },
-        { $unwind: "$employee" },
+        orderBy: { weekStartDate: "desc" },
+      });
 
-        // Jointure avec les équipes
-        {
-          $lookup: {
-            from: "teams",
-            localField: "employee.teamId",
-            foreignField: "_id",
-            as: "team",
-          },
-        },
+      // Filtrer uniquement les plannings contenant cet employé
+      const employeeSchedules = [];
 
-        // Jointure avec les entreprises
-        {
-          $lookup: {
-            from: "companies",
-            localField: "employee.companyId",
-            foreignField: "_id",
-            as: "company",
-          },
-        },
+      for (const schedule of schedules) {
+        const scheduleJson = (schedule.schedule as Record<string, any[]>) || {};
 
-        // Projection des données
-        {
-          $project: {
-            _id: 1,
-            year: 1,
-            weekNumber: 1,
-            scheduleData: 1,
-            dailyNotes: 1,
-            dailyDates: 1,
-            totalWeeklyMinutes: 1,
-            notes: 1,
-            status: 1,
-            createdAt: 1,
-            updatedAt: 1,
-            employeeId: "$employee._id",
-            employeeName: {
-              $concat: ["$employee.firstName", " ", "$employee.lastName"],
-            },
-            employeePhotoUrl: "$employee.photoUrl",
-            teamId: { $arrayElemAt: ["$team._id", 0] },
-            teamName: { $arrayElemAt: ["$team.name", 0] },
-            companyId: { $arrayElemAt: ["$company._id", 0] },
-            companyName: { $arrayElemAt: ["$company.name", 0] },
-          },
-        },
+        // Vérifier si l'employé est dans ce planning
+        let hasEmployeeData = false;
+        const employeeScheduleData: Record<string, string[]> = {};
+        const employeeDailyNotes: Record<string, string> = {};
 
-        // Tri par année et semaine (plus récent en premier)
-        {
-          $sort: { year: -1, weekNumber: -1 },
-        },
-      ];
+        for (const [day, slots] of Object.entries(scheduleJson)) {
+          const employeeSlots = (slots as any[]).filter(
+            (slot: any) => slot.employeeId === employeeIdNum
+          );
 
-      const schedules = await WeeklyScheduleModel.aggregate(
-        aggregationPipeline
-      );
+          if (employeeSlots.length > 0) {
+            hasEmployeeData = true;
+            employeeScheduleData[day] = employeeSlots.map(
+              (s: any) => `${s.startTime}-${s.endTime}`
+            );
+
+            const note = employeeSlots.find((s: any) => s.note)?.note;
+            if (note) {
+              employeeDailyNotes[day] = note;
+            }
+          }
+        }
+
+        if (hasEmployeeData) {
+          employeeSchedules.push({
+            _id: `${schedule.id}-${employeeIdNum}`,
+            year: schedule.weekStartDate.getFullYear(),
+            weekNumber: 1, // À calculer si nécessaire
+            employeeId: targetEmployee.id,
+            employeeName: `${targetEmployee.firstName} ${targetEmployee.lastName}`,
+            employeePhotoUrl: targetEmployee.photoUrl,
+            teamId: schedule.teamId,
+            teamName: schedule.team.name,
+            companyId: schedule.companyId,
+            companyName: schedule.company.name,
+            scheduleData: employeeScheduleData,
+            dailyNotes: employeeDailyNotes,
+            status: schedule.status,
+            createdAt: schedule.createdAt,
+            updatedAt: schedule.updatedAt,
+          });
+        }
+      }
 
       console.log(
-        `${schedules.length} plannings trouvés pour l'employé ${employeeId}`
+        `MIGRATION: ${employeeSchedules.length} plannings trouvés pour employé ${employeeIdNum}`
       );
 
       return res.status(200).json({
         success: true,
-        data: schedules,
-        count: schedules.length,
+        data: employeeSchedules,
+        count: employeeSchedules.length,
         message: `Plannings de ${targetEmployee.firstName} ${targetEmployee.lastName}`,
       });
     } catch (error) {
-      console.error(
-        "Erreur lors de la récupération des plannings employé:",
-        error
-      );
+      console.error("MIGRATION: Erreur récupération plannings employé:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la récupération des plannings",

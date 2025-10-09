@@ -5,7 +5,6 @@ import dotenv from "dotenv";
 import express, { Express, NextFunction, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import mongoose from "mongoose";
 import morgan from "morgan";
 import { metricsMiddleware } from "./monitoring/metrics";
 import { initSentry, sentryRequestHandler } from "./config/sentry.config";
@@ -17,29 +16,29 @@ import adminUsersRoutes from "./routes/admin/users.route";
 // Import des middlewares de sécurité
 import { authenticateToken } from "./middlewares/auth.middleware";
 import checkRole from "./middlewares/checkRole.middleware";
-import aiRoutes from "./routes/ai.routes";
+import aiRoutes from "./routes/ai.routes"; // ✅ MIGRÉ vers Prisma
 import authRoutes from "./routes/auth.routes";
 import companiesRoutes from "./routes/companies.route";
 import contactRoutes from "./routes/contact.routes";
-import employeeRoutes from "./routes/employee.routes";
+import employeeRoutes from "./routes/employee.routes"; // ✅ MIGRÉ vers Prisma
 import employeesByCompanyRoutes from "./routes/employees.route";
-import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route";
-import autoGenerateRoutes from "./routes/autoGenerate.route";
+import accessibleEmployeesRoutes from "./routes/employees/accessibleEmployees.route"; // ✅ MIGRÉ vers Prisma
+import autoGenerateRoutes from "./routes/autoGenerate.route"; // ✅ MIGRÉ vers Prisma
 import generatedSchedulesRoutes from "./routes/generatedSchedules.route";
-import incidentsRoutes from "./routes/incidents.route";
+import incidentsRoutes from "./routes/incidents.route"; // ✅ MIGRÉ vers Prisma
 import publicRoutes from "./routes/index";
 import sitemapRoutes from "./routes/sitemap.routes";
 import passwordRoutes from "./routes/password.routes";
 import profileRoutes from "./routes/profile.routes";
-import statsRoutes from "./routes/stats.routes";
-import tasksRoutes from "./routes/tasks.routes";
-import teamRoutes from "./routes/teams.route";
+import statsRoutes from "./routes/stats.routes"; // ✅ MIGRÉ vers Prisma
+import tasksRoutes from "./routes/tasks.routes"; // ✅ MIGRÉ vers Prisma
+import teamRoutes from "./routes/teams.route"; // ✅ MIGRÉ vers Prisma
 import { uploadRoutes } from "./routes/upload.routes";
-import usersRoutes from "./routes/users.routes";
-import vacationRoutes from "./routes/vacations.routes";
-import weeklySchedulesRouter from "./routes/weeklySchedules.route";
+// users.routes.ts est REDONDANT avec admin/users.route.ts - supprimé
+import vacationRoutes from "./routes/vacations.routes"; // ✅ MIGRÉ vers Prisma
+import weeklySchedulesRouter from "./routes/weeklySchedules.route"; // ✅ MIGRÉ vers Prisma
 import monitoringRoutes from "./routes/monitoring.routes";
-import performanceRoutes from "./routes/performance.routes";
+import performanceRoutes from "./routes/performance.routes"; // ✅ MIGRÉ vers Prisma
 import sentryMonitoringRoutes from "./routes/monitoring-sentry.routes";
 import { securityConfig, applySecurityHeaders } from "./config/security.config";
 // Charger les variables d'environnement
@@ -53,16 +52,9 @@ if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
 // Initialisation de l'application
 const app: Express = express();
 
-// Connexion à MongoDB (seulement si pas en mode test)
-if (process.env.NODE_ENV !== 'test') {
-  mongoose
-    .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/smartplanning")
-    .then(() => console.log("✅ Connected to MongoDB"))
-    .catch((err) => {
-      console.error("❌ Error connecting to MongoDB:", err);
-      process.exit(1);
-    });
-}
+// MIGRATION: Connexion PostgreSQL via Prisma (géré automatiquement)
+// La connexion est établie lors de la première requête Prisma
+// Voir /src/config/db.ts pour la fonction de test de connexion
 
 // Middlewares
 app.use(morgan("dev"));
@@ -226,31 +218,31 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin/*", authenticateToken, checkRole(["admin"]));
 
 // Routes protégées par authentification (toutes sauf auth et contact)
-app.use("/api/ai", authenticateToken, aiRoutes);
+app.use("/api/ai", authenticateToken, aiRoutes); // ✅ MIGRÉ vers Prisma
 app.use("/api/admin/users", adminUsersRoutes);
 app.use("/api/admin/companies", adminCompaniesRouter);
 app.use("/api/admin/teams", adminTeamRoutes);
 app.use("/api/admin/employees", adminEmployeesRoutes);
 app.use("/api/companies", authenticateToken, companiesRoutes);
-app.use("/api/employees/accessible", authenticateToken, accessibleEmployeesRoutes);
-app.use("/api/employees", authenticateToken, employeeRoutes);
-app.use("/api/employees", authenticateToken, employeesByCompanyRoutes);
+app.use("/api/employees/accessible", authenticateToken, accessibleEmployeesRoutes); // ✅ MIGRÉ vers Prisma
+app.use("/api/employees", authenticateToken, employeeRoutes); // ✅ MIGRÉ vers Prisma
+// app.use("/api/employees", authenticateToken, employeesByCompanyRoutes); // DEPRECATED - Remplacé par employee.routes.ts
 app.use("/api/generated-schedules", authenticateToken, generatedSchedulesRoutes);
-app.use("/api/schedules", authenticateToken, autoGenerateRoutes);
-app.use("/api/incidents", authenticateToken, incidentsRoutes);
+app.use("/api/schedules", authenticateToken, autoGenerateRoutes); // ✅ MIGRÉ vers Prisma
+app.use("/api/incidents", authenticateToken, incidentsRoutes); // ✅ MIGRÉ vers Prisma
 app.use("/api/profile", authenticateToken, profileRoutes);
 app.use("/api/profile", authenticateToken, passwordRoutes);
-app.use("/api/teams", authenticateToken, teamRoutes);
-app.use("/api/users", authenticateToken, usersRoutes);
-app.use("/api/vacations", authenticateToken, vacationRoutes);
-app.use("/api/weekly-schedules", authenticateToken, weeklySchedulesRouter);
-app.use("/api/tasks", authenticateToken, tasksRoutes);
-app.use("/api/stats", authenticateToken, statsRoutes);
+app.use("/api/teams", authenticateToken, teamRoutes); // ✅ MIGRÉ vers Prisma
+// Route /api/users supprimée - utiliser /api/admin/users à la place
+app.use("/api/vacations", authenticateToken, vacationRoutes); // ✅ MIGRÉ vers Prisma
+app.use("/api/weekly-schedules", authenticateToken, weeklySchedulesRouter); // ✅ MIGRÉ vers Prisma
+app.use("/api/tasks", authenticateToken, tasksRoutes); // ✅ MIGRÉ vers Prisma
+app.use("/api/stats", authenticateToken, statsRoutes); // ✅ MIGRÉ vers Prisma
 app.use("/api/monitoring", monitoringRoutes);
 app.use("/api/monitoring/sentry", sentryMonitoringRoutes);
 
 // Routes de performance et analytics
-app.use("/api/performance", performanceRoutes);
+app.use("/api/performance", performanceRoutes); // ✅ MIGRÉ vers Prisma
 
 // Routes publiques
 app.use("/api/contact", contactRoutes);

@@ -1,38 +1,39 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import mongoose from 'mongoose';
+/**
+ * Configuration de test PostgreSQL avec Prisma
+ *
+ * MIGRATION: Remplace MongoDB Memory Server par PostgreSQL test database
+ * Utilise une base de données PostgreSQL dédiée aux tests
+ */
+
 import dotenv from 'dotenv';
+import prisma from '../config/prisma';
 
 // Charger les variables d'environnement de test
 dotenv.config({ path: '.env.test' });
-
-let mongoServer: MongoMemoryServer;
 
 // Variables d'environnement pour les tests
 process.env.JWT_SECRET = 'test-jwt-secret-key-very-secure';
 process.env.NODE_ENV = 'test';
 process.env.PORT = '5051';
 
+// Override DATABASE_URL pour utiliser une base de test
+// Format: postgresql://user:password@localhost:5432/smartplanning_test
+if (!process.env.DATABASE_URL?.includes('_test')) {
+  const testDbUrl = process.env.DATABASE_URL?.replace('/smartplanning', '/smartplanning_test') ||
+                    'postgresql://postgres:postgres@localhost:5432/smartplanning_test';
+  process.env.DATABASE_URL = testDbUrl;
+}
+
 // Setup avant tous les tests
 beforeAll(async () => {
   try {
-    // Fermer toute connexion existante
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-    
-    // Créer une instance MongoDB en mémoire
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    
-    // Se connecter à la base de données en mémoire avec des options spécifiques
-    await mongoose.connect(uri, {
-      maxPoolSize: 1,
-      serverSelectionTimeoutMS: 5000,
-    });
-    
-    console.log('✅ Base de données de test MongoDB connectée');
+    // Tester la connexion PostgreSQL
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('✅ Base de données de test PostgreSQL connectée');
   } catch (error) {
-    console.error('❌ Erreur de connexion MongoDB:', error);
+    console.error('❌ Erreur de connexion PostgreSQL:', error);
+    console.error('💡 Assurez-vous que la base "smartplanning_test" existe');
+    console.error('   Créez-la avec: createdb smartplanning_test');
     throw error;
   }
 });
@@ -40,22 +41,8 @@ beforeAll(async () => {
 // Nettoyage après tous les tests
 afterAll(async () => {
   try {
-    // Nettoyer toutes les collections avant de fermer
-    if (mongoose.connection.readyState === 1) {
-      const collections = mongoose.connection.collections;
-      for (const key in collections) {
-        await collections[key].deleteMany({});
-      }
-    }
-    
-    // Fermer la connexion
-    await mongoose.disconnect();
-    
-    // Arrêter le serveur MongoDB en mémoire
-    if (mongoServer) {
-      await mongoServer.stop();
-    }
-    
+    // Fermer la connexion Prisma
+    await prisma.$disconnect();
     console.log('✅ Base de données de test fermée');
   } catch (error) {
     console.error('❌ Erreur lors de la fermeture:', error);
@@ -65,15 +52,35 @@ afterAll(async () => {
 // Nettoyage entre chaque test
 beforeEach(async () => {
   try {
-    if (mongoose.connection.readyState === 1) {
-      // Nettoyer toutes les collections
-      const collections = mongoose.connection.collections;
-      
-      for (const key in collections) {
-        const collection = collections[key];
-        await collection.deleteMany({});
-      }
+    // Nettoyer toutes les tables (en respectant les contraintes FK)
+    const tables = [
+      'ChatbotInteraction',
+      'ChatbotSettings',
+      'Payment',
+      'Subscription',
+      'GeneratedSchedule',
+      'WeeklySchedule',
+      'VacationRequest',
+      'Incident',
+      'Task',
+      'Event',
+      'Employee',
+      'Team',
+      'User',
+      'Company'
+    ];
+
+    // Désactiver temporairement les contraintes FK
+    await prisma.$executeRaw`SET session_replication_role = 'replica';`;
+
+    // Supprimer les données de toutes les tables
+    for (const table of tables) {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE;`);
     }
+
+    // Réactiver les contraintes FK
+    await prisma.$executeRaw`SET session_replication_role = 'origin';`;
+
   } catch (error) {
     console.error('❌ Erreur lors du nettoyage:', error);
   }

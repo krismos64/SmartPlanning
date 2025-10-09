@@ -1,16 +1,17 @@
 /**
  * Routes de gestion des congés - SmartPlanning
  *
+ * MIGRATION POSTGRESQL: Migré de Mongoose vers Prisma ORM
+ *
  * Ce module gère toutes les routes CRUD pour les demandes de congés.
  * Chaque route implémente la logique d'accès basée sur les rôles (admin, directeur, manager, employé).
  */
 
 import { Response, Router } from "express";
-import mongoose from "mongoose";
 import { AuthRequest, authenticateToken } from "../middlewares/auth.middleware";
-import VacationRequestModel from "../models/VacationRequest.model";
+import prisma from "../config/prisma";
 
-// Import de l'enum pour les statuts
+// Enum pour les statuts de demandes de congés (aligné avec Prisma schema)
 enum VacationRequestStatus {
   PENDING = "pending",
   APPROVED = "approved",
@@ -33,7 +34,7 @@ const hasAccessToVacationRequest = async (
   console.log("Vérification des droits d'accès");
   console.log("- Vérification des droits utilisateur");
   console.log("- Demande:", {
-    id: vacationRequest._id,
+    id: vacationRequest.id,
     employeeId: vacationRequest.employeeId,
     requestedBy: vacationRequest.requestedBy,
     status: vacationRequest.status,
@@ -48,46 +49,49 @@ const hasAccessToVacationRequest = async (
   // Directeur a accès à tous les employés de la même entreprise
   if (user.role === "directeur" && user.companyId) {
     // Récupérer l'employé associé à la demande
-    const employee = await mongoose
-      .model("Employee")
-      .findById(vacationRequest.employeeId);
+    const employee = await prisma.employee.findUnique({
+      where: { id: vacationRequest.employeeId },
+      select: { companyId: true }
+    });
 
-    const hasAccess =
-      employee && employee.companyId.toString() === user.companyId.toString();
+    const hasAccess = employee && employee.companyId === user.companyId;
     console.log("- Accès directeur:", hasAccess);
     return hasAccess;
   }
 
   // Manager a accès aux membres de ses équipes
-  if (user.role === "manager" && user.teamIds && user.teamIds.length > 0) {
-    const employee = await mongoose
-      .model("Employee")
-      .findById(vacationRequest.employeeId);
-
-    console.log("- Équipes du manager (détaillées):");
-    user.teamIds.forEach((teamId: mongoose.Types.ObjectId, index: number) => {
-      console.log(`  Équipe ${index + 1}: ${teamId.toString()}`);
+  // PostgreSQL: Team.managerId (single) au lieu de User.teamIds (array)
+  if (user.role === "manager") {
+    const employee = await prisma.employee.findUnique({
+      where: { id: vacationRequest.employeeId },
+      select: { teamId: true }
     });
 
-    console.log(
-      "- Équipe de l'employé:",
-      employee?.teamId ? employee.teamId.toString() : "aucune équipe"
-    );
+    console.log("- Vérification manager:");
 
-    const hasAccess =
-      employee &&
-      user.teamIds.some(
-        (teamId: mongoose.Types.ObjectId) =>
-          employee.teamId && employee.teamId.toString() === teamId.toString()
-      );
+    if (!employee || !employee.teamId) {
+      console.log("  Employé sans équipe");
+      return false;
+    }
+
+    // Récupérer les équipes gérées par ce manager
+    const teams = await prisma.team.findMany({
+      where: { managerId: user.id },
+      select: { id: true }
+    });
+
+    console.log(`  Manager gère ${teams.length} équipe(s)`);
+    console.log(`  Équipe de l'employé: ${employee.teamId}`);
+
+    const teamIds = teams.map(t => t.id);
+    const hasAccess = teamIds.includes(employee.teamId);
 
     console.log("- Accès manager:", hasAccess);
     return hasAccess;
   }
 
   // Employé a accès uniquement à ses propres demandes
-  const hasAccess =
-    user._id.toString() === vacationRequest.requestedBy.toString();
+  const hasAccess = user.id === vacationRequest.requestedBy;
   console.log("- Accès employé:", hasAccess);
   return hasAccess;
 };
@@ -103,84 +107,115 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const user = req.user;
 
     // Configuration de la requête filtrée selon le rôle
-    let query = {};
+    let whereClause: any = {};
 
     // Filtrer les demandes selon le rôle de l'utilisateur
     if (user.role === "admin") {
       // Admin voit tout
-      query = {};
+      whereClause = {};
     } else if (user.role === "directeur" && user.companyId) {
       // Directeur voit les employés de sa compagnie
-      const companyEmployees = await mongoose
-        .model("Employee")
-        .find({ companyId: user.companyId })
-        .select("_id");
+      const companyEmployees = await prisma.employee.findMany({
+        where: { companyId: user.companyId },
+        select: { id: true }
+      });
 
-      const employeeIds = companyEmployees.map((employee: any) => employee._id);
-      query = { employeeId: { $in: employeeIds } };
-    } else if (
-      user.role === "manager" &&
-      user.teamIds &&
-      user.teamIds.length > 0
-    ) {
+      const employeeIds = companyEmployees.map((employee) => employee.id);
+      whereClause = { employeeId: { in: employeeIds } };
+    } else if (user.role === "manager") {
       // Manager voit les membres de ses équipes
       console.log("=== FILTRE MANAGER ===");
-      console.log("Manager user ID:", user._id);
-      console.log("Manager teamIds:", user.teamIds);
+      console.log("Manager user ID:", user.id);
 
-      const teamEmployees = await mongoose
-        .model("Employee")
-        .find({ teamId: { $in: user.teamIds } })
-        .select("_id teamId firstName lastName");
+      // Récupérer les équipes gérées par ce manager
+      const teams = await prisma.team.findMany({
+        where: { managerId: user.id },
+        select: { id: true }
+      });
 
-      console.log(
-        "Employés trouvés dans les équipes du manager:",
-        teamEmployees
-      );
+      console.log(`Équipes du manager: ${teams.length}`);
 
-      const employeeIds = teamEmployees.map((employee: any) => employee._id);
-      console.log("Employee IDs pour le filtre:", employeeIds);
+      if (teams.length === 0) {
+        console.log("Aucune équipe trouvée pour le manager");
+        whereClause = { employeeId: -1 }; // Requête qui ne retourne rien
+      } else {
+        const teamIds = teams.map(t => t.id);
 
-      query = { employeeId: { $in: employeeIds } };
-      console.log("Query finale pour manager:", query);
+        const teamEmployees = await prisma.employee.findMany({
+          where: { teamId: { in: teamIds } },
+          select: { id: true, teamId: true },
+          include: {
+            user: {
+              select: { firstName: true, lastName: true }
+            }
+          }
+        });
+
+        console.log("Employés trouvés dans les équipes du manager:", teamEmployees.length);
+
+        const employeeIds = teamEmployees.map((employee) => employee.id);
+        console.log("Employee IDs pour le filtre:", employeeIds);
+
+        whereClause = { employeeId: { in: employeeIds } };
+        console.log("Where clause finale pour manager:", whereClause);
+      }
     } else {
       // Employé voit uniquement ses demandes
       // D'abord, trouver le profil Employee correspondant au User connecté
-      const employee = await mongoose
-        .model("Employee")
-        .findOne({ userId: user._id })
-        .select("_id");
+      const employee = await prisma.employee.findUnique({
+        where: { userId: user.id },
+        select: { id: true }
+      });
 
       if (!employee) {
-        console.log(
-          "Aucun profil employé trouvé pour l'utilisateur:",
-          user._id
-        );
+        console.log("Aucun profil employé trouvé pour l'utilisateur:", user.id);
         // Si pas de profil employé, retourner un tableau vide
-        query = { employeeId: null }; // Requête qui ne retourne rien
+        whereClause = { employeeId: -1 }; // Requête qui ne retourne rien
       } else {
-        console.log("Profil employé trouvé:", employee._id);
-        query = { employeeId: employee._id };
+        console.log("Profil employé trouvé:", employee.id);
+        whereClause = { employeeId: employee.id };
       }
     }
 
     // Exécuter la requête paginée
     console.log("=== EXECUTION REQUETE ===");
-    console.log("Query utilisée:", query);
+    console.log("Where clause utilisée:", whereClause);
     console.log("Rôle utilisateur:", user.role);
 
-    const vacationRequests = await VacationRequestModel.find(query)
-      .populate("employeeId", "firstName lastName companyId teamId photoUrl")
-      .populate("updatedBy", "firstName lastName")
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .skip(Number(skip));
+    const vacationRequests = await prisma.vacationRequest.findMany({
+      where: whereClause,
+      include: {
+        employee: {
+          select: {
+            id: true,
+            companyId: true,
+            teamId: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        updatedByUser: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Number(limit),
+      skip: Number(skip)
+    });
 
     console.log("Nombre de demandes trouvées:", vacationRequests.length);
     console.log(
       "Demandes trouvées (basiques):",
       vacationRequests.map((req) => ({
-        id: req._id,
+        id: req.id,
         employeeId: req.employeeId,
         startDate: req.startDate,
         status: req.status,
@@ -190,8 +225,6 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
     // Ajouter des permissions à chaque demande
     const vacationRequestsWithPermissions = vacationRequests.map((request) => {
-      const requestObj = request.toObject();
-
       // Déterminer si l'utilisateur peut modifier cette demande
       // Pour admin/directeur/manager: toujours true pour leurs employés accessibles
       const canEdit = ["admin", "directeur", "manager"].includes(user.role);
@@ -199,19 +232,18 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       // Déterminer si l'utilisateur peut supprimer cette demande
       const canDelete =
         ["admin", "directeur", "manager"].includes(user.role) ||
-        (user._id.toString() === requestObj.requestedBy.toString() &&
-          requestObj.status === "pending");
+        (user.id === request.requestedBy && request.status === "pending");
 
-      console.log(`Permissions pour demande ${requestObj._id}:`, {
+      console.log(`Permissions pour demande ${request.id}:`, {
         userRole: user.role,
         canEdit,
         canDelete,
-        requestStatus: requestObj.status,
+        requestStatus: request.status,
       });
 
       // Ajouter les permissions à l'objet de demande
       return {
-        ...requestObj,
+        ...request,
         permissions: {
           canEdit,
           canDelete,
@@ -301,10 +333,10 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     }
 
     // Déterminer pour quel employé la demande est créée
-    let targetEmployeeId;
+    let targetEmployeeId: number;
 
     // Si un employeeId est fourni, vérifier les permissions
-    if (employeeId && employeeId !== user._id.toString()) {
+    if (employeeId && employeeId !== user.id.toString()) {
       console.log("Tentative de création pour un autre employé:", employeeId);
       console.log("Rôle de l'utilisateur:", user.role);
 
@@ -322,15 +354,19 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         });
       }
 
-      // Vérifier que l'employé existe
-      if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      // Vérifier que l'employé existe (convertir ID)
+      const empIdNum = parseInt(employeeId, 10);
+      if (isNaN(empIdNum)) {
         return res.status(400).json({
           success: false,
           message: "ID d'employé invalide",
         });
       }
 
-      const employee = await mongoose.model("Employee").findById(employeeId);
+      const employee = await prisma.employee.findUnique({
+        where: { id: empIdNum },
+        select: { id: true, companyId: true, teamId: true }
+      });
 
       if (!employee) {
         return res.status(404).json({
@@ -342,23 +378,31 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       // Vérifier les accès spécifiques selon le rôle
       if (user.role === "directeur" && user.companyId) {
         // Directeur peut créer pour tous les employés de sa compagnie
-        if (employee.companyId.toString() !== user.companyId.toString()) {
+        if (employee.companyId !== user.companyId) {
           return res.status(403).json({
             success: false,
             message:
               "Vous ne pouvez créer des demandes que pour les employés de votre entreprise",
           });
         }
-      } else if (
-        user.role === "manager" &&
-        user.teamIds &&
-        user.teamIds.length > 0
-      ) {
+      } else if (user.role === "manager") {
         // Manager peut créer pour les membres de ses équipes
-        const isTeamMember = user.teamIds.some(
-          (teamId: mongoose.Types.ObjectId) =>
-            employee.teamId && employee.teamId.toString() === teamId.toString()
-        );
+        if (!employee.teamId) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Vous ne pouvez créer des demandes que pour les membres de vos équipes",
+          });
+        }
+
+        // Vérifier que l'équipe de l'employé est gérée par ce manager
+        const teams = await prisma.team.findMany({
+          where: { managerId: user.id },
+          select: { id: true }
+        });
+
+        const teamIds = teams.map(t => t.id);
+        const isTeamMember = teamIds.includes(employee.teamId);
 
         if (!isTeamMember) {
           return res.status(403).json({
@@ -370,16 +414,26 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       }
 
       // Si toutes les vérifications sont passées, utiliser l'ID de l'employé cible
-      targetEmployeeId = employeeId;
+      targetEmployeeId = empIdNum;
       console.log("Création autorisée pour l'employé:", targetEmployeeId);
     } else {
       // Pour un employé normal, récupérer son document Employee correspondant
-      console.log("Recherche de l'employé correspondant au user:", user._id);
+      console.log("Recherche de l'employé correspondant au user:", user.id);
 
-      const currentEmployee = await mongoose
-        .model("Employee")
-        .findOne({ userId: user._id })
-        .select("_id teamId companyId firstName lastName");
+      const currentEmployee = await prisma.employee.findUnique({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          teamId: true,
+          companyId: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
 
       if (!currentEmployee) {
         return res.status(404).json({
@@ -389,35 +443,45 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       }
 
       console.log("Employee trouvé pour la création:", {
-        _id: currentEmployee._id,
+        id: currentEmployee.id,
         teamId: currentEmployee.teamId,
         companyId: currentEmployee.companyId,
-        firstName: currentEmployee.firstName,
-        lastName: currentEmployee.lastName,
+        firstName: currentEmployee.user.firstName,
+        lastName: currentEmployee.user.lastName,
       });
 
-      targetEmployeeId = currentEmployee._id;
+      targetEmployeeId = currentEmployee.id;
       console.log("Employee ID trouvé:", targetEmployeeId);
     }
 
     // Créer la nouvelle demande avec les dates normalisées
-    const newVacationRequest = new VacationRequestModel({
-      employeeId: targetEmployeeId,
-      requestedBy: user._id, // On garde une trace de qui a fait la demande
-      updatedBy: user._id, // Ajout du champ updatedBy avec l'utilisateur qui crée la demande
-      startDate: start, // Utiliser la date normalisée
-      endDate: end, // Utiliser la date normalisée
-      reason,
-      status: "pending",
+    const savedRequest = await prisma.vacationRequest.create({
+      data: {
+        employeeId: targetEmployeeId,
+        requestedBy: user.id, // On garde une trace de qui a fait la demande
+        updatedBy: user.id, // Ajout du champ updatedBy avec l'utilisateur qui crée la demande
+        startDate: start, // Utiliser la date normalisée
+        endDate: end, // Utiliser la date normalisée
+        reason,
+        status: "pending",
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                photoUrl: true
+              }
+            }
+          }
+        }
+      }
     });
 
-    console.log("Création de la demande:", newVacationRequest);
-
-    // Sauvegarder et retourner la demande créée
-    const savedRequest = await newVacationRequest.save();
-
-    // Populer les champs nécessaires
-    await savedRequest.populate("employeeId", "firstName lastName photoUrl");
+    console.log("Création de la demande:", savedRequest);
 
     return res.status(201).json({
       success: true,
@@ -426,11 +490,11 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error("Erreur lors de la création de la demande de congés:", error);
 
-    // Vérifier s'il s'agit d'une erreur de validation Mongoose
-    if (error.name === "ValidationError") {
+    // Vérifier s'il s'agit d'une erreur de validation Prisma
+    if (error.code === 'P2002' || error.code === 'P2003') {
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: "Erreur de validation: " + error.message,
       });
     }
 
@@ -454,8 +518,9 @@ router.get(
       const { id } = req.params;
       const user = req.user;
 
-      // Valider l'ID MongoDB
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // Valider l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
@@ -464,9 +529,31 @@ router.get(
       }
 
       // Récupérer la demande
-      const vacationRequest = await VacationRequestModel.findById(id)
-        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
-        .populate("updatedBy", "firstName lastName");
+      const vacationRequest = await prisma.vacationRequest.findUnique({
+        where: { id: idNum },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              companyId: true,
+              teamId: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  photoUrl: true
+                }
+              }
+            }
+          },
+          updatedByUser: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
 
       if (!vacationRequest) {
         return res.status(404).json({
@@ -487,21 +574,18 @@ router.get(
         });
       }
 
-      // Convertir en objet pour pouvoir ajouter des propriétés
-      const requestObj = vacationRequest.toObject();
-
       // Déterminer si l'utilisateur peut modifier cette demande
       const canEdit = ["admin", "directeur", "manager"].includes(user.role);
 
       // Déterminer si l'utilisateur peut supprimer cette demande
       const canDelete =
         ["admin", "directeur", "manager"].includes(user.role) ||
-        (user._id.toString() === requestObj.requestedBy.toString() &&
-          requestObj.status === "pending");
+        (user.id === vacationRequest.requestedBy &&
+          vacationRequest.status === "pending");
 
       // Ajouter les permissions à l'objet de demande
       const requestWithPermissions = {
-        ...requestObj,
+        ...vacationRequest,
         permissions: {
           canEdit,
           canDelete,
@@ -537,8 +621,9 @@ router.put(
       const { startDate, endDate, reason, status, employeeId } = req.body;
       const user = req.user;
 
-      // Valider l'ID MongoDB
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // Valider l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
@@ -547,7 +632,9 @@ router.put(
       }
 
       // Récupérer la demande existante
-      const vacationRequest = await VacationRequestModel.findById(id);
+      const vacationRequest = await prisma.vacationRequest.findUnique({
+        where: { id: idNum },
+      });
 
       if (!vacationRequest) {
         return res.status(404).json({
@@ -568,7 +655,8 @@ router.put(
         });
       }
 
-      // Valider les champs fournis et les appliquer si valides
+      // Préparer les données de mise à jour
+      const updateData: any = {};
 
       // Validation du status si fourni
       if (status !== undefined) {
@@ -591,7 +679,7 @@ router.put(
         }
 
         // Appliquer le nouveau statut
-        vacationRequest.status = status;
+        updateData.status = status;
       }
 
       // Validation et application de startDate si fourni
@@ -624,7 +712,7 @@ router.put(
         console.log(`Date de début parsée: ${dateString}`);
         console.log(`Date de début normalisée: ${start.toISOString()}`);
 
-        vacationRequest.startDate = start;
+        updateData.startDate = start;
       }
 
       // Validation et application de endDate si fourni
@@ -657,19 +745,18 @@ router.put(
         console.log(`Date de fin parsée: ${dateString}`);
         console.log(`Date de fin normalisée: ${end.toISOString()}`);
 
-        vacationRequest.endDate = end;
+        updateData.endDate = end;
       }
 
       // Vérifier la cohérence des dates
       if (startDate !== undefined || endDate !== undefined) {
-        // Pour comparer les dates, on utilise toujours le format YYYY-MM-DD
-        // en ignorant l'heure/fuseau horaire
-        const startObj = vacationRequest.startDate;
-        const endObj = vacationRequest.endDate;
+        // Utiliser les dates mises à jour ou existantes
+        const finalStartDate = updateData.startDate || vacationRequest.startDate;
+        const finalEndDate = updateData.endDate || vacationRequest.endDate;
 
         // Convertir en UTC puis extraire YYYY-MM-DD pour comparer
-        const startYMD = startObj.toISOString().substring(0, 10);
-        const endYMD = endObj.toISOString().substring(0, 10);
+        const startYMD = finalStartDate.toISOString().substring(0, 10);
+        const endYMD = finalEndDate.toISOString().substring(0, 10);
 
         // Comparer les dates (même jour = OK)
         if (startYMD > endYMD) {
@@ -680,13 +767,11 @@ router.put(
             status: 400,
           });
         }
-
-        // Les dates sont maintenant correctement normalisées
       }
 
       // Appliquer le motif si fourni
       if (reason !== undefined) {
-        vacationRequest.reason = reason;
+        updateData.reason = reason;
       }
 
       // Validation et application de employeeId si fourni
@@ -701,8 +786,9 @@ router.put(
           });
         }
 
-        // Vérifier si l'ID est un ObjectId valide
-        if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+        // Vérifier si l'ID est valide
+        const empIdNum = parseInt(employeeId, 10);
+        if (isNaN(empIdNum)) {
           return res.status(400).json({
             success: false,
             message: "ID d'employé invalide",
@@ -711,7 +797,10 @@ router.put(
         }
 
         // Vérifier que l'employé existe
-        const employee = await mongoose.model("Employee").findById(employeeId);
+        const employee = await prisma.employee.findUnique({
+          where: { id: empIdNum },
+          select: { id: true, companyId: true, teamId: true }
+        });
 
         if (!employee) {
           return res.status(404).json({
@@ -724,7 +813,7 @@ router.put(
         // Vérifier les accès spécifiques selon le rôle
         if (user.role === "directeur" && user.companyId) {
           // Directeur peut modifier pour tous les employés de sa compagnie
-          if (employee.companyId.toString() !== user.companyId.toString()) {
+          if (employee.companyId !== user.companyId) {
             return res.status(403).json({
               success: false,
               message:
@@ -732,17 +821,25 @@ router.put(
               status: 403,
             });
           }
-        } else if (
-          user.role === "manager" &&
-          user.teamIds &&
-          user.teamIds.length > 0
-        ) {
+        } else if (user.role === "manager") {
           // Manager peut modifier pour les membres de ses équipes
-          const isTeamMember = user.teamIds.some(
-            (teamId: mongoose.Types.ObjectId) =>
-              employee.teamId &&
-              employee.teamId.toString() === teamId.toString()
-          );
+          if (!employee.teamId) {
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez modifier les demandes que pour les membres de vos équipes",
+              status: 403,
+            });
+          }
+
+          // Vérifier que l'équipe de l'employé est gérée par ce manager
+          const teams = await prisma.team.findMany({
+            where: { managerId: user.id },
+            select: { id: true }
+          });
+
+          const teamIds = teams.map(t => t.id);
+          const isTeamMember = teamIds.includes(employee.teamId);
 
           if (!isTeamMember) {
             return res.status(403).json({
@@ -755,41 +852,49 @@ router.put(
         }
 
         // Appliquer le nouvel employeeId
-        vacationRequest.employeeId = employeeId;
+        updateData.employeeId = empIdNum;
       }
 
       // Mettre à jour le champ updatedBy avec l'utilisateur actuel
-      vacationRequest.updatedBy = user._id;
+      updateData.updatedBy = user.id;
 
       // Sauvegarder la demande mise à jour
-      await vacationRequest.save();
-
-      // Récupérer la demande mise à jour avec les champs peuplés
-      const updatedVacationRequest = await VacationRequestModel.findById(id)
-        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
-        .populate("updatedBy", "firstName lastName");
-
-      // Vérifier si la demande existe toujours
-      if (!updatedVacationRequest) {
-        return res.status(404).json({
-          success: false,
-          message: "Demande de congés non trouvée après mise à jour",
-          status: 404,
-        });
-      }
-
-      // Convertir en objet pour pouvoir ajouter des propriétés
-      const requestObj = updatedVacationRequest.toObject();
+      const updatedVacationRequest = await prisma.vacationRequest.update({
+        where: { id: idNum },
+        data: updateData,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              companyId: true,
+              teamId: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  photoUrl: true
+                }
+              }
+            }
+          },
+          updatedByUser: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
 
       // Déterminer les permissions de l'utilisateur sur cette demande
       const requestWithPermissions = {
-        ...requestObj,
+        ...updatedVacationRequest,
         permissions: {
           canEdit: ["admin", "directeur", "manager"].includes(user.role),
           canDelete:
             ["admin", "directeur", "manager"].includes(user.role) ||
-            (user._id.toString() === requestObj.requestedBy.toString() &&
-              requestObj.status === "pending"),
+            (user.id === updatedVacationRequest.requestedBy &&
+              updatedVacationRequest.status === "pending"),
         },
       };
 
@@ -801,11 +906,11 @@ router.put(
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour de la demande:", error);
 
-      // Gérer les erreurs de validation Mongoose
-      if (error.name === "ValidationError") {
+      // Gérer les erreurs de validation Prisma
+      if (error.code === 'P2002' || error.code === 'P2003') {
         return res.status(400).json({
           success: false,
-          message: error.message,
+          message: "Erreur de validation: " + error.message,
           status: 400,
         });
       }
@@ -832,8 +937,9 @@ router.delete(
       const { id } = req.params;
       const user = req.user;
 
-      // Valider l'ID MongoDB
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // Valider l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
@@ -842,7 +948,9 @@ router.delete(
       }
 
       // Récupérer la demande existante
-      const vacationRequest = await VacationRequestModel.findById(id);
+      const vacationRequest = await prisma.vacationRequest.findUnique({
+        where: { id: idNum },
+      });
 
       if (!vacationRequest) {
         return res.status(404).json({
@@ -865,7 +973,9 @@ router.delete(
 
       // Les admins, directeurs et managers peuvent supprimer n'importe quelle demande
       if (["admin", "directeur", "manager"].includes(user.role)) {
-        await VacationRequestModel.findByIdAndDelete(id);
+        await prisma.vacationRequest.delete({
+          where: { id: idNum }
+        });
 
         return res.status(200).json({
           success: true,
@@ -876,7 +986,7 @@ router.delete(
       // Restriction pour les employés : seulement leurs demandes en statut 'pending'
       if (
         user.role === "employé" &&
-        (user._id.toString() !== vacationRequest.requestedBy.toString() ||
+        (user.id !== vacationRequest.requestedBy ||
           vacationRequest.status !== "pending")
       ) {
         return res.status(403).json({
@@ -888,7 +998,9 @@ router.delete(
       }
 
       // Supprimer la demande
-      await VacationRequestModel.findByIdAndDelete(id);
+      await prisma.vacationRequest.delete({
+        where: { id: idNum }
+      });
 
       return res.status(200).json({
         success: true,
@@ -919,8 +1031,9 @@ router.patch(
       const { comment } = req.body;
       const user = req.user;
 
-      // Valider l'ID MongoDB
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // Valider l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
@@ -938,7 +1051,9 @@ router.patch(
       }
 
       // Récupérer la demande existante
-      const vacationRequest = await VacationRequestModel.findById(id);
+      const vacationRequest = await prisma.vacationRequest.findUnique({
+        where: { id: idNum },
+      });
 
       if (!vacationRequest) {
         return res.status(404).json({
@@ -959,19 +1074,43 @@ router.patch(
         });
       }
 
-      // Mettre à jour le statut et les informations de mise à jour
-      vacationRequest.status = VacationRequestStatus.APPROVED;
-      vacationRequest.updatedBy = user._id;
+      // Préparer les données de mise à jour
+      const updateData: any = {
+        status: VacationRequestStatus.APPROVED,
+        updatedBy: user.id,
+      };
+
       if (comment) {
-        vacationRequest.reason = comment;
+        updateData.reason = comment;
       }
 
-      await vacationRequest.save();
-
-      // Récupérer la demande mise à jour avec les champs peuplés
-      const updatedRequest = await VacationRequestModel.findById(id)
-        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
-        .populate("updatedBy", "firstName lastName");
+      // Mettre à jour la demande
+      const updatedRequest = await prisma.vacationRequest.update({
+        where: { id: idNum },
+        data: updateData,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              companyId: true,
+              teamId: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  photoUrl: true
+                }
+              }
+            }
+          },
+          updatedByUser: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
 
       return res.status(200).json({
         success: true,
@@ -1003,8 +1142,9 @@ router.patch(
       const { comment } = req.body;
       const user = req.user;
 
-      // Valider l'ID MongoDB
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // Valider l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "ID de demande invalide",
@@ -1022,7 +1162,9 @@ router.patch(
       }
 
       // Récupérer la demande existante
-      const vacationRequest = await VacationRequestModel.findById(id);
+      const vacationRequest = await prisma.vacationRequest.findUnique({
+        where: { id: idNum },
+      });
 
       if (!vacationRequest) {
         return res.status(404).json({
@@ -1043,19 +1185,43 @@ router.patch(
         });
       }
 
-      // Mettre à jour le statut et les informations de mise à jour
-      vacationRequest.status = VacationRequestStatus.REJECTED;
-      vacationRequest.updatedBy = user._id;
+      // Préparer les données de mise à jour
+      const updateData: any = {
+        status: VacationRequestStatus.REJECTED,
+        updatedBy: user.id,
+      };
+
       if (comment) {
-        vacationRequest.reason = comment;
+        updateData.reason = comment;
       }
 
-      await vacationRequest.save();
-
-      // Récupérer la demande mise à jour avec les champs peuplés
-      const updatedRequest = await VacationRequestModel.findById(id)
-        .populate("employeeId", "firstName lastName companyId teamId photoUrl")
-        .populate("updatedBy", "firstName lastName");
+      // Mettre à jour la demande
+      const updatedRequest = await prisma.vacationRequest.update({
+        where: { id: idNum },
+        data: updateData,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              companyId: true,
+              teamId: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  photoUrl: true
+                }
+              }
+            }
+          },
+          updatedByUser: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
 
       return res.status(200).json({
         success: true,

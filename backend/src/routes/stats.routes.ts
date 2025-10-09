@@ -1,10 +1,17 @@
+/**
+ * Routes de statistiques - SmartPlanning
+ *
+ * MIGRATION POSTGRESQL: Migré de Mongoose vers Prisma ORM
+ *
+ * Fournit des statistiques selon le rôle:
+ * - Admin: stats globales (users, companies, plannings)
+ * - Directeur: stats de son entreprise
+ * - Manager: stats de ses équipes
+ */
+
 import express, { Response, Router } from "express";
-import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
-import { TeamModel } from "../models/Team.model";
-import User from "../models/User.model";
-import VacationRequestModel from "../models/VacationRequest.model";
-import WeeklyScheduleModel from "../models/WeeklySchedule.model";
+import prisma from "../config/prisma";
 
 const router: Router = express.Router();
 
@@ -48,27 +55,18 @@ router.get(
       }
 
       // Récupération des informations utilisateur
-      const userId = req.user._id;
+      const userId = req.user.id;
       const role = req.user.role;
       const companyId = req.user.companyId;
 
-      // Objet contenant les statistiques à retourner
-      let stats = {
-        totalEmployees: 0,
-        totalTeams: 0,
-        totalVacations: 0,
-        totalSchedules: 0,
-        totalIncidents: 0,
-      };
-
       // Filtre de base pour la date de création
-      const timeFilter = { createdAt: { $gte: startDate } };
+      const timeFilter = { createdAt: { gte: startDate } };
 
       // Traitement selon le rôle
       if (role === "admin") {
         try {
           // Format des stats attendu par le frontend pour l'admin
-          let stats = {
+          const stats = {
             totalUsersCount: 0,
             totalCompaniesCount: 0,
             totalDirectorsCount: 0,
@@ -78,38 +76,46 @@ router.get(
             activeUsersCount: 0,
           };
 
-          // Nombre total d'utilisateurs
-          stats.totalUsersCount = await User.countDocuments(timeFilter);
-
-          // Nombre d'utilisateurs par rôle
-          stats.totalDirectorsCount = await User.countDocuments({
-            role: "directeur",
-            ...timeFilter,
+          // Nombre total d'utilisateurs créés dans la période
+          stats.totalUsersCount = await prisma.user.count({
+            where: timeFilter
           });
 
-          stats.totalManagersCount = await User.countDocuments({
-            role: "manager",
-            ...timeFilter,
+          // Nombre d'utilisateurs par rôle créés dans la période
+          stats.totalDirectorsCount = await prisma.user.count({
+            where: {
+              role: "directeur",
+              ...timeFilter,
+            },
           });
 
-          stats.totalEmployeesCount = await User.countDocuments({
-            role: "employee",
-            ...timeFilter,
+          stats.totalManagersCount = await prisma.user.count({
+            where: {
+              role: "manager",
+              ...timeFilter,
+            },
           });
 
-          // Nombre total d'entreprises (companies collection)
-          const companies = await mongoose.connection.db
-            .collection("companies")
-            .countDocuments();
-          stats.totalCompaniesCount = companies;
+          stats.totalEmployeesCount = await prisma.user.count({
+            where: {
+              role: "employee",
+              ...timeFilter,
+            },
+          });
 
-          // Nombre de plannings générés
-          stats.generatedPlanningsCount =
-            await WeeklyScheduleModel.countDocuments(timeFilter);
+          // Nombre total d'entreprises (toutes, pas filtré par période)
+          stats.totalCompaniesCount = await prisma.company.count();
+
+          // Nombre de plannings générés dans la période
+          stats.generatedPlanningsCount = await prisma.weeklySchedule.count({
+            where: timeFilter
+          });
 
           // Utilisateurs actifs récemment (ceux qui se sont connectés depuis startDate)
-          stats.activeUsersCount = await User.countDocuments({
-            lastLogin: { $gte: startDate },
+          stats.activeUsersCount = await prisma.user.count({
+            where: {
+              lastLogin: { gte: startDate },
+            },
           });
 
           // Debug pour vérifier les résultats
@@ -137,13 +143,8 @@ router.get(
             });
           }
 
-          // Conversion en ObjectId si nécessaire
-          const companyObjectId = mongoose.Types.ObjectId.isValid(companyId)
-            ? new mongoose.Types.ObjectId(companyId.toString())
-            : companyId;
-
           // Format des stats attendu par le frontend pour le directeur
-          let stats = {
+          const stats = {
             managersCount: 0,
             teamsCount: 0,
             employeesCount: 0,
@@ -151,43 +152,51 @@ router.get(
             pendingLeaveRequestsCount: 0,
           };
 
-          // Nombre de managers dans l'entreprise
-          stats.managersCount = await User.countDocuments({
-            role: "manager",
-            companyId: companyObjectId,
-            ...timeFilter,
+          // Nombre de managers dans l'entreprise (créés dans la période)
+          stats.managersCount = await prisma.user.count({
+            where: {
+              role: "manager",
+              companyId: companyId,
+              ...timeFilter,
+            },
           });
 
-          // Nombre d'équipes dans l'entreprise
-          stats.teamsCount = await TeamModel.countDocuments({
-            companyId: companyObjectId,
+          // Nombre d'équipes dans l'entreprise (toutes)
+          stats.teamsCount = await prisma.team.count({
+            where: { companyId: companyId },
           });
 
-          // Récupérer les IDs de tous les employés de l'entreprise
-          const employeesInCompany = await User.find(
-            { role: "employee", companyId: companyObjectId },
-            { _id: 1 }
-          );
+          // Nombre d'employés dans l'entreprise (via table Employee)
+          stats.employeesCount = await prisma.employee.count({
+            where: { companyId: companyId, isActive: true }
+          });
 
-          const employeeIds = employeesInCompany.map((emp) => emp._id);
+          // Récupérer les IDs de tous les employés actifs de l'entreprise
+          const employees = await prisma.employee.findMany({
+            where: { companyId: companyId, isActive: true },
+            select: { id: true }
+          });
 
-          // Nombre d'employés dans l'entreprise
-          stats.employeesCount = employeeIds.length;
+          const employeeIds = employees.map((emp) => emp.id);
 
-          // Congés en attente dans l'entreprise
-          stats.pendingLeaveRequestsCount =
-            await VacationRequestModel.countDocuments({
-              employeeId: { $in: employeeIds },
-              status: "pending",
+          if (employeeIds.length > 0) {
+            // Congés en attente dans l'entreprise
+            stats.pendingLeaveRequestsCount = await prisma.vacationRequest.count({
+              where: {
+                employeeId: { in: employeeIds },
+                status: "pending",
+              },
             });
 
-          // Congés approuvés à venir dans l'entreprise
-          stats.approvedUpcomingLeaveCount =
-            await VacationRequestModel.countDocuments({
-              employeeId: { $in: employeeIds },
-              status: "approved",
-              startDate: { $gte: new Date() },
+            // Congés approuvés à venir dans l'entreprise
+            stats.approvedUpcomingLeaveCount = await prisma.vacationRequest.count({
+              where: {
+                employeeId: { in: employeeIds },
+                status: "approved",
+                startDate: { gte: new Date() },
+              },
             });
+          }
 
           // Debug pour vérifier les résultats
           console.log(`Stats pour directeur ${userId}: `, stats);
@@ -205,31 +214,45 @@ router.get(
         }
       } else if (role === "manager") {
         try {
-          // Récupérer les équipes gérées par ce manager sans filtrer par date de création
-          // Convertir l'ID en ObjectId pour la recherche
-          const managerObjectId = mongoose.Types.ObjectId.isValid(userId)
-            ? new mongoose.Types.ObjectId(userId.toString())
-            : userId;
-
-          const teams = await TeamModel.find({
-            managerIds: managerObjectId,
+          // Récupérer les équipes gérées par ce manager
+          // Dans PostgreSQL: Team.managerId = userId (single, pas array)
+          const teams = await prisma.team.findMany({
+            where: { managerId: userId },
+            select: { id: true }
           });
 
           // Format des stats attendu par le frontend pour les managers
-          let stats = {
+          const stats = {
             teamsCount: 0,
             employeesCount: 0,
             pendingLeaveRequestsCount: 0,
             approvedUpcomingLeaveCount: 0,
           };
 
-          // Compter les équipes - sans filtre de date car on veut toutes les équipes gérées
+          // Compter les équipes
           stats.teamsCount = teams.length;
 
-          // Collecter tous les IDs des employés des équipes
-          const employeeIds = teams.flatMap((team) =>
-            team.employeeIds ? team.employeeIds : []
-          );
+          // Si aucune équipe n'est trouvée, on retourne des statistiques à 0
+          if (teams.length === 0) {
+            console.log("Aucune équipe trouvée pour le manager");
+            return res.status(200).json({
+              success: true,
+              data: stats,
+            });
+          }
+
+          const teamIds = teams.map(team => team.id);
+
+          // Récupérer les employés des équipes via Employee.teamId
+          const employees = await prisma.employee.findMany({
+            where: {
+              teamId: { in: teamIds },
+              isActive: true
+            },
+            select: { id: true }
+          });
+
+          const employeeIds = employees.map(emp => emp.id);
 
           // Nombre d'employés dans les équipes du manager
           stats.employeesCount = employeeIds.length;
@@ -247,19 +270,21 @@ router.get(
           console.log(`Nombre d'employés trouvés: ${employeeIds.length}`);
 
           // Demandes de congés en attente
-          stats.pendingLeaveRequestsCount =
-            await VacationRequestModel.countDocuments({
-              employeeId: { $in: employeeIds },
+          stats.pendingLeaveRequestsCount = await prisma.vacationRequest.count({
+            where: {
+              employeeId: { in: employeeIds },
               status: "pending",
-            });
+            },
+          });
 
           // Congés approuvés à venir
-          stats.approvedUpcomingLeaveCount =
-            await VacationRequestModel.countDocuments({
-              employeeId: { $in: employeeIds },
+          stats.approvedUpcomingLeaveCount = await prisma.vacationRequest.count({
+            where: {
+              employeeId: { in: employeeIds },
               status: "approved",
-              startDate: { $gte: new Date() },
-            });
+              startDate: { gte: new Date() },
+            },
+          });
 
           // Debug pour vérifier les résultats
           console.log(`Stats pour manager ${userId}: `, stats);

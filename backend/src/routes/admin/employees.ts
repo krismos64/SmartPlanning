@@ -1,8 +1,5 @@
 import express, { Request, Response } from "express";
-import mongoose from "mongoose";
-
-// Import du modèle Employee
-import EmployeeModel from "../../models/Employee.model";
+import prisma from "../../config/prisma";
 // Import du type AuthRequest
 import { AuthRequest } from "../../middlewares/auth.middleware";
 
@@ -27,29 +24,42 @@ router.get(
         });
       }
 
-      // Vérifier que companyId est un ObjectId valide
-      if (!mongoose.Types.ObjectId.isValid(companyId as string)) {
+      // Validation de l'ID de l'entreprise
+      const companyIdNum = parseInt(companyId as string, 10);
+      if (isNaN(companyIdNum)) {
         return res.status(400).json({
           success: false,
           message: "L'identifiant de l'entreprise n'est pas valide",
         });
       }
 
-      // Récupérer les employés de l'entreprise
-      const employees = await EmployeeModel.find(
-        { companyId: companyId as string },
-        {
-          _id: 1,
-          firstName: 1,
-          lastName: 1,
-          status: 1,
+      // Récupérer les employés de l'entreprise avec leurs informations utilisateur
+      const employees = await prisma.employee.findMany({
+        where: { companyId: companyIdNum },
+        select: {
+          id: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            }
+          },
+          isActive: true,
         }
-      );
+      });
+
+      // Formater la réponse pour matcher l'ancien format
+      const formattedEmployees = employees.map(emp => ({
+        _id: emp.id,
+        firstName: emp.user.firstName,
+        lastName: emp.user.lastName,
+        status: emp.isActive ? 'actif' : 'inactif',
+      }));
 
       // Retourner les résultats
       return res.status(200).json({
         success: true,
-        employees,
+        employees: formattedEmployees,
       });
     } catch (error) {
       console.error("Erreur lors de la récupération des employés:", error);
@@ -80,8 +90,9 @@ router.get(
         });
       }
 
-      // Vérifier que companyId est un ObjectId valide
-      if (!mongoose.Types.ObjectId.isValid(companyId as string)) {
+      // Validation de l'ID de l'entreprise
+      const companyIdNum = parseInt(companyId as string, 10);
+      if (isNaN(companyIdNum)) {
         return res.status(400).json({
           success: false,
           message: "L'identifiant de l'entreprise n'est pas valide",
@@ -89,52 +100,46 @@ router.get(
       }
 
       // Récupérer les employés de l'entreprise avec tous les champs nécessaires
-      const employees = await EmployeeModel.find({
-        companyId: companyId as string,
-      })
-        .select({
-          _id: 1,
-          firstName: 1,
-          lastName: 1,
-          email: 1,
-          status: 1,
-          userId: 1,
-          teamId: 1,
-          companyId: 1,
-          contractHoursPerWeek: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        })
-        .lean();
-
-      // Récupérer toutes les équipes de l'entreprise
-      const TeamModel = mongoose.model("Team");
-      const teams = await TeamModel.find({
-        companyId: companyId as string,
-      }).lean();
-
-      // Associer les équipes aux employés
-      const employeesWithTeams = employees.map((employee) => {
-        // Utiliser le teamId de l'employé pour trouver son équipe
-        let employeeTeams: Array<{ _id: any; name: string }> = [];
-
-        if (employee.teamId) {
-          const team = teams.find(
-            (t) => String(t._id) === String(employee.teamId)
-          );
-
-          if (team) {
-            employeeTeams = [{ _id: team._id, name: team.name }];
+      const employees = await prisma.employee.findMany({
+        where: { companyId: companyIdNum },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          team: {
+            select: {
+              id: true,
+              name: true,
+            }
           }
         }
+      });
 
-        // Ajouter la liste des équipes à l'employé
+      // Formater les données pour correspondre à l'ancien format
+      const employeesWithTeams = employees.map(employee => {
+        const teams = employee.team ? [{
+          _id: employee.team.id,
+          name: employee.team.name,
+        }] : [];
+
         return {
-          ...employee,
-          teams: employeeTeams.map((team) => ({
-            _id: team._id,
-            name: team.name,
-          })),
+          _id: employee.id,
+          firstName: employee.user.firstName,
+          lastName: employee.user.lastName,
+          email: employee.user.email,
+          status: employee.isActive ? 'actif' : 'inactif',
+          userId: employee.userId,
+          teamId: employee.teamId,
+          companyId: employee.companyId,
+          contractHoursPerWeek: employee.contractualHours,
+          createdAt: employee.createdAt,
+          updatedAt: employee.updatedAt,
+          teams: teams,
         };
       });
 
@@ -168,8 +173,9 @@ router.get(
     try {
       const { teamId } = req.params;
 
-      // Vérifier que l'ID d'équipe est un ObjectId valide
-      if (!mongoose.Types.ObjectId.isValid(teamId)) {
+      // Validation de l'ID de l'équipe
+      const teamIdNum = parseInt(teamId, 10);
+      if (isNaN(teamIdNum)) {
         return res.status(400).json({
           success: false,
           message: "ID d'équipe invalide",
@@ -177,8 +183,10 @@ router.get(
       }
 
       // Récupérer l'équipe pour vérifier son existence
-      const TeamModel = mongoose.model("Team");
-      const team = await TeamModel.findById(teamId);
+      const team = await prisma.team.findUnique({
+        where: { id: teamIdNum }
+      });
+
       if (!team) {
         return res.status(404).json({
           success: false,
@@ -187,25 +195,38 @@ router.get(
       }
 
       // Récupérer les employés de l'équipe
-      const employees = await EmployeeModel.find({ teamId })
-        .select({
-          _id: 1,
-          firstName: 1,
-          lastName: 1,
-          email: 1,
-          status: 1,
-          userId: 1,
-          teamId: 1,
-          companyId: 1,
-          contractHoursPerWeek: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        })
-        .lean();
+      const employees = await prisma.employee.findMany({
+        where: { teamId: teamIdNum },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          }
+        }
+      });
+
+      // Formater les données
+      const formattedEmployees = employees.map(employee => ({
+        _id: employee.id,
+        firstName: employee.user.firstName,
+        lastName: employee.user.lastName,
+        email: employee.user.email,
+        status: employee.isActive ? 'actif' : 'inactif',
+        userId: employee.userId,
+        teamId: employee.teamId,
+        companyId: employee.companyId,
+        contractHoursPerWeek: employee.contractualHours,
+        createdAt: employee.createdAt,
+        updatedAt: employee.updatedAt,
+      }));
 
       return res.status(200).json({
         success: true,
-        data: employees,
+        data: formattedEmployees,
       });
     } catch (error) {
       console.error("Erreur lors de la récupération des employés:", error);
@@ -229,8 +250,9 @@ router.patch(
       const { id } = req.params;
       const { teamId, status } = req.body;
 
-      // Vérifier que l'ID de l'employé est valide
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // Validation de l'ID de l'employé
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "L'identifiant de l'employé n'est pas valide",
@@ -238,7 +260,10 @@ router.patch(
       }
 
       // Vérifier que l'employé existe
-      const employee = await EmployeeModel.findById(id);
+      const employee = await prisma.employee.findUnique({
+        where: { id: idNum }
+      });
+
       if (!employee) {
         return res.status(404).json({
           success: false,
@@ -252,17 +277,19 @@ router.patch(
       // Mettre à jour le teamId si fourni
       if (teamId !== undefined) {
         // Vérifier que le teamId est valide ou null
-        if (teamId !== null && !mongoose.Types.ObjectId.isValid(teamId)) {
-          return res.status(400).json({
-            success: false,
-            message: "L'identifiant d'équipe n'est pas valide",
-          });
-        }
+        if (teamId !== null) {
+          const teamIdNum = parseInt(teamId, 10);
+          if (isNaN(teamIdNum)) {
+            return res.status(400).json({
+              success: false,
+              message: "L'identifiant d'équipe n'est pas valide",
+            });
+          }
 
-        // Si un teamId est fourni, vérifier que l'équipe existe et appartient à la même entreprise
-        if (teamId) {
-          const TeamModel = mongoose.model("Team");
-          const team = await TeamModel.findById(teamId);
+          // Si un teamId est fourni, vérifier que l'équipe existe et appartient à la même entreprise
+          const team = await prisma.team.findUnique({
+            where: { id: teamIdNum }
+          });
 
           if (!team) {
             return res.status(404).json({
@@ -271,16 +298,18 @@ router.patch(
             });
           }
 
-          if (team.companyId.toString() !== employee.companyId.toString()) {
+          if (team.companyId !== employee.companyId) {
             return res.status(400).json({
               success: false,
               message:
                 "L'équipe n'appartient pas à la même entreprise que l'employé",
             });
           }
-        }
 
-        updateData.teamId = teamId;
+          updateData.teamId = teamIdNum;
+        } else {
+          updateData.teamId = null;
+        }
       }
 
       // Mettre à jour le statut si fourni
@@ -292,23 +321,31 @@ router.patch(
           });
         }
 
-        updateData.status = status;
+        updateData.isActive = status === "actif";
       }
 
       // Mettre à jour l'employé
-      const updatedEmployee = await EmployeeModel.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        { new: true }
-      );
+      const updatedEmployee = await prisma.employee.update({
+        where: { id: idNum },
+        data: updateData,
+        include: {
+          user: true,
+        }
+      });
 
       return res.status(200).json({
         success: true,
         message: "Employé mis à jour avec succès",
         data: updatedEmployee,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la mise à jour de l'employé:", error);
+      if (error.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: "Employé non trouvé",
+        });
+      }
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la mise à jour de l'employé",

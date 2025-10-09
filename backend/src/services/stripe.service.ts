@@ -1,20 +1,22 @@
 import Stripe from 'stripe';
 import { stripe, PLAN_TO_PRICE } from '../config/stripe.config';
-import { Subscription, ISubscription, SubscriptionPlan } from '../models/Subscription.model';
-import { Payment, IPayment } from '../models/Payment.model';
-import { Company, ICompany } from '../models/Company.model';
-import mongoose from 'mongoose';
+import { Company, Subscription, Payment } from '@prisma/client';
+import prisma from '../config/prisma';
+
+type SubscriptionPlan = 'free' | 'standard' | 'premium' | 'enterprise';
 
 export class StripeService {
-  
+
   /**
    * Crée ou récupère un client Stripe pour une entreprise
    */
-  async createOrGetCustomer(company: ICompany, email: string): Promise<Stripe.Customer> {
+  async createOrGetCustomer(company: Company, email: string): Promise<Stripe.Customer> {
     try {
       // Vérifier si un abonnement existe déjà avec un customer ID
-      const existingSubscription = await Subscription.findOne({ companyId: company._id });
-      
+      const existingSubscription = await prisma.subscription.findFirst({
+        where: { companyId: company.id }
+      });
+
       if (existingSubscription?.stripeCustomerId) {
         try {
           const customer = await stripe.customers.retrieve(existingSubscription.stripeCustomerId);
@@ -31,7 +33,7 @@ export class StripeService {
         email,
         name: company.name,
         metadata: {
-          companyId: company._id.toString(),
+          companyId: company.id,
           plan: company.plan,
           environment: process.env.NODE_ENV || 'development',
         },
@@ -48,14 +50,16 @@ export class StripeService {
    * Crée une session de checkout Stripe
    */
   async createCheckoutSession(
-    companyId: string,
+    companyId: number,
     plan: SubscriptionPlan,
     email: string,
     successUrl?: string,
     cancelUrl?: string
   ): Promise<Stripe.Checkout.Session> {
     try {
-      const company = await Company.findById(companyId);
+      const company = await prisma.company.findUnique({
+        where: { id: companyId }
+      });
       if (!company) {
         throw new Error('Entreprise non trouvée');
       }
@@ -108,12 +112,14 @@ export class StripeService {
    * Met à jour un abonnement existant
    */
   async updateSubscription(
-    companyId: string,
+    companyId: number,
     newPlan: SubscriptionPlan,
     cancelAtPeriodEnd: boolean = false
-  ): Promise<ISubscription> {
+  ): Promise<Subscription> {
     try {
-      const subscription = await Subscription.findOne({ companyId });
+      const subscription = await prisma.subscription.findFirst({
+        where: { companyId }
+      });
       if (!subscription) {
         throw new Error('Abonnement non trouvé');
       }
@@ -123,12 +129,19 @@ export class StripeService {
         if (subscription.stripeSubscriptionId) {
           await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
         }
-        
-        subscription.plan = 'free';
-        subscription.status = 'canceled';
-        subscription.canceledAt = new Date();
-        subscription.stripeSubscriptionId = undefined;
-        subscription.stripePriceId = undefined;
+
+        const updatedSubscription = await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            plan: 'free',
+            status: 'canceled',
+            canceledAt: new Date(),
+            stripeSubscriptionId: null,
+            stripePriceId: null,
+          }
+        });
+
+        return updatedSubscription;
       } else {
         const newPriceId = PLAN_TO_PRICE[newPlan];
         if (!newPriceId) {
@@ -151,19 +164,29 @@ export class StripeService {
             }
           );
 
-          subscription.plan = newPlan;
-          subscription.stripePriceId = newPriceId;
-          subscription.status = stripeSubscription.status as any;
-          subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
-          subscription.currentPeriodStart = new Date(((stripeSubscription as any).current_period_start || 0) * 1000);
-          subscription.currentPeriodEnd = new Date(((stripeSubscription as any).current_period_end || 0) * 1000);
+          const updatedSubscription = await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              plan: newPlan,
+              stripePriceId: newPriceId,
+              status: stripeSubscription.status as any,
+              cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end || false,
+              currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+              currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
+            }
+          });
+
+          // Mettre à jour le plan de la company
+          await prisma.company.update({
+            where: { id: companyId },
+            data: { plan: newPlan }
+          });
+
+          return updatedSubscription;
         }
       }
 
-      // Mettre à jour le plan de la company
-      await Company.findByIdAndUpdate(companyId, { plan: newPlan });
-
-      return await subscription.save();
+      throw new Error('Impossible de mettre à jour l\'abonnement');
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'abonnement:', error);
       throw new Error('Impossible de mettre à jour l\'abonnement');
@@ -173,9 +196,11 @@ export class StripeService {
   /**
    * Annule un abonnement
    */
-  async cancelSubscription(companyId: string, cancelAtPeriodEnd: boolean = true): Promise<ISubscription> {
+  async cancelSubscription(companyId: number, cancelAtPeriodEnd: boolean = true): Promise<Subscription> {
     try {
-      const subscription = await Subscription.findOne({ companyId });
+      const subscription = await prisma.subscription.findFirst({
+        where: { companyId }
+      });
       if (!subscription) {
         throw new Error('Abonnement non trouvé');
       }
@@ -185,15 +210,25 @@ export class StripeService {
           await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
             cancel_at_period_end: true,
           });
-          subscription.cancelAtPeriodEnd = true;
+
+          return await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { cancelAtPeriodEnd: true }
+          });
         } else {
           await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
-          subscription.status = 'canceled';
-          subscription.canceledAt = new Date();
+
+          return await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              status: 'canceled',
+              canceledAt: new Date()
+            }
+          });
         }
       }
 
-      return await subscription.save();
+      return subscription;
     } catch (error) {
       console.error('Erreur lors de l\'annulation de l\'abonnement:', error);
       throw new Error('Impossible d\'annuler l\'abonnement');
@@ -203,25 +238,29 @@ export class StripeService {
   /**
    * Synchronise les données depuis Stripe
    */
-  async syncFromStripe(companyId: string): Promise<ISubscription | null> {
+  async syncFromStripe(companyId: number): Promise<Subscription | null> {
     try {
-      const subscription = await Subscription.findOne({ companyId });
+      const subscription = await prisma.subscription.findFirst({
+        where: { companyId }
+      });
       if (!subscription?.stripeSubscriptionId) {
         return null;
       }
 
       const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
-      
-      subscription.status = stripeSubscription.status as any;
-      subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
-      subscription.currentPeriodStart = new Date(((stripeSubscription as any).current_period_start || 0) * 1000);
-      subscription.currentPeriodEnd = new Date(((stripeSubscription as any).current_period_end || 0) * 1000);
-      
-      if (stripeSubscription.canceled_at) {
-        subscription.canceledAt = new Date(stripeSubscription.canceled_at * 1000);
-      }
 
-      return await subscription.save();
+      const updatedSubscription = await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: stripeSubscription.status as any,
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end || false,
+          currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+          currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
+          canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
+        }
+      });
+
+      return updatedSubscription;
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);
       throw new Error('Impossible de synchroniser les données');
@@ -237,23 +276,23 @@ export class StripeService {
         case 'customer.subscription.created':
           await this.handleSubscriptionCreated(event.data.object as Stripe.Subscription);
           break;
-        
+
         case 'customer.subscription.updated':
           await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
           break;
-        
+
         case 'customer.subscription.deleted':
           await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
           break;
-        
+
         case 'invoice.payment_succeeded':
           await this.handlePaymentSucceeded(event.data.object as Stripe.Invoice);
           break;
-        
+
         case 'invoice.payment_failed':
           await this.handlePaymentFailed(event.data.object as Stripe.Invoice);
           break;
-        
+
         default:
           console.log(`Webhook non géré: ${event.type}`);
       }
@@ -267,107 +306,126 @@ export class StripeService {
     const companyId = stripeSubscription.metadata.companyId;
     if (!companyId) return;
 
-    const existingSubscription = await Subscription.findOne({ companyId });
-    
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: { companyId }
+    });
+
     if (existingSubscription) {
-      existingSubscription.stripeSubscriptionId = stripeSubscription.id;
-      existingSubscription.stripePriceId = stripeSubscription.items.data[0]?.price.id;
-      existingSubscription.status = stripeSubscription.status as any;
-      existingSubscription.currentPeriodStart = new Date(((stripeSubscription as any).current_period_start || 0) * 1000);
-      existingSubscription.currentPeriodEnd = new Date(((stripeSubscription as any).current_period_end || 0) * 1000);
-      await existingSubscription.save();
+      await prisma.subscription.update({
+        where: { id: existingSubscription.id },
+        data: {
+          stripeSubscriptionId: stripeSubscription.id,
+          stripePriceId: stripeSubscription.items.data[0]?.price.id,
+          status: stripeSubscription.status as any,
+          currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+          currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
+        }
+      });
     } else {
-      await Subscription.create({
-        companyId,
-        stripeCustomerId: stripeSubscription.customer as string,
-        stripeSubscriptionId: stripeSubscription.id,
-        stripePriceId: stripeSubscription.items.data[0]?.price.id,
-        plan: stripeSubscription.metadata.plan || 'standard',
-        status: stripeSubscription.status,
-        currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
-        currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
+      await prisma.subscription.create({
+        data: {
+          companyId,
+          stripeCustomerId: stripeSubscription.customer as string,
+          stripeSubscriptionId: stripeSubscription.id,
+          stripePriceId: stripeSubscription.items.data[0]?.price.id,
+          plan: stripeSubscription.metadata.plan || 'standard',
+          status: stripeSubscription.status,
+          currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+          currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
+        }
       });
     }
   }
 
   private async handleSubscriptionUpdated(stripeSubscription: Stripe.Subscription): Promise<void> {
-    const subscription = await Subscription.findOne({ 
-      stripeSubscriptionId: stripeSubscription.id 
+    const subscription = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: stripeSubscription.id }
     });
-    
+
     if (subscription) {
-      subscription.status = stripeSubscription.status as any;
-      subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
-      subscription.currentPeriodStart = new Date(((stripeSubscription as any).current_period_start || 0) * 1000);
-      subscription.currentPeriodEnd = new Date(((stripeSubscription as any).current_period_end || 0) * 1000);
-      
-      if (stripeSubscription.canceled_at) {
-        subscription.canceledAt = new Date(stripeSubscription.canceled_at * 1000);
-      }
-      
-      await subscription.save();
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: stripeSubscription.status as any,
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end || false,
+          currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
+          currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
+          canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null,
+        }
+      });
     }
   }
 
   private async handleSubscriptionDeleted(stripeSubscription: Stripe.Subscription): Promise<void> {
-    const subscription = await Subscription.findOne({ 
-      stripeSubscriptionId: stripeSubscription.id 
+    const subscription = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: stripeSubscription.id }
     });
-    
+
     if (subscription) {
-      subscription.status = 'canceled';
-      subscription.canceledAt = new Date();
-      await subscription.save();
-      
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: 'canceled',
+          canceledAt: new Date(),
+        }
+      });
+
       // Repasser la company en plan gratuit
-      await Company.findByIdAndUpdate(subscription.companyId, { plan: 'free' });
+      await prisma.company.update({
+        where: { id: subscription.companyId },
+        data: { plan: 'free' }
+      });
     }
   }
 
   private async handlePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
     if (!(invoice as any).subscription) return;
-    
-    const subscription = await Subscription.findOne({ 
-      stripeSubscriptionId: (invoice as any).subscription 
+
+    const subscription = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: (invoice as any).subscription }
     });
-    
+
     if (subscription && (invoice as any).payment_intent) {
-      await Payment.create({
-        companyId: subscription.companyId,
-        subscriptionId: subscription._id,
-        stripePaymentIntentId: (invoice as any).payment_intent as string,
-        stripeCustomerId: invoice.customer as string,
-        amount: invoice.amount_paid,
-        currency: invoice.currency,
-        status: 'succeeded',
-        type: 'subscription',
-        description: invoice.description || `Paiement abonnement ${subscription.plan}`,
-        receiptUrl: invoice.hosted_invoice_url,
-        stripeCreatedAt: new Date(invoice.created * 1000),
+      await prisma.payment.create({
+        data: {
+          companyId: subscription.companyId,
+          subscriptionId: subscription.id,
+          stripePaymentIntentId: (invoice as any).payment_intent as string,
+          stripeCustomerId: invoice.customer as string,
+          amount: invoice.amount_paid,
+          currency: invoice.currency,
+          status: 'succeeded',
+          type: 'subscription',
+          description: invoice.description || `Paiement abonnement ${subscription.plan}`,
+          receiptUrl: invoice.hosted_invoice_url,
+          stripeCreatedAt: new Date(invoice.created * 1000),
+        }
       });
     }
   }
 
   private async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
     if (!(invoice as any).subscription) return;
-    
-    const subscription = await Subscription.findOne({ 
-      stripeSubscriptionId: (invoice as any).subscription 
+
+    const subscription = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: (invoice as any).subscription }
     });
-    
+
     if (subscription && (invoice as any).payment_intent) {
-      await Payment.create({
-        companyId: subscription.companyId,
-        subscriptionId: subscription._id,
-        stripePaymentIntentId: (invoice as any).payment_intent as string,
-        stripeCustomerId: invoice.customer as string,
-        amount: invoice.amount_due,
-        currency: invoice.currency,
-        status: 'failed',
-        type: 'subscription',
-        description: invoice.description || `Échec paiement abonnement ${subscription.plan}`,
-        failureReason: 'Paiement refusé',
-        stripeCreatedAt: new Date(invoice.created * 1000),
+      await prisma.payment.create({
+        data: {
+          companyId: subscription.companyId,
+          subscriptionId: subscription.id,
+          stripePaymentIntentId: (invoice as any).payment_intent as string,
+          stripeCustomerId: invoice.customer as string,
+          amount: invoice.amount_due,
+          currency: invoice.currency,
+          status: 'failed',
+          type: 'subscription',
+          description: invoice.description || `Échec paiement abonnement ${subscription.plan}`,
+          failureReason: 'Paiement refusé',
+          stripeCreatedAt: new Date(invoice.created * 1000),
+        }
       });
     }
   }

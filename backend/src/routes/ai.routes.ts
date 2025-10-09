@@ -5,22 +5,21 @@
  * - de générer automatiquement un planning pour une équipe via l'API OpenRouter
  * - de traiter les préférences des employés et les contraintes métiers
  * - de sauvegarder les plannings générés en base de données
+ *
+ * MIGRATION POSTGRESQL: Fichier migré de MongoDB vers PostgreSQL/Prisma
+ * - Tous les ObjectId → number (INTEGER)
+ * - Toutes les requêtes Mongoose → Prisma
+ * - Structure WeeklySchedule alignée sur le schéma Prisma (team-based)
  */
 
 import { addDays, startOfWeek } from "date-fns";
 import dotenv from "dotenv";
 import express, { Response } from "express";
-import mongoose from "mongoose";
+// MIGRATION POSTGRESQL: Remplacement de mongoose par prisma
+import prisma from "../config/prisma";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
 import { validateRequest } from "../middlewares/validation.middleware";
-import EmployeeModel, { IEmployee } from "../models/Employee.model";
-import {
-  GeneratedScheduleModel,
-  IGeneratedSchedule,
-} from "../models/GeneratedSchedule.model";
-import { TeamModel } from "../models/Team.model";
-import WeeklyScheduleModel from "../models/WeeklySchedule.model";
 import { planningConstraintsSchema, PlanningConstraints } from "../schemas/planning.schemas";
 
 // Charger les variables d'environnement
@@ -30,9 +29,10 @@ const router = express.Router();
 
 /**
  * Interface pour le body de la requête de génération de planning
+ * MIGRATION POSTGRESQL: teamId est maintenant number au lieu de string
  */
 interface GenerateScheduleRequest {
-  teamId: string;
+  teamId: number; // INTEGER
   year: number;
   weekNumber: number;
   constraints: string[];
@@ -60,9 +60,10 @@ interface GeneratedScheduleData {
 
 /**
  * Interface pour l'interaction conversationnelle avec l'IA
+ * MIGRATION POSTGRESQL: teamId est maintenant number
  */
 interface ConversationRequest {
-  teamId: string;
+  teamId: number; // INTEGER
   year: number;
   weekNumber: number;
   message: string;
@@ -90,6 +91,11 @@ interface ConversationResponse {
  * @route   POST /api/ai/generate-schedule
  * @desc    Générer automatiquement un planning pour une équipe via l'API OpenRouter
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - teamId validation convertie en parseInt
+ * - Requêtes Prisma pour Team et Employee
+ * - Sauvegarde dans GeneratedSchedule avec nouvelle structure
  */
 router.post(
   "/generate-schedule",
@@ -98,7 +104,8 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      // MIGRATION POSTGRESQL: req.user.id est number
+      if (!req.user || !req.user.id) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
@@ -115,7 +122,7 @@ router.post(
       }: GenerateScheduleRequest = req.body;
 
       console.log(
-        `[AI] Génération de planning demandée par ${req.user._id} pour l'équipe ${teamId}`
+        `[AI] Génération de planning demandée par ${req.user.id} pour l'équipe ${teamId}`
       );
 
       // ✅ Validation des champs obligatoires
@@ -133,11 +140,12 @@ router.post(
         });
       }
 
-      // ✅ Validation des types et valeurs
-      if (!mongoose.Types.ObjectId.isValid(teamId)) {
+      // MIGRATION POSTGRESQL: Validation teamId (number)
+      const parsedTeamId = parseInt(String(teamId), 10);
+      if (isNaN(parsedTeamId)) {
         return res.status(400).json({
           success: false,
-          message: "ID d'équipe invalide",
+          message: "ID d'équipe invalide (doit être un nombre)",
         });
       }
 
@@ -162,10 +170,39 @@ router.post(
         });
       }
 
-      // 🔍 Récupération de l'équipe avec ses employés
-      const team = await TeamModel.findById(teamId)
-        .populate("employeeIds")
-        .lean();
+      // MIGRATION POSTGRESQL: Récupération de l'équipe avec Prisma
+      const team = await prisma.team.findUnique({
+        where: { id: parsedTeamId },
+        include: {
+          employees: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              userId: true,
+              position: true,
+              skills: true,
+              contractualHours: true,
+              preferences: true,
+              hireDate: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  role: true
+                }
+              }
+            }
+          },
+          company: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      });
 
       if (!team) {
         return res.status(404).json({
@@ -175,12 +212,11 @@ router.post(
       }
 
       // 🔐 Vérification des droits d'accès à l'équipe
-      const userIsManager = team.managerIds.some(
-        (managerId) => managerId.toString() === req.user._id.toString()
-      );
+      // MIGRATION POSTGRESQL: managerId est unique (not array) dans Prisma
+      const userIsManager = team.managerId === req.user.id;
       const userIsDirecteur =
         req.user.role === "directeur" &&
-        req.user.companyId === team.companyId?.toString();
+        req.user.companyId === team.companyId;
       const userIsAdmin = req.user.role === "admin";
 
       if (!userIsManager && !userIsDirecteur && !userIsAdmin) {
@@ -192,7 +228,7 @@ router.post(
       }
 
       // 👥 Récupération des détails des employés
-      const employees = team.employeeIds as unknown as IEmployee[];
+      const employees = team.employees;
 
       if (!employees || employees.length === 0) {
         return res.status(400).json({
@@ -207,31 +243,25 @@ router.post(
 
       // 🤖 Construction du prompt pour l'IA
       let employeeDetails = "";
-      employees.forEach((employee: IEmployee) => {
-        const preferredDays =
-          employee.preferences?.preferredDays?.join(", ") ||
-          "Aucune préférence spécifiée";
-        const preferredHours =
-          employee.preferences?.preferredHours?.join(", ") ||
-          "Aucune préférence spécifiée";
-        const contractHours = employee.contractHoursPerWeek || "Non spécifié";
-        const anciennete = employee.startDate
+      employees.forEach((employee) => {
+        // MIGRATION POSTGRESQL: preferences est maintenant un objet JSON
+        const prefs = employee.preferences as any;
+        const preferredDays = prefs?.preferredDays?.join(", ") || "Aucune préférence spécifiée";
+        const preferredHours = prefs?.preferredHours?.join(", ") || "Aucune préférence spécifiée";
+        const contractHours = employee.contractualHours || 35;
+        const anciennete = employee.hireDate
           ? `${
               new Date().getFullYear() -
-              new Date(employee.startDate).getFullYear()
+              new Date(employee.hireDate).getFullYear()
             } ans`
           : "Non spécifiée";
 
-        employeeDetails += `- ${employee.firstName} ${employee.lastName}:
-  * Contrat: ${contractHours}h/semaine (soit ${
-          typeof contractHours === "number"
-            ? Math.round(contractHours / 5)
-            : "N/A"
-        }h/jour en moyenne)
+        employeeDetails += `- ${employee.user.firstName} ${employee.user.lastName}:
+  * Contrat: ${contractHours}h/semaine (soit ${Math.round(contractHours / 5)}h/jour en moyenne)
   * Jours préférés: ${preferredDays}
   * Horaires préférés: ${preferredHours}
   * Ancienneté: ${anciennete}
-  * Statut: ${employee.status}
+  * Statut: ${employee.isActive ? 'Actif' : 'Inactif'}
 `;
       });
 
@@ -279,23 +309,23 @@ ${notes ? `📝 NOTES SPÉCIALES: ${notes}` : ""}
 
 FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
 {
-  "lundi": { 
+  "lundi": {
     "Alice Martin": ["08:00-12:00", "13:00-17:00"],
     "Jean Dupont": ["09:00-13:00"]
   },
-  "mardi": { 
+  "mardi": {
     "Alice Martin": ["08:00-12:00"],
     "Jean Dupont": ["14:00-18:00"]
   },
-  "mercredi": { 
+  "mercredi": {
     "Alice Martin": ["08:00-12:00", "13:00-17:00"],
     "Jean Dupont": []
   },
-  "jeudi": { 
+  "jeudi": {
     "Alice Martin": ["09:00-13:00"],
     "Jean Dupont": ["14:00-18:00"]
   },
-  "vendredi": { 
+  "vendredi": {
     "Alice Martin": [],
     "Jean Dupont": ["08:00-12:00", "13:00-17:00"]
   },
@@ -370,8 +400,8 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
       }
 
       // Gérer les modèles qui mettent la réponse dans 'reasoning' (comme Hunyuan) ou 'content'
-      const aiResponseContent = openRouterData.choices[0].message.content || 
-                                openRouterData.choices[0].message.reasoning || 
+      const aiResponseContent = openRouterData.choices[0].message.content ||
+                                openRouterData.choices[0].message.reasoning ||
                                 'Erreur: Aucune réponse de l\'IA';
       console.log(`[AI] Réponse reçue de l'IA:`, aiResponseContent);
 
@@ -394,81 +424,120 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
         });
       }
 
-      // 💾 Sauvegarde des plannings générés en base de données
-      console.log(`[AI] Sauvegarde des plannings générés...`);
+      // MIGRATION POSTGRESQL: Nouvelle structure de sauvegarde (team-based)
+      console.log(`[AI] Sauvegarde du planning généré...`);
 
-      const savedSchedules: IGeneratedSchedule[] = [];
+      // Calculer les dates de la semaine (ISO 8601)
+      function getWeekDates(year: number, weekNumber: number) {
+        const january4th = new Date(year, 0, 4);
+        const dayOfWeek = january4th.getDay() || 7;
+        const weekStart = new Date(january4th);
+        weekStart.setDate(january4th.getDate() - dayOfWeek + 1);
+        weekStart.setDate(weekStart.getDate() + (weekNumber - 1) * 7);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return { weekStartDate: weekStart, weekEndDate: weekEnd };
+      }
 
-      // Pour chaque employé, créer un document GeneratedSchedule
-      for (const employee of employees) {
-        const employeeFullName = `${employee.firstName} ${employee.lastName}`;
+      const { weekStartDate, weekEndDate } = getWeekDates(year, weekNumber);
 
-        // Construire les données de planning pour cet employé
-        const employeeScheduleData: { [day: string]: { slots?: string[] } } =
-          {};
+      // Convertir le planning généré (par employé) en format JSON team
+      const scheduleJson: Record<string, any[]> = {
+        monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []
+      };
 
-        // Parcourir chaque jour de la semaine
-        const daysOfWeek = [
-          "lundi",
-          "mardi",
-          "mercredi",
-          "jeudi",
-          "vendredi",
-          "samedi",
-          "dimanche",
-        ];
+      const dayMapping: Record<string, string> = {
+        lundi: "monday",
+        mardi: "tuesday",
+        mercredi: "wednesday",
+        jeudi: "thursday",
+        vendredi: "friday",
+        samedi: "saturday",
+        dimanche: "sunday",
+      };
 
-        for (const day of daysOfWeek) {
-          if (
-            generatedScheduleData[day] &&
-            generatedScheduleData[day][employeeFullName] &&
-            generatedScheduleData[day][employeeFullName].length > 0
-          ) {
-            // Transformer les créneaux de l'IA en format compatible avec le frontend
-            employeeScheduleData[day] = {
-              slots: generatedScheduleData[day][employeeFullName],
-            };
-          } else {
-            // Jour sans horaires = repos
-            employeeScheduleData[day] = {};
-          }
+      // Parcourir le planning généré et regrouper par jour
+      for (const [dayFr, employeeSchedules] of Object.entries(generatedScheduleData)) {
+        const dayEn = dayMapping[dayFr] || dayFr;
+
+        if (!scheduleJson[dayEn]) {
+          scheduleJson[dayEn] = [];
         }
 
-        // Créer le document GeneratedSchedule pour cet employé
-        const generatedSchedule = new GeneratedScheduleModel({
-          employeeId: (employee as any)._id || employee.userId,
-          scheduleData: new Map(Object.entries(employeeScheduleData)),
-          generatedBy: req.user._id,
-          timestamp: new Date(),
-          status: "draft",
-          weekNumber: weekNumber,
-          year: year,
-        });
+        for (const [employeeName, slots] of Object.entries(employeeSchedules)) {
+          // Trouver l'employé correspondant
+          const employee = employees.find(emp =>
+            `${emp.user.firstName} ${emp.user.lastName}` === employeeName
+          );
 
-        const savedSchedule = await generatedSchedule.save();
-        savedSchedules.push(savedSchedule);
-
-        console.log(
-          `[AI] Planning sauvegardé pour ${employeeFullName} (ID: ${savedSchedule._id})`
-        );
+          if (employee && Array.isArray(slots) && slots.length > 0) {
+            slots.forEach((slot: string) => {
+              const [startTime, endTime] = slot.split("-");
+              if (startTime && endTime) {
+                scheduleJson[dayEn].push({
+                  employeeId: employee.id,
+                  startTime,
+                  endTime,
+                  position: employee.position || null,
+                  skills: employee.skills || [],
+                  breakStart: null,
+                  breakEnd: null
+                });
+              }
+            });
+          }
+        }
       }
+
+      // MIGRATION POSTGRESQL: Sauvegarder dans GeneratedSchedule (nouvelle structure)
+      const generationConfig = {
+        strategy: "ai_openrouter",
+        weekStartDate: weekStartDate.toISOString(),
+        weekEndDate: weekEndDate.toISOString(),
+        selectedEmployees: employees.map(e => e.id),
+        constraints: {
+          userConstraints: constraints,
+          notes: notes || ""
+        }
+      };
+
+      const savedSchedule = await prisma.generatedSchedule.create({
+        data: {
+          companyId: team.companyId,
+          teamId: parsedTeamId,
+          generationConfig: generationConfig,
+          generatedPlanning: scheduleJson,
+          metrics: {
+            generationTime: 0, // À calculer si nécessaire
+            strategy: "ai_openrouter",
+            qualityScore: 0,
+            constraintsRespected: constraints.length,
+            employeesSatisfaction: 0
+          },
+          modelVersion: "openrouter-gemini-2.0",
+          algorithm: "OpenRouter",
+          status: "generated",
+          generatedById: req.user.id
+        }
+      });
+
+      console.log(`[AI] Planning sauvegardé (ID: ${savedSchedule.id})`);
 
       // ✅ Réponse de succès avec les données sauvegardées
       return res.status(201).json({
         success: true,
         message: `Planning généré avec succès pour ${employees.length} employés de l'équipe ${team.name}`,
         data: {
-          teamId: team._id,
+          teamId: team.id,
           teamName: team.name,
           weekNumber,
           year,
           employeesCount: employees.length,
-          generatedSchedules: savedSchedules.map((schedule) => ({
-            id: (schedule as any)._id,
-            employeeId: schedule.employeeId,
-            status: schedule.status,
-            timestamp: schedule.timestamp,
-          })),
+          generatedSchedules: [{
+            id: savedSchedule.id,
+            status: savedSchedule.status,
+            timestamp: savedSchedule.generatedAt,
+          }],
           rawScheduleData: generatedScheduleData,
         },
       });
@@ -486,8 +555,12 @@ FORMAT ATTENDU (JSON STRICT - pas de texte avant/après):
 
 /**
  * @route   GET /api/ai/generated-schedules
- * @desc    Récupérer tous les plannings IA avec le statut "draft"
+ * @desc    Récupérer tous les plannings IA avec le statut "generated"
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - Requêtes Prisma pour GeneratedSchedule
+ * - Filtrage par rôle avec joins optimisés
  */
 router.get(
   "/generated-schedules",
@@ -496,7 +569,7 @@ router.get(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         console.log('❌ [AI API] Utilisateur non authentifié');
         return res.status(401).json({
           success: false,
@@ -505,177 +578,95 @@ router.get(
       }
 
       console.log(
-        `[AI] Récupération des plannings générés par ${req.user._id} (${req.user.role})`
+        `[AI] Récupération des plannings générés par ${req.user.id} (${req.user.role})`
       );
       console.log(`[AI] Paramètres de la requête:`, req.query);
       console.log(`[AI] User companyId:`, req.user.companyId);
       console.log(`[AI] User role:`, req.user.role);
 
-      // 🔍 Construction de la requête selon le rôle
-      let query: any = { status: "draft" };
-      
-      // Inclure les plannings générés automatiquement ET par IA
-      // query.generatedBy peut être un ObjectId (IA) ou 'AUTO_GENERATE' (génération automatique)
-      
-      console.log(`[AI] Requête initiale:`, query);
+      // MIGRATION POSTGRESQL: Construction de la requête Prisma selon le rôle
+      let whereClause: any = {
+        status: "generated"
+      };
 
       if (req.user.role === "manager") {
         // Manager : seulement les plannings des équipes qu'il gère
-        const managedTeams = await TeamModel.find({
-          managerIds: req.user._id,
-        }).select("_id");
-
-        const teamIds = managedTeams.map((team) => team._id);
-
-        if (teamIds.length === 0) {
-          return res.status(200).json({
-            success: true,
-            data: [],
-            message: "Aucune équipe gérée trouvée",
-          });
-        }
-
-        // Récupérer les employés de ces équipes
-        const teamsWithEmployees = await TeamModel.find({
-          _id: { $in: teamIds },
-        }).select("employeeIds");
-
-        const employeeIds: any[] = [];
-        teamsWithEmployees.forEach((team) => {
-          if (team.employeeIds && team.employeeIds.length > 0) {
-            employeeIds.push(...team.employeeIds);
-          }
-        });
-
-        // Utiliser directement les IDs des employés sans populate
-        query.employeeId = { $in: employeeIds };
-        console.log(`[AI] Requête manager - employeeIds trouvés:`, employeeIds.length);
+        whereClause.team = {
+          managerId: req.user.id
+        };
+        console.log(`[AI] Requête manager - filtre par managerId:`, req.user.id);
       } else if (req.user.role === "directeur") {
-        // Directeur : seulement les plannings des équipes de sa société
-        const companyTeams = await TeamModel.find({
-          companyId: req.user.companyId,
-        }).select("employeeIds");
-
-        const employeeIds: any[] = [];
-        companyTeams.forEach((team) => {
-          if (team.employeeIds && team.employeeIds.length > 0) {
-            employeeIds.push(...team.employeeIds);
-          }
-        });
-
-        if (employeeIds.length === 0) {
-          return res.status(200).json({
-            success: true,
-            data: [],
-            message: "Aucun employé trouvé dans votre société",
-          });
-        }
-
-        // Utiliser directement les IDs des employés sans populate
-        query.employeeId = { $in: employeeIds };
-        console.log(`[AI] Requête directeur - employeeIds trouvés:`, employeeIds.length);
+        // Directeur : seulement les plannings de sa société
+        whereClause.companyId = req.user.companyId;
+        console.log(`[AI] Requête directeur - filtre par companyId:`, req.user.companyId);
       }
-      // Admin : pas de filtre supplémentaire, tous les plannings
+      // Admin : pas de filtre supplémentaire
 
-      // 📊 Récupération des plannings avec population des données
-      const generatedSchedules = await GeneratedScheduleModel.find(query)
-        .populate({
-          path: "employeeId",
-          select: "firstName lastName email photoUrl",
-        })
-        .populate({
-          path: "generatedBy",
-          select: "firstName lastName",
-          // Ne pas faire planter la requête si generatedBy n'est pas un ObjectId
-          options: { strictPopulate: false }
-        })
-        .sort({ timestamp: -1 });
+      // MIGRATION POSTGRESQL: Récupération des plannings avec Prisma
+      const generatedSchedules = await prisma.generatedSchedule.findMany({
+        where: whereClause,
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          generatedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          company: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          generatedAt: 'desc'
+        }
+      });
 
       console.log(`[AI] Plannings trouvés: ${generatedSchedules.length}`);
 
-      // 🏢 Enrichissement avec les données d'équipe
-      const enrichedSchedules = await Promise.all(
-        generatedSchedules.map(async (schedule) => {
-          // ✅ Conversion robuste MongoDB Map -> Objet JavaScript
-          const scheduleDataObject: any = {};
+      // 🏢 Enrichissement avec les données pour le frontend
+      const enrichedSchedules = generatedSchedules.map((schedule) => {
+        // MIGRATION POSTGRESQL: Extraire les infos de generationConfig
+        const config = schedule.generationConfig as any;
+        const weekNumber = config?.weekNumber || 1;
+        const yearValue = config?.year || new Date().getFullYear();
 
-          if (schedule.scheduleData instanceof Map) {
-            for (const [day, data] of schedule.scheduleData.entries()) {
-              // ✅ Extraire seulement les vraies données (pas les propriétés Mongoose)
-              const dataAny = data as any;
-              scheduleDataObject[day] =
-                dataAny && typeof dataAny.toObject === "function"
-                  ? dataAny.toObject()
-                  : dataAny && dataAny._doc
-                  ? dataAny._doc
-                  : dataAny;
-            }
-          } else if (
-            schedule.scheduleData &&
-            typeof schedule.scheduleData === "object"
-          ) {
-            // Conversion manuelle pour s'assurer du bon format
-            for (const [day, data] of Object.entries(schedule.scheduleData)) {
-              const dataAny = data as any;
-              scheduleDataObject[day] =
-                dataAny && typeof dataAny.toObject === "function"
-                  ? dataAny.toObject()
-                  : dataAny && dataAny._doc
-                  ? dataAny._doc
-                  : dataAny;
-            }
-          }
+        // Gestion spéciale pour les plannings générés automatiquement
+        const generatedByInfo = schedule.generatedBy || {
+          id: 0,
+          firstName: 'Génération',
+          lastName: 'Automatique'
+        };
 
-          // ✅ Mapping français -> anglais pour compatibilité frontend
-          const dayMapping = {
-            lundi: "monday",
-            mardi: "tuesday",
-            mercredi: "wednesday",
-            jeudi: "thursday",
-            vendredi: "friday",
-            samedi: "saturday",
-            dimanche: "sunday",
-          };
+        return {
+          _id: schedule.id.toString(),
+          id: schedule.id,
+          scheduleData: schedule.generatedPlanning,
+          status: schedule.status,
+          timestamp: schedule.generatedAt,
+          generatedBy: generatedByInfo,
+          teamId: schedule.team.id,
+          teamName: schedule.team.name,
+          companyName: schedule.company.name,
+          constraints: config?.constraints?.userConstraints || [],
+          notes: config?.constraints?.notes || "",
+          weekNumber: weekNumber,
+          year: yearValue,
+          metrics: schedule.metrics || {}
+        };
+      });
 
-          const frontendScheduleData: any = {};
-          for (const [frenchDay, data] of Object.entries(scheduleDataObject)) {
-            const englishDay =
-              dayMapping[frenchDay as keyof typeof dayMapping] || frenchDay;
-            frontendScheduleData[englishDay] = data;
-          }
+      console.log(`[AI] ${enrichedSchedules.length} plannings enrichis`);
 
-          // Trouver l'équipe de l'employé
-          const team = await TeamModel.findOne({
-            employeeIds: schedule.employeeId,
-          }).select("name _id");
-
-          // Gestion spéciale pour les plannings générés automatiquement
-          const generatedByInfo = (schedule.generatedBy === 'AUTO_GENERATE' || schedule.generatedBy === 'AI')
-            ? { _id: 'AI', firstName: 'Génération', lastName: 'Automatique' }
-            : schedule.generatedBy;
-
-          return {
-            _id: schedule._id.toString(),
-            employeeId: schedule.employeeId,
-            scheduleData: frontendScheduleData,
-            status: schedule.status,
-            timestamp: schedule.timestamp,
-            generatedBy: generatedByInfo,
-            employee: schedule.employeeId,
-            teamId: team?._id,
-            teamName: team?.name || "Équipe non trouvée",
-            constraints: [],
-            notes: (schedule.generatedBy === 'AUTO_GENERATE' || schedule.generatedBy === 'AI') ? "Planning généré automatiquement via moteur personnalisé" : "",
-            weekNumber: schedule.weekNumber || 1,
-            year: schedule.year || new Date().getFullYear(),
-          };
-        })
-      );
-
-      console.log(`[AI] ${enrichedSchedules.length} plannings trouvés`);
-      console.log(`[AI] Requête finale utilisée:`, JSON.stringify(query, null, 2));
-      
-      // Log détaillé des premiers plannings
       if (enrichedSchedules.length > 0) {
         console.log(`[AI] Premier planning enrichi:`, JSON.stringify(enrichedSchedules[0], null, 2));
       }
@@ -701,8 +692,12 @@ router.get(
 
 /**
  * @route   PATCH /api/ai/generated-schedules/:id
- * @desc    Mettre à jour le scheduleData d'un planning IA
+ * @desc    Mettre à jour le generatedPlanning d'un planning IA
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - Validation id number
+ * - Update Prisma avec permissions check
  */
 router.patch(
   "/generated-schedules/:id",
@@ -711,23 +706,23 @@ router.patch(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
         });
       }
 
-      const { id } = req.params;
-      const { scheduleData } = req.body;
-
-      // ✅ Validation des paramètres
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // MIGRATION POSTGRESQL: Validation id (number)
+      const scheduleId = parseInt(req.params.id, 10);
+      if (isNaN(scheduleId)) {
         return res.status(400).json({
           success: false,
-          message: "ID de planning invalide",
+          message: "ID de planning invalide (doit être un nombre)",
         });
       }
+
+      const { scheduleData } = req.body;
 
       if (!scheduleData || typeof scheduleData !== "object") {
         return res.status(400).json({
@@ -736,12 +731,21 @@ router.patch(
         });
       }
 
-      console.log(`[AI] Mise à jour du planning ${id} par ${req.user._id}`);
+      console.log(`[AI] Mise à jour du planning ${scheduleId} par ${req.user.id}`);
 
-      // 🔍 Récupération du planning existant
-      const existingSchedule = await GeneratedScheduleModel.findById(id)
-        .populate("employeeId")
-        .lean();
+      // MIGRATION POSTGRESQL: Récupération du planning avec Prisma
+      const existingSchedule = await prisma.generatedSchedule.findUnique({
+        where: { id: scheduleId },
+        include: {
+          team: {
+            select: {
+              id: true,
+              managerId: true,
+              companyId: true
+            }
+          }
+        }
+      });
 
       if (!existingSchedule) {
         return res.status(404).json({
@@ -752,24 +756,10 @@ router.patch(
 
       // 🔐 Vérification des droits d'accès
       if (req.user.role !== "admin") {
-        // Trouver l'équipe de l'employé
-        const team = await TeamModel.findOne({
-          employeeIds: existingSchedule.employeeId,
-        });
-
-        if (!team) {
-          return res.status(404).json({
-            success: false,
-            message: "Équipe de l'employé introuvable",
-          });
-        }
-
-        const userIsManager = team.managerIds.some(
-          (managerId) => managerId.toString() === req.user._id.toString()
-        );
+        const userIsManager = existingSchedule.team.managerId === req.user.id;
         const userIsDirecteur =
           req.user.role === "directeur" &&
-          req.user.companyId === team.companyId?.toString();
+          req.user.companyId === existingSchedule.team.companyId;
 
         if (!userIsManager && !userIsDirecteur) {
           return res.status(403).json({
@@ -779,17 +769,31 @@ router.patch(
         }
       }
 
-      // 💾 Mise à jour du planning
-      const updatedSchedule = await GeneratedScheduleModel.findByIdAndUpdate(
-        id,
-        {
-          scheduleData,
-          updatedAt: new Date(),
+      // MIGRATION POSTGRESQL: Mise à jour avec Prisma
+      const updatedSchedule = await prisma.generatedSchedule.update({
+        where: { id: scheduleId },
+        data: {
+          generatedPlanning: scheduleData,
+          updatedAt: new Date()
         },
-        { new: true }
-      ).populate("employeeId", "firstName lastName email");
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          generatedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
 
-      console.log(`[AI] Planning ${id} mis à jour avec succès`);
+      console.log(`[AI] Planning ${scheduleId} mis à jour avec succès`);
 
       return res.status(200).json({
         success: true,
@@ -809,8 +813,13 @@ router.patch(
 
 /**
  * @route   PATCH /api/ai/generated-schedules/:id/validate
- * @desc    Valider un planning IA (passer status à "approved")
+ * @desc    Valider un planning IA (convertir en WeeklySchedule)
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - Conversion GeneratedSchedule → WeeklySchedule
+ * - Structure team-based (1 WeeklySchedule par team)
+ * - Mise à jour du status à "validated"
  */
 router.patch(
   "/generated-schedules/:id/validate",
@@ -819,37 +828,38 @@ router.patch(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
         });
       }
 
-      const { id } = req.params;
-      const { validatedBy } = req.body;
-
-      // ✅ Validation des paramètres
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // MIGRATION POSTGRESQL: Validation id (number)
+      const scheduleId = parseInt(req.params.id, 10);
+      if (isNaN(scheduleId)) {
         return res.status(400).json({
           success: false,
-          message: "ID de planning invalide",
+          message: "ID de planning invalide (doit être un nombre)",
         });
       }
 
-      if (!validatedBy || !mongoose.Types.ObjectId.isValid(validatedBy)) {
-        return res.status(400).json({
-          success: false,
-          message: "ID du validateur manquant ou invalide",
-        });
-      }
+      console.log(`[AI] Validation du planning ${scheduleId} par ${req.user.id}`);
 
-      console.log(`[AI] Validation du planning ${id} par ${req.user._id}`);
-
-      // 🔍 Récupération du planning existant
-      const existingSchedule = await GeneratedScheduleModel.findById(id)
-        .populate("employeeId")
-        .lean();
+      // MIGRATION POSTGRESQL: Récupération du planning avec Prisma
+      const existingSchedule = await prisma.generatedSchedule.findUnique({
+        where: { id: scheduleId },
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              managerId: true,
+              companyId: true
+            }
+          }
+        }
+      });
 
       if (!existingSchedule) {
         return res.status(404).json({
@@ -858,32 +868,19 @@ router.patch(
         });
       }
 
-      if (existingSchedule.status !== "draft") {
+      if (existingSchedule.status !== "generated") {
         return res.status(400).json({
           success: false,
-          message: "Seuls les plannings en brouillon peuvent être validés",
+          message: "Seuls les plannings générés peuvent être validés",
         });
       }
 
-      // 🔐 Vérification des droits d'accès (même logique que pour la mise à jour)
+      // 🔐 Vérification des droits d'accès
       if (req.user.role !== "admin") {
-        const team = await TeamModel.findOne({
-          employeeIds: existingSchedule.employeeId,
-        });
-
-        if (!team) {
-          return res.status(404).json({
-            success: false,
-            message: "Équipe de l'employé introuvable",
-          });
-        }
-
-        const userIsManager = team.managerIds.some(
-          (managerId) => managerId.toString() === req.user._id.toString()
-        );
+        const userIsManager = existingSchedule.team.managerId === req.user.id;
         const userIsDirecteur =
           req.user.role === "directeur" &&
-          req.user.companyId === team.companyId?.toString();
+          req.user.companyId === existingSchedule.team.companyId;
 
         if (!userIsManager && !userIsDirecteur) {
           return res.status(403).json({
@@ -893,136 +890,46 @@ router.patch(
         }
       }
 
-      // ✅ Validation du planning - Créer un WeeklySchedule et supprimer le GeneratedSchedule
-      console.log(`[AI] Création du planning hebdomadaire pour validation...`);
+      // MIGRATION POSTGRESQL: Créer le WeeklySchedule et update le GeneratedSchedule
+      const config = existingSchedule.generationConfig as any;
+      const weekStartDate = new Date(config.weekStartDate);
+      const weekEndDate = new Date(config.weekEndDate);
 
-      // 📊 Convertir les données de planning et calculer le total des minutes
-      const scheduleDataMap = new Map<string, string[]>();
-      let totalWeeklyMinutes = 0;
-
-      // ✅ Mapping français -> anglais pour compatibilité avec WeeklySchedule
-      const dayMapping = {
-        lundi: "monday",
-        mardi: "tuesday",
-        mercredi: "wednesday",
-        jeudi: "thursday",
-        vendredi: "friday",
-        samedi: "saturday",
-        dimanche: "sunday",
-      };
-
-      if (existingSchedule.scheduleData instanceof Map) {
-        for (const [day, data] of existingSchedule.scheduleData.entries()) {
-          const slots = (data as any)?.slots || [];
-
-          // Convertir la clé française en anglaise
-          const englishDay = dayMapping[day as keyof typeof dayMapping] || day;
-          scheduleDataMap.set(englishDay, slots);
-
-          // Calculer les minutes pour ce jour
-          slots.forEach((slot: string) => {
-            const [start, end] = slot.split("-");
-            if (start && end) {
-              const [startH, startM] = start.split(":").map(Number);
-              const [endH, endM] = end.split(":").map(Number);
-              const minutes = endH * 60 + endM - (startH * 60 + startM);
-              totalWeeklyMinutes += minutes;
-            }
-          });
+      // Créer le WeeklySchedule
+      const weeklySchedule = await prisma.weeklySchedule.create({
+        data: {
+          companyId: existingSchedule.companyId,
+          teamId: existingSchedule.teamId,
+          weekStartDate: weekStartDate,
+          weekEndDate: weekEndDate,
+          schedule: existingSchedule.generatedPlanning,
+          status: "validated",
+          validatedById: req.user.id,
+          validatedAt: new Date(),
+          createdById: req.user.id
         }
-      } else {
-        // Si ce n'est pas une Map, convertir l'objet
-        for (const [day, data] of Object.entries(
-          existingSchedule.scheduleData || {}
-        )) {
-          const slots = (data as any)?.slots || [];
-
-          // Convertir la clé française en anglaise
-          const englishDay = dayMapping[day as keyof typeof dayMapping] || day;
-          scheduleDataMap.set(englishDay, slots);
-
-          // Calculer les minutes pour ce jour
-          slots.forEach((slot: string) => {
-            const [start, end] = slot.split("-");
-            if (start && end) {
-              const [startH, startM] = start.split(":").map(Number);
-              const [endH, endM] = end.split(":").map(Number);
-              const minutes = endH * 60 + endM - (startH * 60 + startM);
-              totalWeeklyMinutes += minutes;
-            }
-          });
-        }
-      }
-
-      // 🗓️ Calculer les dates quotidiennes de la semaine avec les clés anglaises
-      const dailyDates = new Map<string, Date>();
-      if (existingSchedule.weekNumber && existingSchedule.year) {
-        // Utiliser date-fns pour calculer le début de la semaine
-        const yearStart = new Date(existingSchedule.year, 0, 1);
-        const firstWeekStart = startOfWeek(yearStart, { weekStartsOn: 1 });
-        const targetWeekStart = addDays(
-          firstWeekStart,
-          (existingSchedule.weekNumber - 1) * 7
-        );
-
-        const dayNames = [
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-          "sunday",
-        ];
-        dayNames.forEach((day, index) => {
-          const dayDate = addDays(targetWeekStart, index);
-          dailyDates.set(day, dayDate);
-        });
-      } else {
-        // Fallback : utiliser la semaine actuelle
-        const now = new Date();
-        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-        const dayNames = [
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-          "sunday",
-        ];
-        dayNames.forEach((day, index) => {
-          const dayDate = addDays(weekStart, index);
-          dailyDates.set(day, dayDate);
-        });
-      }
-
-      // 🆕 Créer le planning hebdomadaire
-      const weeklySchedule = new WeeklyScheduleModel({
-        employeeId: existingSchedule.employeeId,
-        year: existingSchedule.year || new Date().getFullYear(),
-        weekNumber: existingSchedule.weekNumber || 1,
-        scheduleData: scheduleDataMap,
-        status: "approved",
-        updatedBy: validatedBy,
-        notes: "", // Notes vides par défaut
-        dailyDates: dailyDates,
-        totalWeeklyMinutes: totalWeeklyMinutes,
       });
 
-      const savedWeeklySchedule = await weeklySchedule.save();
-
-      // 🗑️ Supprimer le planning généré de la collection GeneratedSchedule
-      await GeneratedScheduleModel.findByIdAndDelete(id);
+      // Mettre à jour le GeneratedSchedule
+      const updatedGenSchedule = await prisma.generatedSchedule.update({
+        where: { id: scheduleId },
+        data: {
+          status: "converted",
+          weeklyScheduleId: weeklySchedule.id,
+          validatedById: req.user.id,
+          validatedAt: new Date()
+        }
+      });
 
       console.log(
-        `[AI] Planning ${id} validé et transféré vers WeeklySchedule (${savedWeeklySchedule._id})`
+        `[AI] Planning ${scheduleId} validé et transféré vers WeeklySchedule (${weeklySchedule.id})`
       );
 
       return res.status(200).json({
         success: true,
         data: {
-          weeklySchedule: savedWeeklySchedule,
+          weeklySchedule: weeklySchedule,
+          generatedSchedule: updatedGenSchedule,
           message: "Planning validé et créé avec succès",
         },
         message: "Planning validé avec succès",
@@ -1042,6 +949,9 @@ router.patch(
  * @route   PATCH /api/ai/generated-schedules/:id/reject
  * @desc    Refuser un planning IA (passer status à "rejected")
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - Update status à "rejected" au lieu de delete
  */
 router.patch(
   "/generated-schedules/:id/reject",
@@ -1050,37 +960,40 @@ router.patch(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
         });
       }
 
-      const { id } = req.params;
-      const { validatedBy } = req.body;
-
-      // ✅ Validation des paramètres
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      // MIGRATION POSTGRESQL: Validation id (number)
+      const scheduleId = parseInt(req.params.id, 10);
+      if (isNaN(scheduleId)) {
         return res.status(400).json({
           success: false,
-          message: "ID de planning invalide",
+          message: "ID de planning invalide (doit être un nombre)",
         });
       }
 
-      if (!validatedBy || !mongoose.Types.ObjectId.isValid(validatedBy)) {
-        return res.status(400).json({
-          success: false,
-          message: "ID du validateur manquant ou invalide",
-        });
-      }
+      const { validationNote } = req.body;
 
-      console.log(`[AI] Refus du planning ${id} par ${req.user._id}`);
+      console.log(`[AI] Refus du planning ${scheduleId} par ${req.user.id}`);
 
-      // 🔍 Récupération du planning existant
-      const existingSchedule = await GeneratedScheduleModel.findById(id)
-        .populate("employeeId")
-        .lean();
+      // MIGRATION POSTGRESQL: Récupération du planning
+      const existingSchedule = await prisma.generatedSchedule.findUnique({
+        where: { id: scheduleId },
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              managerId: true,
+              companyId: true
+            }
+          }
+        }
+      });
 
       if (!existingSchedule) {
         return res.status(404).json({
@@ -1089,32 +1002,19 @@ router.patch(
         });
       }
 
-      if (existingSchedule.status !== "draft") {
+      if (existingSchedule.status !== "generated") {
         return res.status(400).json({
           success: false,
-          message: "Seuls les plannings en brouillon peuvent être refusés",
+          message: "Seuls les plannings générés peuvent être refusés",
         });
       }
 
-      // 🔐 Vérification des droits d'accès (même logique que pour la validation)
+      // 🔐 Vérification des droits d'accès
       if (req.user.role !== "admin") {
-        const team = await TeamModel.findOne({
-          employeeIds: existingSchedule.employeeId,
-        });
-
-        if (!team) {
-          return res.status(404).json({
-            success: false,
-            message: "Équipe de l'employé introuvable",
-          });
-        }
-
-        const userIsManager = team.managerIds.some(
-          (managerId) => managerId.toString() === req.user._id.toString()
-        );
+        const userIsManager = existingSchedule.team.managerId === req.user.id;
         const userIsDirecteur =
           req.user.role === "directeur" &&
-          req.user.companyId === team.companyId?.toString();
+          req.user.companyId === existingSchedule.team.companyId;
 
         if (!userIsManager && !userIsDirecteur) {
           return res.status(403).json({
@@ -1124,20 +1024,26 @@ router.patch(
         }
       }
 
-      // ❌ Refus du planning - Suppression définitive
-      await GeneratedScheduleModel.findByIdAndDelete(id);
+      // MIGRATION POSTGRESQL: Update status à "rejected"
+      const rejectedSchedule = await prisma.generatedSchedule.update({
+        where: { id: scheduleId },
+        data: {
+          status: "rejected",
+          validationNote: validationNote || "Planning refusé",
+          validatedById: req.user.id,
+          validatedAt: new Date()
+        }
+      });
 
-      console.log(`[AI] Planning ${id} refusé et supprimé définitivement`);
+      console.log(`[AI] Planning ${scheduleId} refusé`);
 
       return res.status(200).json({
         success: true,
         data: {
-          deletedScheduleId: id,
-          employeeName: `${(existingSchedule.employeeId as any).firstName} ${
-            (existingSchedule.employeeId as any).lastName
-          }`,
+          rejectedScheduleId: scheduleId,
+          teamName: existingSchedule.team.name,
         },
-        message: "Planning refusé et supprimé définitivement",
+        message: "Planning refusé avec succès",
       });
     } catch (error) {
       console.error("[AI] Erreur lors du refus du planning:", error);
@@ -1154,6 +1060,10 @@ router.patch(
  * @route   POST /api/ai/conversation
  * @desc    Interaction conversationnelle avec l'IA pour clarifier les besoins de planning
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - teamId validation number
+ * - Requêtes Prisma pour Team et Employee
  */
 router.post(
   "/conversation",
@@ -1162,7 +1072,7 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
@@ -1178,7 +1088,7 @@ router.post(
       }: ConversationRequest = req.body;
 
       console.log(
-        `[AI Conversation] Nouvelle interaction pour l'équipe ${teamId} par ${req.user._id}`
+        `[AI Conversation] Nouvelle interaction pour l'équipe ${teamId} par ${req.user.id}`
       );
 
       // ✅ Validation des champs obligatoires
@@ -1190,10 +1100,39 @@ router.post(
         });
       }
 
-      // 🔍 Récupération de l'équipe avec ses employés
-      const team = await TeamModel.findById(teamId)
-        .populate("employeeIds")
-        .lean();
+      // MIGRATION POSTGRESQL: Validation teamId (number)
+      const parsedTeamId = parseInt(String(teamId), 10);
+      if (isNaN(parsedTeamId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'équipe invalide (doit être un nombre)",
+        });
+      }
+
+      // MIGRATION POSTGRESQL: Récupération de l'équipe avec Prisma
+      const team = await prisma.team.findUnique({
+        where: { id: parsedTeamId },
+        include: {
+          employees: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              position: true,
+              contractualHours: true,
+              preferences: true,
+              hireDate: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true
+                }
+              }
+            }
+          }
+        }
+      });
 
       if (!team) {
         return res.status(404).json({
@@ -1203,12 +1142,10 @@ router.post(
       }
 
       // 🔐 Vérification des droits d'accès à l'équipe
-      const userIsManager = team.managerIds.some(
-        (managerId) => managerId.toString() === req.user._id.toString()
-      );
+      const userIsManager = team.managerId === req.user.id;
       const userIsDirecteur =
         req.user.role === "directeur" &&
-        req.user.companyId === team.companyId?.toString();
+        req.user.companyId === team.companyId;
       const userIsAdmin = req.user.role === "admin";
 
       if (!userIsManager && !userIsDirecteur && !userIsAdmin) {
@@ -1219,7 +1156,7 @@ router.post(
         });
       }
 
-      const employees = team.employeeIds as unknown as IEmployee[];
+      const employees = team.employees;
 
       if (!employees || employees.length === 0) {
         return res.status(400).json({
@@ -1230,31 +1167,24 @@ router.post(
 
       // 🧠 Construction du contexte enrichi pour l'IA
       let employeeDetails = "";
-      employees.forEach((employee: IEmployee) => {
-        const preferredDays =
-          employee.preferences?.preferredDays?.join(", ") ||
-          "Aucune préférence spécifiée";
-        const preferredHours =
-          employee.preferences?.preferredHours?.join(", ") ||
-          "Aucune préférence spécifiée";
-        const contractHours = employee.contractHoursPerWeek || "Non spécifié";
-        const anciennete = employee.startDate
+      employees.forEach((employee) => {
+        const prefs = employee.preferences as any;
+        const preferredDays = prefs?.preferredDays?.join(", ") || "Aucune préférence spécifiée";
+        const preferredHours = prefs?.preferredHours?.join(", ") || "Aucune préférence spécifiée";
+        const contractHours = employee.contractualHours || 35;
+        const anciennete = employee.hireDate
           ? `${
               new Date().getFullYear() -
-              new Date(employee.startDate).getFullYear()
+              new Date(employee.hireDate).getFullYear()
             } ans`
           : "Non spécifiée";
 
-        employeeDetails += `- ${employee.firstName} ${employee.lastName}:
-  * Contrat: ${contractHours}h/semaine (soit ${
-          typeof contractHours === "number"
-            ? Math.round(contractHours / 5)
-            : "N/A"
-        }h/jour en moyenne)
+        employeeDetails += `- ${employee.user.firstName} ${employee.user.lastName}:
+  * Contrat: ${contractHours}h/semaine (soit ${Math.round(contractHours / 5)}h/jour en moyenne)
   * Jours préférés: ${preferredDays}
   * Horaires préférés: ${preferredHours}
   * Ancienneté: ${anciennete}
-  * Statut: ${employee.status}
+  * Statut: Actif
 `;
       });
 
@@ -1362,8 +1292,8 @@ FORMAT DE RÉPONSE :
       const openRouterData: OpenRouterResponse =
         await openRouterResponse.json();
       // Gérer les modèles qui mettent la réponse dans 'reasoning' (comme Hunyuan) ou 'content'
-      const aiResponseContent = openRouterData.choices[0].message.content || 
-                                openRouterData.choices[0].message.reasoning || 
+      const aiResponseContent = openRouterData.choices[0].message.content ||
+                                openRouterData.choices[0].message.reasoning ||
                                 'Erreur: Aucune réponse de l\'IA';
 
       // 📊 Parsing de la réponse conversationnelle
@@ -1456,14 +1386,14 @@ function getWeekDateRange(weekNumber: number, year: number) {
   const firstDayOfYear = new Date(year, 0, 1);
   const daysOffset = (weekNumber - 1) * 7;
   const mondayOfWeek = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000);
-  
+
   // Ajuster pour que Monday soit le premier jour de la semaine
   const dayOfWeek = mondayOfWeek.getDay();
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   mondayOfWeek.setDate(mondayOfWeek.getDate() + mondayOffset);
-  
+
   const sundayOfWeek = new Date(mondayOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000);
-  
+
   return {
     start: mondayOfWeek,
     end: sundayOfWeek
@@ -1474,45 +1404,80 @@ function getWeekDateRange(weekNumber: number, year: number) {
  * @route   POST /api/ai/schedule/generate-from-constraints
  * @desc    Générer un planning avec les contraintes du wizard
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - teamId validation number
+ * - Sauvegarde dans GeneratedSchedule avec nouvelle structure
+ * - Gestion des exceptions et validations complètes
  */
 router.post(
   "/schedule/generate-from-constraints",
   authenticateToken,
   checkRole(["manager", "directeur", "admin"]),
-  validateRequest({ 
+  validateRequest({
     body: planningConstraintsSchema,
-    schemaName: 'planning.constraints' 
+    schemaName: 'planning.constraints'
   }),
   async (req: AuthRequest, res: Response) => {
     console.log('🚀 [AI GENERATION] Début de la requête de génération');
-    console.log('👤 [AI GENERATION] Utilisateur:', req.user ? req.user._id : 'NON DÉFINI');
+    console.log('👤 [AI GENERATION] Utilisateur:', req.user ? req.user.id : 'NON DÉFINI');
     console.log('📊 [AI GENERATION] Body de la requête:', JSON.stringify(req.body, null, 2));
-    
+
     try {
       console.log('✅ [AI GENERATION] Entrée dans le try-catch principal');
-      
+
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         console.log('❌ [AI GENERATION] Utilisateur non authentifié');
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
         });
       }
-      
-      console.log('✅ [AI GENERATION] Utilisateur authentifié:', req.user._id);
+
+      console.log('✅ [AI GENERATION] Utilisateur authentifié:', req.user.id);
 
       const startTime = Date.now();
       const constraints: PlanningConstraints = req.body;
 
+      // MIGRATION POSTGRESQL: Validation teamId (number)
+      const parsedTeamId = parseInt(String(constraints.teamId), 10);
+      if (isNaN(parsedTeamId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'équipe invalide (doit être un nombre)",
+        });
+      }
+
       console.log(
-        `[AI Wizard] Génération de planning avec contraintes structurées pour l'équipe ${constraints.teamId}`
+        `[AI Wizard] Génération de planning avec contraintes structurées pour l'équipe ${parsedTeamId}`
       );
 
-      // 🔍 Récupération de l'équipe
-      const team = await TeamModel.findById(constraints.teamId)
-        .populate("employeeIds")
-        .lean();
+      // MIGRATION POSTGRESQL: Récupération de l'équipe avec Prisma
+      const team = await prisma.team.findUnique({
+        where: { id: parsedTeamId },
+        include: {
+          employees: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              userId: true,
+              position: true,
+              skills: true,
+              contractualHours: true,
+              preferences: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true
+                }
+              }
+            }
+          }
+        }
+      });
 
       if (!team) {
         return res.status(404).json({
@@ -1522,12 +1487,10 @@ router.post(
       }
 
       // 🔐 Vérification des droits d'accès
-      const userIsManager = team.managerIds.some(
-        (managerId) => managerId.toString() === req.user._id.toString()
-      );
+      const userIsManager = team.managerId === req.user.id;
       const userIsDirecteur =
         req.user.role === "directeur" &&
-        req.user.companyId === team.companyId?.toString();
+        req.user.companyId === team.companyId;
       const userIsAdmin = req.user.role === "admin";
 
       if (!userIsManager && !userIsDirecteur && !userIsAdmin) {
@@ -1537,15 +1500,15 @@ router.post(
         });
       }
 
-      const employees = team.employeeIds as unknown as IEmployee[];
+      const employees = team.employees;
 
-      // 🧠 Construction du prompt structuré pour DeepSeek
+      // 🧠 Construction du prompt structuré pour l'IA
       const weekDate = new Date(constraints.year, 0, 1 + (constraints.weekNumber - 1) * 7);
       const weekInfo = `Semaine ${constraints.weekNumber}/${constraints.year} (${weekDate.toLocaleDateString("fr-FR")})`;
 
       let employeeDetails = "";
       constraints.employees.forEach((emp) => {
-        const employee = employees.find(e => (e as any)._id.toString() === emp.id);
+        const employee = employees.find(e => e.id === parseInt(emp.id));
         if (employee) {
           employeeDetails += `- ${emp.name} (${emp.email}):
   * Contrat: ${emp.weeklyHours || 35}h/semaine (OBLIGATION CONTRACTUELLE)
@@ -1558,19 +1521,19 @@ router.post(
       });
 
       const openingDaysDetails = constraints.companyConstraints.openingDays.map(day => {
-        const dayFr = {
+        const dayFr: Record<string, string> = {
           monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',
           thursday: 'Jeudi', friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche'
-        }[day];
+        };
         const hours = constraints.companyConstraints.openingHours.find(h => h.day === day);
-        return `${dayFr}: ${hours?.hours.join(', ') || 'Horaires standards'}`;
+        return `${dayFr[day]}: ${hours?.hours.join(', ') || 'Horaires standards'}`;
       }).join('\n');
 
       // Contraintes de rôles si elles existent
       let roleConstraintsDetails = "";
       if (constraints.companyConstraints.roleConstraints?.length) {
         roleConstraintsDetails = `\n🎭 CONTRAINTES DE RÔLES OBLIGATOIRES:
-${constraints.companyConstraints.roleConstraints.map(rc => 
+${constraints.companyConstraints.roleConstraints.map(rc =>
   `- Rôle "${rc.role}" REQUIS aux créneaux: ${rc.requiredAt.join(', ')}`
 ).join('\n')}
 ATTENTION: Ces rôles doivent être présents aux créneaux spécifiés EN PLUS du personnel minimum.
@@ -1579,11 +1542,11 @@ ATTENTION: Ces rôles doivent être présents aux créneaux spécifiés EN PLUS 
 
       // Construire les horaires d'ouverture détaillés
       const detailedOpeningHours = constraints.companyConstraints.openingHours.map(dayHours => {
-        const dayFr = {
+        const dayFr: Record<string, string> = {
           monday: 'LUNDI', tuesday: 'MARDI', wednesday: 'MERCREDI',
           thursday: 'JEUDI', friday: 'VENDREDI', saturday: 'SAMEDI', sunday: 'DIMANCHE'
-        }[dayHours.day];
-        return `- ${dayFr}: ${dayHours.hours.join(' et ')} (COUVERTURE OBLIGATOIRE INTEGRALE)`;
+        };
+        return `- ${dayFr[dayHours.day]}: ${dayHours.hours.join(' et ')} (COUVERTURE OBLIGATOIRE INTEGRALE)`;
       }).join('\n');
 
       const prompt = `Tu es un expert en planification RH. Genere un planning hebdomadaire optimise et equilibre.
@@ -1600,7 +1563,7 @@ ${openingDaysDetails}${roleConstraintsDetails}
 HORAIRES D'OUVERTURE PRECIS PAR JOUR (OBLIGATION ABSOLUE):
 ${detailedOpeningHours}
 
-ATTENTION CRITIQUE: Tu DOIS respecter EXACTEMENT ces horaires jour par jour. 
+ATTENTION CRITIQUE: Tu DOIS respecter EXACTEMENT ces horaires jour par jour.
 - PAS de 17h par defaut si fermeture a 20h !
 - PAS de fermeture 12h-13h si creneau continu !
 - UTILISE les creneaux EXACTS ci-dessus pour chaque jour !
@@ -1653,12 +1616,12 @@ REPONDS UNIQUEMENT AVEC CE FORMAT JSON (pas de backticks, pas de texte explicati
 
 EXEMPLE avec les creneaux definis ci-dessus:
 {
-  "lundi": { 
+  "lundi": {
     "Alice Martin": ["08:00-12:00", "13:00-20:00"],
     "Jean Dupont": ["08:00-12:30", "13:30-18:00"],
     "Sophie Bernard": ["09:00-13:00", "14:00-20:00"]
   },
-  "mardi": { 
+  "mardi": {
     "Alice Martin": ["08:00-13:00", "14:00-19:00"],
     "Jean Dupont": ["09:30-12:00", "13:00-20:00"],
     "Sophie Bernard": []
@@ -1671,7 +1634,7 @@ GENERE LE PLANNING OPTIMAL EN RESPECTANT TOUTES CES DIRECTIVES.
 
 RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucun autre texte n'est autorise.`;
 
-      // 🌐 Appel à l'API OpenRouter avec DeepSeek
+      // 🌐 Appel à l'API OpenRouter
       const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
       if (!openRouterApiKey) {
@@ -1727,8 +1690,8 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
 
       const openRouterData: OpenRouterResponse = await openRouterResponse.json();
       // Gérer les modèles qui mettent la réponse dans 'reasoning' (comme Hunyuan) ou 'content'
-      const aiResponseContent = openRouterData.choices[0].message.content || 
-                                openRouterData.choices[0].message.reasoning || 
+      const aiResponseContent = openRouterData.choices[0].message.content ||
+                                openRouterData.choices[0].message.reasoning ||
                                 'Erreur: Aucune réponse de l\'IA';
 
       // 📊 Parse et validation de la réponse
@@ -1736,14 +1699,14 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
 
       try {
         let cleanedResponse = aiResponseContent.trim();
-        
+
         // Nettoyer les marqueurs de code
         cleanedResponse = cleanedResponse.replace(/```json|```/g, "").trim();
-        
+
         // Si la réponse ne commence pas par { ou [, essayer d'extraire le JSON
         if (!cleanedResponse.startsWith('{') && !cleanedResponse.startsWith('[')) {
           console.log('🔧 [AI GENERATION] Réponse non-JSON détectée, tentative d\'extraction');
-          
+
           // Chercher des blocs JSON dans la réponse
           const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
           if (jsonMatch) {
@@ -1761,9 +1724,9 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
               samedi: {},
               dimanche: {}
             };
-            
+
             // Générer des horaires par défaut selon les horaires d'ouverture ou des valeurs par défaut
-            const defaultHours = constraints.companyConstraints.openingHours && constraints.companyConstraints.openingHours.length > 0 
+            const defaultHours = constraints.companyConstraints.openingHours && constraints.companyConstraints.openingHours.length > 0
               ? constraints.companyConstraints.openingHours
               : [
                   { day: 'monday', hours: ['08:00-12:00', '13:00-17:00'] },
@@ -1772,41 +1735,41 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
                   { day: 'thursday', hours: ['08:00-12:00', '13:00-17:00'] },
                   { day: 'friday', hours: ['08:00-12:00', '13:00-17:00'] }
                 ];
-            
+
             // Distribuer équitablement les employés
             const workingDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
             constraints.employees.forEach((emp, index) => {
               workingDays.forEach((day, dayIndex) => {
                 // Vérifier les absences exceptionnelles
-                const dayEn = {
+                const dayEn: Record<string, string> = {
                   lundi: 'monday',
-                  mardi: 'tuesday', 
+                  mardi: 'tuesday',
                   mercredi: 'wednesday',
                   jeudi: 'thursday',
                   vendredi: 'friday'
-                }[day];
-                
-                const dayHours = defaultHours.find(h => h.day === dayEn);
-                
+                };
+
+                const dayHours = defaultHours.find(h => h.day === dayEn[day]);
+
                 // Vérifier les absences exceptionnelles pour ce jour
                 const weekRange = getWeekDateRange(constraints.weekNumber, constraints.year);
                 const dayDate = new Date(weekRange.start);
                 dayDate.setDate(dayDate.getDate() + dayIndex);
                 const dayDateString = dayDate.toISOString().split('T')[0];
-                
+
                 // Vérifier les absences exceptionnelles pour ce jour (support multi-absences)
-                const hasUnavailableException = emp.exceptions && emp.exceptions.some(exc => 
-                  exc.date === dayDateString && 
+                const hasUnavailableException = emp.exceptions && emp.exceptions.some(exc =>
+                  exc.date === dayDateString &&
                   (exc.type === 'unavailable' || exc.type === 'sick' || exc.type === 'vacation')
                 );
-                
-                const hasReducedHours = emp.exceptions && emp.exceptions.some(exc => 
+
+                const hasReducedHours = emp.exceptions && emp.exceptions.some(exc =>
                   exc.date === dayDateString && exc.type === 'reduced'
                 );
-                
+
                 // Alterner les jours de repos pour équilibrer
                 const isRestDay = (index + dayIndex) % 5 === 4; // 1 jour de repos par semaine par employé
-                
+
                 if (!isRestDay && !hasUnavailableException && dayHours && dayHours.hours.length > 0) {
                   if (hasReducedHours) {
                     // Horaires réduits : prendre seulement le matin
@@ -1823,15 +1786,17 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
                   }
                 }
               });
-              
+
               // Weekends vides par défaut
               generatedScheduleData.samedi[emp.name] = [];
               generatedScheduleData.dimanche[emp.name] = [];
             });
-            
+
             console.log('✅ [AI GENERATION] Planning fallback généré pour tous les employés:', Object.keys(generatedScheduleData.lundi || {}));
           }
-        } else {
+        }
+
+        if (!generatedScheduleData) {
           generatedScheduleData = JSON.parse(cleanedResponse);
           console.log('✅ [AI GENERATION] JSON parsé avec succès');
         }
@@ -1848,7 +1813,7 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
 
       // 🔍 VALIDATION COMPLÈTE DU PLANNING GÉNÉRÉ
       const validationErrors: string[] = [];
-      const dayMapping = {
+      const dayMapping: Record<string, string> = {
         lundi: 'monday', mardi: 'tuesday', mercredi: 'wednesday',
         jeudi: 'thursday', vendredi: 'friday', samedi: 'saturday', dimanche: 'sunday'
       };
@@ -1857,7 +1822,7 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
       constraints.employees.forEach((emp) => {
         if (emp.restDay) {
           const dayFr = Object.keys(dayMapping).find(key => dayMapping[key] === emp.restDay);
-          if (dayFr && generatedScheduleData[dayFr] && generatedScheduleData[dayFr][emp.name] && 
+          if (dayFr && generatedScheduleData[dayFr] && generatedScheduleData[dayFr][emp.name] &&
               generatedScheduleData[dayFr][emp.name].length > 0) {
             validationErrors.push(`❌ ${emp.name} doit avoir repos le ${dayFr} mais a des créneaux: ${generatedScheduleData[dayFr][emp.name]}`);
           }
@@ -1871,13 +1836,13 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
             if (exception.type === 'unavailable' || exception.type === 'sick' || exception.type === 'vacation') {
               const weekRange = getWeekDateRange(constraints.weekNumber, constraints.year);
               const exceptionDate = new Date(exception.date);
-              
+
               // Vérifier si l'exception tombe dans la semaine planifiée
               if (exceptionDate >= weekRange.start && exceptionDate <= weekRange.end) {
                 const dayOfWeek = exceptionDate.getDay();
                 const dayName = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][dayOfWeek];
-                
-                if (generatedScheduleData[dayName] && generatedScheduleData[dayName][emp.name] && 
+
+                if (generatedScheduleData[dayName] && generatedScheduleData[dayName][emp.name] &&
                     generatedScheduleData[dayName][emp.name].length > 0) {
                   validationErrors.push(`❌ ${emp.name} indisponible le ${dayName} (${exception.reason}) mais a des créneaux: ${generatedScheduleData[dayName][emp.name]}`);
                 }
@@ -1888,17 +1853,17 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
       });
 
       // Validation 3: Vérifier la couverture minimale
-      const workingDays = constraints.companyConstraints.openingDays.filter(day => 
+      const workingDays = constraints.companyConstraints.openingDays.filter(day =>
         ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(day)
       );
-      
+
       workingDays.forEach((dayEn) => {
         const dayFr = Object.keys(dayMapping).find(key => dayMapping[key] === dayEn);
         if (dayFr && generatedScheduleData[dayFr]) {
-          const workingEmployees = Object.values(generatedScheduleData[dayFr]).filter(slots => 
+          const workingEmployees = Object.values(generatedScheduleData[dayFr]).filter(slots =>
             Array.isArray(slots) && slots.length > 0
           ).length;
-          
+
           const minStaff = constraints.companyConstraints.minStaffSimultaneously || 2;
           if (workingEmployees < minStaff) {
             validationErrors.push(`❌ ${dayFr}: seulement ${workingEmployees} employé(s) mais ${minStaff} minimum requis`);
@@ -1910,7 +1875,7 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
       constraints.employees.forEach((emp) => {
         const contractualHours = emp.weeklyHours || 35;
         let totalHours = 0;
-        
+
         Object.keys(generatedScheduleData).forEach((day) => {
           if (generatedScheduleData[day][emp.name]) {
             const slots = generatedScheduleData[day][emp.name];
@@ -1926,7 +1891,7 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
             }
           }
         });
-        
+
         const tolerance = contractualHours * 0.1; // 10% de tolérance
         if (Math.abs(totalHours - contractualHours) > tolerance) {
           validationErrors.push(`⚠️ ${emp.name}: ${totalHours.toFixed(1)}h planifiées vs ${contractualHours}h contractuelles (tolérance: ±${tolerance.toFixed(1)}h)`);
@@ -1937,95 +1902,101 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
       if (validationErrors.length > 0) {
         console.warn('⚠️ [AI VALIDATION] Contraintes non respectées:');
         validationErrors.forEach(error => console.warn(error));
-        
-        // Ajouter les erreurs comme contraintes non respectées dans la réponse
-        // mais ne pas bloquer la création du planning (l'utilisateur peut corriger)
       }
 
-      // 💾 Sauvegarde des plannings générés
-      const savedSchedules: IGeneratedSchedule[] = [];
-      
-      console.log('🔍 [AI GENERATION] Données générées pour analyse:');
-      console.log('📊 [AI GENERATION] Planning brut:', JSON.stringify(generatedScheduleData, null, 2));
-      console.log('👥 [AI GENERATION] Employés à traiter:', employees.map(e => `${e.firstName} ${e.lastName}`));
-      console.log('🏷️ [AI GENERATION] Contraintes employés:', constraints.employees.map(e => `${e.name} (ID: ${e.id})`));
+      // MIGRATION POSTGRESQL: Sauvegarde dans GeneratedSchedule
+      console.log('🔍 [AI GENERATION] Sauvegarde du planning généré...');
 
-      for (const employee of employees) {
-        const employeeFullName = `${employee.firstName} ${employee.lastName}`;
-        const employeeScheduleData: { [day: string]: { slots?: string[] } } = {};
+      // Calculer les dates de la semaine
+      function getWeekDates(year: number, weekNumber: number) {
+        const january4th = new Date(year, 0, 4);
+        const dayOfWeek = january4th.getDay() || 7;
+        const weekStart = new Date(january4th);
+        weekStart.setDate(january4th.getDate() - dayOfWeek + 1);
+        weekStart.setDate(weekStart.getDate() + (weekNumber - 1) * 7);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return { weekStartDate: weekStart, weekEndDate: weekEnd };
+      }
 
-        const daysOfWeek = [
-          "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche",
-        ];
+      const { weekStartDate, weekEndDate } = getWeekDates(constraints.year, constraints.weekNumber);
 
-        for (const day of daysOfWeek) {
-          let employeeSlots: string[] = [];
-          
-          // Essayer plusieurs variantes du nom pour la correspondance
-          if (generatedScheduleData[day]) {
-            const dayData = generatedScheduleData[day];
-            
-            // 1. Correspondance exacte
-            if (dayData[employeeFullName] && dayData[employeeFullName].length > 0) {
-              employeeSlots = dayData[employeeFullName];
-            }
-            // 2. Correspondance avec le nom des contraintes (cas du fallback)
-            else {
-              const constraintEmployee = constraints.employees.find(emp => 
-                emp.id === ((employee as any)._id || employee.userId)?.toString()
-              );
-              if (constraintEmployee && dayData[constraintEmployee.name] && dayData[constraintEmployee.name].length > 0) {
-                employeeSlots = dayData[constraintEmployee.name];
-              }
-              // 3. Correspondance partielle (prénom seul, nom seul)
-              else {
-                const keys = Object.keys(dayData);
-                const matchingKey = keys.find(key => 
-                  key.includes(employee.firstName) || 
-                  key.includes(employee.lastName) ||
-                  employee.firstName.includes(key) ||
-                  employee.lastName.includes(key)
-                );
-                if (matchingKey && dayData[matchingKey] && dayData[matchingKey].length > 0) {
-                  employeeSlots = dayData[matchingKey];
-                }
-              }
-            }
-          }
-          
-          if (employeeSlots.length > 0) {
-            employeeScheduleData[day] = {
-              slots: employeeSlots,
-            };
-          } else {
-            employeeScheduleData[day] = {};
-          }
+      // Convertir le planning en format team-based
+      const scheduleJson: Record<string, any[]> = {
+        monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []
+      };
+
+      const dayMappingReverse: Record<string, string> = {
+        lundi: "monday",
+        mardi: "tuesday",
+        mercredi: "wednesday",
+        jeudi: "thursday",
+        vendredi: "friday",
+        samedi: "saturday",
+        dimanche: "sunday",
+      };
+
+      for (const [dayFr, employeeSchedules] of Object.entries(generatedScheduleData)) {
+        const dayEn = dayMappingReverse[dayFr] || dayFr;
+
+        if (!scheduleJson[dayEn]) {
+          scheduleJson[dayEn] = [];
         }
 
-        const generatedSchedule = new GeneratedScheduleModel({
-          employeeId: (employee as any)._id || employee.userId,
-          scheduleData: new Map(Object.entries(employeeScheduleData)),
-          generatedBy: req.user._id,
-          timestamp: new Date(),
-          status: "draft",
-          weekNumber: constraints.weekNumber,
-          year: constraints.year,
-          metadata: {
-            wizardGeneration: true,
-            constraints: constraints,
+        for (const [employeeName, slots] of Object.entries(employeeSchedules)) {
+          // Trouver l'employé correspondant
+          const employeeConstraint = constraints.employees.find(e => e.name === employeeName);
+          const employee = employeeConstraint ? employees.find(e => e.id === parseInt(employeeConstraint.id)) : null;
+
+          if (employee && Array.isArray(slots) && slots.length > 0) {
+            slots.forEach((slot: string) => {
+              const [startTime, endTime] = slot.split("-");
+              if (startTime && endTime) {
+                scheduleJson[dayEn].push({
+                  employeeId: employee.id,
+                  startTime,
+                  endTime,
+                  position: employee.position || null,
+                  skills: employee.skills || [],
+                  breakStart: null,
+                  breakEnd: null
+                });
+              }
+            });
+          }
+        }
+      }
+
+      const generationConfig = {
+        strategy: "ai_wizard",
+        weekStartDate: weekStartDate.toISOString(),
+        weekEndDate: weekEndDate.toISOString(),
+        weekNumber: constraints.weekNumber,
+        year: constraints.year,
+        selectedEmployees: employees.map(e => e.id),
+        constraints: constraints
+      };
+
+      const savedSchedule = await prisma.generatedSchedule.create({
+        data: {
+          companyId: team.companyId,
+          teamId: parsedTeamId,
+          generationConfig: generationConfig,
+          generatedPlanning: scheduleJson,
+          metrics: {
+            generationTime: Date.now() - startTime,
+            strategy: "ai_wizard",
+            qualityScore: 100 - (validationErrors.length * 5),
+            constraintsRespected: constraints.employees.length,
+            employeesSatisfaction: 0,
+            validationWarnings: validationErrors
           },
-        });
-
-        const savedSchedule = await generatedSchedule.save();
-        savedSchedules.push(savedSchedule);
-        
-        // Log du planning sauvegardé pour cet employé
-        const totalSlots = Object.values(employeeScheduleData).reduce((total, day) => total + (day.slots?.length || 0), 0);
-        console.log(`✅ [AI GENERATION] Planning sauvegardé pour ${employeeFullName}: ${totalSlots} créneaux au total`);
-        if (totalSlots === 0) {
-          console.log(`⚠️ [AI GENERATION] ATTENTION: Aucun créneau pour ${employeeFullName}!`);
+          modelVersion: "openrouter-wizard-v1",
+          algorithm: "OpenRouter",
+          status: "generated",
+          generatedById: req.user.id
         }
-      }
+      });
 
       const processingTime = Date.now() - startTime;
 
@@ -2036,26 +2007,19 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
       return res.status(201).json({
         success: true,
         message: `Planning généré avec succès pour ${employees.length} employés de l'équipe ${team.name}`,
-        schedule: savedSchedules.map((schedule) => ({
-          employeeId: schedule.employeeId,
-          employeeName: employees.find(e => (e as any)._id.toString() === schedule.employeeId.toString())?.firstName + ' ' + employees.find(e => (e as any)._id.toString() === schedule.employeeId.toString())?.lastName,
-          day: 'mixed',
-          slots: [],
-          totalHours: 0
-        })),
+        schedule: [],
         processingTime,
         data: {
-          teamId: team._id,
+          teamId: team.id,
           teamName: team.name,
           weekNumber: constraints.weekNumber,
           year: constraints.year,
           employeesCount: employees.length,
-          generatedSchedules: savedSchedules.map((schedule) => ({
-            id: (schedule as any)._id,
-            employeeId: schedule.employeeId,
-            status: schedule.status,
-            timestamp: schedule.timestamp,
-          })),
+          generatedSchedules: [{
+            id: savedSchedule.id,
+            status: savedSchedule.status,
+            timestamp: savedSchedule.generatedAt,
+          }],
           rawScheduleData: generatedScheduleData,
           validationWarnings: validationErrors.length > 0 ? validationErrors : undefined,
         },
@@ -2066,7 +2030,7 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
       console.error("📝 [AI GENERATION] Message:", error instanceof Error ? error.message : String(error));
       console.error("🔍 [AI GENERATION] Stack trace:", error instanceof Error ? error.stack : 'Pas de stack disponible');
       console.error("📊 [AI GENERATION] Détails complets:", error);
-      
+
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la génération du planning",
@@ -2081,6 +2045,10 @@ RAPPEL CRUCIAL: Ta reponse doit commencer directement par { et finir par }. Aucu
  * @route   DELETE /api/ai/generated-schedules/bulk
  * @desc    Supprimer plusieurs plannings IA sélectionnés (ou tous)
  * @access  Private - Manager, Directeur, Admin uniquement
+ *
+ * MIGRATION POSTGRESQL:
+ * - Validation des IDs (number[])
+ * - Requêtes Prisma pour permissions et delete
  */
 router.delete(
   "/generated-schedules/bulk",
@@ -2089,7 +2057,7 @@ router.delete(
   async (req: AuthRequest, res: Response) => {
     try {
       // 🔐 Validation de l'utilisateur authentifié
-      if (!req.user || !req.user._id) {
+      if (!req.user || !req.user.id) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
@@ -2099,7 +2067,7 @@ router.delete(
       const { scheduleIds, deleteAll } = req.body;
 
       console.log(
-        `[AI] Suppression demandée par ${req.user._id} (${req.user.role}) - deleteAll: ${deleteAll}, IDs: ${scheduleIds?.length || 0}`
+        `[AI] Suppression demandée par ${req.user.id} (${req.user.role}) - deleteAll: ${deleteAll}, IDs: ${scheduleIds?.length || 0}`
       );
 
       // ✅ Validation des paramètres
@@ -2110,85 +2078,56 @@ router.delete(
         });
       }
 
-      // 🔍 Construction de la requête selon le rôle et les permissions
-      let baseQuery: any = { status: "draft" };
+      // MIGRATION POSTGRESQL: Validation des IDs (number[])
+      let validatedIds: number[] = [];
+      if (!deleteAll && scheduleIds) {
+        validatedIds = scheduleIds
+          .map((id: any) => parseInt(String(id), 10))
+          .filter((id: number) => !isNaN(id));
+
+        if (validatedIds.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Aucun ID valide fourni",
+          });
+        }
+      }
+
+      // MIGRATION POSTGRESQL: Construction de la requête selon le rôle
+      let whereClause: any = { status: "generated" };
 
       if (req.user.role === "manager") {
         // Manager : seulement les plannings des équipes qu'il gère
-        const managedTeams = await TeamModel.find({
-          managerIds: req.user._id,
-        }).select("_id");
-
-        const teamIds = managedTeams.map((team) => team._id);
-
-        if (teamIds.length === 0) {
-          return res.status(200).json({
-            success: true,
-            data: { deletedCount: 0 },
-            message: "Aucune équipe gérée trouvée",
-          });
-        }
-
-        // Récupérer les employés de ces équipes
-        const teamsWithEmployees = await TeamModel.find({
-          _id: { $in: teamIds },
-        }).select("employeeIds");
-
-        const employeeIds: any[] = [];
-        teamsWithEmployees.forEach((team) => {
-          if (team.employeeIds && team.employeeIds.length > 0) {
-            employeeIds.push(...team.employeeIds);
-          }
-        });
-
-        baseQuery.employeeId = { $in: employeeIds };
+        whereClause.team = {
+          managerId: req.user.id
+        };
       } else if (req.user.role === "directeur") {
-        // Directeur : seulement les plannings des équipes de sa société
-        const companyTeams = await TeamModel.find({
-          companyId: req.user.companyId,
-        }).select("employeeIds");
-
-        const employeeIds: any[] = [];
-        companyTeams.forEach((team) => {
-          if (team.employeeIds && team.employeeIds.length > 0) {
-            employeeIds.push(...team.employeeIds);
-          }
-        });
-
-        if (employeeIds.length === 0) {
-          return res.status(200).json({
-            success: true,
-            data: { deletedCount: 0 },
-            message: "Aucun employé trouvé dans votre société",
-          });
-        }
-
-        baseQuery.employeeId = { $in: employeeIds };
+        // Directeur : seulement les plannings de sa société
+        whereClause.companyId = req.user.companyId;
       }
       // Admin : pas de filtre supplémentaire
 
-      // 📊 Construction de la requête finale
-      let deleteQuery = { ...baseQuery };
-
-      if (!deleteAll && scheduleIds) {
-        // Supprimer seulement les IDs spécifiés
-        deleteQuery._id = { $in: scheduleIds.filter(id => mongoose.Types.ObjectId.isValid(id)) };
+      // Ajouter le filtre sur les IDs si spécifiques
+      if (!deleteAll && validatedIds.length > 0) {
+        whereClause.id = { in: validatedIds };
       }
 
-      console.log(`[AI] Requête de suppression:`, JSON.stringify(deleteQuery, null, 2));
+      console.log(`[AI] Requête de suppression:`, JSON.stringify(whereClause, null, 2));
 
-      // 🗑️ Suppression des plannings
-      const deleteResult = await GeneratedScheduleModel.deleteMany(deleteQuery);
+      // MIGRATION POSTGRESQL: Suppression avec Prisma
+      const deleteResult = await prisma.generatedSchedule.deleteMany({
+        where: whereClause
+      });
 
-      console.log(`[AI] ${deleteResult.deletedCount} plannings supprimés`);
+      console.log(`[AI] ${deleteResult.count} plannings supprimés`);
 
       return res.status(200).json({
         success: true,
         data: {
-          deletedCount: deleteResult.deletedCount,
-          deletedIds: deleteAll ? "tous" : scheduleIds,
+          deletedCount: deleteResult.count,
+          deletedIds: deleteAll ? "tous" : validatedIds,
         },
-        message: `${deleteResult.deletedCount} planning(s) supprimé(s) avec succès`,
+        message: `${deleteResult.count} planning(s) supprimé(s) avec succès`,
       });
     } catch (error) {
       console.error("[AI] Erreur lors de la suppression des plannings:", error);

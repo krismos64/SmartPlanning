@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import { Company } from "../../models/Company.model";
+import prisma from "../../config/prisma";
 
 const router = express.Router();
 
@@ -12,7 +12,11 @@ router.get(
   "/",
   async (req: Request, res: Response) => {
     try {
-      const companies = await Company.find();
+      const companies = await prisma.company.findMany({
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
       res.status(200).json({
         success: true,
         data: companies,
@@ -37,15 +41,16 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { name, logoUrl } = req.body;
-      const newCompany = new Company({
-        name,
-        logoUrl,
+      const newCompany = await prisma.company.create({
+        data: {
+          name,
+          logo: logoUrl, // Note: Le champ est 'logo' dans Prisma, pas 'logoUrl'
+        }
       });
 
-      const savedCompany = await newCompany.save();
       res.status(201).json({
         success: true,
-        data: savedCompany,
+        data: newCompany,
       });
     } catch (error) {
       res.status(500).json({
@@ -69,24 +74,34 @@ router.put(
       const { id } = req.params;
       const { name, logoUrl } = req.body;
 
-      const updatedCompany = await Company.findByIdAndUpdate(
-        id,
-        { name, logoUrl },
-        { new: true, runValidators: true }
-      );
-
-      if (!updatedCompany) {
-        return res.status(404).json({
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        return res.status(400).json({
           success: false,
-          message: "Entreprise non trouvée",
+          message: "ID d'entreprise invalide",
         });
       }
+
+      const updatedCompany = await prisma.company.update({
+        where: { id: idNum },
+        data: {
+          name,
+          logo: logoUrl,
+        }
+      });
 
       res.status(200).json({
         success: true,
         data: updatedCompany,
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: "Entreprise non trouvée",
+        });
+      }
       res.status(500).json({
         success: false,
         message: "Erreur lors de la mise à jour de l'entreprise",
@@ -106,21 +121,32 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const deletedCompany = await Company.findByIdAndDelete(id);
 
-      if (!deletedCompany) {
-        return res.status(404).json({
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        return res.status(400).json({
           success: false,
-          message: "Entreprise non trouvée",
+          message: "ID d'entreprise invalide",
         });
       }
+
+      const deletedCompany = await prisma.company.delete({
+        where: { id: idNum }
+      });
 
       res.status(200).json({
         success: true,
         message: "Entreprise supprimée avec succès",
         data: deletedCompany,
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: "Entreprise non trouvée",
+        });
+      }
       res.status(500).json({
         success: false,
         message: "Erreur lors de la suppression de l'entreprise",
@@ -140,7 +166,19 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const company = await Company.findById(id);
+
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID d'entreprise invalide",
+        });
+      }
+
+      const company = await prisma.company.findUnique({
+        where: { id: idNum }
+      });
 
       if (!company) {
         return res.status(404).json({

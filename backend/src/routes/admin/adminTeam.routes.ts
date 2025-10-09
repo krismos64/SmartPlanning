@@ -1,24 +1,19 @@
 import express, { Request, Response } from "express";
-import mongoose from "mongoose";
-import Team from "../../models/Team.model";
-
-// Import des modèles depuis les fichiers du dossier models/
-import EmployeeModel from "../../models/Employee.model";
-import User from "../../models/User.model";
+import prisma from "../../config/prisma";
 
 // Interface pour la création d'équipe
 interface CreateTeamInput {
   name: string;
-  managerIds: string[];
-  employeeIds: string[];
-  companyId: string;
+  managerIds: number[];
+  employeeIds: number[];
+  companyId: number;
 }
 
 // Interface pour la mise à jour d'équipe
 interface UpdateTeamInput {
   name?: string;
-  managerIds?: string[];
-  employeeIds?: string[];
+  managerIds?: number[];
+  employeeIds?: number[];
 }
 
 const router = express.Router();
@@ -33,27 +28,60 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.query;
-      let query = {};
 
-      // Si un companyId est fourni, filtrer par entreprise
+      // Construire le where clause
+      const where: any = {};
       if (companyId) {
-        if (!mongoose.Types.ObjectId.isValid(companyId as string)) {
+        const companyIdNum = parseInt(companyId as string, 10);
+        if (isNaN(companyIdNum)) {
           return res.status(400).json({
             success: false,
             message: "ID d'entreprise invalide",
           });
         }
-        query = { companyId: companyId as string };
+        where.companyId = companyIdNum;
       }
 
-      const teams = await Team.find(query)
-        .populate("companyId", "name")
-        .populate("managerIds", "firstName lastName email")
-        .populate("employeeIds", "firstName lastName email");
+      // Récupérer les équipes avec leurs relations
+      const teams = await prisma.team.findMany({
+        where,
+        include: {
+          company: {
+            select: { name: true }
+          },
+          employees: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      // Récupérer les managers pour chaque équipe
+      const teamsWithManagers = await Promise.all(
+        teams.map(async (team) => {
+          if (team.managerIds && team.managerIds.length > 0) {
+            const managers = await prisma.user.findMany({
+              where: {
+                id: { in: team.managerIds }
+              },
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            });
+            return { ...team, managers };
+          }
+          return { ...team, managers: [] };
+        })
+      );
 
       res.status(200).json({
         success: true,
-        data: teams,
+        data: teamsWithManagers,
       });
     } catch (error) {
       console.error("Erreur lors de la récupération des équipes:", error);
@@ -75,15 +103,18 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.params;
+      const companyIdNum = parseInt(companyId, 10);
 
-      if (!mongoose.Types.ObjectId.isValid(companyId)) {
+      if (isNaN(companyIdNum)) {
         return res.status(400).json({
           success: false,
           message: "ID d'entreprise invalide",
         });
       }
 
-      const teams = await Team.find({ companyId });
+      const teams = await prisma.team.findMany({
+        where: { companyId: companyIdNum }
+      });
 
       res.status(200).json({
         success: true,
@@ -121,19 +152,20 @@ router.post(
         });
       }
 
-      if (!mongoose.Types.ObjectId.isValid(companyId)) {
+      const companyIdNum = parseInt(companyId, 10);
+      if (isNaN(companyIdNum)) {
         return res.status(400).json({
           success: false,
           message: "ID d'entreprise invalide",
         });
       }
 
-      const newTeam = new Team({
-        name,
-        companyId,
+      const newTeam = await prisma.team.create({
+        data: {
+          name,
+          companyId: companyIdNum,
+        },
       });
-
-      await newTeam.save();
 
       res.status(201).json({
         success: true,
@@ -160,10 +192,10 @@ router.patch(
     try {
       const { id } = req.params;
       const { name, managerIds, employeeIds } = req.body as UpdateTeamInput;
-      const userWithAuth = req as any;
 
       // Vérifier que l'ID de l'équipe est valide
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      const teamId = parseInt(id, 10);
+      if (isNaN(teamId)) {
         return res.status(400).json({
           success: false,
           message: "L'identifiant de l'équipe n'est pas valide",
@@ -171,7 +203,9 @@ router.patch(
       }
 
       // Vérifier que l'équipe existe
-      const team = await Team.findById(id);
+      const team = await prisma.team.findUnique({
+        where: { id: teamId }
+      });
       if (!team) {
         return res.status(404).json({
           success: false,
@@ -180,27 +214,18 @@ router.patch(
       }
 
       // Préparer l'objet de mise à jour
-      const updateData: UpdateTeamInput = {};
+      const updateData: any = {};
 
       if (name !== undefined) {
         updateData.name = name;
       }
 
       if (managerIds !== undefined) {
-        // Vérifier que les managerIds sont valides
-        const invalidManagerIds = managerIds.filter(
-          (id) => !mongoose.Types.ObjectId.isValid(id)
-        );
-        if (invalidManagerIds.length > 0) {
-          return res.status(400).json({
-            success: false,
-            message: "Certains identifiants de managers ne sont pas valides",
-          });
-        }
-
         // Vérifier que tous les managers existent, ont le rôle "manager" et appartiennent à l'entreprise
         const managerPromises = managerIds.map(async (managerId) => {
-          const manager = await User.findById(managerId);
+          const manager = await prisma.user.findUnique({
+            where: { id: managerId }
+          });
           if (!manager) {
             throw new Error(`Le manager avec l'ID ${managerId} n'existe pas`);
           }
@@ -211,7 +236,7 @@ router.patch(
           }
           if (
             !manager.companyId ||
-            manager.companyId.toString() !== team.companyId.toString()
+            manager.companyId !== team.companyId
           ) {
             throw new Error(
               `Le manager avec l'ID ${managerId} n'appartient pas à l'entreprise de cette équipe`
@@ -233,24 +258,16 @@ router.patch(
       }
 
       if (employeeIds !== undefined) {
-        const invalidEmployeeIds = employeeIds.filter(
-          (id) => !mongoose.Types.ObjectId.isValid(id)
-        );
-        if (invalidEmployeeIds.length > 0) {
-          return res.status(400).json({
-            success: false,
-            message: "Certains identifiants d'employés ne sont pas valides",
-          });
-        }
-
         const employeeChecks = employeeIds.map(async (employeeId) => {
-          const employee = await EmployeeModel.findById(employeeId);
+          const employee = await prisma.employee.findUnique({
+            where: { id: employeeId }
+          });
           if (!employee) {
             throw new Error(`L'employé avec l'ID ${employeeId} n'existe pas`);
           }
           if (
             !employee.companyId ||
-            employee.companyId.toString() !== team.companyId.toString()
+            employee.companyId !== team.companyId
           ) {
             throw new Error(
               `L'employé avec l'ID ${employeeId} n'appartient pas à l'entreprise de cette équipe`
@@ -271,18 +288,39 @@ router.patch(
       }
 
       // Mettre à jour l'équipe
-      const updatedTeam = await Team.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        { new: true }
-      )
-        .populate("managerIds", "firstName lastName email")
-        .populate("employeeIds", "firstName lastName email status"); // <-- Ajout ici
+      const updatedTeam = await prisma.team.update({
+        where: { id: teamId },
+        data: updateData,
+        include: {
+          employees: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              status: true
+            }
+          }
+        }
+      });
+
+      // Récupérer les managers
+      const managers = updatedTeam.managerIds.length > 0
+        ? await prisma.user.findMany({
+            where: {
+              id: { in: updatedTeam.managerIds }
+            },
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          })
+        : [];
 
       return res.status(200).json({
         success: true,
         message: "Équipe mise à jour avec succès",
-        data: updatedTeam,
+        data: { ...updatedTeam, managers },
       });
     } catch (error) {
       console.error("Erreur lors de la mise à jour de l'équipe:", error);
@@ -304,10 +342,10 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const userWithAuth = req as any;
 
       // Vérifier que l'ID de l'équipe est valide
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      const teamId = parseInt(id, 10);
+      if (isNaN(teamId)) {
         return res.status(400).json({
           success: false,
           message: "L'identifiant de l'équipe n'est pas valide",
@@ -315,7 +353,9 @@ router.delete(
       }
 
       // Vérifier que l'équipe existe
-      const team = await Team.findById(id);
+      const team = await prisma.team.findUnique({
+        where: { id: teamId }
+      });
       if (!team) {
         return res.status(404).json({
           success: false,
@@ -324,9 +364,11 @@ router.delete(
       }
 
       // Vérifier si l'équipe est utilisée par des employés actifs
-      const activeEmployees = await EmployeeModel.countDocuments({
-        teamId: id,
-        status: "actif",
+      const activeEmployees = await prisma.employee.count({
+        where: {
+          teamId: teamId,
+          status: "actif",
+        },
       });
 
       if (activeEmployees > 0) {
@@ -338,7 +380,9 @@ router.delete(
       }
 
       // Supprimer l'équipe
-      await Team.findByIdAndDelete(id);
+      await prisma.team.delete({
+        where: { id: teamId }
+      });
 
       return res.status(204).send();
     } catch (error) {
@@ -372,10 +416,9 @@ router.patch(
       }
 
       // Vérifier que les IDs sont valides
-      if (
-        !mongoose.Types.ObjectId.isValid(id) ||
-        !mongoose.Types.ObjectId.isValid(employeeId)
-      ) {
+      const teamId = parseInt(id, 10);
+      const empId = parseInt(employeeId, 10);
+      if (isNaN(teamId) || isNaN(empId)) {
         return res.status(400).json({
           success: false,
           message: "Les identifiants fournis ne sont pas valides",
@@ -383,7 +426,9 @@ router.patch(
       }
 
       // Vérifier que l'équipe existe
-      const team = await Team.findById(id);
+      const team = await prisma.team.findUnique({
+        where: { id: teamId }
+      });
       if (!team) {
         return res.status(404).json({
           success: false,
@@ -392,7 +437,9 @@ router.patch(
       }
 
       // Vérifier que l'employé existe
-      const employee = await EmployeeModel.findById(employeeId);
+      const employee = await prisma.employee.findUnique({
+        where: { id: empId }
+      });
       if (!employee) {
         return res.status(404).json({
           success: false,
@@ -401,7 +448,7 @@ router.patch(
       }
 
       // Vérifier que l'employé et l'équipe appartiennent à la même entreprise
-      if (team.companyId.toString() !== employee.companyId.toString()) {
+      if (team.companyId !== employee.companyId) {
         return res.status(400).json({
           success: false,
           message:
@@ -409,14 +456,12 @@ router.patch(
         });
       }
 
-      let updateOperation;
-      let updateMessage;
+      let newEmployeeIds: number[];
+      let updateMessage: string;
 
       if (action === "add") {
         // Vérifier si l'employé est déjà dans l'équipe
-        const isAlreadyInTeam = team.employeeIds.some(
-          (id) => id.toString() === employeeId
-        );
+        const isAlreadyInTeam = team.employeeIds.includes(empId);
 
         if (isAlreadyInTeam) {
           return res.status(400).json({
@@ -426,18 +471,17 @@ router.patch(
         }
 
         // Ajouter l'employé à l'équipe
-        updateOperation = { $addToSet: { employeeIds: employeeId } };
+        newEmployeeIds = [...team.employeeIds, empId];
         updateMessage = "Employé ajouté à l'équipe avec succès";
 
         // Mettre à jour le teamId de l'employé
-        await EmployeeModel.findByIdAndUpdate(employeeId, {
-          $set: { teamId: id },
+        await prisma.employee.update({
+          where: { id: empId },
+          data: { teamId: teamId }
         });
       } else {
         // Vérifier si l'employé est dans l'équipe
-        const isInTeam = team.employeeIds.some(
-          (id) => id.toString() === employeeId
-        );
+        const isInTeam = team.employeeIds.includes(empId);
 
         if (!isInTeam) {
           return res.status(400).json({
@@ -447,33 +491,52 @@ router.patch(
         }
 
         // Retirer l'employé de l'équipe
-        updateOperation = { $pull: { employeeIds: employeeId } };
+        newEmployeeIds = team.employeeIds.filter(id => id !== empId);
         updateMessage = "Employé retiré de l'équipe avec succès";
 
         // Si l'employé a cette équipe comme teamId, mettre à null
-        const employeeToUpdate = await EmployeeModel.findById(employeeId);
-        if (
-          employeeToUpdate &&
-          employeeToUpdate.teamId &&
-          employeeToUpdate.teamId.toString() === id
-        ) {
-          await EmployeeModel.findByIdAndUpdate(employeeId, {
-            $set: { teamId: null },
+        if (employee.teamId === teamId) {
+          await prisma.employee.update({
+            where: { id: empId },
+            data: { teamId: null }
           });
         }
       }
 
       // Mettre à jour l'équipe
-      const updatedTeam = await Team.findByIdAndUpdate(id, updateOperation, {
-        new: true,
-      })
-        .populate("managerIds", "firstName lastName email")
-        .populate("employeeIds", "firstName lastName email status");
+      const updatedTeam = await prisma.team.update({
+        where: { id: teamId },
+        data: { employeeIds: newEmployeeIds },
+        include: {
+          employees: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              status: true
+            }
+          }
+        }
+      });
+
+      // Récupérer les managers
+      const managers = updatedTeam.managerIds.length > 0
+        ? await prisma.user.findMany({
+            where: {
+              id: { in: updatedTeam.managerIds }
+            },
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          })
+        : [];
 
       return res.status(200).json({
         success: true,
         message: updateMessage,
-        data: updatedTeam,
+        data: { ...updatedTeam, managers },
       });
     } catch (error) {
       console.error("Erreur lors de la mise à jour de l'équipe:", error);

@@ -1,10 +1,7 @@
 import { Request, Response } from 'express';
 import { stripe, STRIPE_WEBHOOK_SECRET } from '../config/stripe.config';
 import { stripeService } from '../services/stripe.service';
-import { Subscription } from '../models/Subscription.model';
-import { Payment } from '../models/Payment.model';
-import { Company } from '../models/Company.model';
-import { User } from '../models/User.model';
+import prisma from '../config/prisma';
 
 /**
  * Crée une session de checkout Stripe
@@ -19,14 +16,18 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
       return;
     }
 
-    const user = await User.findById(userId).populate('companyId');
-    if (!user?.companyId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true }
+    });
+
+    if (!user?.companyId || !user.company) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
     }
 
     const session = await stripeService.createCheckoutSession(
-      user.companyId._id.toString(),
+      user.companyId,
       plan,
       user.email,
       successUrl,
@@ -59,21 +60,28 @@ export const getCurrentSubscription = async (req: Request, res: Response): Promi
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user?.companyId) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
     }
 
-    const subscription = await Subscription.findOne({ companyId: user.companyId });
-    
+    const subscription = await prisma.subscription.findFirst({
+      where: { companyId: user.companyId }
+    });
+
     if (!subscription) {
       // Créer un abonnement gratuit par défaut
-      const newSubscription = await Subscription.create({
-        companyId: user.companyId,
-        stripeCustomerId: `temp_${user.companyId}`, // Temporaire jusqu'à création client Stripe
-        plan: 'free',
-        status: 'active',
+      const newSubscription = await prisma.subscription.create({
+        data: {
+          companyId: user.companyId,
+          stripeCustomerId: `temp_${user.companyId}`, // Temporaire jusqu'à création client Stripe
+          plan: 'free',
+          status: 'active',
+        }
       });
 
       res.json({
@@ -109,14 +117,17 @@ export const updateSubscription = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user?.companyId) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
     }
 
     const updatedSubscription = await stripeService.updateSubscription(
-      user.companyId.toString(),
+      user.companyId,
       plan,
       cancelAtPeriodEnd
     );
@@ -147,14 +158,17 @@ export const cancelSubscription = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user?.companyId) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
     }
 
     const canceledSubscription = await stripeService.cancelSubscription(
-      user.companyId.toString(),
+      user.companyId,
       cancelAtPeriodEnd
     );
 
@@ -184,7 +198,10 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user?.companyId) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
@@ -194,12 +211,14 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
     if (status) filter.status = status;
     if (type) filter.type = type;
 
-    const payments = await Payment.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .skip(Number(offset));
+    const payments = await prisma.payment.findMany({
+      where: filter,
+      orderBy: { createdAt: 'desc' },
+      take: Number(limit),
+      skip: Number(offset),
+    });
 
-    const total = await Payment.countDocuments(filter);
+    const total = await prisma.payment.count({ where: filter });
 
     res.json({
       success: true,
@@ -232,13 +251,16 @@ export const syncSubscription = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user?.companyId) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
     }
 
-    const subscription = await stripeService.syncFromStripe(user.companyId.toString());
+    const subscription = await stripeService.syncFromStripe(user.companyId);
 
     res.json({
       success: true,
@@ -259,7 +281,7 @@ export const syncSubscription = async (req: Request, res: Response): Promise<voi
 export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
     const signature = req.headers['stripe-signature'] as string;
-    
+
     if (!signature) {
       res.status(400).json({ error: 'Signature manquante' });
       return;
@@ -303,21 +325,43 @@ export const getBillingInfo = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user?.companyId) {
       res.status(404).json({ message: 'Entreprise non trouvée' });
       return;
     }
 
-    const subscription = await Subscription.findOne({ companyId: user.companyId });
-    const company = await Company.findById(user.companyId);
+    const subscription = await prisma.subscription.findFirst({
+      where: { companyId: user.companyId }
+    });
+    const company = await prisma.company.findUnique({
+      where: { id: user.companyId }
+    });
 
     // Statistiques des paiements
-    const paymentStats = await Payment.getTotalRevenue(user.companyId.toString());
-    
+    const totalSucceeded = await prisma.payment.aggregate({
+      where: {
+        companyId: user.companyId,
+        status: 'succeeded'
+      },
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    const totalRefunded = await prisma.payment.aggregate({
+      where: {
+        companyId: user.companyId,
+        status: 'refunded'
+      },
+      _sum: { amount: true },
+    });
+
     // Prochain paiement prévu
     const nextPayment = subscription?.currentPeriodEnd && (subscription.status === 'active' || subscription.status === 'trialing')
-      ? subscription.currentPeriodEnd 
+      ? subscription.currentPeriodEnd
       : null;
 
     res.json({
@@ -330,9 +374,9 @@ export const getBillingInfo = async (req: Request, res: Response): Promise<void>
         subscription: subscription || null,
         nextPayment,
         paymentStats: {
-          totalRevenue: paymentStats.totalAmount / 100, // Convertir en euros
-          totalRefunded: paymentStats.refundedAmount / 100,
-          totalPayments: paymentStats.count,
+          totalRevenue: (totalSucceeded._sum.amount || 0) / 100, // Convertir en euros
+          totalRefunded: (totalRefunded._sum.amount || 0) / 100,
+          totalPayments: totalSucceeded._count || 0,
         },
       },
     });

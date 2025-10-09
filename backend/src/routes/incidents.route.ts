@@ -1,18 +1,22 @@
+/**
+ * Routes de gestion des incidents - SmartPlanning
+ *
+ * MIGRATION POSTGRESQL: Migré de Mongoose vers Prisma ORM
+ */
+
 import { Router } from "express";
-import { isValidObjectId } from "mongoose";
 import { authenticateToken } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
-import EmployeeModel from "../models/Employee.model";
-import IncidentModel from "../models/Incident.model";
+import prisma from "../config/prisma";
 
 // Type pour les requêtes authentifiées
 interface AuthRequest {
   user?: {
-    _id: string;
+    id: number;
     email: string;
     role: "admin" | "manager" | "employee" | "directeur";
-    teamIds?: string[];
-    companyId?: string;
+    teamIds?: number[];
+    companyId?: number;
   };
   query: any;
   body: any;
@@ -30,71 +34,83 @@ router.get(
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const skip = req.query.skip ? parseInt(req.query.skip as string) : 0;
-      const companyFilter = req.query.companyId;
-      const teamFilter = req.query.teamId;
+      const companyFilter = req.query.companyId ? parseInt(req.query.companyId as string) : null;
+      const teamFilter = req.query.teamId ? parseInt(req.query.teamId as string) : null;
 
-      let query: any = {};
+      let whereClause: any = {};
 
       // Filtrer selon le rôle de l'utilisateur
       if (req.user) {
         if (req.user.role === "directeur" && req.user.companyId) {
           // Un directeur voit les incidents des employés de sa compagnie
-          const companyEmployees = await EmployeeModel.find(
-            { companyId: req.user.companyId },
-            "_id"
-          );
-          const employeeIds = companyEmployees.map((emp) => emp._id);
-          query = { employeeId: { $in: employeeIds } };
+          whereClause.companyId = req.user.companyId;
         } else if (
           req.user.role === "manager" &&
           req.user.teamIds &&
           req.user.teamIds.length > 0
         ) {
           // Un manager voit les incidents des employés de ses équipes
-          const teamEmployees = await EmployeeModel.find(
-            { teamId: { $in: req.user.teamIds } },
-            "_id"
-          );
-          const employeeIds = teamEmployees.map((emp) => emp._id);
-          query = { employeeId: { $in: employeeIds } };
+          const teamEmployees = await prisma.employee.findMany({
+            where: { teamId: { in: req.user.teamIds } },
+            select: { id: true }
+          });
+          const employeeIds = teamEmployees.map((emp) => emp.id);
+          whereClause.employeeId = { in: employeeIds };
         }
         // Admin voit tout, et peut filtrer par companyId ou teamId
         else if (req.user.role === "admin") {
-          if (companyFilter && isValidObjectId(companyFilter)) {
-            const companyEmployees = await EmployeeModel.find(
-              { companyId: companyFilter },
-              "_id"
-            );
-            const employeeIds = companyEmployees.map((emp) => emp._id);
-            query.employeeId = { $in: employeeIds };
+          if (companyFilter && !isNaN(companyFilter)) {
+            whereClause.companyId = companyFilter;
           }
 
-          if (teamFilter && isValidObjectId(teamFilter)) {
-            const teamEmployees = await EmployeeModel.find(
-              { teamId: teamFilter },
-              "_id"
-            );
-            const teamEmployeeIds = teamEmployees.map((emp) => emp._id);
-            // Si on a déjà filtré par companyId, on fait l'intersection des deux ensembles
-            if (query.employeeId) {
-              query.employeeId.$in = query.employeeId.$in.filter((id: any) =>
-                teamEmployeeIds.some((teamId: any) => teamId.equals(id))
+          if (teamFilter && !isNaN(teamFilter)) {
+            const teamEmployees = await prisma.employee.findMany({
+              where: { teamId: teamFilter },
+              select: { id: true }
+            });
+            const teamEmployeeIds = teamEmployees.map((emp) => emp.id);
+
+            // Si on a déjà filtré par companyId, on fait l'intersection
+            if (whereClause.employeeId && whereClause.employeeId.in) {
+              whereClause.employeeId.in = whereClause.employeeId.in.filter((id: number) =>
+                teamEmployeeIds.includes(id)
               );
             } else {
-              query.employeeId = { $in: teamEmployeeIds };
+              whereClause.employeeId = { in: teamEmployeeIds };
             }
           }
         }
       }
 
-      const incidents = await IncidentModel.find(query)
-        .populate("employeeId", "firstName lastName email companyId teamId")
-        .populate("reportedBy", "firstName lastName email")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
-
-      const total = await IncidentModel.countDocuments(query);
+      const [incidents, total] = await Promise.all([
+        prisma.incident.findMany({
+          where: whereClause,
+          include: {
+            employee: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                companyId: true,
+                teamId: true
+              }
+            },
+            reportedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: skip,
+          take: limit
+        }),
+        prisma.incident.count({ where: whereClause })
+      ]);
 
       res.status(200).json({
         success: true,
@@ -131,14 +147,20 @@ router.post(
         status = "pending",
       } = req.body;
 
-      if (!isValidObjectId(employeeId)) {
+      // Validation de l'ID employé
+      const employeeIdNum = parseInt(employeeId, 10);
+      if (isNaN(employeeIdNum)) {
         return res
           .status(400)
           .json({ success: false, message: "ID employé invalide" });
       }
 
       // Vérifier si l'employé existe
-      const employee = await EmployeeModel.findById(employeeId);
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeIdNum },
+        select: { id: true, teamId: true, companyId: true }
+      });
+
       if (!employee) {
         return res
           .status(404)
@@ -149,7 +171,7 @@ router.post(
       if (req.user && req.user.role === "manager" && req.user.teamIds) {
         if (
           !employee.teamId ||
-          !req.user.teamIds.includes(employee.teamId.toString())
+          !req.user.teamIds.includes(employee.teamId)
         ) {
           return res.status(403).json({
             success: false,
@@ -160,16 +182,35 @@ router.post(
       }
 
       // Créer l'incident
-      const incident = new IncidentModel({
-        employeeId,
-        type,
-        description,
-        date: date || new Date(),
-        status,
-        reportedBy: req.user?._id,
+      const incident = await prisma.incident.create({
+        data: {
+          employeeId: employeeIdNum,
+          companyId: employee.companyId,
+          type,
+          description: description || null,
+          date: date ? new Date(date) : new Date(),
+          status,
+          reportedById: req.user?.id || null,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          reportedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          }
+        }
       });
-
-      await incident.save();
 
       res.status(201).json({ success: true, data: incident });
     } catch (error: any) {
@@ -191,14 +232,24 @@ router.put(
     try {
       const { id } = req.params;
 
-      if (!isValidObjectId(id)) {
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res
           .status(400)
           .json({ success: false, message: "ID incident invalide" });
       }
 
       // Récupérer l'incident existant
-      const incident = await IncidentModel.findById(id);
+      const incident = await prisma.incident.findUnique({
+        where: { id: idNum },
+        include: {
+          employee: {
+            select: { id: true, teamId: true }
+          }
+        }
+      });
+
       if (!incident) {
         return res
           .status(404)
@@ -207,11 +258,9 @@ router.put(
 
       // Vérifier si le manager a le droit de modifier cet incident
       if (req.user && req.user.role === "manager" && req.user.teamIds) {
-        const employee = await EmployeeModel.findById(incident.employeeId);
         if (
-          !employee ||
-          !employee.teamId ||
-          !req.user.teamIds.includes(employee.teamId.toString())
+          !incident.employee.teamId ||
+          !req.user.teamIds.includes(incident.employee.teamId)
         ) {
           return res.status(403).json({
             success: false,
@@ -224,14 +273,36 @@ router.put(
       // Mettre à jour l'incident
       const { type, description, date, status } = req.body;
 
-      incident.type = type || incident.type;
-      incident.description = description || incident.description;
-      incident.date = date || incident.date;
-      incident.status = status || incident.status;
+      const updateData: any = {};
+      if (type !== undefined) updateData.type = type;
+      if (description !== undefined) updateData.description = description;
+      if (date !== undefined) updateData.date = new Date(date);
+      if (status !== undefined) updateData.status = status;
 
-      await incident.save();
+      const updatedIncident = await prisma.incident.update({
+        where: { id: idNum },
+        data: updateData,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          reportedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          }
+        }
+      });
 
-      res.status(200).json({ success: true, data: incident });
+      res.status(200).json({ success: true, data: updatedIncident });
     } catch (error: any) {
       res.status(500).json({
         success: false,
@@ -251,14 +322,24 @@ router.delete(
     try {
       const { id } = req.params;
 
-      if (!isValidObjectId(id)) {
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res
           .status(400)
           .json({ success: false, message: "ID incident invalide" });
       }
 
-      // Récupérer l'incident existant
-      const incident = await IncidentModel.findById(id);
+      // Récupérer l'incident existant avec l'employé
+      const incident = await prisma.incident.findUnique({
+        where: { id: idNum },
+        include: {
+          employee: {
+            select: { id: true, teamId: true }
+          }
+        }
+      });
+
       if (!incident) {
         return res
           .status(404)
@@ -267,11 +348,9 @@ router.delete(
 
       // Vérifier si le manager a le droit de supprimer cet incident
       if (req.user && req.user.role === "manager" && req.user.teamIds) {
-        const employee = await EmployeeModel.findById(incident.employeeId);
         if (
-          !employee ||
-          !employee.teamId ||
-          !req.user.teamIds.includes(employee.teamId.toString())
+          !incident.employee.teamId ||
+          !req.user.teamIds.includes(incident.employee.teamId)
         ) {
           return res.status(403).json({
             success: false,
@@ -281,7 +360,10 @@ router.delete(
         }
       }
 
-      await IncidentModel.findByIdAndDelete(id);
+      await prisma.incident.delete({
+        where: { id: idNum }
+      });
+
       res
         .status(200)
         .json({ success: true, message: "Incident supprimé avec succès" });

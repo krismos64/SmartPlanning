@@ -1,0 +1,716 @@
+// SmartPlanning - PostgreSQL Schema
+// Documentation: /docs/database-postgresql-architecture.md
+// Convention: snake_case SQL tables with PascalCase Prisma models
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE ENTITIES - Multi-tenant structure
+// ============================================================================
+
+/// Company - Root multi-tenant entity
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  address   String?  @db.Text
+  postalCode String? @db.VarChar(10)
+  city      String?  @db.VarChar(100)
+  country   String   @default("France") @db.VarChar(100)
+  sector    String?  @db.VarChar(100) // retail, healthcare, hospitality
+  size      String?  @db.VarChar(20) // small, medium, large
+  logo      String?  @db.Text // Cloudinary URL
+
+  // Default planning configuration (JSONB)
+  defaultOpeningHours  Json?  @db.Json // { monday: { start: "09:00", end: "18:00", isOpen: true }, ... }
+  defaultMinimumStaff  Int    @default(1)
+  defaultMaxHoursPerDay Int   @default(8)
+  defaultBreakDuration Int    @default(60) // minutes
+
+  // Timezone support (for future international expansion)
+  timezone    String  @default("Europe/Paris") @db.VarChar(50)
+
+  // Metadata
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+  createdById Int?
+  isActive    Boolean  @default(true)
+
+  // Relations
+  createdBy         User?                @relation("CompanyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  users             User[]               @relation("CompanyUsers")
+  teams             Team[]
+  employees         Employee[]
+  weeklySchedules   WeeklySchedule[]
+  generatedSchedules GeneratedSchedule[]
+  vacationRequests  VacationRequest[]
+  tasks             Task[]
+  incidents         Incident[]
+  events            Event[]
+  chatbotInteractions ChatbotInteraction[]
+  chatbotSettings   ChatbotSettings?
+  subscription      Subscription?
+  payments          Payment[]
+  auditLogs         AuditLog[]
+  shifts            Shift[]
+  roles             Role[]
+  userRoles         UserRole[]
+
+  @@index([name])
+  @@index([sector, size, isActive])
+  @@index([createdAt(sort: Desc)])
+  @@map("company")
+}
+
+/// User - Authentication and authorization (RBAC)
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique @db.VarChar(255)
+  password       String?  @db.VarChar(255) // NULL if OAuth only
+  firstName      String   @db.VarChar(100)
+  lastName       String   @db.VarChar(100)
+  role           String   @db.VarChar(20) // admin, directeur, manager, employee
+  companyId      Int?
+  profilePicture String?  @db.Text // Cloudinary URL
+  googleId       String?  @unique @db.VarChar(255) // OAuth Google
+  isActive       Boolean  @default(true)
+  lastLogin      DateTime? @db.Timestamptz
+
+  // Email verification and password reset
+  isEmailVerified      Boolean   @default(false)
+  resetPasswordToken   String?   @db.VarChar(255)
+  resetPasswordExpire  DateTime? @db.Timestamptz
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company              Company?             @relation("CompanyUsers", fields: [companyId], references: [id], onDelete: Cascade)
+  companiesCreated     Company[]            @relation("CompanyCreator")
+  employee             Employee?
+  weeklySchedulesCreated      WeeklySchedule[]      @relation("ScheduleCreator")
+  weeklySchedulesValidated    WeeklySchedule[]      @relation("ScheduleValidator")
+  generatedSchedules   GeneratedSchedule[]
+  vacationRequestsReviewed VacationRequest[]     @relation("VacationReviewer")
+  tasksCreated         Task[]               @relation("TaskCreator")
+  incidentsReported    Incident[]           @relation("IncidentReporter")
+  incidentsResolved    Incident[]           @relation("IncidentResolver")
+  eventsCreated        Event[]
+  chatbotInteractions  ChatbotInteraction[]
+  auditLogs            AuditLog[]
+  userRoles            UserRole[]           @relation("UserRoles")
+  userRolesAssigned    UserRole[]           @relation("UserRoleAssigner")
+  teamsManaged         Team[]
+
+  @@index([email])
+  @@index([companyId, role, isActive])
+  @@index([googleId])
+  @@map("user")
+}
+
+/// Team - Work teams within a company
+model Team {
+  id              Int      @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  companyId       Int
+  managerId       Int?
+
+  // Team configuration
+  requiredSkills  String[] // PostgreSQL array
+  minimumMembers  Int      @default(1)
+
+  // Status
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager           User?               @relation(fields: [managerId], references: [id], onDelete: SetNull)
+  employees         Employee[]
+  weeklySchedules   WeeklySchedule[]
+  generatedSchedules GeneratedSchedule[]
+  tasks             Task[]
+  incidents         Incident[]
+  events            Event[]
+  shifts            Shift[]
+
+  @@index([companyId, isActive])
+  @@index([managerId])
+  @@map("team")
+}
+
+/// Employee - Business information and planning preferences (1-to-1 with User)
+model Employee {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  companyId        Int
+  teamId           Int?
+
+  // Business information
+  position         String?  @db.VarChar(100)
+  skills           String[] // Employee skills
+  contractualHours Int      @default(35) // hours/week
+  hourlyRate       Decimal? @db.Decimal(10, 2)
+
+  // Planning preferences (JSONB)
+  preferences Json @default("{\"preferredDays\": [], \"avoidedDays\": [], \"maxConsecutiveDays\": 6, \"preferSplitShifts\": false}") @db.Json
+
+  // Status
+  isActive  Boolean   @default(true)
+  hireDate  DateTime? @db.Date
+  endDate   DateTime? @db.Date
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team             Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  vacationRequests VacationRequest[]
+  tasksAssigned    Task[]            @relation("TaskAssigned")
+  tasksCompleted   Task[]            @relation("TaskCompleted")
+  shifts           Shift[]
+
+  @@index([userId])
+  @@index([companyId, teamId, isActive])
+  @@index([isActive, companyId])
+  @@map("employee")
+}
+
+// ============================================================================
+// PLANNING ENTITIES
+// ============================================================================
+
+/// WeeklySchedule - Validated weekly schedules
+model WeeklySchedule {
+  id            Int      @id @default(autoincrement())
+  companyId     Int
+  teamId        Int
+
+  // Period
+  weekStartDate DateTime @db.Date
+  weekEndDate   DateTime @db.Date
+
+  // Detailed schedule (JSONB)
+  schedule Json @default("{}") @db.Json
+  // Structure: { monday: [{ employeeId, startTime, endTime, position, skills, breakStart, breakEnd }], ... }
+
+  // Validation workflow
+  status      String    @db.VarChar(20) // draft, validated, published, archived
+  validatedById Int?
+  validatedAt DateTime? @db.Timestamptz
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdById Int
+
+  // Relations
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team               Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  validatedBy        User?               @relation("ScheduleValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  createdBy          User                @relation("ScheduleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  shifts             Shift[]
+  generatedSchedules GeneratedSchedule[]
+
+  @@index([companyId, weekStartDate(sort: Desc)])
+  @@index([teamId, status])
+  @@index([weekStartDate, weekEndDate])
+  @@index([status])
+  @@map("weekly_schedule")
+}
+
+/// GeneratedSchedule - AI-generated schedules with metrics
+model GeneratedSchedule {
+  id               Int  @id @default(autoincrement())
+  companyId        Int
+  teamId           Int
+  weeklyScheduleId Int? // Link if converted to validated schedule
+
+  // Generation configuration (JSONB)
+  generationConfig Json @db.Json
+  // Structure: { strategy, weekStartDate, selectedEmployees, constraints: { openingHours, minimumStaff, exceptions } }
+
+  // Generated result (same structure as WeeklySchedule.schedule)
+  generatedPlanning Json @db.Json
+
+  // Quality metrics (JSONB)
+  metrics Json @default("{}") @db.Json
+  // Structure: { generationTime, strategy, qualityScore, constraintsRespected, employeesSatisfaction }
+
+  // Model versioning (for A/B testing and performance tracking)
+  modelVersion String? @db.VarChar(50) // v1.0, v2.0-gpt4, v2.1-optimized
+  algorithm    String? @db.VarChar(100) // AdvancedSchedulingEngine, LinearProgramming, GeneticAlgorithm
+  engineConfig Json?   @db.Json
+
+  // Validation
+  status         String    @db.VarChar(20) // generated, validated, rejected, converted
+  validationNote String?   @db.Text
+  validatedById  Int?
+  validatedAt    DateTime? @db.Timestamptz
+
+  // Metadata
+  generatedAt DateTime @default(now()) @db.Timestamptz
+  generatedById Int
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team           Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  weeklySchedule WeeklySchedule? @relation(fields: [weeklyScheduleId], references: [id], onDelete: SetNull)
+  generatedBy    User            @relation(fields: [generatedById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, generatedAt(sort: Desc)])
+  @@index([teamId, status])
+  @@index([weeklyScheduleId])
+  @@index([modelVersion, generatedAt(sort: Desc)])
+  @@map("generated_schedule")
+}
+
+/// Shift - Denormalized view for optimized shift queries (sync from WeeklySchedule)
+model Shift {
+  id               Int      @id @default(autoincrement())
+  weeklyScheduleId Int
+  employeeId       Int
+  companyId        Int
+  teamId           Int
+
+  // Shift details
+  shiftDate  DateTime @db.Date
+  startTime  DateTime @db.Time
+  endTime    DateTime @db.Time
+  breakStart DateTime? @db.Time
+  breakEnd   DateTime? @db.Time
+
+  // Metadata
+  position String?  @db.VarChar(100)
+  skills   String[]
+
+  // Status
+  status String @default("scheduled") @db.VarChar(20) // scheduled, confirmed, completed, cancelled
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  weeklySchedule WeeklySchedule @relation(fields: [weeklyScheduleId], references: [id], onDelete: Cascade)
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, shiftDate])
+  @@index([weeklyScheduleId])
+  @@index([companyId, shiftDate])
+  @@index([shiftDate, startTime, endTime])
+  @@map("shift")
+}
+
+// ============================================================================
+// OPERATIONS ENTITIES
+// ============================================================================
+
+/// VacationRequest - Vacation and absence management
+model VacationRequest {
+  id            Int      @id @default(autoincrement())
+  employeeId    Int
+  companyId     Int
+
+  // Request details
+  startDate     DateTime @db.Date
+  endDate       DateTime @db.Date
+  type          String   @db.VarChar(20) // vacation, sick, personal, training, parental
+  reason        String?  @db.Text
+  attachmentUrl String?  @db.Text // Medical certificate, etc.
+
+  // Validation workflow
+  status     String    @db.VarChar(20) @default("pending") // pending, approved, rejected, cancelled
+  reviewedById Int?
+  reviewedAt DateTime? @db.Timestamptz
+  reviewNote String?   @db.Text
+
+  // Metadata
+  requestDate DateTime @default(now()) @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("VacationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, startDate(sort: Desc)])
+  @@index([companyId, status])
+  @@index([startDate, endDate])
+  @@index([status, companyId])
+  @@map("vacation_request")
+}
+
+/// Task - Operational tasks
+model Task {
+  id          Int     @id @default(autoincrement())
+  title       String  @db.VarChar(255)
+  description String? @db.Text
+  companyId   Int
+  teamId      Int?
+  assignedToId Int?
+
+  // Planning
+  priority        String?  @db.VarChar(20) // low, medium, high, urgent
+  dueDate         DateTime? @db.Date
+  estimatedHours  Decimal?  @db.Decimal(5, 2)
+
+  // Workflow
+  status       String    @db.VarChar(20) @default("todo") // todo, in_progress, blocked, done, cancelled
+  completedAt  DateTime? @db.Timestamptz
+  completedById Int?
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdById Int
+
+  // Relations
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team        Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignedTo  Employee? @relation("TaskAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+  completedBy Employee? @relation("TaskCompleted", fields: [completedById], references: [id], onDelete: SetNull)
+  createdBy   User      @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@index([assignedToId, status])
+  @@index([dueDate])
+  @@map("task")
+}
+
+/// Incident - Operational incidents tracking
+model Incident {
+  id          Int    @id @default(autoincrement())
+  title       String @db.VarChar(255)
+  description String @db.Text
+  companyId   Int
+  teamId      Int?
+
+  // Classification
+  severity String? @db.VarChar(20) // low, medium, high, critical
+  category String? @db.VarChar(50) // technical, hr, safety, customer
+
+  // Resolution
+  status     String    @db.VarChar(20) @default("open") // open, investigating, resolved, closed
+  resolvedAt DateTime? @db.Timestamptz
+  resolvedById Int?
+  resolution String?   @db.Text
+
+  // Metadata
+  reportedAt DateTime @default(now()) @db.Timestamptz
+  reportedById Int
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team       Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  resolvedBy User?   @relation("IncidentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  reportedBy User    @relation("IncidentReporter", fields: [reportedById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@index([severity, status])
+  @@map("incident")
+}
+
+/// Event - Calendar events (meetings, training, company events)
+model Event {
+  id          Int     @id @default(autoincrement())
+  title       String  @db.VarChar(255)
+  description String? @db.Text
+  companyId   Int
+  teamId      Int?
+
+  // Event planning
+  startDate   DateTime @db.Timestamptz
+  endDate     DateTime @db.Timestamptz
+  isAllDay    Boolean  @default(false)
+  location    String?  @db.VarChar(255)
+
+  // Participants (array of Employee IDs)
+  participants Int[]
+
+  // Type
+  eventType String? @db.VarChar(50) // meeting, training, company_event, holiday
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdById Int
+
+  // Relations
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team      Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, startDate(sort: Desc)])
+  @@map("event")
+}
+
+// ============================================================================
+// AI / CHATBOT ENTITIES
+// ============================================================================
+
+/// ChatbotInteraction - Chatbot conversation history
+model ChatbotInteraction {
+  id          Int    @id @default(autoincrement())
+  userId      Int
+  companyId   Int
+
+  // Conversation
+  userMessage String @db.Text
+  botResponse String @db.Text
+  context     Json?  @db.Json // Conversation context for continuity
+
+  // Metrics
+  satisfactionScore Int? // 1-5 rating
+  responseTime      Int? // milliseconds
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([satisfactionScore])
+  @@map("chatbot_interaction")
+}
+
+/// ChatbotSettings - Chatbot configuration per company
+model ChatbotSettings {
+  id         Int    @id @default(autoincrement())
+  companyId  Int    @unique
+
+  // Configuration
+  isEnabled   Boolean @default(true)
+  language    String  @default("fr") @db.VarChar(10)
+  personality String? @db.VarChar(50) // professional, friendly, concise
+
+  // Limits
+  maxTokens   Int     @default(500)
+  temperature Decimal @default(0.7) @db.Decimal(3, 2)
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("chatbot_settings")
+}
+
+// ============================================================================
+// SAAS / BILLING ENTITIES
+// ============================================================================
+
+/// Subscription - Stripe subscriptions
+model Subscription {
+  id                   Int    @id @default(autoincrement())
+  companyId            Int    @unique
+
+  // Stripe identifiers
+  stripeCustomerId     String @unique @db.VarChar(255)
+  stripeSubscriptionId String @unique @db.VarChar(255)
+  stripePriceId        String @db.VarChar(255)
+
+  // Plan details
+  plan            String  @db.VarChar(20) // starter, professional, enterprise
+  planPrice       Decimal @db.Decimal(10, 2) // 39.00, 89.00, 179.00
+  currency        String  @default("EUR") @db.VarChar(3)
+  billingInterval String  @default("month") @db.VarChar(20) // month, year
+
+  // Status
+  status             String    @db.VarChar(20) // active, past_due, canceled, incomplete, trialing
+  currentPeriodStart DateTime  @db.Timestamptz
+  currentPeriodEnd   DateTime  @db.Timestamptz
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime? @db.Timestamptz
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([companyId])
+  @@index([stripeCustomerId])
+  @@index([status, currentPeriodEnd])
+  @@map("subscription")
+}
+
+/// Payment - Payment history
+model Payment {
+  id              Int     @id @default(autoincrement())
+  companyId       Int
+  subscriptionId  Int?
+
+  // Stripe identifiers
+  stripePaymentId String  @unique @db.VarChar(255)
+  stripeInvoiceId String? @db.VarChar(255)
+
+  // Amount
+  amount   Decimal @db.Decimal(10, 2)
+  currency String  @default("EUR") @db.VarChar(3)
+
+  // Status
+  status        String  @db.VarChar(20) // succeeded, pending, failed, refunded
+  paymentMethod String? @db.VarChar(50) // card, sepa_debit, etc.
+
+  // Payment type discrimination
+  paymentType String @default("subscription") @db.VarChar(20) // subscription, one_time, credit, refund
+
+  // Metadata
+  paidAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  // Relations
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([subscriptionId])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("payment")
+}
+
+// ============================================================================
+// ADVANCED FEATURES - RBAC & AUDIT
+// ============================================================================
+
+/// Role - Granular role management (system and custom per company)
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(50) // admin, directeur, manager_planning, employee
+  description String? @db.Text
+  isSystemRole Boolean @default(false) // System roles are immutable
+  companyId   Int? // NULL for system roles, NOT NULL for custom roles
+
+  // Granular permissions (JSONB)
+  permissions Json @default("[]") @db.Json
+  // Structure: { planning: ["create", "read", "update", "delete", "validate"], vacation: ["approve", "reject"], ... }
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  company         Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([name, companyId])
+  @@map("role")
+}
+
+/// UserRole - User to Role assignment (many-to-many)
+model UserRole {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  roleId     Int
+  companyId  Int
+
+  // Optional: temporary role assignment
+  validFrom  DateTime  @default(now()) @db.Timestamptz
+  validUntil DateTime? @db.Timestamptz
+
+  // Audit
+  assignedAt DateTime @default(now()) @db.Timestamptz
+  assignedById Int?
+
+  // Relations
+  user       User    @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+  role       Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedBy User?   @relation("UserRoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, roleId, companyId])
+  @@index([userId, companyId])
+  @@index([roleId])
+  @@map("user_role")
+}
+
+/// Permission - Fine-grained permission definitions
+model Permission {
+  id          Int    @id @default(autoincrement())
+  name        String @unique @db.VarChar(100) // planning:create, vacation:approve, analytics:view
+  resource    String @db.VarChar(50) // planning, vacation, analytics
+  action      String @db.VarChar(50) // create, read, update, delete, approve
+  description String? @db.Text
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permission")
+}
+
+/// RolePermission - Role to Permission assignment (many-to-many)
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permission")
+}
+
+/// AuditLog - Comprehensive audit trail for compliance (RGPD, labor law)
+model AuditLog {
+  id        BigInt @id @default(autoincrement())
+
+  // Context
+  userId    Int?
+  companyId Int
+  ipAddress String? @db.Inet
+  userAgent String? @db.Text
+
+  // Action
+  action     String  @db.VarChar(100) // schedule.create, vacation.approve, subscription.cancel
+  resource   String  @db.VarChar(50) // schedule, vacation, subscription
+  resourceId String? @db.VarChar(100) // ID of modified resource (can be UUID or INT)
+  method     String? @db.VarChar(10) // POST, PUT, DELETE
+
+  // Data changes (JSONB)
+  changesBefore Json? @db.Json // State before modification
+  changesAfter  Json? @db.Json // State after modification
+  metadata      Json? @db.Json // Additional context (ex: rejection reason)
+
+  // Result
+  status       String? @db.VarChar(20) // success, failed, unauthorized
+  errorMessage String? @db.Text
+
+  // Timestamp (partitioned by createdAt)
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([resource, resourceId])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("audit_log")
+}

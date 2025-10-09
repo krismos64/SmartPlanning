@@ -1,12 +1,25 @@
+/**
+ * Routes de gestion des employés - SmartPlanning
+ *
+ * MIGRATION POSTGRESQL: Migré de Mongoose vers Prisma ORM
+ *
+ * IMPORTANT: Dans PostgreSQL, Employee n'a PAS firstName, lastName, email
+ * Ces champs sont uniquement dans User (relation 1-to-1)
+ *
+ * Différences clés:
+ * - contractualHours au lieu de contractHoursPerWeek
+ * - isActive boolean au lieu de status "actif"
+ * - Team.managerId (single) au lieu de managerIds array
+ * - Pas d'array employeeIds dans Team (relation via FK)
+ * - Transactions avec prisma.$transaction()
+ */
+
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import express, { Request, Response } from "express";
-import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
-import EmployeeModel from "../models/Employee.model";
-import { TeamModel } from "../models/Team.model";
-import User from "../models/User.model";
+import prisma from "../config/prisma";
 import { sendEmployeeWelcomeEmail } from "../utils/email";
 
 const router = express.Router();
@@ -16,7 +29,7 @@ const router = express.Router();
  * Liste tous les employés actifs:
  * - Pour un admin: tous les employés
  * - Pour un directeur: tous les employés de son entreprise
- * - Pour un manager: seulement les employés de ses équipes
+ * - Pour un manager: seulement les employés de ses équipes (via Team.managerId)
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -29,17 +42,36 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: "Accès refusé" });
     }
 
-    let employees;
+    let whereClause: any = { isActive: true };
+    let selectClause = {
+      id: true,
+      userId: true,
+      companyId: true,
+      teamId: true,
+      position: true,
+      skills: true,
+      contractualHours: true,
+      isActive: true,
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          profilePicture: true,
+        }
+      },
+      team: {
+        select: {
+          id: true,
+          name: true,
+        }
+      }
+    };
 
     if (req.user.role === "admin") {
       // L'admin a accès à tous les employés actifs
-      employees = await EmployeeModel.find(
-        { status: "actif" },
-        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
-      )
-        .populate("teamId", "name")
-        .sort({ lastName: 1, firstName: 1 })
-        .lean();
+      whereClause = { isActive: true };
     } else if (req.user.role === "directeur") {
       // Le directeur n'a accès qu'aux employés de son entreprise
       if (!req.user.companyId) {
@@ -48,35 +80,53 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
           message: "ID d'entreprise manquant pour le directeur",
         });
       }
+      whereClause = { companyId: req.user.companyId, isActive: true };
+    } else if (req.user.role === "manager") {
+      // Le manager n'a accès qu'aux employés des équipes qu'il gère
+      // Dans PostgreSQL: Team.managerId = req.user.id
+      const managerTeams = await prisma.team.findMany({
+        where: { managerId: req.user.id },
+        select: { id: true }
+      });
 
-      employees = await EmployeeModel.find(
-        { companyId: req.user.companyId, status: "actif" },
-        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
-      )
-        .populate("teamId", "name")
-        .sort({ lastName: 1, firstName: 1 })
-        .lean();
-    } else {
-      // Le manager n'a accès qu'aux employés de ses équipes
-      const managerTeams = await TeamModel.find(
-        { managerIds: req.user._id },
-        "_id"
-      ).lean();
-      const teamIds = managerTeams.map((team) => team._id);
+      const teamIds = managerTeams.map(team => team.id);
 
-      employees = await EmployeeModel.find(
-        { teamId: { $in: teamIds }, status: "actif" },
-        "_id firstName lastName email status teamId companyId contractHoursPerWeek photoUrl userId"
-      )
-        .populate("teamId", "name")
-        .sort({ lastName: 1, firstName: 1 })
-        .lean();
+      if (teamIds.length === 0) {
+        // Manager sans équipes = aucun employé accessible
+        return res.status(200).json({ success: true, data: [] });
+      }
+
+      whereClause = {
+        teamId: { in: teamIds },
+        isActive: true
+      };
     }
 
-    // Conversion du champ userId en string pour assurer la cohérence dans la réponse API
+    const employees = await prisma.employee.findMany({
+      where: whereClause,
+      select: selectClause,
+      orderBy: [
+        { user: { lastName: 'asc' } },
+        { user: { firstName: 'asc' } }
+      ]
+    });
+
+    // Formater la réponse pour compatibilité avec l'ancien format MongoDB
     const formattedEmployees = employees.map((emp) => ({
-      ...emp,
-      userId: emp.userId?.toString() || null,
+      _id: emp.id, // Compatibilité MongoDB
+      id: emp.id,
+      firstName: emp.user.firstName,
+      lastName: emp.user.lastName,
+      email: emp.user.email,
+      photoUrl: emp.user.profilePicture,
+      profilePicture: emp.user.profilePicture,
+      position: emp.position,
+      skills: emp.skills,
+      teamId: emp.team ? { _id: emp.team.id, name: emp.team.name } : null,
+      companyId: emp.companyId,
+      contractHoursPerWeek: emp.contractualHours, // Mapping de nom
+      status: emp.isActive ? "actif" : "inactif", // Mapping boolean → string
+      userId: emp.userId,
     }));
 
     return res.status(200).json({ success: true, data: formattedEmployees });
@@ -99,15 +149,20 @@ router.get(
   async (req: Request, res: Response) => {
     const { teamId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+    // Validation de l'ID
+    const teamIdNum = parseInt(teamId, 10);
+    if (isNaN(teamIdNum)) {
       return res
         .status(400)
         .json({ success: false, message: "Identifiant d'équipe invalide" });
     }
 
     try {
-      // Récupérer l'équipe pour vérifier son existence
-      const team = await TeamModel.findById(teamId);
+      // Vérifier que l'équipe existe
+      const team = await prisma.team.findUnique({
+        where: { id: teamIdNum }
+      });
+
       if (!team) {
         return res.status(404).json({
           success: false,
@@ -115,14 +170,46 @@ router.get(
         });
       }
 
-      // Utiliser la méthode statique pour récupérer les employés de l'équipe
-      const employees = await EmployeeModel.find({ teamId })
-        .populate("userId", "email")
-        .lean();
+      // Récupérer les employés de l'équipe
+      const employees = await prisma.employee.findMany({
+        where: { teamId: teamIdNum },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              profilePicture: true,
+            }
+          },
+          team: {
+            select: {
+              id: true,
+              name: true,
+            }
+          }
+        }
+      });
+
+      // Formater la réponse
+      const formattedEmployees = employees.map(emp => ({
+        _id: emp.id,
+        id: emp.id,
+        firstName: emp.user.firstName,
+        lastName: emp.user.lastName,
+        email: emp.user.email,
+        photoUrl: emp.user.profilePicture,
+        position: emp.position,
+        skills: emp.skills,
+        teamId: emp.team,
+        userId: emp.userId,
+        status: emp.isActive ? "actif" : "inactif",
+      }));
 
       return res.status(200).json({
         success: true,
-        data: employees,
+        data: formattedEmployees,
       });
     } catch (error) {
       console.error("Erreur lors de la récupération des employés:", error);
@@ -159,81 +246,95 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       .json({ success: false, message: "Champs obligatoires manquants" });
   }
 
-  // Démarrer une session pour assurer la cohérence des opérations
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // Validation des IDs
+  const teamIdNum = parseInt(teamId, 10);
+  const companyIdNum = parseInt(companyId, 10);
+
+  if (isNaN(teamIdNum) || isNaN(companyIdNum)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "ID d'équipe ou d'entreprise invalide" });
+  }
 
   try {
-    // Vérifier si l'email existe déjà dans la collection des utilisateurs
-    const existingUser = await User.findByEmail(email);
+    // Vérifier si l'email existe déjà
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
     if (existingUser) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({
         success: false,
         message: "Cet email est déjà utilisé par un autre utilisateur",
       });
     }
 
-    // Créer un nouvel utilisateur
-    // Le mot de passe sera hashé automatiquement par le hook pre('save') du modèle User
-    const newUser = await User.create(
-      [
-        {
+    // Hash du mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Créer utilisateur et employé dans une transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Créer l'utilisateur
+      const newUser = await tx.user.create({
+        data: {
           firstName,
           lastName,
           email,
-          password,
+          password: hashedPassword,
           role: "employee",
-          status: "active",
-          isEmailVerified: true, // Bypass car compte créé par un admin
-          companyId,
+          isActive: true,
+          isEmailVerified: true, // Bypass car créé par admin
+          companyId: companyIdNum,
+        }
+      });
+
+      // Créer l'employé associé
+      const newEmployee = await tx.employee.create({
+        data: {
+          userId: newUser.id,
+          companyId: companyIdNum,
+          teamId: teamIdNum,
+          contractualHours: contractHoursPerWeek || 35,
+          isActive: status === "actif" || status === "active" || status !== "inactif",
         },
-      ],
-      { session }
-    );
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            }
+          }
+        }
+      });
 
-    // Créer l'employé associé
-    const newEmployee = await EmployeeModel.create(
-      [
-        {
-          firstName,
-          lastName,
-          email,
-          teamId,
-          companyId,
-          contractHoursPerWeek: contractHoursPerWeek || 35,
-          status: status || "actif",
-          userId: newUser[0]._id, // Association avec l'utilisateur créé
-        },
-      ],
-      { session }
-    );
+      return { newUser, newEmployee };
+    });
 
-    // Valider la transaction
-    await session.commitTransaction();
-    session.endSession();
-
-    // Préparer la réponse sans inclure les informations sensibles
+    // Préparer la réponse
     const response = {
       employee: {
-        _id: newEmployee[0]._id,
-        firstName: newEmployee[0].firstName,
-        lastName: newEmployee[0].lastName,
-        email: newEmployee[0].email,
-        teamId: newEmployee[0].teamId,
-        companyId: newEmployee[0].companyId,
-        contractHoursPerWeek: newEmployee[0].contractHoursPerWeek,
-        status: newEmployee[0].status,
-        userId: newEmployee[0].userId,
+        _id: result.newEmployee.id,
+        id: result.newEmployee.id,
+        firstName: result.newEmployee.user.firstName,
+        lastName: result.newEmployee.user.lastName,
+        email: result.newEmployee.user.email,
+        teamId: result.newEmployee.teamId,
+        companyId: result.newEmployee.companyId,
+        contractHoursPerWeek: result.newEmployee.contractualHours,
+        status: result.newEmployee.isActive ? "actif" : "inactif",
+        userId: result.newEmployee.userId,
       },
       user: {
-        _id: newUser[0]._id,
-        firstName: newUser[0].firstName,
-        lastName: newUser[0].lastName,
-        email: newUser[0].email,
-        role: newUser[0].role,
-        isEmailVerified: newUser[0].isEmailVerified,
+        _id: result.newUser.id,
+        id: result.newUser.id,
+        firstName: result.newUser.firstName,
+        lastName: result.newUser.lastName,
+        email: result.newUser.email,
+        role: result.newUser.role,
+        isEmailVerified: result.newUser.isEmailVerified,
       },
     };
 
@@ -243,10 +344,6 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       data: response,
     });
   } catch (error) {
-    // En cas d'erreur, annuler la transaction
-    await session.abortTransaction();
-    session.endSession();
-
     console.error("Erreur création employé et utilisateur:", error);
     return res.status(500).json({
       success: false,
@@ -270,7 +367,7 @@ router.post(
   authenticateToken,
   checkRole(["directeur", "manager"]),
   async (req: AuthRequest, res: Response) => {
-    // Extraction des champs de la requête
+    // Extraction des champs
     const {
       firstName,
       lastName,
@@ -290,7 +387,7 @@ router.post(
       });
     }
 
-    // Validation du rôle selon le rôle de l'utilisateur qui fait la demande
+    // Validation du rôle selon le rôle de l'utilisateur
     let validRoles: string[] = [];
     if (req.user?.role === "directeur") {
       validRoles = ["employee", "manager", "directeur"];
@@ -301,14 +398,12 @@ router.post(
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: `Rôle invalide. Valeurs acceptées pour votre rôle : ${validRoles.join(
-          ", "
-        )}`,
+        message: `Rôle invalide. Valeurs acceptées pour votre rôle : ${validRoles.join(", ")}`,
       });
     }
 
-    // Vérification de l'ID d'entreprise selon le rôle
-    let companyId = "";
+    // Vérification de l'ID d'entreprise
+    let companyId = 0;
     if (req.user?.role === "directeur") {
       if (!req.user?.companyId) {
         return res.status(400).json({
@@ -318,52 +413,48 @@ router.post(
       }
       companyId = req.user.companyId;
     } else if (req.user?.role === "manager") {
-      // Pour un manager, on récupère l'entreprise via ses équipes
-      if (!req.user?.teamIds || req.user.teamIds.length === 0) {
+      // Pour un manager, récupérer l'entreprise via ses équipes gérées
+      const managerTeam = await prisma.team.findFirst({
+        where: { managerId: req.user.id },
+        select: { companyId: true }
+      });
+
+      if (!managerTeam) {
         return res.status(400).json({
           success: false,
           message: "Manager non assigné à des équipes",
         });
       }
-
-      // Récupérer l'ID d'entreprise via la première équipe du manager
-      const managerTeam = await TeamModel.findById(req.user.teamIds[0]).lean();
-      if (!managerTeam) {
-        return res.status(400).json({
-          success: false,
-          message: "Équipe du manager introuvable",
-        });
-      }
-      companyId = managerTeam.companyId.toString();
+      companyId = managerTeam.companyId;
     }
 
     // Pour un manager ou un employé, teamId est obligatoire
     if ((role === "manager" || role === "employee") && !teamId) {
       return res.status(400).json({
         success: false,
-        message:
-          "L'ID d'équipe est obligatoire pour créer un employé ou manager",
+        message: "L'ID d'équipe est obligatoire pour créer un employé ou manager",
       });
     }
 
-    // Validation de l'ID d'équipe si fourni
-    if (teamId && !mongoose.Types.ObjectId.isValid(teamId)) {
-      return res.status(400).json({
-        success: false,
-        message: "L'identifiant d'équipe n'est pas valide",
-      });
+    // Validation de l'ID d'équipe
+    let teamIdNum: number | null = null;
+    if (teamId) {
+      teamIdNum = parseInt(teamId, 10);
+      if (isNaN(teamIdNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "L'identifiant d'équipe n'est pas valide",
+        });
+      }
     }
-
-    // Démarrer une session pour assurer la cohérence des opérations
-    const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
       // Vérifier si l'email existe déjà
-      const existingUser = await User.findByEmail(email);
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+
       if (existingUser) {
-        await session.abortTransaction();
-        session.endSession();
         return res.status(400).json({
           success: false,
           message: "Cet email est déjà utilisé par un autre utilisateur",
@@ -371,12 +462,13 @@ router.post(
       }
 
       // Si teamId est fourni, vérifier que l'équipe existe et appartient à la même entreprise
-      if (teamId) {
-        const team = await TeamModel.findById(teamId).lean();
+      if (teamIdNum) {
+        const team = await prisma.team.findUnique({
+          where: { id: teamIdNum },
+          select: { id: true, companyId: true, managerId: true }
+        });
 
         if (!team) {
-          await session.abortTransaction();
-          session.endSession();
           return res.status(404).json({
             success: false,
             message: "Équipe introuvable",
@@ -384,38 +476,26 @@ router.post(
         }
 
         // Vérifier que l'équipe appartient à la même entreprise
-        if (team.companyId.toString() !== companyId) {
-          await session.abortTransaction();
-          session.endSession();
+        if (team.companyId !== companyId) {
           return res.status(403).json({
             success: false,
-            message:
-              "Vous ne pouvez pas créer un utilisateur dans une équipe d'une autre entreprise",
+            message: "Vous ne pouvez pas créer un utilisateur dans une équipe d'une autre entreprise",
           });
         }
 
-        // Vérification supplémentaire pour les managers : ils ne peuvent créer des employés que dans leurs équipes
-        if (req.user?.role === "manager") {
-          const isManagerOfTeam = req.user.teamIds?.some(
-            (managerTeamId: any) => managerTeamId.toString() === teamId
-          );
-
-          if (!isManagerOfTeam) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(403).json({
-              success: false,
-              message:
-                "Vous ne pouvez créer des employés que dans les équipes que vous gérez",
-            });
-          }
+        // Vérification pour les managers: ils ne peuvent créer que dans leurs équipes
+        if (req.user?.role === "manager" && team.managerId !== req.user.id) {
+          return res.status(403).json({
+            success: false,
+            message: "Vous ne pouvez créer des employés que dans les équipes que vous gérez",
+          });
         }
       }
 
-      // Normaliser le rôle pour la base de données
+      // Normaliser le rôle
       const normalizedRole = role === "employé" ? "employee" : role;
 
-      // Pour les employés, créer un utilisateur sans mot de passe et envoyer un email de bienvenue
+      // BRANCHE 1: Création d'un EMPLOYÉ avec email de bienvenue
       if (normalizedRole === "employee") {
         // Générer un token de création de mot de passe
         const createPasswordToken = crypto.randomBytes(32).toString("hex");
@@ -424,166 +504,149 @@ router.post(
           .update(createPasswordToken)
           .digest("hex");
 
-        // Créer un nouvel utilisateur sans mot de passe
-        const newUser = await User.create(
-          [
-            {
+        const result = await prisma.$transaction(async (tx) => {
+          // Créer l'utilisateur sans mot de passe
+          const newUser = await tx.user.create({
+            data: {
               firstName,
               lastName,
               email,
               role: normalizedRole,
-              status: "active",
+              isActive: true,
               isEmailVerified: false, // Sera vérifié lors de la création du mot de passe
               companyId,
-              resetPasswordToken: createPasswordTokenHash, // Réutiliser ce champ pour le token de création
+              profilePicture: photoUrl || null,
+              resetPasswordToken: createPasswordTokenHash,
               resetPasswordExpire: new Date(Date.now() + 7 * 24 * 3600000), // 7 jours
-            },
-          ],
-          { session }
-        );
+            }
+          });
 
-        // Créer l'employé associé
-        const newEmployee = await EmployeeModel.create(
-          [
-            {
-              firstName,
-              lastName,
-              email,
-              teamId,
+          // Créer l'employé associé
+          const newEmployee = await tx.employee.create({
+            data: {
+              userId: newUser.id,
               companyId,
-              contractHoursPerWeek,
-              status,
-              photoUrl,
-              userId: newUser[0]._id,
+              teamId: teamIdNum,
+              contractualHours: contractHoursPerWeek,
+              isActive: status === "actif" || status === "active" || status !== "inactif",
             },
-          ],
-          { session }
-        );
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  role: true,
+                  isEmailVerified: true,
+                }
+              }
+            }
+          });
 
-        // CORRECTION: Ajouter l'employé à l'équipe dans le tableau employeeIds
-        if (teamId) {
-          await TeamModel.findByIdAndUpdate(
-            teamId,
-            { $addToSet: { employeeIds: newEmployee[0]._id } },
-            { session }
-          );
-          console.log(
-            `✅ Employé ${firstName} ${lastName} ajouté à l'équipe ${teamId}`
-          );
-        }
+          return { newUser, newEmployee, createPasswordToken };
+        });
 
-        // Envoyer l'email de bienvenue avec le lien de création de mot de passe
-        const frontendBaseUrl =
-          process.env.FRONTEND_URL || "http://localhost:3000";
-        const createPasswordUrl = `${frontendBaseUrl}/create-password?token=${createPasswordToken}&email=${email}`;
+        // Envoyer l'email de bienvenue
+        const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        const createPasswordUrl = `${frontendBaseUrl}/create-password?token=${result.createPasswordToken}&email=${email}`;
 
         try {
           await sendEmployeeWelcomeEmail(email, firstName, createPasswordUrl);
           console.log(`📧 Email de bienvenue envoyé à ${email}`);
         } catch (emailError) {
-          console.error(
-            "Erreur lors de l'envoi de l'email de bienvenue:",
-            emailError
-          );
-          // Ne pas faire échouer la création de l'employé pour un problème d'email
+          console.error("Erreur lors de l'envoi de l'email de bienvenue:", emailError);
+          // Ne pas faire échouer la création pour un problème d'email
         }
 
-        let response: any = {
+        const response = {
           user: {
-            _id: newUser[0]._id,
-            firstName: newUser[0].firstName,
-            lastName: newUser[0].lastName,
-            email: newUser[0].email,
-            role: newUser[0].role,
-            isEmailVerified: newUser[0].isEmailVerified,
+            _id: result.newUser.id,
+            id: result.newUser.id,
+            firstName: result.newUser.firstName,
+            lastName: result.newUser.lastName,
+            email: result.newUser.email,
+            role: result.newUser.role,
+            isEmailVerified: result.newUser.isEmailVerified,
           },
           employee: {
-            _id: newEmployee[0]._id,
-            firstName: newEmployee[0].firstName,
-            lastName: newEmployee[0].lastName,
-            email: newEmployee[0].email,
-            teamId: newEmployee[0].teamId,
-            companyId: newEmployee[0].companyId,
-            contractHoursPerWeek: newEmployee[0].contractHoursPerWeek,
-            status: newEmployee[0].status,
-            userId: newEmployee[0].userId,
+            _id: result.newEmployee.id,
+            id: result.newEmployee.id,
+            firstName: result.newEmployee.user.firstName,
+            lastName: result.newEmployee.user.lastName,
+            email: result.newEmployee.user.email,
+            teamId: result.newEmployee.teamId,
+            companyId: result.newEmployee.companyId,
+            contractHoursPerWeek: result.newEmployee.contractualHours,
+            status: result.newEmployee.isActive ? "actif" : "inactif",
+            userId: result.newEmployee.userId,
           },
-          message:
-            "Un email de bienvenue a été envoyé à l'employé pour qu'il puisse créer son mot de passe.",
+          message: "Un email de bienvenue a été envoyé à l'employé pour qu'il puisse créer son mot de passe.",
         };
-
-        // Valider la transaction
-        await session.commitTransaction();
-        session.endSession();
 
         return res.status(201).json({
           success: true,
           message: "Employé créé avec succès",
           data: response,
         });
-      } else {
-        // Pour les managers et directeurs, garder l'ancien système avec mot de passe temporaire
+      }
+
+      // BRANCHE 2: Création d'un MANAGER ou DIRECTEUR avec mot de passe temporaire
+      else {
         const tempPassword = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-        // Créer un nouvel utilisateur
-        const newUser = await User.create(
-          [
-            {
+        const result = await prisma.$transaction(async (tx) => {
+          // Créer l'utilisateur
+          const newUser = await tx.user.create({
+            data: {
               firstName,
               lastName,
               email,
               password: hashedPassword,
               role: normalizedRole,
-              status: "active",
+              isActive: true,
               isEmailVerified: true,
               companyId,
-            },
-          ],
-          { session }
-        );
+              profilePicture: photoUrl || null,
+            }
+          });
 
-        let response: any = {
-          user: {
-            _id: newUser[0]._id,
-            firstName: newUser[0].firstName,
-            lastName: newUser[0].lastName,
-            email: newUser[0].email,
-            role: newUser[0].role,
-            isEmailVerified: newUser[0].isEmailVerified,
-          },
-          tempPassword,
-        };
-
-        // Traitement spécifique selon le rôle
-        if (normalizedRole === "manager") {
-          // Pour un manager, mettre à jour les équipes qu'il gère
-          if (teamId) {
-            // Ajouter cette équipe aux équipes gérées par le manager
-            newUser[0].teamIds = [teamId];
-            await newUser[0].save({ session });
-
-            // Optionnellement, mettre à jour l'équipe pour référencer ce manager
-            await TeamModel.findByIdAndUpdate(
-              teamId,
-              { managerId: newUser[0]._id },
-              { session }
-            );
+          // Si c'est un manager, mettre à jour l'équipe pour référencer ce manager
+          if (normalizedRole === "manager" && teamIdNum) {
+            await tx.team.update({
+              where: { id: teamIdNum },
+              data: { managerId: newUser.id }
+            });
           }
 
+          return { newUser, tempPassword };
+        });
+
+        const response: any = {
+          user: {
+            _id: result.newUser.id,
+            id: result.newUser.id,
+            firstName: result.newUser.firstName,
+            lastName: result.newUser.lastName,
+            email: result.newUser.email,
+            role: result.newUser.role,
+            isEmailVerified: result.newUser.isEmailVerified,
+          },
+          tempPassword: result.tempPassword,
+        };
+
+        if (normalizedRole === "manager") {
           response.manager = {
-            _id: newUser[0]._id,
-            firstName: newUser[0].firstName,
-            lastName: newUser[0].lastName,
-            email: newUser[0].email,
-            role: newUser[0].role,
-            teamIds: newUser[0].teamIds,
+            _id: result.newUser.id,
+            id: result.newUser.id,
+            firstName: result.newUser.firstName,
+            lastName: result.newUser.lastName,
+            email: result.newUser.email,
+            role: result.newUser.role,
+            managedTeamId: teamIdNum,
           };
         }
-
-        // Valider la transaction
-        await session.commitTransaction();
-        session.endSession();
 
         return res.status(201).json({
           success: true,
@@ -592,10 +655,6 @@ router.post(
         });
       }
     } catch (error) {
-      // En cas d'erreur, annuler la transaction
-      await session.abortTransaction();
-      session.endSession();
-
       console.error("Erreur création employé/manager:", error);
       return res.status(500).json({
         success: false,
@@ -617,70 +676,150 @@ router.patch(
     const { employeeId } = req.params;
     const updateData = { ...req.body };
 
-    // Extraire et supprimer le mot de passe de l'objet de mise à jour pour l'employé
+    // Extraire le mot de passe
     const { password } = updateData;
     delete updateData.password;
 
-    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+    // Validation de l'ID
+    const employeeIdNum = parseInt(employeeId, 10);
+    if (isNaN(employeeIdNum)) {
       return res
         .status(400)
         .json({ success: false, message: "Identifiant employé invalide" });
     }
 
-    // Démarrer une session pour assurer la cohérence des opérations
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
       // Récupérer l'employé pour obtenir son userId
-      const employee = await EmployeeModel.findById(employeeId);
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeIdNum },
+        select: { id: true, userId: true, companyId: true }
+      });
 
       if (!employee) {
-        await session.abortTransaction();
-        session.endSession();
         return res
           .status(404)
           .json({ success: false, message: "Employé non trouvé" });
       }
 
-      // Mettre à jour l'employé
-      const updatedEmployee = await EmployeeModel.findByIdAndUpdate(
-        employeeId,
-        updateData,
-        { new: true, lean: true, session }
-      );
+      // Préparer les données de mise à jour pour Employee
+      const employeeUpdateData: any = {};
 
-      // Si un mot de passe est fourni et que l'employé a un userId, mettre à jour l'utilisateur
-      if (password && employee.userId) {
-        // Méthode 1: Utiliser directement User.updateOne pour éviter le hook pre('save')
-        await User.updateOne(
-          { _id: employee.userId },
-          { $set: { password: await bcrypt.hash(password, 10) } },
-          { session }
-        );
-
-        // Méthode 2 (alternative): Récupérer l'utilisateur et utiliser save() (mais risque de double hashage)
-        // const user = await User.findById(employee.userId);
-        // if (user) {
-        //   user.password = password;
-        //   await user.save({ session });
-        // }
+      // Mapping des champs
+      if (updateData.contractHoursPerWeek !== undefined) {
+        employeeUpdateData.contractualHours = parseInt(updateData.contractHoursPerWeek, 10);
+      }
+      if (updateData.status !== undefined) {
+        employeeUpdateData.isActive = updateData.status === "actif" || updateData.status === "active";
+      }
+      if (updateData.teamId !== undefined) {
+        employeeUpdateData.teamId = updateData.teamId ? parseInt(updateData.teamId, 10) : null;
+      }
+      if (updateData.position !== undefined) {
+        employeeUpdateData.position = updateData.position;
+      }
+      if (updateData.skills !== undefined) {
+        employeeUpdateData.skills = updateData.skills;
       }
 
-      // Valider la transaction
-      await session.commitTransaction();
-      session.endSession();
+      // Préparer les données de mise à jour pour User
+      const userUpdateData: any = {};
+      if (updateData.firstName !== undefined) userUpdateData.firstName = updateData.firstName;
+      if (updateData.lastName !== undefined) userUpdateData.lastName = updateData.lastName;
+      if (updateData.email !== undefined) userUpdateData.email = updateData.email;
+      if (updateData.photoUrl !== undefined) userUpdateData.profilePicture = updateData.photoUrl;
+      if (password) {
+        userUpdateData.password = await bcrypt.hash(password, 10);
+      }
+
+      // Mettre à jour dans une transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Mettre à jour l'employé si nécessaire
+        let updatedEmployee = employee;
+        if (Object.keys(employeeUpdateData).length > 0) {
+          updatedEmployee = await tx.employee.update({
+            where: { id: employeeIdNum },
+            data: employeeUpdateData,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  profilePicture: true,
+                }
+              },
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              }
+            }
+          });
+        }
+
+        // Mettre à jour l'utilisateur si nécessaire
+        if (Object.keys(userUpdateData).length > 0) {
+          await tx.user.update({
+            where: { id: employee.userId },
+            data: userUpdateData
+          });
+        }
+
+        // Récupérer l'employé mis à jour avec toutes les relations
+        return await tx.employee.findUnique({
+          where: { id: employeeIdNum },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePicture: true,
+              }
+            },
+            team: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        });
+      });
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          message: "Employé non trouvé après mise à jour",
+        });
+      }
+
+      // Formater la réponse
+      const formattedEmployee = {
+        _id: result.id,
+        id: result.id,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+        email: result.user.email,
+        photoUrl: result.user.profilePicture,
+        position: result.position,
+        skills: result.skills,
+        teamId: result.team,
+        companyId: result.companyId,
+        contractHoursPerWeek: result.contractualHours,
+        status: result.isActive ? "actif" : "inactif",
+        userId: result.userId,
+      };
 
       return res.status(200).json({
         success: true,
         message: "Employé mis à jour avec succès",
-        data: updatedEmployee,
+        data: formattedEmployee,
       });
     } catch (error) {
-      // En cas d'erreur, annuler la transaction
-      await session.abortTransaction();
-      session.endSession();
-
       console.error("Erreur mise à jour employé:", error);
       return res.status(500).json({
         success: false,
@@ -701,49 +840,47 @@ router.delete(
   async (req: AuthRequest, res: Response) => {
     const { employeeId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+    // Validation de l'ID
+    const employeeIdNum = parseInt(employeeId, 10);
+    if (isNaN(employeeIdNum)) {
       return res
         .status(400)
         .json({ success: false, message: "Identifiant employé invalide" });
     }
 
-    // Démarrer une session pour assurer la cohérence des opérations
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      // Récupérer l'employé pour obtenir son userId avant suppression
-      const employee = await EmployeeModel.findById(employeeId);
+      // Récupérer l'employé pour obtenir son userId
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeIdNum },
+        select: { id: true, userId: true }
+      });
 
       if (!employee) {
-        await session.abortTransaction();
-        session.endSession();
         return res
           .status(404)
           .json({ success: false, message: "Employé non trouvé" });
       }
 
-      // Supprimer l'employé
-      await EmployeeModel.findByIdAndDelete(employeeId, { session });
+      // Supprimer dans une transaction (Employee d'abord, puis User)
+      // Note: Avec onDelete: Cascade, supprimer User supprimera automatiquement Employee
+      // Mais ici on supprime Employee d'abord pour être explicite
+      await prisma.$transaction(async (tx) => {
+        // Supprimer l'employé
+        await tx.employee.delete({
+          where: { id: employeeIdNum }
+        });
 
-      // Si l'employé avait un userId, supprimer également l'utilisateur associé
-      if (employee.userId) {
-        await User.findByIdAndDelete(employee.userId, { session });
-      }
-
-      // Valider la transaction
-      await session.commitTransaction();
-      session.endSession();
+        // Supprimer l'utilisateur associé
+        await tx.user.delete({
+          where: { id: employee.userId }
+        });
+      });
 
       return res.status(200).json({
         success: true,
         message: "Employé et utilisateur associé supprimés avec succès",
       });
     } catch (error) {
-      // En cas d'erreur, annuler la transaction
-      await session.abortTransaction();
-      session.endSession();
-
       console.error("Erreur suppression employé et utilisateur:", error);
       return res.status(500).json({
         success: false,
@@ -770,13 +907,35 @@ router.get(
         });
       }
 
-      const userId = req.user.userId || req.user._id || req.user.id;
+      const userId = req.user.id;
 
       // Récupérer l'employé basé sur le userId
-      const employee = await EmployeeModel.findOne({ userId })
-        .populate("teamId", "name")
-        .populate("companyId", "name")
-        .lean();
+      const employee = await prisma.employee.findUnique({
+        where: { userId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            }
+          },
+          team: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
+          company: {
+            select: {
+              id: true,
+              name: true,
+            }
+          }
+        }
+      });
 
       if (!employee) {
         return res.status(404).json({
@@ -785,9 +944,26 @@ router.get(
         });
       }
 
+      // Formater la réponse
+      const formattedEmployee = {
+        _id: employee.id,
+        id: employee.id,
+        firstName: employee.user.firstName,
+        lastName: employee.user.lastName,
+        email: employee.user.email,
+        photoUrl: employee.user.profilePicture,
+        position: employee.position,
+        skills: employee.skills,
+        teamId: employee.team,
+        companyId: employee.company,
+        contractHoursPerWeek: employee.contractualHours,
+        status: employee.isActive ? "actif" : "inactif",
+        userId: employee.userId,
+      };
+
       return res.status(200).json({
         success: true,
-        data: employee,
+        data: formattedEmployee,
       });
     } catch (error) {
       console.error("Erreur lors de la récupération du profil employé:", error);

@@ -1,65 +1,74 @@
 /**
- * Routes pour la gestion des équipes
+ * Routes pour la gestion des équipes - SmartPlanning
+ *
+ * MIGRATION POSTGRESQL: Migré de Mongoose vers Prisma ORM
  *
  * Ce fichier contient les routes permettant :
- * - de récupérer les équipes d'un manager
+ * - de récupérer les équipes selon le rôle
  * - de créer une équipe
  * - de mettre à jour une équipe
  * - de supprimer une équipe
  * - de récupérer une équipe par ID
  * - de récupérer les équipes d'une entreprise (directeur/admin)
+ * - de récupérer les employés d'une équipe
  */
 
 import express, { Response } from "express";
-import mongoose from "mongoose";
 import authenticateToken, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
-import { TeamModel } from "../models/Team.model";
+import prisma from "../config/prisma";
 
 const router = express.Router();
 
 /**
  * @route   GET /api/teams
  * @desc    Récupérer les équipes selon le rôle de l'utilisateur:
- *          - Manager: équipes dont il est manager
- *          - Directeur: toutes les équipes de son entreprise
+ *          - Manager/Directeur: toutes les équipes de son entreprise
  * @access  Private
+ * @note    PostgreSQL: managerIds supprimé (simplified architecture)
  */
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user || !req.user._id) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
         message: "Utilisateur non authentifié ou identification invalide",
       });
     }
 
-    let teams;
-
-    if (req.user.role === "directeur") {
-      // Directeur: récupérer toutes les équipes de son entreprise
-      if (!req.user.companyId) {
-        return res.status(400).json({
-          success: false,
-          message: "ID d'entreprise manquant pour le directeur",
-        });
-      }
-
-      teams = await TeamModel.find({ companyId: req.user.companyId })
-        .populate("managerIds", "firstName lastName email photoUrl")
-        .populate("employeeIds", "firstName lastName email photoUrl");
-
-      console.log(
-        `Directeur ${req.user._id}: ${teams.length} équipes trouvées pour l'entreprise ${req.user.companyId}`
-      );
-    } else {
-      // Manager: récupérer seulement les équipes dont il est manager
-      teams = await TeamModel.find({ managerIds: req.user._id })
-        .populate("managerIds", "firstName lastName email photoUrl")
-        .populate("employeeIds", "firstName lastName email photoUrl");
-
-      console.log(`Manager ${req.user._id}: ${teams.length} équipes trouvées`);
+    if (!req.user.companyId) {
+      return res.status(400).json({
+        success: false,
+        message: "ID d'entreprise manquant",
+      });
     }
+
+    // Récupérer toutes les équipes de l'entreprise avec leurs employés
+    const teams = await prisma.team.findMany({
+      where: { companyId: req.user.companyId },
+      include: {
+        employees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePicture: true,
+          }
+        },
+        company: {
+          select: {
+            id: true,
+            name: true,
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    console.log(
+      `${req.user.role} ${req.user.id}: ${teams.length} équipes trouvées pour l'entreprise ${req.user.companyId}`
+    );
 
     return res.status(200).json({
       success: true,
@@ -86,14 +95,14 @@ router.get(
   checkRole(["directeur", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
-      // 🔐 Vérification des paramètres
       const { companyId } = req.params;
       console.log(
         `[GET /teams/company/:companyId] Recherche des équipes pour l'entreprise: ${companyId}`
       );
 
-      // ✅ Validation de l'identifiant d'entreprise
-      if (!mongoose.Types.ObjectId.isValid(companyId)) {
+      // Validation de l'identifiant d'entreprise
+      const companyIdNum = parseInt(companyId, 10);
+      if (isNaN(companyIdNum)) {
         console.log(
           `[GET /teams/company/:companyId] ID d'entreprise invalide: ${companyId}`
         );
@@ -103,10 +112,10 @@ router.get(
         });
       }
 
-      // 🔍 Restriction d'accès pour les directeurs (uniquement leur propre entreprise)
-      if (req.user.role === "directeur" && req.user.companyId !== companyId) {
+      // Restriction d'accès pour les directeurs (uniquement leur propre entreprise)
+      if (req.user.role === "directeur" && req.user.companyId !== companyIdNum) {
         console.log(
-          `[GET /teams/company/:companyId] Tentative d'accès non autorisé: le directeur (${req.user._id}) tente d'accéder à une autre entreprise (${companyId})`
+          `[GET /teams/company/:companyId] Tentative d'accès non autorisé: le directeur (${req.user.id}) tente d'accéder à une autre entreprise (${companyId})`
         );
         return res.status(403).json({
           success: false,
@@ -115,23 +124,32 @@ router.get(
         });
       }
 
-      // 🧠 Récupération des équipes de l'entreprise
-      const teams = await TeamModel.find({ companyId })
-        .populate("managerIds", "firstName lastName email photoUrl")
-        .populate("employeeIds", "firstName lastName email photoUrl")
-        .lean();
+      // Récupération des équipes de l'entreprise
+      const teams = await prisma.team.findMany({
+        where: { companyId: companyIdNum },
+        include: {
+          employees: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            }
+          }
+        },
+        orderBy: { name: 'asc' }
+      });
 
       console.log(
         `[GET /teams/company/:companyId] ${teams.length} équipes trouvées pour l'entreprise ${companyId}`
       );
 
-      // ✅ Retour des données
       return res.status(200).json({
         success: true,
         data: teams,
       });
     } catch (error) {
-      // ⚠️ Gestion des erreurs
       console.error("[GET /teams/company/:companyId] Erreur:", error);
       return res.status(500).json({
         success: false,
@@ -144,13 +162,13 @@ router.get(
 
 /**
  * @route   POST /api/teams
- * @desc    Créer une nouvelle équipe pour le manager connecté
+ * @desc    Créer une nouvelle équipe
  * @access  Private
  */
 router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   const { name, companyId } = req.body;
 
-  if (!req.user || !req.user._id) {
+  if (!req.user || !req.user.id) {
     return res.status(401).json({
       success: false,
       message: "Utilisateur non authentifié",
@@ -165,11 +183,29 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const newTeam = await TeamModel.create({
-      name,
-      companyId,
-      managerIds: [req.user._id],
-      employeeIds: [],
+    const companyIdNum = parseInt(companyId, 10);
+    if (isNaN(companyIdNum)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID d'entreprise invalide",
+      });
+    }
+
+    const newTeam = await prisma.team.create({
+      data: {
+        name: name.trim(),
+        companyId: companyIdNum,
+      },
+      include: {
+        employees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          }
+        }
+      }
     });
 
     return res.status(201).json({
@@ -198,7 +234,8 @@ router.patch(
     const { id } = req.params;
     const { name } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    const idNum = parseInt(id, 10);
+    if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
         message: "ID d'équipe invalide",
@@ -213,29 +250,38 @@ router.patch(
     }
 
     try {
-      const updatedTeam = await TeamModel.findByIdAndUpdate(
-        id,
-        { name },
-        { new: true }
-      );
+      const updatedTeam = await prisma.team.update({
+        where: { id: idNum },
+        data: { name: name.trim() },
+        include: {
+          employees: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          }
+        }
+      });
 
-      if (!updatedTeam) {
+      return res.status(200).json({
+        success: true,
+        data: updatedTeam,
+      });
+    } catch (error: any) {
+      console.error("Erreur mise à jour équipe:", error);
+
+      if (error.code === 'P2025') {
         return res.status(404).json({
           success: false,
           message: "Équipe non trouvée",
         });
       }
 
-      return res.status(200).json({
-        success: true,
-        data: updatedTeam,
-      });
-    } catch (error) {
-      console.error("Erreur mise à jour équipe:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la mise à jour de l'équipe",
-        error: (error as Error).message,
+        error: error.message,
       });
     }
   }
@@ -252,7 +298,8 @@ router.delete(
   async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    const idNum = parseInt(id, 10);
+    if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
         message: "ID d'équipe invalide",
@@ -260,25 +307,28 @@ router.delete(
     }
 
     try {
-      const deletedTeam = await TeamModel.findByIdAndDelete(id);
+      await prisma.team.delete({
+        where: { id: idNum }
+      });
 
-      if (!deletedTeam) {
+      return res.status(200).json({
+        success: true,
+        message: "Équipe supprimée avec succès",
+      });
+    } catch (error: any) {
+      console.error("Erreur suppression équipe:", error);
+
+      if (error.code === 'P2025') {
         return res.status(404).json({
           success: false,
           message: "Équipe non trouvée",
         });
       }
 
-      return res.status(200).json({
-        success: true,
-        message: "Équipe supprimée avec succès",
-      });
-    } catch (error) {
-      console.error("Erreur suppression équipe:", error);
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la suppression de l'équipe",
-        error: (error as Error).message,
+        error: error.message,
       });
     }
   }
@@ -296,16 +346,34 @@ router.get(
     try {
       const { id } = req.params;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
         return res.status(400).json({
           success: false,
           message: "ID d'équipe invalide",
         });
       }
 
-      const team = await TeamModel.findById(id)
-        .populate("managerIds", "firstName lastName email photoUrl")
-        .populate("employeeIds", "firstName lastName email photoUrl");
+      const team = await prisma.team.findUnique({
+        where: { id: idNum },
+        include: {
+          employees: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            }
+          },
+          company: {
+            select: {
+              id: true,
+              name: true,
+            }
+          }
+        }
+      });
 
       if (!team) {
         return res.status(404).json({
@@ -338,7 +406,7 @@ router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur
   try {
     const { id } = req.params;
 
-    if (!req.user || !req.user._id) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
         message: "Utilisateur non authentifié",
@@ -346,7 +414,8 @@ router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur
     }
 
     // Validation de l'ID de l'équipe
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    const idNum = parseInt(id, 10);
+    if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
         message: "ID d'équipe invalide",
@@ -354,9 +423,25 @@ router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur
     }
 
     // Récupération de l'équipe avec ses employés
-    const team = await TeamModel.findById(id)
-      .populate("employeeIds", "firstName lastName email photoUrl")
-      .lean();
+    const team = await prisma.team.findUnique({
+      where: { id: idNum },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        employees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePicture: true,
+            position: true,
+            skills: true,
+          }
+        }
+      }
+    });
 
     if (!team) {
       return res.status(404).json({
@@ -366,13 +451,11 @@ router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur
     }
 
     // Vérification des droits d'accès
-    const userIsManager = team.managerIds.some(
-      (managerId) => managerId.toString() === req.user._id.toString()
-    );
     const userIsDirecteur =
       req.user.role === "directeur" &&
-      req.user.companyId === team.companyId?.toString();
+      req.user.companyId === team.companyId;
     const userIsAdmin = req.user.role === "admin";
+    const userIsManager = req.user.role === "manager" && req.user.companyId === team.companyId;
 
     if (!userIsManager && !userIsDirecteur && !userIsAdmin) {
       return res.status(403).json({
@@ -381,11 +464,11 @@ router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur
       });
     }
 
-    console.log(`[GET /teams/${id}/employees] ${team.employeeIds.length} employés trouvés`);
+    console.log(`[GET /teams/${id}/employees] ${team.employees.length} employés trouvés`);
 
     return res.status(200).json({
       success: true,
-      data: team.employeeIds,
+      data: team.employees,
     });
   } catch (error) {
     console.error("Erreur lors de la récupération des employés:", error);

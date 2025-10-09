@@ -1,8 +1,8 @@
 import express, { Request, Response } from "express";
-import mongoose from "mongoose";
-import EmployeeModel from "../../models/Employee.model";
-import User from "../../models/User.model";
+import prisma from "../../config/prisma";
+import { AuthRequest } from "../../middlewares/auth.middleware";
 import { generateTemporaryPassword } from "../../utils/password";
+import bcrypt from "bcrypt";
 
 const router = express.Router();
 
@@ -11,52 +11,43 @@ type UserRole = "admin" | "manager" | "employee" | string;
 
 // Middleware de synchronisation User -> Employee
 const syncUserToEmployee = async (
-  userId: string,
-  teamId?: string
+  userId: number,
+  teamId?: number
 ): Promise<void> => {
   try {
     // Vérifier si l'utilisateur existe
-    const user = await User.findById(userId);
-    if (!user || user.role.toString() !== "employee") {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user || user.role !== "employee") {
       return;
     }
 
     // Vérifier si un employee existe déjà avec ce userId
-    const existingEmployee = await EmployeeModel.findOne({ userId: userId });
+    const existingEmployee = await prisma.employee.findUnique({
+      where: { userId: userId }
+    });
+
     if (existingEmployee) {
       return;
     }
 
     // Créer un nouvel employee
-    const newEmployee = new EmployeeModel({
-      firstName: user.firstName,
-      lastName: user.lastName,
-      companyId: user.companyId,
-      status: user.status === "active" ? "actif" : "inactif",
-      userId: user._id,
-      contractHoursPerWeek: 35,
-      teamId: teamId || null,
-      source: "auto",
+    const newEmployee = await prisma.employee.create({
+      data: {
+        userId: user.id,
+        companyId: user.companyId!,
+        teamId: teamId || null,
+        contractualHours: 35,
+        isActive: user.isActive,
+        position: null,
+        skills: [],
+      }
     });
 
-    // Sauvegarder l'employee
-    const savedEmployee = await newEmployee.save();
-
-    // Si un teamId est fourni, ajouter l'employé à l'équipe
-    if (teamId && mongoose.Types.ObjectId.isValid(teamId)) {
-      const TeamModel = mongoose.model("Team");
-      await TeamModel.findByIdAndUpdate(
-        teamId,
-        { $addToSet: { employeeIds: savedEmployee._id } },
-        { new: true }
-      );
-      console.log(
-        `✅ Employé ${user.firstName} ${user.lastName} ajouté à l'équipe ${teamId}`
-      );
-    }
-
     console.log(
-      `✅ Employee créé automatiquement pour le user ${user.firstName} ${user.lastName} (ID: ${user._id})`
+      `✅ Employee créé automatiquement pour le user ${user.firstName} ${user.lastName} (ID: ${user.id})`
     );
   } catch (error) {
     console.error(
@@ -95,8 +86,20 @@ router.post(
         });
       }
 
+      // Validation de l'ID de l'entreprise
+      const companyIdNum = parseInt(companyId, 10);
+      if (isNaN(companyIdNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "L'identifiant de l'entreprise n'est pas valide",
+        });
+      }
+
       // Vérifier si l'email existe déjà
-      const existingUser = await User.findOne({ email });
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -105,8 +108,10 @@ router.post(
       }
 
       // Si un teamId est fourni pour un employé, vérifier qu'il est valide
+      let validatedTeamId: number | undefined;
       if (teamId && role === "employee") {
-        if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        const teamIdNum = parseInt(teamId, 10);
+        if (isNaN(teamIdNum)) {
           return res.status(400).json({
             success: false,
             message: "L'identifiant d'équipe n'est pas valide",
@@ -114,56 +119,62 @@ router.post(
         }
 
         // Vérifier que l'équipe existe et appartient à la même entreprise
-        const TeamModel = mongoose.model("Team");
-        const team = await TeamModel.findById(teamId);
+        const team = await prisma.team.findUnique({
+          where: { id: teamIdNum }
+        });
+
         if (!team) {
           return res.status(400).json({
             success: false,
             message: "L'équipe spécifiée n'existe pas",
           });
         }
-        if (team.companyId.toString() !== companyId) {
+
+        if (team.companyId !== companyIdNum) {
           return res.status(400).json({
             success: false,
             message: "L'équipe n'appartient pas à l'entreprise spécifiée",
           });
         }
+
+        validatedTeamId = teamIdNum;
       }
 
-      // Créer le nouvel utilisateur
-      const newUser = new User({
-        firstName,
-        lastName,
-        email,
-        role,
-        companyId,
-        photoUrl: photoUrl || undefined,
-        status: "active",
-      });
-
       // Gestion du mot de passe
+      let hashedPassword: string;
       if (password) {
         // Utiliser le mot de passe fourni
-        newUser.password = password; // Le modèle s'occupe du hashing via pre-save hook
+        hashedPassword = await bcrypt.hash(password, 10);
       } else {
         // Générer un mot de passe temporaire
         const tempPassword = generateTemporaryPassword();
-        newUser.password = tempPassword;
+        hashedPassword = await bcrypt.hash(tempPassword, 10);
 
         // TODO: Envoyer un email avec le mot de passe temporaire
         // sendWelcomeEmail(email, firstName, tempPassword);
       }
 
-      // Sauvegarder l'utilisateur
-      const savedUser = await newUser.save();
+      // Créer le nouvel utilisateur
+      const newUser = await prisma.user.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          role,
+          companyId: companyIdNum,
+          password: hashedPassword,
+          profilePicture: photoUrl || null,
+          isActive: true,
+        }
+      });
 
       // Si l'utilisateur a le rôle "employee", créer automatiquement un employee associé avec l'équipe
-      if (role.toString() === "employee") {
-        await syncUserToEmployee(savedUser._id.toString(), teamId);
+      if (role === "employee") {
+        await syncUserToEmployee(newUser.id, validatedTeamId);
       }
 
       // Retourner la réponse sans le mot de passe
-      const { password: _, ...userResponse } = savedUser.toObject();
+      const { password: _, ...userResponse } = newUser;
 
       return res.status(201).json({
         success: true,
@@ -192,8 +203,20 @@ router.put(
       const { id } = req.params;
       const { firstName, lastName, email, role, photoUrl } = req.body;
 
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID utilisateur invalide",
+        });
+      }
+
       // Vérifier si l'utilisateur existe
-      const user = await User.findById(id);
+      const user = await prisma.user.findUnique({
+        where: { id: idNum }
+      });
+
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -203,7 +226,10 @@ router.put(
 
       // Vérifier si l'email est déjà utilisé par un autre utilisateur
       if (email && email !== user.email) {
-        const existingUser = await User.findOne({ email, _id: { $ne: id } });
+        const existingUser = await prisma.user.findUnique({
+          where: { email }
+        });
+
         if (existingUser) {
           return res.status(400).json({
             success: false,
@@ -212,28 +238,35 @@ router.put(
         }
       }
 
-      // Mise à jour des champs modifiés
-      if (firstName) user.firstName = firstName;
-      if (lastName) user.lastName = lastName;
-      if (email) user.email = email;
-      if (role) user.role = role;
-      if (photoUrl !== undefined) user.photoUrl = photoUrl || undefined;
+      // Préparer les données de mise à jour
+      const updateData: any = {};
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (email !== undefined) updateData.email = email;
+      if (role !== undefined) updateData.role = role;
+      if (photoUrl !== undefined) updateData.profilePicture = photoUrl || null;
 
-      // Sauvegarder les modifications
-      await user.save();
+      // Mettre à jour l'utilisateur
+      const updatedUser = await prisma.user.update({
+        where: { id: idNum },
+        data: updateData
+      });
 
       // Retourner l'utilisateur modifié (sans le mot de passe)
-      const userResponse = user.toObject() as any;
-      if ("password" in userResponse) {
-        delete userResponse.password;
-      }
+      const { password: _, ...userResponse } = updatedUser;
 
       return res.status(200).json({
         success: true,
         user: userResponse,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la modification de l'utilisateur:", error);
+      if (error.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la modification de l'utilisateur",
@@ -254,10 +287,34 @@ router.get(
 
     if (role && companyId) {
       try {
-        const users = await User.find({
-          role,
-          companyId: companyId.toString(),
+        // Validation de l'ID de l'entreprise
+        const companyIdNum = parseInt(companyId as string, 10);
+        if (isNaN(companyIdNum)) {
+          return res.status(400).json({
+            success: false,
+            message: "L'identifiant de l'entreprise n'est pas valide",
+          });
+        }
+
+        const users = await prisma.user.findMany({
+          where: {
+            role: role as string,
+            companyId: companyIdNum,
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            companyId: true,
+            profilePicture: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          }
         });
+
         return res.status(200).json({
           success: true,
           users,
@@ -288,7 +345,22 @@ router.get(
   "/",
   async (req: Request, res: Response) => {
     try {
-      const users = await User.find().sort({ createdAt: -1 });
+      const users = await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+          companyId: true,
+          profilePicture: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      });
+
       res.json({
         success: true,
         users,
@@ -313,8 +385,20 @@ router.delete(
     try {
       const { id } = req.params;
 
+      // Validation de l'ID
+      const idNum = parseInt(id, 10);
+      if (isNaN(idNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID utilisateur invalide",
+        });
+      }
+
       // Vérifier si l'utilisateur existe
-      const user = await User.findById(id);
+      const user = await prisma.user.findUnique({
+        where: { id: idNum }
+      });
+
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -322,15 +406,23 @@ router.delete(
         });
       }
 
-      // Supprimer l'utilisateur
-      await User.findByIdAndDelete(id);
+      // Supprimer l'utilisateur (cascade delete géré par Prisma)
+      await prisma.user.delete({
+        where: { id: idNum }
+      });
 
       return res.status(200).json({
         success: true,
         message: "Utilisateur supprimé avec succès",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      if (error.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
       return res.status(500).json({
         success: false,
         message: "Erreur serveur lors de la suppression de l'utilisateur",
@@ -339,14 +431,11 @@ router.delete(
   }
 );
 
-// Middleware post-save (alternative)
-// À configurer au niveau de l'application principale
+// Fonction exportée pour configurer la synchronisation automatique
 export const configureUserEmployeeSync = (): void => {
-  User.schema.post("save", async function (doc) {
-    if (doc.role.toString() === "employee") {
-      await syncUserToEmployee(doc._id.toString());
-    }
-  });
+  console.log("Configuration de la synchronisation User-Employee activée");
+  // Note: Avec Prisma, la synchronisation est gérée manuellement dans les routes
+  // contrairement à Mongoose qui utilise des hooks
 };
 
 export default router;
