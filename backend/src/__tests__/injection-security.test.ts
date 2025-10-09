@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../app';
-import User from '../models/User.model';
+import prisma from '../config/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -9,19 +9,36 @@ describe('Tests de sécurité contre les injections', () => {
   let adminToken: string;
 
   beforeEach(async () => {
-    adminUser = await User.create({
-      lastName: 'Admin',
-      firstName: 'Security',
-      email: 'admin@security.com',
-      password: 'password123',
-      role: 'admin'
+    // Nettoyer avant chaque test
+    await prisma.user.deleteMany({
+      where: { email: 'admin@security.com' }
+    });
+
+    // Hasher le mot de passe manuellement
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
+    adminUser = await prisma.user.create({
+      data: {
+        lastName: 'Admin',
+        firstName: 'Security',
+        email: 'admin@security.com',
+        password: hashedPassword,
+        role: 'admin'
+      }
     });
 
     adminToken = jwt.sign(
-      { userId: adminUser._id, email: adminUser.email, role: adminUser.role },
+      { user: { id: adminUser.id, email: adminUser.email, role: adminUser.role } },
       process.env.JWT_SECRET!,
       { expiresIn: '1h' }
     );
+  });
+
+  afterEach(async () => {
+    // Nettoyer après chaque test
+    await prisma.user.deleteMany({
+      where: { email: 'admin@security.com' }
+    });
   });
 
   describe('Protection contre l\'injection NoSQL', () => {

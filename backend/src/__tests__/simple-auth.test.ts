@@ -1,18 +1,36 @@
 import request from 'supertest';
 import app from '../app';
-import User from '../models/User.model';
+import prisma from '../config/prisma';
+import bcrypt from 'bcrypt';
 
 describe('Tests d\'authentification simplifiés', () => {
   let testUser: any;
 
   beforeEach(async () => {
+    // Nettoyer avant chaque test
+    await prisma.user.deleteMany({
+      where: { email: 'test@simple.com' }
+    });
+
+    // Hasher le mot de passe manuellement
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
     // Créer un utilisateur de test
-    testUser = await User.create({
-      lastName: 'Test',
-      firstName: 'User',
-      email: 'test@simple.com',
-      password: 'password123',
-      role: 'admin'
+    testUser = await prisma.user.create({
+      data: {
+        lastName: 'Test',
+        firstName: 'User',
+        email: 'test@simple.com',
+        password: hashedPassword,
+        role: 'admin'
+      }
+    });
+  });
+
+  afterEach(async () => {
+    // Nettoyer après chaque test
+    await prisma.user.deleteMany({
+      where: { email: 'test@simple.com' }
     });
   });
 

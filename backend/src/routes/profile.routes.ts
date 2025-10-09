@@ -26,7 +26,7 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
     console.log("🔍 Utilisateur authentifié:", req.user);
 
     // L'utilisateur est déjà vérifié par le middleware authMiddleware
-    const userId = req.user?._id;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({

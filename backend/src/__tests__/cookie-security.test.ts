@@ -1,18 +1,35 @@
 import request from 'supertest';
 import app from '../app';
-import User from '../models/User.model';
+import prisma from '../config/prisma';
 import bcrypt from 'bcrypt';
 
 describe('Tests de sécurité des cookies httpOnly', () => {
   let testUser: any;
 
   beforeEach(async () => {
-    testUser = await User.create({
-      lastName: 'Test',
-      firstName: 'User',
-      email: 'test@security.com',
-      password: 'password123',
-      role: 'admin'
+    // Nettoyer avant chaque test
+    await prisma.user.deleteMany({
+      where: { email: 'test@security.com' }
+    });
+
+    // Hasher le mot de passe manuellement
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
+    testUser = await prisma.user.create({
+      data: {
+        lastName: 'Test',
+        firstName: 'User',
+        email: 'test@security.com',
+        password: hashedPassword,
+        role: 'admin'
+      }
+    });
+  });
+
+  afterEach(async () => {
+    // Nettoyer après chaque test
+    await prisma.user.deleteMany({
+      where: { email: 'test@security.com' }
     });
   });
 

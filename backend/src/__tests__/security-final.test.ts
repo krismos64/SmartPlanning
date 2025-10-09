@@ -1,23 +1,43 @@
 import request from 'supertest';
 import app from '../app';
-import User from '../models/User.model';
+import prisma from '../config/prisma';
+import bcrypt from 'bcrypt';
 
 describe('🛡️ Tests de Sécurité Finaux - SmartPlanning', () => {
   let testUsers: any = {};
 
   beforeEach(async () => {
+    // Nettoyer avant chaque test
+    const emails = ['admin@security-test.com', 'manager@security-test.com', 'employee@security-test.com'];
+    await prisma.user.deleteMany({
+      where: { email: { in: emails } }
+    });
+
+    // Hasher le mot de passe manuellement
+    const hashedPassword = await bcrypt.hash('SecurePass123!', 10);
+
     // Créer des utilisateurs de test pour différents rôles
     const roles = ['admin', 'manager', 'employee'];
-    
+
     for (const role of roles) {
-      testUsers[role] = await User.create({
-        lastName: `Test ${role}`,
-        firstName: 'Security',
-        email: `${role}@security-test.com`,
-        password: 'SecurePass123!',
-        role: role
+      testUsers[role] = await prisma.user.create({
+        data: {
+          lastName: `Test ${role}`,
+          firstName: 'Security',
+          email: `${role}@security-test.com`,
+          password: hashedPassword,
+          role: role
+        }
       });
     }
+  });
+
+  afterEach(async () => {
+    // Nettoyer après chaque test
+    const emails = ['admin@security-test.com', 'manager@security-test.com', 'employee@security-test.com'];
+    await prisma.user.deleteMany({
+      where: { email: { in: emails } }
+    });
   });
 
   describe('🔐 Authentification et Cookies de Sécurité', () => {

@@ -151,7 +151,7 @@ export const cacheCompanyStats = cacheMiddleware({
 export const cacheUserPermissions = cacheMiddleware({
   keyType: CacheKeyType.USER_PERMISSIONS,
   keyGenerator: (req: AuthRequest) => {
-    return CacheHelpers.userPermissionsKey(req.user?.id || req.user?._id);
+    return CacheHelpers.userPermissionsKey(req.user?.id);
   },
   ttl: CacheHelpers.getTTL(CacheKeyType.USER_PERMISSIONS),
   skipCache: (req) => req.method !== 'GET'

@@ -134,14 +134,14 @@ router.post(
       });
 
       // 🔒 Vérification authentification
-      if (!req.user || (!req.user.userId && !req.user.id && !req.user._id)) {
+      if (!req.user || (!req.user.userId && !req.user.id)) {
         return res.status(400).json({
           message: "Utilisateur non authentifié (updatedBy manquant)",
         });
       }
 
       const authenticatedUserId =
-        req.user.userId || req.user.id || req.user._id;
+        req.user.userId || req.user.id;
 
       // MIGRATION: Parse userId en number
       const createdById = parseId(authenticatedUserId, "userId");
@@ -382,7 +382,7 @@ router.get(
       const isAdmin = req.user.role === "admin";
       const isEmployee = req.user.role === "employee";
       const userCompanyId = req.user.companyId;
-      const userId = req.user.userId || req.user._id || req.user.id;
+      const userId = req.user.userId || req.user.id;
 
       if (!isAdmin && !userCompanyId) {
         return res.status(401).json({
@@ -666,7 +666,7 @@ router.put(
 
       console.log("MIGRATION: Mise à jour planning", { id });
 
-      if (!req.user || (!req.user.userId && !req.user.id && !req.user._id)) {
+      if (!req.user || (!req.user.userId && !req.user.id)) {
         return res.status(400).json({
           message: "Utilisateur non authentifié",
         });
@@ -825,7 +825,7 @@ router.get(
       }
 
       const isEmployee = req.user.role === "employee";
-      const userId = req.user.userId || req.user._id || req.user.id;
+      const userId = req.user.userId || req.user.id;
 
       // MIGRATION: Parse id en number
       const scheduleId = parseId(id, "scheduleId");
@@ -1179,7 +1179,7 @@ router.get(
       const isAdmin = req.user.role === "admin";
       const isEmployee = req.user.role === "employee";
       const userCompanyId = req.user.companyId;
-      const userId = req.user.userId || req.user._id || req.user.id;
+      const userId = req.user.userId || req.user.id;
 
       // MIGRATION: Parse employeeId
       const employeeIdNum = parseId(employeeId, "employeeId");

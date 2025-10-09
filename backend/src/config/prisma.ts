@@ -11,7 +11,7 @@
  * - Support hot reload (ts-node-dev)
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 // Type pour le global avec Prisma
 declare global {
@@ -22,10 +22,10 @@ declare global {
 /**
  * Configuration Prisma Client avec logging adapté à l'environnement
  */
-const prismaClientOptions = {
+const prismaClientOptions: Prisma.PrismaClientOptions = {
   log: process.env.NODE_ENV === 'development'
-    ? ['query', 'error', 'warn'] as const
-    : ['error'] as const,
+    ? ['query', 'error', 'warn']
+    : ['error'],
 };
 
 /**

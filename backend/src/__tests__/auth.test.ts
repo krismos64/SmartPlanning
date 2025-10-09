@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../app';
-import User from '../models/User.model';
+import prisma from '../config/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -13,50 +13,78 @@ describe('Tests d\'authentification et autorisation', () => {
   let employeeToken: string;
 
   beforeEach(async () => {
+    // Nettoyer la base de données avant chaque test
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          in: ['admin@test.com', 'manager@test.com', 'employee@test.com']
+        }
+      }
+    });
+
+    // Hasher le mot de passe manuellement (Prisma n'a pas de hook pre-save)
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
     // Créer des utilisateurs de test avec différents rôles
-    // Utiliser le mot de passe en clair - le hachage sera fait automatiquement par le middleware
-    adminUser = await User.create({
-      lastName: 'Admin',
-      firstName: 'Test',
-      email: 'admin@test.com',
-      password: 'password123',
-      role: 'admin'
+    adminUser = await prisma.user.create({
+      data: {
+        lastName: 'Admin',
+        firstName: 'Test',
+        email: 'admin@test.com',
+        password: hashedPassword,
+        role: 'admin'
+      }
     });
 
-    managerUser = await User.create({
-      lastName: 'Manager',
-      firstName: 'Test',
-      email: 'manager@test.com',
-      password: 'password123',
-      role: 'manager'
+    managerUser = await prisma.user.create({
+      data: {
+        lastName: 'Manager',
+        firstName: 'Test',
+        email: 'manager@test.com',
+        password: hashedPassword,
+        role: 'manager'
+      }
     });
 
-    employeeUser = await User.create({
-      lastName: 'Employee',
-      firstName: 'Test',
-      email: 'employee@test.com',
-      password: 'password123',
-      role: 'employee'
+    employeeUser = await prisma.user.create({
+      data: {
+        lastName: 'Employee',
+        firstName: 'Test',
+        email: 'employee@test.com',
+        password: hashedPassword,
+        role: 'employee'
+      }
     });
 
     // Générer des tokens JWT pour les tests
     adminToken = jwt.sign(
-      { userId: adminUser._id, email: adminUser.email, role: adminUser.role },
+      { user: { id: adminUser.id, email: adminUser.email, role: adminUser.role } },
       process.env.JWT_SECRET!,
       { expiresIn: '1h' }
     );
 
     managerToken = jwt.sign(
-      { userId: managerUser._id, email: managerUser.email, role: managerUser.role },
+      { user: { id: managerUser.id, email: managerUser.email, role: managerUser.role } },
       process.env.JWT_SECRET!,
       { expiresIn: '1h' }
     );
 
     employeeToken = jwt.sign(
-      { userId: employeeUser._id, email: employeeUser.email, role: employeeUser.role },
+      { user: { id: employeeUser.id, email: employeeUser.email, role: employeeUser.role } },
       process.env.JWT_SECRET!,
       { expiresIn: '1h' }
     );
+  });
+
+  afterEach(async () => {
+    // Nettoyer après chaque test
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          in: ['admin@test.com', 'manager@test.com', 'employee@test.com']
+        }
+      }
+    });
   });
 
   describe('POST /api/auth/login', () => {
@@ -161,7 +189,7 @@ describe('Tests d\'authentification et autorisation', () => {
 
     it('devrait rejeter un token expiré', async () => {
       const expiredToken = jwt.sign(
-        { userId: adminUser._id, email: adminUser.email, role: adminUser.role },
+        { user: { id: adminUser.id, email: adminUser.email, role: adminUser.role } },
         process.env.JWT_SECRET!,
         { expiresIn: '-1h' } // Token expiré
       );
@@ -268,7 +296,7 @@ describe('Tests d\'authentification et autorisation', () => {
     it('devrait résister aux tentatives de manipulation de rôle', async () => {
       // Tenter de créer un token avec un rôle non autorisé
       const maliciousToken = jwt.sign(
-        { userId: employeeUser._id, email: employeeUser.email, role: 'admin' },
+        { user: { id: employeeUser.id, email: employeeUser.email, role: 'admin' } },
         'wrong-secret', // Mauvaise clé de signature
         { expiresIn: '1h' }
       );

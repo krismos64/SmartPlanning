@@ -12,9 +12,12 @@ import path from "path";
 import randomstring from "randomstring";
 import authMiddleware, { AuthRequest } from "../middlewares/auth.middleware";
 import checkRole from "../middlewares/checkRole.middleware";
-import User, { UserRole } from "../models/User.model";
+import prisma from "../config/prisma";
 import { notifyUserUpdate } from "../services/userSyncService";
 import { uploadImageToCloudinary } from "../utils/cloudinary";
+
+// Type pour les rôles utilisateurs (compatible avec le schema Prisma)
+type UserRole = "admin" | "directeur" | "manager" | "employee";
 
 // Initialisation du routeur
 const router = Router();
@@ -94,6 +97,7 @@ router.post(
  * @route GET /api/users
  * @desc Liste tous les utilisateurs (sans mot de passe)
  * @access Admin only
+ * @migration Migré de Mongoose vers Prisma
  */
 router.get(
   "/",
@@ -101,7 +105,23 @@ router.get(
   checkRole(["admin"]),
   async (req: Request, res: Response) => {
     try {
-      const users = await User.find({}).select("-password");
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          companyId: true,
+          profilePicture: true,
+          googleId: true,
+          isActive: true,
+          lastLogin: true,
+          isEmailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
       return res.status(200).json(users);
     } catch (error) {
       console.error("Erreur lors de la récupération des utilisateurs:", error);
@@ -123,6 +143,7 @@ interface CreateUserRequest {
  * @route POST /api/users
  * @desc Crée un nouvel utilisateur avec un mot de passe temporaire
  * @access Admin only
+ * @migration Migré de Mongoose vers Prisma
  */
 router.post(
   "/",
@@ -134,7 +155,9 @@ router.post(
         req.body as CreateUserRequest;
 
       // Vérification si l'utilisateur existe déjà
-      const existingUser = await User.findOne({ email });
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
       if (existingUser) {
         return res
           .status(400)
@@ -148,25 +171,22 @@ router.post(
       });
 
       // Hashage du mot de passe
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(tempPassword, salt);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
       // Création du nouvel utilisateur
-      const newUser = new User({
-        email,
-        firstName,
-        lastName,
-        password: hashedPassword,
-        role: role || "user", // Valeur par défaut si non spécifiée
-        status: "active", // Statut par défaut
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          password: hashedPassword,
+          role: role || "employee", // Valeur par défaut (adapté pour Prisma)
+          isActive: true, // Remplace "status: active"
+        },
       });
 
-      await newUser.save();
-
       // Préparation de la réponse sans le mot de passe
-      const userObject = newUser.toObject();
-      // Utiliser la déstructuration pour éviter la suppression directe avec delete
-      const { password, ...userWithoutPassword } = userObject;
+      const { password, ...userWithoutPassword } = newUser;
 
       return res.status(201).json({
         user: userWithoutPassword,
@@ -190,6 +210,7 @@ interface UpdateUserRequest {
  * @route PUT /api/users/:id
  * @desc Modifie le rôle ou le statut d'un utilisateur
  * @access Admin only
+ * @migration Migré de Mongoose vers Prisma
  */
 router.put(
   "/:id",
@@ -200,26 +221,37 @@ router.put(
       const { id } = req.params;
       const { role, status } = req.body as UpdateUserRequest;
 
+      // Parse et validation de l'ID
+      const userId = parseInt(id, 10);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "ID utilisateur invalide" });
+      }
+
       // Vérifier que l'utilisateur existe
-      const user = await User.findById(id);
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
       if (!user) {
         return res.status(404).json({ message: "Utilisateur non trouvé" });
       }
 
-      // Mettre à jour uniquement les champs fournis
+      // Préparer les données à mettre à jour
+      const updateData: any = {};
       if (role) {
-        user.set("role", role);
+        updateData.role = role;
       }
-      if (status && (status === "active" || status === "inactive")) {
-        user.set("status", status);
+      if (status !== undefined && (status === "active" || status === "inactive")) {
+        updateData.isActive = status === "active"; // Conversion status -> isActive
       }
 
-      await user.save();
+      // Mettre à jour l'utilisateur
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
 
       // Retourner l'utilisateur mis à jour sans le mot de passe
-      const userObject = user.toObject();
-      // Utiliser la déstructuration pour éviter la suppression directe avec delete
-      const { password, ...userWithoutPassword } = userObject;
+      const { password, ...userWithoutPassword } = updatedUser;
 
       return res.status(200).json(userWithoutPassword);
     } catch (error) {
@@ -235,11 +267,12 @@ router.put(
  * @route GET /api/users/me
  * @desc Récupère les données de l'utilisateur actuellement connecté
  * @access Authentifié uniquement
+ * @migration Migré de Mongoose vers Prisma
  */
 router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     // Récupérer l'ID de l'utilisateur depuis le token
-    const userId = req.user?._id;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -248,8 +281,30 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Parse et validation de l'ID
+    const userIdNum = typeof userId === 'number' ? userId : parseInt(userId, 10);
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID utilisateur invalide",
+      });
+    }
+
     // Récupérer les données de l'utilisateur sans le mot de passe
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userIdNum },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        profilePicture: true,
+        role: true,
+        companyId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -258,19 +313,19 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Renvoyer uniquement les données pertinentes
+    // Renvoyer uniquement les données pertinentes (compatibilité API)
     return res.status(200).json({
       success: true,
       data: {
-        _id: user._id,
+        _id: user.id, // Compatibilité avec ancien format
+        id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        photoUrl: user.photoUrl,
+        photoUrl: user.profilePicture, // Mapping profilePicture -> photoUrl
         role: user.role,
         companyId: user.companyId,
-        teamIds: user.teamIds,
-        profileCompleted: user.profileCompleted,
+        teamIds: [], // TODO: implémenter si nécessaire via relation Employee
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -288,6 +343,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
  * @route PUT /api/users/password
  * @desc Change le mot de passe de l'utilisateur connecté
  * @access Authentifié uniquement
+ * @migration Migré de Mongoose vers Prisma (bcrypt manuel)
  */
 router.put(
   "/password",
@@ -295,12 +351,21 @@ router.put(
   async (req: AuthRequest, res: Response) => {
     try {
       // Récupérer l'ID de l'utilisateur depuis le token
-      const userId = req.user?._id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
           success: false,
           message: "Utilisateur non authentifié",
+        });
+      }
+
+      // Parse et validation de l'ID
+      const userIdNum = typeof userId === 'number' ? userId : parseInt(userId, 10);
+      if (isNaN(userIdNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID utilisateur invalide",
         });
       }
 
@@ -315,8 +380,14 @@ router.put(
         });
       }
 
-      // Récupérer l'utilisateur avec son mot de passe (qui est normalement exclu par défaut)
-      const user = await User.findById(userId);
+      // Récupérer l'utilisateur avec son mot de passe
+      const user = await prisma.user.findUnique({
+        where: { id: userIdNum },
+        select: {
+          id: true,
+          password: true,
+        },
+      });
 
       if (!user) {
         return res.status(404).json({
@@ -325,8 +396,15 @@ router.put(
         });
       }
 
-      // Vérifier que le mot de passe actuel est correct
-      const isMatch = await user.comparePassword(currentPassword);
+      if (!user.password) {
+        return res.status(400).json({
+          success: false,
+          message: "Impossible de changer le mot de passe pour ce compte",
+        });
+      }
+
+      // Vérifier que le mot de passe actuel est correct (bcrypt manuel)
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
 
       if (!isMatch) {
         return res.status(401).json({
@@ -335,9 +413,14 @@ router.put(
         });
       }
 
-      // Mettre à jour le mot de passe (le hachage est géré par le middleware pre-save)
-      user.password = newPassword;
-      await user.save();
+      // Hasher le nouveau mot de passe manuellement (pas de hook pre-save avec Prisma)
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Mettre à jour le mot de passe
+      await prisma.user.update({
+        where: { id: userIdNum },
+        data: { password: hashedPassword },
+      });
 
       return res.status(200).json({
         success: true,
@@ -357,6 +440,7 @@ router.put(
  * @route POST /api/users/debug-auth
  * @desc TEMPORAIRE: Debug l'authentification pour diagnostiquer le problème
  * @access Authentifié uniquement
+ * @migration Migré de Mongoose vers Prisma (_id → id)
  */
 router.post(
   "/debug-auth",
@@ -374,30 +458,30 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const requester = req.user;
-      
+
       console.log("🔍 DEBUG AUTH - Informations requester:", {
         hasRequester: !!requester,
-        requesterId: requester?._id,
+        requesterId: requester?.id, // ✅ Changé de _id à id
         requesterEmail: requester?.email,
         requesterRole: requester?.role,
         cookies: req.cookies,
         headers: req.headers
       });
-      
+
       return res.status(200).json({
         success: true,
         message: "Authentification réussie",
         user: requester,
         debug: {
           hasRequester: !!requester,
-          requesterId: requester?._id,
+          requesterId: requester?.id, // ✅ Changé de _id à id
           requesterEmail: requester?.email,
           requesterRole: requester?.role,
           hasCookies: !!req.cookies,
           tokenInCookies: !!req.cookies?.token
         }
       });
-      
+
     } catch (error) {
       console.error("❌ Erreur debug auth:", error);
       return res.status(500).json({
@@ -412,6 +496,7 @@ router.post(
  * @route PUT /api/users/:id/photo
  * @desc Modifie la photo de profil d'un utilisateur
  * @access Utilisateur lui-même ou admin/manager/directeur
+ * @migration Migré de Mongoose vers Prisma (_id → id, User.findByIdAndUpdate → prisma.user.update)
  */
 router.put(
   "/:id/photo",
@@ -429,7 +514,7 @@ router.put(
   (req, res, next) => {
     console.log("🔍 DEBUG Photo Route - Après authMiddleware:", {
       hasUser: !!req.user,
-      userId: req.user?._id
+      userId: req.user?.id // ✅ Changé de _id à id
     });
     next();
   },
@@ -441,7 +526,7 @@ router.put(
 
       console.log("🔍 DEBUG Photo Update - Requester info:", {
         hasRequester: !!requester,
-        requesterId: requester?._id,
+        requesterId: requester?.id, // ✅ Changé de _id à id
         requesterEmail: requester?.email,
         targetUserId: userIdToUpdate,
         hasFile: !!req.file
@@ -449,38 +534,48 @@ router.put(
 
       if (!requester) {
         console.log("❌ Utilisateur non authentifié lors de la mise à jour de photo");
-        return res.status(401).json({ 
-          success: false, 
-          message: "Utilisateur non authentifié" 
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié"
         });
       }
 
+      // Parse et validation de l'ID utilisateur
+      const userIdNum = parseInt(userIdToUpdate, 10);
+      if (isNaN(userIdNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID utilisateur invalide"
+        });
+      }
+
+      // Vérifier les autorisations (admin/manager/directeur ou l'utilisateur lui-même)
       const isAuthorized =
         requester.role === "admin" ||
         requester.role === "manager" ||
         requester.role === "directeur" ||
-        requester._id.toString() === userIdToUpdate;
+        requester.id.toString() === userIdToUpdate; // ✅ Changé de _id à id
 
       if (!isAuthorized) {
-        return res.status(403).json({ 
-          success: false, 
-          message: "Accès non autorisé" 
+        return res.status(403).json({
+          success: false,
+          message: "Accès non autorisé"
         });
       }
 
       const localFilePath = req.file?.path;
       if (!localFilePath) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Aucun fichier fourni" 
+        return res.status(400).json({
+          success: false,
+          message: "Aucun fichier fourni"
         });
       }
 
       const uploadedImageUrl = await uploadImageToCloudinary(localFilePath);
       if (!uploadedImageUrl) {
-        return res.status(500).json({ 
-          success: false, 
-          message: "Échec de l'upload Cloudinary" 
+        return res.status(500).json({
+          success: false,
+          message: "Échec de l'upload Cloudinary"
         });
       }
 
@@ -489,11 +584,15 @@ router.put(
         fs.unlinkSync(localFilePath);
       }
 
-      await User.findByIdAndUpdate(userIdToUpdate, { photoUrl: uploadedImageUrl });
+      // ✅ Mise à jour Prisma (photoUrl → profilePicture)
+      await prisma.user.update({
+        where: { id: userIdNum },
+        data: { profilePicture: uploadedImageUrl },
+      });
 
       // Notifier la mise à jour de la photo pour synchronisation
-      notifyUserUpdate(userIdToUpdate, requester._id.toString(), { 
-        photoUrl: uploadedImageUrl 
+      notifyUserUpdate(userIdToUpdate, requester.id.toString(), { // ✅ Changé de _id à id
+        photoUrl: uploadedImageUrl
       });
 
       res.status(200).json({
@@ -503,15 +602,15 @@ router.put(
       });
     } catch (error) {
       console.error("Erreur mise à jour photo profil :", error);
-      
+
       // Supprimer le fichier temporaire en cas d'erreur
       if (req.file?.path && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
 
-      res.status(500).json({ 
-        success: false, 
-        message: "Erreur serveur lors de la mise à jour de la photo" 
+      res.status(500).json({
+        success: false,
+        message: "Erreur serveur lors de la mise à jour de la photo"
       });
     }
   }

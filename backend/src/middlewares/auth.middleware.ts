@@ -59,18 +59,12 @@ export function authenticateToken(
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     const user = decoded.user;
 
-    // Normaliser l'ID utilisateur: transformer id en _id pour la cohérence
-    if (user && user.id) {
-      user._id = user.id;
-      delete user.id;
-    }
-
     req.user = user;
 
     // Debug: logguer les informations utilisateur
     console.log("✅ DEBUG Auth Middleware - Utilisateur authentifié:", {
       url: req.url,
-      userId: user._id,
+      userId: user.id,
       userEmail: user.email,
       userRole: user.role
     });

@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../app';
-import User from '../models/User.model';
+import prisma from '../config/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -9,25 +9,44 @@ describe('Tests de sécurité par rôle', () => {
   let tokens: Record<string, string> = {};
 
   beforeEach(async () => {
+    // Nettoyer avant chaque test
+    const emails = ['admin@test.com', 'directeur@test.com', 'manager@test.com', 'employee@test.com'];
+    await prisma.user.deleteMany({
+      where: { email: { in: emails } }
+    });
+
+    // Hasher le mot de passe manuellement
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
     // Créer des utilisateurs pour chaque rôle
     const roles = ['admin', 'directeur', 'manager', 'employee'];
 
     for (const role of roles) {
-      const user = await User.create({
-        lastName: `User ${role}`,
-        firstName: 'Test',
-        email: `${role}@test.com`,
-        password: 'password123',
-        role: role
+      const user = await prisma.user.create({
+        data: {
+          lastName: `User ${role}`,
+          firstName: 'Test',
+          email: `${role}@test.com`,
+          password: hashedPassword,
+          role: role
+        }
       });
 
       users[role] = user;
       tokens[role] = jwt.sign(
-        { userId: user._id, email: user.email, role: user.role },
+        { user: { id: user.id, email: user.email, role: user.role } },
         process.env.JWT_SECRET!,
         { expiresIn: '1h' }
       );
     }
+  });
+
+  afterEach(async () => {
+    // Nettoyer après chaque test
+    const emails = ['admin@test.com', 'directeur@test.com', 'manager@test.com', 'employee@test.com', 'external@other-company.com'];
+    await prisma.user.deleteMany({
+      where: { email: { in: emails } }
+    });
   });
 
   describe('Hiérarchie des rôles et permissions', () => {
@@ -130,7 +149,7 @@ describe('Tests de sécurité par rôle', () => {
 
     describe('DELETE /api/admin/employees/:id', () => {
       it('devrait permettre la suppression uniquement aux admins', async () => {
-        const employeeId = users.employee._id;
+        const employeeId = users.employee.id;
 
         const unauthorizedRoles = ['directeur', 'manager', 'employee'];
         for (const role of unauthorizedRoles) {
@@ -234,17 +253,22 @@ describe('Tests de sécurité par rôle', () => {
     let tokenOtherCompany: string;
 
     beforeEach(async () => {
+      // Hasher le mot de passe
+      const hashedPassword = await bcrypt.hash('password123', 10);
+
       // Créer un utilisateur d'une autre entreprise
-      userOtherCompany = await User.create({
-        lastName: 'External',
-        firstName: 'User',
-        email: 'external@other-company.com',
-        password: 'password123',
-        role: 'admin'
+      userOtherCompany = await prisma.user.create({
+        data: {
+          lastName: 'External',
+          firstName: 'User',
+          email: 'external@other-company.com',
+          password: hashedPassword,
+          role: 'admin'
+        }
       });
 
       tokenOtherCompany = jwt.sign(
-        { userId: userOtherCompany._id, email: userOtherCompany.email, role: userOtherCompany.role },
+        { user: { id: userOtherCompany.id, email: userOtherCompany.email, role: userOtherCompany.role } },
         process.env.JWT_SECRET!,
         { expiresIn: '1h' }
       );
