@@ -11,7 +11,7 @@ import { useToast } from "../hooks/useToast";
 import api, { uploadFile } from "../services/api";
 
 /**
- * Page de complétion de profil après l'authentification OAuth Google
+ * Page de complétion de profil après l'inscription
  */
 const CompleteProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -286,8 +286,7 @@ const CompleteProfilePage: React.FC = () => {
             Compléter votre profil
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Vous avez été connecté avec Google. Veuillez compléter les
-            informations suivantes pour finaliser votre profil.
+            Veuillez compléter les informations suivantes pour finaliser votre profil.
           </p>
         </div>
 

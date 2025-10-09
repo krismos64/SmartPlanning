@@ -26,7 +26,6 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const CreatePasswordPage = lazy(() => import("./pages/CreatePasswordPage"));
-const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 const CompleteProfilePage = lazy(() => import("./pages/CompleteProfilePage"));
 const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
 
@@ -234,7 +233,6 @@ const AppRouter: React.FC = () => {
         <Route path="/create-password" element={<CreatePasswordPage />} />
         <Route path="/complete-profile" element={<CompleteProfilePage />} />
         <Route path="/choose-plan" element={<ChoosePlanPage />} />
-        <Route path="/oauth/callback" element={<OAuthCallback />} />
 
         {/* Route du tableau de bord pour utilisateurs connectés */}
         <Route path="/tableau-de-bord" element={<DashboardPage />} />

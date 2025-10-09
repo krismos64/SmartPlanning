@@ -69,8 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         '/create-password',
         '/contact',
         '/politique-de-confidentialite',
-        '/mentions-legales',
-        '/oauth/callback'
+        '/mentions-legales'
       ];
       
       const currentPath = window.location.pathname;

@@ -106,7 +106,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 - API RESTful sécurisée avec Node.js et Express
 - Authentification JWT hybride : cookies httpOnly + localStorage fallback
-- Options d'authentification : email/password et Google OAuth
+- Authentification par email/password
 - Contrôle d'accès basé sur les rôles (RBAC)
 - Tests de sécurité automatisés complets (14/15 réussis)
 - Protection contre XSS, injection NoSQL et attaques CSRF
@@ -183,7 +183,6 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 ✅ **Authentification et sécurité**
 
 - Système JWT hybride : cookies httpOnly + localStorage fallback
-- Support pour Google OAuth 2.0
 - Contrôle d'accès basé sur les rôles (RBAC)
 - Protection globale des routes API avec middleware
 - Tests de sécurité automatisés (14/15 tests réussis)
@@ -471,7 +470,7 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 | **Cache & Performance**        | Redis 5.7+, IORedis, Index PostgreSQL optimisés, Requêtes efficientes       |
 | **Base de données**            | PostgreSQL, Prisma (ORM), Index ultra-optimisés                         |
 | **Intelligence artificielle**  | OpenRouter API, Gemini 2.0 Flash, Canvas-confetti pour animations            |
-| **Authentification**           | JWT hybride (cookies httpOnly + localStorage), Google OAuth 2.0, Passport.js |
+| **Authentification**           | JWT hybride (cookies httpOnly + localStorage)                                 |
 | **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                     |
 | **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), PostgreSQL Cloud                |
 | **Tests et sécurité**          | Jest, Cypress, Supertest, PostgreSQL test database, Tests de sécurité (14/15)   |
@@ -974,11 +973,6 @@ REFRESH_TOKEN_EXPIRATION=7d
 # Intelligence artificielle
 OPENROUTER_API_KEY=votre_clé_api_openrouter
 
-# Authentification Google OAuth
-GOOGLE_CLIENT_ID=votre_id_client_google.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=votre_secret_client_google
-GOOGLE_CALLBACK_URL=http://localhost:5050/api/auth/google/callback
-
 # Upload de fichiers (Cloudinary)
 CLOUDINARY_CLOUD_NAME=votre_cloud_name
 CLOUDINARY_API_KEY=votre_api_key
@@ -1002,9 +996,6 @@ Créez un fichier `.env.local` dans le dossier `frontend` avec les variables sui
 ```bash
 # URL de l'API backend (IMPORTANT: port 5050)
 VITE_API_URL=http://localhost:5050/api
-
-# Google OAuth (même client ID que le backend)
-VITE_GOOGLE_CLIENT_ID=votre_id_client_google.apps.googleusercontent.com
 
 # Environnement
 VITE_NODE_ENV=development
