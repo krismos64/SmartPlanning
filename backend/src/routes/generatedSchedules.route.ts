@@ -103,7 +103,7 @@ router.put(
           // Mise à jour des données du planning
           const updatedSchedule = await prisma.generatedSchedule.update({
             where: { id: scheduleIdNum },
-            data: { schedule: scheduleData as any }
+            data: { generatedPlanning: scheduleData as any }
           });
 
           return res.status(200).json({

@@ -52,28 +52,35 @@ afterAll(async () => {
 // Nettoyage entre chaque test
 beforeEach(async () => {
   try {
-    // Nettoyer toutes les tables (en respectant les contraintes FK)
+    // Nettoyer toutes les tables PostgreSQL (noms en snake_case via @@map)
+    // L'ordre respecte les contraintes de clés étrangères
     const tables = [
-      'ChatbotInteraction',
-      'ChatbotSettings',
-      'Payment',
-      'Subscription',
-      'GeneratedSchedule',
-      'WeeklySchedule',
-      'VacationRequest',
-      'Incident',
-      'Task',
-      'Event',
-      'Employee',
-      'Team',
-      'User',
-      'Company'
+      'role_permission',
+      'user_role',
+      'audit_log',
+      'chatbot_interaction',
+      'chatbot_settings',
+      'shift',
+      'payment',
+      'subscription',
+      'generated_schedule',
+      'weekly_schedule',
+      'vacation_request',
+      'incident',
+      'task',
+      'event',
+      'employee',
+      'team',
+      'user',
+      'company',
+      'role',
+      'permission'
     ];
 
     // Désactiver temporairement les contraintes FK
     await prisma.$executeRaw`SET session_replication_role = 'replica';`;
 
-    // Supprimer les données de toutes les tables
+    // Supprimer les données de toutes les tables (snake_case)
     for (const table of tables) {
       await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE;`);
     }

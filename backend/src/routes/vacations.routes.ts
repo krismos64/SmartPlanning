@@ -143,7 +143,6 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
         const teamEmployees = await prisma.employee.findMany({
           where: { teamId: { in: teamIds } },
-          select: { id: true, teamId: true },
           include: {
             user: {
               select: { firstName: true, lastName: true }
@@ -194,12 +193,12 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
               select: {
                 firstName: true,
                 lastName: true,
-                photoUrl: true
+                profilePicture: true
               }
             }
           }
         },
-        updatedByUser: {
+        reviewedBy: {
           select: {
             firstName: true,
             lastName: true
@@ -219,20 +218,27 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         employeeId: req.employeeId,
         startDate: req.startDate,
         status: req.status,
-        requestedBy: req.requestedBy,
       }))
     );
 
     // Ajouter des permissions à chaque demande
-    const vacationRequestsWithPermissions = vacationRequests.map((request) => {
+    const vacationRequestsWithPermissions = await Promise.all(vacationRequests.map(async (request) => {
       // Déterminer si l'utilisateur peut modifier cette demande
       // Pour admin/directeur/manager: toujours true pour leurs employés accessibles
       const canEdit = ["admin", "directeur", "manager"].includes(user.role);
 
       // Déterminer si l'utilisateur peut supprimer cette demande
+      // Un employé peut supprimer sa propre demande pending
+      const isOwnRequest = await prisma.employee.findFirst({
+        where: {
+          id: request.employeeId,
+          userId: user.id
+        }
+      });
+
       const canDelete =
         ["admin", "directeur", "manager"].includes(user.role) ||
-        (user.id === request.requestedBy && request.status === "pending");
+        (isOwnRequest !== null && request.status === "pending");
 
       console.log(`Permissions pour demande ${request.id}:`, {
         userRole: user.role,
@@ -249,7 +255,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
           canDelete,
         },
       };
-    });
+    }));
 
     // Renvoyer les résultats avec les permissions
     return res.status(200).json({
@@ -334,6 +340,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
     // Déterminer pour quel employé la demande est créée
     let targetEmployeeId: number;
+    let companyId: number;
 
     // Si un employeeId est fourni, vérifier les permissions
     if (employeeId && employeeId !== user.id.toString()) {
@@ -415,6 +422,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
 
       // Si toutes les vérifications sont passées, utiliser l'ID de l'employé cible
       targetEmployeeId = empIdNum;
+      companyId = employee.companyId;
       console.log("Création autorisée pour l'employé:", targetEmployeeId);
     } else {
       // Pour un employé normal, récupérer son document Employee correspondant
@@ -451,6 +459,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       });
 
       targetEmployeeId = currentEmployee.id;
+      companyId = currentEmployee.companyId;
       console.log("Employee ID trouvé:", targetEmployeeId);
     }
 
@@ -458,10 +467,10 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const savedRequest = await prisma.vacationRequest.create({
       data: {
         employeeId: targetEmployeeId,
-        requestedBy: user.id, // On garde une trace de qui a fait la demande
-        updatedBy: user.id, // Ajout du champ updatedBy avec l'utilisateur qui crée la demande
+        companyId,
         startDate: start, // Utiliser la date normalisée
         endDate: end, // Utiliser la date normalisée
+        type: "vacation", // Type par défaut
         reason,
         status: "pending",
       },
@@ -473,7 +482,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
               select: {
                 firstName: true,
                 lastName: true,
-                photoUrl: true
+                profilePicture: true
               }
             }
           }
@@ -541,12 +550,12 @@ router.get(
                 select: {
                   firstName: true,
                   lastName: true,
-                  photoUrl: true
+                  profilePicture: true
                 }
               }
             }
           },
-          updatedByUser: {
+          reviewedBy: {
             select: {
               firstName: true,
               lastName: true
@@ -578,9 +587,17 @@ router.get(
       const canEdit = ["admin", "directeur", "manager"].includes(user.role);
 
       // Déterminer si l'utilisateur peut supprimer cette demande
+      // Vérifier si c'est la demande de l'utilisateur connecté
+      const isOwnRequest = await prisma.employee.findFirst({
+        where: {
+          id: vacationRequest.employeeId,
+          userId: user.id
+        }
+      });
+
       const canDelete =
         ["admin", "directeur", "manager"].includes(user.role) ||
-        (user.id === vacationRequest.requestedBy &&
+        (isOwnRequest !== null &&
           vacationRequest.status === "pending");
 
       // Ajouter les permissions à l'objet de demande
@@ -855,9 +872,6 @@ router.put(
         updateData.employeeId = empIdNum;
       }
 
-      // Mettre à jour le champ updatedBy avec l'utilisateur actuel
-      updateData.updatedBy = user.id;
-
       // Sauvegarder la demande mise à jour
       const updatedVacationRequest = await prisma.vacationRequest.update({
         where: { id: idNum },
@@ -872,12 +886,12 @@ router.put(
                 select: {
                   firstName: true,
                   lastName: true,
-                  photoUrl: true
+                  profilePicture: true
                 }
               }
             }
           },
-          updatedByUser: {
+          reviewedBy: {
             select: {
               firstName: true,
               lastName: true
@@ -887,13 +901,20 @@ router.put(
       });
 
       // Déterminer les permissions de l'utilisateur sur cette demande
+      const isOwnRequestUpdate = await prisma.employee.findFirst({
+        where: {
+          id: updatedVacationRequest.employeeId,
+          userId: user.id
+        }
+      });
+
       const requestWithPermissions = {
         ...updatedVacationRequest,
         permissions: {
           canEdit: ["admin", "directeur", "manager"].includes(user.role),
           canDelete:
             ["admin", "directeur", "manager"].includes(user.role) ||
-            (user.id === updatedVacationRequest.requestedBy &&
+            (isOwnRequestUpdate !== null &&
               updatedVacationRequest.status === "pending"),
         },
       };
@@ -984,17 +1005,22 @@ router.delete(
       }
 
       // Restriction pour les employés : seulement leurs demandes en statut 'pending'
-      if (
-        user.role === "employé" &&
-        (user.id !== vacationRequest.requestedBy ||
-          vacationRequest.status !== "pending")
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Vous ne pouvez supprimer que vos propres demandes en attente",
-          status: 403,
+      if (user.role === "employé") {
+        const isOwnRequestDelete = await prisma.employee.findFirst({
+          where: {
+            id: vacationRequest.employeeId,
+            userId: user.id
+          }
         });
+
+        if (isOwnRequestDelete === null || vacationRequest.status !== "pending") {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Vous ne pouvez supprimer que vos propres demandes en attente",
+            status: 403,
+          });
+        }
       }
 
       // Supprimer la demande
@@ -1077,11 +1103,12 @@ router.patch(
       // Préparer les données de mise à jour
       const updateData: any = {
         status: VacationRequestStatus.APPROVED,
-        updatedBy: user.id,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
       };
 
       if (comment) {
-        updateData.reason = comment;
+        updateData.reviewNote = comment;
       }
 
       // Mettre à jour la demande
@@ -1098,12 +1125,12 @@ router.patch(
                 select: {
                   firstName: true,
                   lastName: true,
-                  photoUrl: true
+                  profilePicture: true
                 }
               }
             }
           },
-          updatedByUser: {
+          reviewedBy: {
             select: {
               firstName: true,
               lastName: true
@@ -1188,11 +1215,12 @@ router.patch(
       // Préparer les données de mise à jour
       const updateData: any = {
         status: VacationRequestStatus.REJECTED,
-        updatedBy: user.id,
+        reviewedById: user.id,
+        reviewedAt: new Date(),
       };
 
       if (comment) {
-        updateData.reason = comment;
+        updateData.reviewNote = comment;
       }
 
       // Mettre à jour la demande
@@ -1209,12 +1237,12 @@ router.patch(
                 select: {
                   firstName: true,
                   lastName: true,
-                  photoUrl: true
+                  profilePicture: true
                 }
               }
             }
           },
-          updatedByUser: {
+          reviewedBy: {
             select: {
               firstName: true,
               lastName: true

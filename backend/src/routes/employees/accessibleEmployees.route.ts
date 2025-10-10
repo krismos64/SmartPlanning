@@ -93,12 +93,8 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       where: whereClause,
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
         position: true,
         skills: true,
-        profilePicture: true,
         isActive: true,
         teamId: true,
         companyId: true,
@@ -112,11 +108,15 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         user: {
           select: {
             id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
             role: true,
+            profilePicture: true,
           }
         }
       },
-      orderBy: { lastName: 'asc' }
+      orderBy: { user: { lastName: 'asc' } }
     });
 
     // Filtrer pour exclure l'utilisateur actuel si c'est aussi un employé
@@ -137,15 +137,15 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const formattedEmployees = filteredEmployees.map((emp) => ({
       _id: emp.id, // Compatibilité MongoDB frontend
       id: emp.id,
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      email: emp.email || "",
+      firstName: emp.user.firstName,
+      lastName: emp.user.lastName,
+      email: emp.user.email || "",
       position: emp.position,
       skills: emp.skills,
-      role: emp.user?.role || "employee",
+      role: emp.user.role || "employee",
       teamId: emp.team || null,
-      photoUrl: emp.profilePicture || "",
-      profilePicture: emp.profilePicture || "",
+      photoUrl: emp.user.profilePicture || "",
+      profilePicture: emp.user.profilePicture || "",
       userId: emp.userId || null,
       status: emp.isActive ? "actif" : "inactif",
       isActive: emp.isActive,

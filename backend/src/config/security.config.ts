@@ -51,7 +51,8 @@ export const securityConfig = {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Non autorisé par la politique CORS'), false);
+        // Ne pas lancer d'erreur, juste bloquer l'origine
+        callback(null, false);
       }
     },
     credentials: true,
@@ -100,11 +101,13 @@ export const isValidEmail = (email: string): boolean => {
  */
 export const clearAuthCookies = (res: any) => {
   // FIX #5: Nettoyer correctement les cookies à la déconnexion
+  // Utiliser à la fois Max-Age=0 ET Expires pour compatibilité maximale
   const clearOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict' as const,
     path: '/',
+    maxAge: 0, // Expire immédiatement
   };
 
   res.clearCookie('token', clearOptions);

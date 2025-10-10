@@ -38,6 +38,7 @@ import { uploadRoutes } from "./routes/upload.routes";
 import vacationRoutes from "./routes/vacations.routes"; // ✅ MIGRÉ vers Prisma
 import weeklySchedulesRouter from "./routes/weeklySchedules.route"; // ✅ MIGRÉ vers Prisma
 import monitoringRoutes from "./routes/monitoring.routes";
+import { errorHandler } from "./middlewares/errorHandler.middleware";
 import performanceRoutes from "./routes/performance.routes"; // ✅ MIGRÉ vers Prisma
 import sentryMonitoringRoutes from "./routes/monitoring-sentry.routes";
 import { securityConfig, applySecurityHeaders } from "./config/security.config";
@@ -279,20 +280,8 @@ if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
   app.use(sentryRequestHandler);
 }
 
-// Gestion des erreurs globales
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error("Erreur serveur:", err);
-  
-  // Ne pas exposer les détails d'erreur en production
-  const message = process.env.NODE_ENV === 'production' 
-    ? "Erreur serveur interne" 
-    : err.message;
-    
-  res.status(500).json({ 
-    message: "Erreur serveur", 
-    error: message,
-    timestamp: new Date().toISOString()
-  });
-});
+// Gestion des erreurs globales avec errorHandler sophistiqué
+// Ce middleware doit être le DERNIER après toutes les routes
+app.use(errorHandler);
 
 export default app;

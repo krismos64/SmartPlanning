@@ -42,20 +42,26 @@ router.get(
       // Filtrer selon le rôle de l'utilisateur
       if (req.user) {
         if (req.user.role === "directeur" && req.user.companyId) {
-          // Un directeur voit les incidents des employés de sa compagnie
+          // Un directeur voit les incidents de sa compagnie
           whereClause.companyId = req.user.companyId;
-        } else if (
-          req.user.role === "manager" &&
-          req.user.teamIds &&
-          req.user.teamIds.length > 0
-        ) {
-          // Un manager voit les incidents des employés de ses équipes
-          const teamEmployees = await prisma.employee.findMany({
-            where: { teamId: { in: req.user.teamIds } },
+        } else if (req.user.role === "manager") {
+          // Un manager voit les incidents des équipes qu'il gère
+          const managedTeams = await prisma.team.findMany({
+            where: { managerId: req.user.id },
             select: { id: true }
           });
-          const employeeIds = teamEmployees.map((emp) => emp.id);
-          whereClause.employeeId = { in: employeeIds };
+          const teamIds = managedTeams.map((team) => team.id);
+
+          if (teamIds.length > 0) {
+            whereClause.OR = [
+              { teamId: { in: teamIds } },
+              { companyId: req.user.companyId, teamId: null } // Incidents sans équipe de sa compagnie
+            ];
+          } else {
+            // Si le manager ne gère aucune équipe, voir les incidents de sa compagnie sans équipe
+            whereClause.companyId = req.user.companyId;
+            whereClause.teamId = null;
+          }
         }
         // Admin voit tout, et peut filtrer par companyId ou teamId
         else if (req.user.role === "admin") {
@@ -64,20 +70,7 @@ router.get(
           }
 
           if (teamFilter && !isNaN(teamFilter)) {
-            const teamEmployees = await prisma.employee.findMany({
-              where: { teamId: teamFilter },
-              select: { id: true }
-            });
-            const teamEmployeeIds = teamEmployees.map((emp) => emp.id);
-
-            // Si on a déjà filtré par companyId, on fait l'intersection
-            if (whereClause.employeeId && whereClause.employeeId.in) {
-              whereClause.employeeId.in = whereClause.employeeId.in.filter((id: number) =>
-                teamEmployeeIds.includes(id)
-              );
-            } else {
-              whereClause.employeeId = { in: teamEmployeeIds };
-            }
+            whereClause.teamId = teamFilter;
           }
         }
       }
@@ -86,17 +79,15 @@ router.get(
         prisma.incident.findMany({
           where: whereClause,
           include: {
-            employee: {
+            reportedBy: {
               select: {
                 id: true,
                 firstName: true,
                 lastName: true,
-                email: true,
-                companyId: true,
-                teamId: true
+                email: true
               }
             },
-            reportedBy: {
+            resolvedBy: {
               select: {
                 id: true,
                 firstName: true,
@@ -105,7 +96,7 @@ router.get(
               }
             }
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { reportedAt: 'desc' },
           skip: skip,
           take: limit
         }),
@@ -140,43 +131,48 @@ router.post(
   async (req: any, res: any) => {
     try {
       const {
-        employeeId,
-        type,
+        title,
         description,
-        date,
-        status = "pending",
+        teamId,
+        severity,
+        category,
       } = req.body;
 
-      // Validation de l'ID employé
-      const employeeIdNum = parseInt(employeeId, 10);
-      if (isNaN(employeeIdNum)) {
+      // Validation des champs requis
+      if (!title || !description) {
         return res
           .status(400)
-          .json({ success: false, message: "ID employé invalide" });
+          .json({ success: false, message: "Titre et description requis" });
       }
 
-      // Vérifier si l'employé existe
-      const employee = await prisma.employee.findUnique({
-        where: { id: employeeIdNum },
-        select: { id: true, teamId: true, companyId: true }
-      });
-
-      if (!employee) {
+      // Validation de companyId de l'utilisateur
+      const companyId = req.user?.companyId;
+      if (!companyId) {
         return res
-          .status(404)
-          .json({ success: false, message: "Employé non trouvé" });
+          .status(400)
+          .json({ success: false, message: "L'utilisateur doit appartenir à une entreprise" });
       }
 
-      // Vérifier les droits du manager sur l'employé
-      if (req.user && req.user.role === "manager" && req.user.teamIds) {
-        if (
-          !employee.teamId ||
-          !req.user.teamIds.includes(employee.teamId)
-        ) {
-          return res.status(403).json({
+      // Si teamId fourni, valider
+      let teamIdNum: number | null = null;
+      if (teamId) {
+        teamIdNum = parseInt(teamId, 10);
+        if (isNaN(teamIdNum)) {
+          return res
+            .status(400)
+            .json({ success: false, message: "ID d'équipe invalide" });
+        }
+
+        // Vérifier que l'équipe existe et appartient à la bonne compagnie
+        const team = await prisma.team.findUnique({
+          where: { id: teamIdNum },
+          select: { companyId: true }
+        });
+
+        if (!team || team.companyId !== companyId) {
+          return res.status(404).json({
             success: false,
-            message:
-              "Vous ne pouvez pas créer d'incident pour un employé qui n'est pas dans vos équipes",
+            message: "Équipe non trouvée ou non autorisée",
           });
         }
       }
@@ -184,16 +180,17 @@ router.post(
       // Créer l'incident
       const incident = await prisma.incident.create({
         data: {
-          employeeId: employeeIdNum,
-          companyId: employee.companyId,
-          type,
-          description: description || null,
-          date: date ? new Date(date) : new Date(),
-          status,
-          reportedById: req.user?.id || null,
+          title: title.trim(),
+          description: description.trim(),
+          companyId,
+          teamId: teamIdNum,
+          severity: severity || null,
+          category: category || null,
+          status: "open",
+          reportedById: req.user?.id,
         },
         include: {
-          employee: {
+          reportedBy: {
             select: {
               id: true,
               firstName: true,
@@ -201,12 +198,10 @@ router.post(
               email: true,
             }
           },
-          reportedBy: {
+          team: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
+              name: true,
             }
           }
         }
@@ -243,11 +238,6 @@ router.put(
       // Récupérer l'incident existant
       const incident = await prisma.incident.findUnique({
         where: { id: idNum },
-        include: {
-          employee: {
-            select: { id: true, teamId: true }
-          }
-        }
       });
 
       if (!incident) {
@@ -257,33 +247,54 @@ router.put(
       }
 
       // Vérifier si le manager a le droit de modifier cet incident
-      if (req.user && req.user.role === "manager" && req.user.teamIds) {
-        if (
-          !incident.employee.teamId ||
-          !req.user.teamIds.includes(incident.employee.teamId)
-        ) {
-          return res.status(403).json({
-            success: false,
-            message:
-              "Vous ne pouvez pas modifier cet incident car l'employé n'est pas dans vos équipes",
+      if (req.user && req.user.role === "manager") {
+        // Vérifier que l'incident concerne une équipe gérée par ce manager
+        if (incident.teamId) {
+          const team = await prisma.team.findUnique({
+            where: { id: incident.teamId },
+            select: { managerId: true }
           });
+
+          if (!team || team.managerId !== req.user.id) {
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez pas modifier cet incident car il n'appartient pas à vos équipes",
+            });
+          }
+        } else {
+          // Si pas de teamId, vérifier que c'est bien la même compagnie
+          if (incident.companyId !== req.user.companyId) {
+            return res.status(403).json({
+              success: false,
+              message: "Vous ne pouvez pas modifier cet incident",
+            });
+          }
         }
       }
 
       // Mettre à jour l'incident
-      const { type, description, date, status } = req.body;
+      const { title, description, severity, category, status, resolution } = req.body;
 
       const updateData: any = {};
-      if (type !== undefined) updateData.type = type;
+      if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
-      if (date !== undefined) updateData.date = new Date(date);
-      if (status !== undefined) updateData.status = status;
+      if (severity !== undefined) updateData.severity = severity;
+      if (category !== undefined) updateData.category = category;
+      if (status !== undefined) {
+        updateData.status = status;
+        if (status === "resolved" || status === "closed") {
+          updateData.resolvedAt = new Date();
+          updateData.resolvedById = req.user?.id;
+        }
+      }
+      if (resolution !== undefined) updateData.resolution = resolution;
 
       const updatedIncident = await prisma.incident.update({
         where: { id: idNum },
         data: updateData,
         include: {
-          employee: {
+          reportedBy: {
             select: {
               id: true,
               firstName: true,
@@ -291,12 +302,17 @@ router.put(
               email: true,
             }
           },
-          reportedBy: {
+          resolvedBy: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
-              email: true,
+            }
+          },
+          team: {
+            select: {
+              id: true,
+              name: true,
             }
           }
         }
@@ -330,14 +346,9 @@ router.delete(
           .json({ success: false, message: "ID incident invalide" });
       }
 
-      // Récupérer l'incident existant avec l'employé
+      // Récupérer l'incident existant
       const incident = await prisma.incident.findUnique({
         where: { id: idNum },
-        include: {
-          employee: {
-            select: { id: true, teamId: true }
-          }
-        }
       });
 
       if (!incident) {
@@ -347,16 +358,29 @@ router.delete(
       }
 
       // Vérifier si le manager a le droit de supprimer cet incident
-      if (req.user && req.user.role === "manager" && req.user.teamIds) {
-        if (
-          !incident.employee.teamId ||
-          !req.user.teamIds.includes(incident.employee.teamId)
-        ) {
-          return res.status(403).json({
-            success: false,
-            message:
-              "Vous ne pouvez pas supprimer cet incident car l'employé n'est pas dans vos équipes",
+      if (req.user && req.user.role === "manager") {
+        // Vérifier que l'incident concerne une équipe gérée par ce manager
+        if (incident.teamId) {
+          const team = await prisma.team.findUnique({
+            where: { id: incident.teamId },
+            select: { managerId: true }
           });
+
+          if (!team || team.managerId !== req.user.id) {
+            return res.status(403).json({
+              success: false,
+              message:
+                "Vous ne pouvez pas supprimer cet incident car il n'appartient pas à vos équipes",
+            });
+          }
+        } else {
+          // Si pas de teamId, vérifier que c'est bien la même compagnie
+          if (incident.companyId !== req.user.companyId) {
+            return res.status(403).json({
+              success: false,
+              message: "Vous ne pouvez pas supprimer cet incident",
+            });
+          }
         }
       }
 

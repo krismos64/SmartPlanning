@@ -12,6 +12,74 @@ import { notifyProfileUpdate } from "../services/userSyncService";
 const router = Router();
 
 /**
+ * @route GET /api/profile
+ * @desc Récupère le profil de l'utilisateur connecté
+ * @access Authentifié uniquement
+ */
+router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié",
+      });
+    }
+
+    const userIdNum = parseInt(userId, 10);
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID utilisateur invalide",
+      });
+    }
+
+    // Récupérer les informations de l'utilisateur
+    const user = await prisma.user.findUnique({
+      where: { id: userIdNum },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        profilePicture: true,
+        role: true,
+        companyId: true,
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        role: user.role,
+        companyId: user.companyId,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Erreur lors de la récupération du profil:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erreur serveur lors de la récupération du profil",
+    });
+  }
+});
+
+/**
  * @route PUT /api/profile/update
  * @desc Met à jour le profil de l'utilisateur connecté sans vérification de rôle
  * @access Authentifié uniquement
@@ -51,7 +119,7 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (email !== undefined) updateData.email = email;
-    if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+    if (photoUrl !== undefined) updateData.profilePicture = photoUrl;
 
     // Mettre à jour les informations de l'utilisateur
     const updatedUser = await prisma.user.update({
@@ -62,9 +130,8 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
         firstName: true,
         lastName: true,
         email: true,
-        photoUrl: true,
+        profilePicture: true,
         role: true,
-        profileCompleted: true,
       },
     });
 
@@ -73,15 +140,6 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
         success: false,
         message: "Utilisateur non trouvé",
       });
-    }
-
-    // Vérifier si le profil est maintenant complet et mettre à jour profileCompleted
-    if (updatedUser.firstName && updatedUser.lastName && updatedUser.email && updatedUser.photoUrl) {
-      await prisma.user.update({
-        where: { id: userIdNum },
-        data: { profileCompleted: true },
-      });
-      console.log("✅ Profil marqué comme complet pour l'utilisateur:", userId);
     }
 
     // Notifier la mise à jour du profil pour synchronisation
@@ -96,9 +154,9 @@ router.put("/update", authMiddleware, async (req: AuthRequest, res: Response) =>
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
         email: updatedUser.email,
-        photoUrl: updatedUser.photoUrl,
+        photoUrl: updatedUser.profilePicture,
+        profilePicture: updatedUser.profilePicture,
         role: updatedUser.role,
-        profileCompleted: updatedUser.profileCompleted,
       },
     });
   } catch (error: any) {

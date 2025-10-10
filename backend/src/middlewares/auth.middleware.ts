@@ -74,7 +74,7 @@ export function authenticateToken(
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
     console.log("❌ Token invalide ou expiré pour:", req.url, errorMessage);
     return res
-      .status(403)
+      .status(401)
       .json({ success: false, message: "Token invalide ou expiré" });
   }
 }

@@ -106,8 +106,7 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
         postalCode: companyPostalCode,
         city: companyCity,
         size: companySize,
-        logoUrl: companyLogo || null,
-        plan: 'free', // Plan par défaut
+        logo: companyLogo || null,
       }
     });
 
@@ -118,19 +117,18 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
         lastName,
         email,
         password: hashedPassword,
-        phone: phone || null,
-        photoUrl: profilePicture || null,
+        profilePicture: profilePicture || null,
         role: "directeur", // Rôle fixé en dur à "directeur"
         companyId: company.id,
         isEmailVerified: true, // On considère l'email vérifié à l'inscription
-        status: "active",
+        isActive: true,
       }
     });
 
     // Mettre à jour l'entreprise avec l'ID du créateur
     await tx.company.update({
       where: { id: company.id },
-      data: { createdBy: user.id }
+      data: { createdById: user.id }
     });
 
     return { company, user };
@@ -161,7 +159,7 @@ router.post("/register", validateBody(registerSchema, 'register'), asyncHandler(
       email: result.user.email,
       role: result.user.role,
       companyId: result.user.companyId,
-      phone: result.user.phone
+      profilePicture: result.user.profilePicture
     },
     company: {
       id: result.company.id,
@@ -191,7 +189,7 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
 
   if (!user) {
     console.warn("❌ Utilisateur non trouvé pour l'email :", email);
-    throw new AuthenticationError("Email ou mot de passe incorrect");
+    throw new AuthenticationError("Email ou mot de passe incorrects");
   }
 
   console.log("✅ Utilisateur trouvé pour connexion");
@@ -211,15 +209,21 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
     }
 
     console.error("❌ Champ 'password' manquant");
-    throw new AuthenticationError("Problème d'authentification. Contactez le support.");
+    throw new AuthenticationError("Email ou mot de passe incorrects");
   }
 
-  // Vérifier le mot de passe
-  const isValidPassword = await bcrypt.compare(password, user.password);
+  // Vérifier le mot de passe avec gestion d'erreur
+  let isValidPassword = false;
+  try {
+    isValidPassword = await bcrypt.compare(password, user.password);
+  } catch (bcryptError) {
+    console.error("❌ Erreur lors de la comparaison du mot de passe:", bcryptError);
+    throw new AuthenticationError("Email ou mot de passe incorrects");
+  }
 
   if (!isValidPassword) {
     console.warn("❌ Mot de passe incorrect pour l'utilisateur :", email);
-    throw new AuthenticationError("Email ou mot de passe incorrect");
+    throw new AuthenticationError("Email ou mot de passe incorrects");
   }
 
   console.log("✅ Mot de passe vérifié avec succès pour:", email);
@@ -266,11 +270,9 @@ router.post("/login", validateBody(loginSchema, 'login'), asyncHandler(async (re
       email: user.email,
       role: user.role,
       companyId: user.companyId,
-      photoUrl: user.photoUrl,
-      phone: user.phone,
-    },
-    // Token pour fallback localStorage si cookies cross-origin échouent
-    token: token
+      profilePicture: user.profilePicture,
+      isActive: user.isActive,
+    }
   });
 
   console.log("✅ Connexion réussie pour:", email);
@@ -291,11 +293,9 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         lastName: true,
         email: true,
         role: true,
-        status: true,
+        isActive: true,
         companyId: true,
-        photoUrl: true,
-        profileCompleted: true,
-        phone: true,
+        profilePicture: true,
       }
     });
 
@@ -314,11 +314,10 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        status: user.status,
+        isActive: user.isActive,
         companyId: user.companyId,
         teamIds: [], // TODO: Gérer la relation many-to-many si nécessaire
-        photoUrl: user.photoUrl || undefined,
-        profileCompleted: user.profileCompleted || false,
+        profilePicture: user.profilePicture || undefined,
       },
     });
   } catch (error) {
@@ -666,7 +665,7 @@ router.patch(
       }
 
       // Récupérer les données du corps de la requête
-      const { companyName, companyLogo, phone, profilePicture, bio } = req.body;
+      const { companyName, companyLogo, profilePicture } = req.body;
 
       // MIGRATION: Vérifier que l'utilisateur existe avec Prisma
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -719,31 +718,12 @@ router.patch(
         const newCompany = await prisma.company.create({
           data: {
             name: companyName,
-            logoUrl: companyLogo || null,
-            plan: "free", // Plan par défaut
+            logo: companyLogo || null,
           }
         });
 
         // Associer l'ID de l'entreprise à l'utilisateur
         updates.companyId = newCompany.id;
-      }
-
-      // Mise à jour des autres champs si fournis
-      if (phone !== undefined) {
-        // Validation du numéro de téléphone si présent et non vide
-        if (phone && typeof phone === "string") {
-          const phoneRegex = /^(\+\d{1,3}\s?)?(\d{9,15})$/;
-          if (!phoneRegex.test(phone)) {
-            return res.status(400).json({
-              success: false,
-              message: "Format de numéro de téléphone invalide",
-            });
-          }
-          updates.phone = phone;
-        } else if (phone === "") {
-          // Permettre de supprimer le numéro de téléphone
-          updates.phone = null;
-        }
       }
 
       // Mise à jour de la photo de profil si fournie
@@ -759,12 +739,7 @@ router.patch(
             message: "URL de la photo de profil invalide",
           });
         }
-        updates.photoUrl = profilePicture || null;
-      }
-
-      // Mise à jour de la bio si fournie
-      if (bio !== undefined) {
-        updates.bio = bio;
+        updates.profilePicture = profilePicture || null;
       }
 
       // Si aucune mise à jour n'est nécessaire

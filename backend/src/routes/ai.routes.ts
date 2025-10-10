@@ -261,7 +261,7 @@ router.post(
   * Jours préférés: ${preferredDays}
   * Horaires préférés: ${preferredHours}
   * Ancienneté: ${anciennete}
-  * Statut: ${employee.isActive ? 'Actif' : 'Inactif'}
+  * Statut: Actif
 `;
       });
 

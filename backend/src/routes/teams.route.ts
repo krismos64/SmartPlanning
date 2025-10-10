@@ -50,10 +50,14 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         employees: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            profilePicture: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePicture: true,
+              }
+            }
           }
         },
         company: {
@@ -131,10 +135,14 @@ router.get(
           employees: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              profilePicture: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  profilePicture: true,
+                }
+              }
             }
           }
         },
@@ -200,9 +208,13 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         employees: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              }
+            }
           }
         }
       }
@@ -257,8 +269,12 @@ router.patch(
           employees: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                }
+              }
             }
           }
         }
@@ -360,10 +376,14 @@ router.get(
           employees: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              profilePicture: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  profilePicture: true,
+                }
+              }
             }
           },
           company: {
@@ -432,12 +452,16 @@ router.get("/:id/employees", authenticateToken, checkRole(["manager", "directeur
         employees: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            profilePicture: true,
             position: true,
             skills: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePicture: true,
+              }
+            }
           }
         }
       }

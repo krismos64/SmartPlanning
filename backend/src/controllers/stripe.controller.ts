@@ -79,8 +79,13 @@ export const getCurrentSubscription = async (req: Request, res: Response): Promi
         data: {
           companyId: user.companyId,
           stripeCustomerId: `temp_${user.companyId}`, // Temporaire jusqu'à création client Stripe
+          stripeSubscriptionId: `temp_sub_${user.companyId}`,
+          stripePriceId: 'price_free',
           plan: 'free',
+          planPrice: 0,
           status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 an
         }
       });
 
@@ -369,13 +374,13 @@ export const getBillingInfo = async (req: Request, res: Response): Promise<void>
       billing: {
         company: {
           name: company?.name,
-          plan: company?.plan || 'free',
+          plan: subscription?.plan || 'free',
         },
         subscription: subscription || null,
         nextPayment,
         paymentStats: {
-          totalRevenue: (totalSucceeded._sum.amount || 0) / 100, // Convertir en euros
-          totalRefunded: (totalRefunded._sum.amount || 0) / 100,
+          totalRevenue: Number(totalSucceeded._sum.amount || 0) / 100, // Convertir en euros
+          totalRefunded: Number(totalRefunded._sum.amount || 0) / 100,
           totalPayments: totalSucceeded._count || 0,
         },
       },

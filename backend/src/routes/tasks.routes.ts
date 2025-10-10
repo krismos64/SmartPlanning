@@ -36,10 +36,17 @@ router.get(
       }
 
       // Recherche des tâches assignées à cet utilisateur (via relation assignedTo)
+      // Note: assignedToId pointe vers Employee.id, pas User.id
+      // Il faut d'abord récupérer l'Employee correspondant au User
+      const employee = await prisma.employee.findUnique({
+        where: { userId },
+        select: { id: true }
+      });
+
       const tasks = await prisma.task.findMany({
         where: {
           OR: [
-            { assignedToId: userId }, // Tâches assignées directement
+            { assignedToId: employee?.id }, // Tâches assignées à l'employé
             { createdById: userId },  // Tâches créées par l'utilisateur
           ]
         },
@@ -48,8 +55,12 @@ router.get(
           assignedTo: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                }
+              }
             }
           },
           createdBy: {
@@ -125,8 +136,12 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         assignedTo: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              }
+            }
           }
         },
         createdBy: {
@@ -223,8 +238,12 @@ router.patch(
           assignedTo: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                }
+              }
             }
           },
           createdBy: {
@@ -237,8 +256,12 @@ router.patch(
           completedBy: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                }
+              }
             }
           }
         }

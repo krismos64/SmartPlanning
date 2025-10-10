@@ -39,18 +39,21 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     if (role === "admin") {
       // MIGRATION: Récupération avec Prisma + include pour populate
       employees = await prisma.employee.findMany({
-        where: { status: "actif" },
+        where: { isActive: true },
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          status: true,
           teamId: true,
           companyId: true,
-          contractHoursPerWeek: true,
-          photoUrl: true,
+          contractualHours: true,
           userId: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            }
+          },
           team: {
             select: {
               id: true,
@@ -58,10 +61,11 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
             }
           }
         },
-        orderBy: [
-          { lastName: 'asc' },
-          { firstName: 'asc' }
-        ]
+        orderBy: {
+          user: {
+            lastName: 'asc'
+          }
+        }
       });
     } else if (role === "directeur") {
       // Le directeur n'a accès qu'aux employés de son entreprise
@@ -76,19 +80,22 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       employees = await prisma.employee.findMany({
         where: {
           companyId: req.user.companyId,
-          status: "actif"
+          isActive: true
         },
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          status: true,
           teamId: true,
           companyId: true,
-          contractHoursPerWeek: true,
-          photoUrl: true,
+          contractualHours: true,
           userId: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              profilePicture: true,
+            }
+          },
           team: {
             select: {
               id: true,
@@ -96,22 +103,18 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
             }
           }
         },
-        orderBy: [
-          { lastName: 'asc' },
-          { firstName: 'asc' }
-        ]
+        orderBy: {
+          user: {
+            lastName: 'asc'
+          }
+        }
       });
     } else {
       // MIGRATION: Le manager n'a accès qu'aux employés de ses équipes
-      // Note: En Prisma, nous devons adapter la relation many-to-many si nécessaire
-      // Pour l'instant, nous récupérons les équipes du manager via userId
+      // PostgreSQL: Team.managerId (singulier) au lieu de managers array
       const managerTeams = await prisma.team.findMany({
         where: {
-          managers: {
-            some: {
-              id: req.user.id
-            }
-          }
+          managerId: req.user.id
         },
         select: {
           id: true,
@@ -129,24 +132,19 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       employees = await prisma.employee.findMany({
         where: {
           teamId: { in: teamIds },
-          status: "actif"
+          isActive: true
         },
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          status: true,
           teamId: true,
           companyId: true,
-          contractHoursPerWeek: true,
-          photoUrl: true,
+          contractualHours: true,
           userId: true,
           team: {
             select: {
               id: true,
               name: true,
-              managers: {
+              manager: {
                 select: {
                   id: true,
                   firstName: true,
@@ -157,15 +155,19 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
           },
           user: {
             select: {
+              firstName: true,
+              lastName: true,
               email: true,
+              profilePicture: true,
               role: true,
             }
           }
         },
-        orderBy: [
-          { lastName: 'asc' },
-          { firstName: 'asc' }
-        ]
+        orderBy: {
+          user: {
+            lastName: 'asc'
+          }
+        }
       });
 
       console.log(
@@ -180,10 +182,15 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
         );
         return {
           ...emp,
-          email: emp.email || emp.user?.email,
-          role: emp.user?.role || "employee",
+          firstName: emp.user.firstName,
+          lastName: emp.user.lastName,
+          email: emp.user.email,
+          photoUrl: emp.user.profilePicture,
+          role: emp.user.role || "employee",
           teamName: emp.team?.name,
-          managerName: "Manager", // Pour l'instant, on peut améliorer cela plus tard
+          managerName: emp.team?.manager ? `${emp.team.manager.firstName} ${emp.team.manager.lastName}` : "Manager",
+          contractHoursPerWeek: emp.contractualHours,
+          status: emp.isActive ? "actif" : "inactif",
         };
       });
 
@@ -196,18 +203,18 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     const formattedEmployees = employees.map((emp: any) => ({
       _id: emp.id, // Compatibilité avec ancien format MongoDB
       id: emp.id,
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      email: emp.email,
-      status: emp.status,
+      firstName: emp.user?.firstName || emp.firstName,
+      lastName: emp.user?.lastName || emp.lastName,
+      email: emp.user?.email || emp.email,
+      status: emp.isActive ? "actif" : "inactif",
       teamId: emp.teamId,
       companyId: emp.companyId,
-      contractHoursPerWeek: emp.contractHoursPerWeek,
-      photoUrl: emp.photoUrl,
+      contractHoursPerWeek: emp.contractualHours || emp.contractHoursPerWeek,
+      photoUrl: emp.user?.profilePicture || emp.photoUrl,
       userId: emp.userId,
       teamName: emp.team?.name || emp.teamName,
-      role: emp.role,
-      managerName: emp.managerName,
+      role: emp.user?.role || emp.role,
+      managerName: emp.managerName || (emp.team?.manager ? `${emp.team.manager.firstName} ${emp.team.manager.lastName}` : undefined),
     }));
 
     return res.status(200).json({ success: true, data: formattedEmployees });
@@ -227,11 +234,12 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
  */
 router.get("/team/:teamId", async (req: Request, res: Response) => {
   try {
-    const { teamId } = req.params;
+    const { teamId: teamIdParam } = req.params;
 
-    // MIGRATION: Prisma utilise UUID/String, pas ObjectId
-    // Vérification basique de l'ID (selon votre schema Prisma)
-    if (!teamId || teamId.trim() === '') {
+    // MIGRATION: Prisma utilise number pour les IDs
+    // Conversion et validation de l'ID
+    const teamId = parseInt(teamIdParam, 10);
+    if (isNaN(teamId)) {
       return res.status(400).json({
         success: false,
         message: "ID d'équipe invalide",
@@ -286,10 +294,12 @@ router.get(
   checkRole(["directeur", "admin"]),
   async (req: AuthRequest, res: Response) => {
     try {
-      const { companyId } = req.params;
+      const { companyId: companyIdParam } = req.params;
 
-      // MIGRATION: Prisma validation d'ID
-      if (!companyId || companyId.trim() === '') {
+      // MIGRATION: Prisma utilise number pour les IDs
+      // Conversion et validation de l'ID
+      const companyId = parseInt(companyIdParam, 10);
+      if (isNaN(companyId)) {
         return res.status(400).json({
           success: false,
           message: "ID d'entreprise invalide",

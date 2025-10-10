@@ -527,9 +527,13 @@ router.get(
                 where: { id: employeeIdNum },
                 select: {
                   id: true,
-                  firstName: true,
-                  lastName: true,
-                  photoUrl: true,
+                  user: {
+                    select: {
+                      firstName: true,
+                      lastName: true,
+                      profilePicture: true,
+                    }
+                  }
                 },
               });
 
@@ -537,8 +541,8 @@ router.get(
                 transformedSchedules.push({
                   _id: `${schedule.id}-${employeeIdNum}`,
                   employeeId: employee.id,
-                  employeeName: `${employee.firstName} ${employee.lastName}`,
-                  employeePhotoUrl: employee.photoUrl,
+                  employeeName: `${employee.user.firstName} ${employee.user.lastName}`,
+                  employeePhotoUrl: employee.user.profilePicture,
                   teamId: schedule.teamId,
                   teamName: schedule.team.name,
                   year: yearNumber,
@@ -571,9 +575,13 @@ router.get(
               where: { id: empId },
               select: {
                 id: true,
-                firstName: true,
-                lastName: true,
-                photoUrl: true,
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    profilePicture: true,
+                  }
+                }
               },
             });
 
@@ -603,8 +611,8 @@ router.get(
             transformedSchedules.push({
               _id: `${schedule.id}-${empId}`,
               employeeId: employee.id,
-              employeeName: `${employee.firstName} ${employee.lastName}`,
-              employeePhotoUrl: employee.photoUrl,
+              employeeName: `${employee.user.firstName} ${employee.user.lastName}`,
+              employeePhotoUrl: employee.user.profilePicture,
               teamId: schedule.teamId,
               teamName: schedule.team.name,
               year: yearNumber,
@@ -899,7 +907,15 @@ router.get(
       const employee = firstEmployeeId
         ? await prisma.employee.findUnique({
             where: { id: firstEmployeeId },
-            select: { id: true, firstName: true, lastName: true },
+            select: {
+              id: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                }
+              }
+            },
           })
         : null;
 
@@ -909,7 +925,7 @@ router.get(
           _id: schedule.id,
           employeeId: firstEmployeeId || null,
           employeeName: employee
-            ? `${employee.firstName} ${employee.lastName}`
+            ? `${employee.user.firstName} ${employee.user.lastName}`
             : "Employé inconnu",
           teamId: schedule.teamId,
           teamName: schedule.team.name,
@@ -1092,9 +1108,13 @@ router.get(
           where: { id: { in: Array.from(employeeIds) } },
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              }
+            }
           },
         });
 
@@ -1104,8 +1124,8 @@ router.get(
             year: schedule.weekStartDate.getFullYear(),
             weekNumber: 1, // À calculer si nécessaire
             employeeId: emp.id,
-            employeeName: `${emp.firstName} ${emp.lastName}`,
-            employeeEmail: emp.email,
+            employeeName: `${emp.user.firstName} ${emp.user.lastName}`,
+            employeeEmail: emp.user.email,
             teamId: schedule.teamId,
             teamName: schedule.team.name,
             companyId: schedule.companyId,
@@ -1188,6 +1208,13 @@ router.get(
       const targetEmployee = await prisma.employee.findUnique({
         where: { id: employeeIdNum },
         include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              profilePicture: true,
+            }
+          },
           team: { select: { id: true, name: true } },
           company: { select: { id: true, name: true } },
         },
@@ -1271,8 +1298,8 @@ router.get(
             year: schedule.weekStartDate.getFullYear(),
             weekNumber: 1, // À calculer si nécessaire
             employeeId: targetEmployee.id,
-            employeeName: `${targetEmployee.firstName} ${targetEmployee.lastName}`,
-            employeePhotoUrl: targetEmployee.photoUrl,
+            employeeName: `${targetEmployee.user.firstName} ${targetEmployee.user.lastName}`,
+            employeePhotoUrl: targetEmployee.user.profilePicture,
             teamId: schedule.teamId,
             teamName: schedule.team.name,
             companyId: schedule.companyId,
@@ -1294,7 +1321,7 @@ router.get(
         success: true,
         data: employeeSchedules,
         count: employeeSchedules.length,
-        message: `Plannings de ${targetEmployee.firstName} ${targetEmployee.lastName}`,
+        message: `Plannings de ${targetEmployee.user.firstName} ${targetEmployee.user.lastName}`,
       });
     } catch (error) {
       console.error("MIGRATION: Erreur récupération plannings employé:", error);

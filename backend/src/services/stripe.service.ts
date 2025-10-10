@@ -34,7 +34,6 @@ export class StripeService {
         name: company.name,
         metadata: {
           companyId: company.id,
-          plan: company.plan,
           environment: process.env.NODE_ENV || 'development',
         },
       });
@@ -176,12 +175,6 @@ export class StripeService {
             }
           });
 
-          // Mettre à jour le plan de la company
-          await prisma.company.update({
-            where: { id: companyId },
-            data: { plan: newPlan }
-          });
-
           return updatedSubscription;
         }
       }
@@ -303,8 +296,10 @@ export class StripeService {
   }
 
   private async handleSubscriptionCreated(stripeSubscription: Stripe.Subscription): Promise<void> {
-    const companyId = stripeSubscription.metadata.companyId;
-    if (!companyId) return;
+    const companyIdStr = stripeSubscription.metadata.companyId;
+    if (!companyIdStr) return;
+    const companyId = parseInt(companyIdStr, 10);
+    if (isNaN(companyId)) return;
 
     const existingSubscription = await prisma.subscription.findFirst({
       where: { companyId }
@@ -324,11 +319,12 @@ export class StripeService {
     } else {
       await prisma.subscription.create({
         data: {
-          companyId,
+          company: { connect: { id: companyId } },
           stripeCustomerId: stripeSubscription.customer as string,
           stripeSubscriptionId: stripeSubscription.id,
           stripePriceId: stripeSubscription.items.data[0]?.price.id,
           plan: stripeSubscription.metadata.plan || 'standard',
+          planPrice: stripeSubscription.items.data[0]?.price.unit_amount ? stripeSubscription.items.data[0].price.unit_amount / 100 : 0,
           status: stripeSubscription.status,
           currentPeriodStart: new Date(((stripeSubscription as any).current_period_start || 0) * 1000),
           currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || 0) * 1000),
@@ -367,13 +363,8 @@ export class StripeService {
         data: {
           status: 'canceled',
           canceledAt: new Date(),
+          plan: 'free', // Repasser au plan gratuit
         }
-      });
-
-      // Repasser la company en plan gratuit
-      await prisma.company.update({
-        where: { id: subscription.companyId },
-        data: { plan: 'free' }
       });
     }
   }
@@ -390,15 +381,13 @@ export class StripeService {
         data: {
           companyId: subscription.companyId,
           subscriptionId: subscription.id,
-          stripePaymentIntentId: (invoice as any).payment_intent as string,
-          stripeCustomerId: invoice.customer as string,
-          amount: invoice.amount_paid,
-          currency: invoice.currency,
+          stripePaymentId: (invoice as any).payment_intent as string,
+          stripeInvoiceId: invoice.id,
+          amount: invoice.amount_paid / 100, // Convert from cents to euros
+          currency: invoice.currency.toUpperCase(),
           status: 'succeeded',
-          type: 'subscription',
-          description: invoice.description || `Paiement abonnement ${subscription.plan}`,
-          receiptUrl: invoice.hosted_invoice_url,
-          stripeCreatedAt: new Date(invoice.created * 1000),
+          paymentType: 'subscription',
+          paidAt: new Date(invoice.created * 1000),
         }
       });
     }
@@ -416,15 +405,13 @@ export class StripeService {
         data: {
           companyId: subscription.companyId,
           subscriptionId: subscription.id,
-          stripePaymentIntentId: (invoice as any).payment_intent as string,
-          stripeCustomerId: invoice.customer as string,
-          amount: invoice.amount_due,
-          currency: invoice.currency,
+          stripePaymentId: (invoice as any).payment_intent as string,
+          stripeInvoiceId: invoice.id,
+          amount: invoice.amount_due / 100, // Convert from cents to euros
+          currency: invoice.currency.toUpperCase(),
           status: 'failed',
-          type: 'subscription',
-          description: invoice.description || `Échec paiement abonnement ${subscription.plan}`,
-          failureReason: 'Paiement refusé',
-          stripeCreatedAt: new Date(invoice.created * 1000),
+          paymentType: 'subscription',
+          paidAt: new Date(invoice.created * 1000),
         }
       });
     }
