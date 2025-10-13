@@ -6,9 +6,10 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-2.2.2-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2.2.2%20(v2.3.0%20in%20dev)-blue?style=flat-square)
 ![Security](https://img.shields.io/badge/Security-Audited%20%26%20Enhanced-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-15%2F15%20Pass-brightgreen?style=flat-square)
+![Roadmap](https://img.shields.io/badge/Roadmap-v2.3.0%20Nov--Dec%202025-purple?style=flat-square)
 ![Cache](https://img.shields.io/badge/Cache-Production%20Ready-red?style=flat-square)
 ![Database](https://img.shields.io/badge/PostgreSQL-Optimized%20Indexes-green?style=flat-square)
 ![Performance](https://img.shields.io/badge/Performance-Ultra%20Fast-brightgreen?style=flat-square)
@@ -56,6 +57,7 @@ Notre plateforme a été **révolutionnée** avec des optimisations de pointe po
 
 - [Introduction](#introduction)
 - [Fonctionnalités clés](#fonctionnalités-clés)
+- [Roadmap & Versions](#roadmap--versions)
 - [État d'avancement](#état-davancement)
 - [Stack technique](#stack-technique)
 - [Documentation détaillée](#documentation-détaillée)
@@ -72,6 +74,27 @@ Notre plateforme a été **révolutionnée** avec des optimisations de pointe po
 SmartPlanning révolutionne la gestion des plannings d'équipe grâce à l'intelligence artificielle. Notre solution permet aux entreprises d'optimiser automatiquement les horaires de travail en tenant compte des contraintes individuelles, des congés et des compétences requises.
 
 Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gestion des ressources humaines tout en garantissant une meilleure satisfaction des employés et une productivité accrue.
+
+## Roadmap & Versions
+
+### 📅 Version 2.3.0 - Temps Réel & Collaboration (Release: 12 Déc 2025)
+
+**En développement actif** - 8 tâches planifiées sur 26 jours :
+
+| Phase | Features | Période |
+|-------|----------|---------|
+| 🔴 Infrastructure | WebSockets Backend | 11-13 Nov |
+| 🟠 Temps Réel | Vue Planning, Dashboard Directeur, Workflow Congés | 15-28 Nov |
+| 🟡 DevOps | CI/CD GitHub Actions, Email Notifications | 29 Nov - 4 Déc |
+| 🟢 Qualité & SEO | Tests E2E (85%+ coverage), SEO 4.8/5 | 5-11 Déc |
+
+**Roadmap complète** : Consultez [ROADMAP.md](ROADMAP.md) pour la planification détaillée
+
+**Jira** : [Projet SmartPlanning SP](https://christophedev.atlassian.net/jira/software/projects/SP)
+
+**Confluence** : [Documentation SmartPlanning](https://christophedev.atlassian.net/wiki/spaces/SP)
+
+---
 
 ## Fonctionnalités clés
 
@@ -115,14 +138,15 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## État d'avancement
 
-### Version actuelle : 2.2.1 (Production Déployée - Août 2025)
+### Version actuelle : 2.2.2 (Production Stable - Août 2025)
 
-**Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN  
-**Statut déploiement** : ✅ **Production déployée** - Backend sur Render + Frontend sur Hostinger  
-**Sécurité** : ✅ **Sécurité renforcée** - 15/15 tests de sécurité réussis (100% de couverture)  
-**Performance** : ✅ **Ultra-optimisé** - Cache désactivé en prod + Index PostgreSQL optimisés + Planning 2-5ms  
-**Génération de planning** : ✅ **Assistant IA complet** - Wizard 7 étapes avec génération rapide  
-**Déploiement** : ✅ **Succès complet** - API fonctionnelle et accessible en production
+**Statut de l'architecture** : ✅ **Ultra Clean** - Architecture optimisée et conforme aux bonnes pratiques MERN
+**Statut déploiement** : ✅ **Production déployée** - Backend sur Render + Frontend sur Hostinger
+**Sécurité** : ✅ **Sécurité renforcée** - 15/15 tests de sécurité réussis (100% de couverture)
+**Performance** : ✅ **Ultra-optimisé** - Index PostgreSQL optimisés + Planning 2-5ms + Bundle 389KB
+**Génération de planning** : ✅ **Assistant IA complet** - Wizard 7 étapes avec génération rapide
+**SaaS** : ✅ **Stripe intégré** - 3 plans (39€/89€/179€) avec webhooks synchronisés
+**Prochaine version** : 🚧 **v2.3.0 en développement** - Release prévue 12 Décembre 2025
 
 **Fonctionnalités implémentées :**
 
