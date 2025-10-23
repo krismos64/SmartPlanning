@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/Version-2.2.2%20(v2.3.0%20in%20dev)-blue?style=flat-square)
+![Version](<https://img.shields.io/badge/Version-2.2.2%20(v2.3.0%20in%20dev)-blue?style=flat-square>)
 ![Security](https://img.shields.io/badge/Security-Audited%20%26%20Enhanced-green?style=flat-square)
 ![Tests](https://img.shields.io/badge/Security%20Tests-15%2F15%20Pass-brightgreen?style=flat-square)
 ![Roadmap](https://img.shields.io/badge/Roadmap-v2.3.0%20Nov--Dec%202025-purple?style=flat-square)
@@ -37,7 +37,7 @@ Notre plateforme a été **révolutionnée** avec des optimisations de pointe po
 - ✅ **Schema.org** : Données structurées pour les moteurs de recherche
 - ✅ **Analytics intégrés** : Suivi des performances et conversions
 
-### ⚡ **Performance Révolutionnaires (Version 2.2.1)**
+### ⚡ \*\*Performance
 
 - ✅ **Bundle réduit de 80%** : 1.9MB → 389KB pour un chargement ultra-rapide
 - ✅ **Code-splitting avancé** : 70+ chunks avec lazy loading intelligent
@@ -81,12 +81,12 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 **En développement actif** - 8 tâches planifiées sur 26 jours :
 
-| Phase | Features | Période |
-|-------|----------|---------|
-| 🔴 Infrastructure | WebSockets Backend | 11-13 Nov |
-| 🟠 Temps Réel | Vue Planning, Dashboard Directeur, Workflow Congés | 15-28 Nov |
-| 🟡 DevOps | CI/CD GitHub Actions, Email Notifications | 29 Nov - 4 Déc |
-| 🟢 Qualité & SEO | Tests E2E (85%+ coverage), SEO 4.8/5 | 5-11 Déc |
+| Phase             | Features                                           | Période        |
+| ----------------- | -------------------------------------------------- | -------------- |
+| 🔴 Infrastructure | WebSockets Backend                                 | 11-13 Nov      |
+| 🟠 Temps Réel     | Vue Planning, Dashboard Directeur, Workflow Congés | 15-28 Nov      |
+| 🟡 DevOps         | CI/CD GitHub Actions, Email Notifications          | 29 Nov - 4 Déc |
+| 🟢 Qualité & SEO  | Tests E2E (85%+ coverage), SEO 4.8/5               | 5-11 Déc       |
 
 **Roadmap complète** : Consultez [ROADMAP.md](ROADMAP.md) pour la planification détaillée
 
@@ -487,24 +487,24 @@ Conçue pour les PME et les grandes entreprises, SmartPlanning simplifie la gest
 
 ## Stack technique
 
-| Catégorie                      | Technologies                                                                 |
-| ------------------------------ | ---------------------------------------------------------------------------- |
-| **Frontend**                   | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie |
-| **Backend**                    | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet                     |
-| **Cache & Performance**        | Redis 5.7+, IORedis, Index PostgreSQL optimisés, Requêtes efficientes       |
-| **Base de données**            | PostgreSQL, Prisma (ORM), Index ultra-optimisés                         |
-| **Intelligence artificielle**  | OpenRouter API, Gemini 2.0 Flash, Canvas-confetti pour animations            |
+| Catégorie                      | Technologies                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| **Frontend**                   | React 18, TypeScript, Vite, TailwindCSS, Framer Motion, React Router, Lottie  |
+| **Backend**                    | Node.js 18+, Express.js, TypeScript, JWT, bcrypt, Helmet                      |
+| **Cache & Performance**        | Redis 5.7+, IORedis, Index PostgreSQL optimisés, Requêtes efficientes         |
+| **Base de données**            | PostgreSQL, Prisma (ORM), Index ultra-optimisés                               |
+| **Intelligence artificielle**  | OpenRouter API, Gemini 2.0 Flash, Canvas-confetti pour animations             |
 | **Authentification**           | JWT hybride (cookies httpOnly + localStorage)                                 |
-| **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                     |
-| **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), PostgreSQL Cloud                |
-| **Tests et sécurité**          | Jest, Cypress, Supertest, PostgreSQL test database, Tests de sécurité (14/15)   |
-| **Performance**                | Code-splitting Vite, Lazy loading, Compression gzip/brotli (-70%)            |
-| **Monitoring & Observabilité** | OpenTelemetry, Métriques temps réel, Alertes intelligentes, Dashboards admin |
-| **Validation des données**     | Zod, Middleware de validation, Messages d'erreur français, Monitoring        |
-| **Outils de développement**    | ESLint, Prettier, React Testing Library, TypeScript strict                   |
-| **UI/UX**                      | Lucide React (icônes), React Hot Toast, Styled Components, Thèmes            |
-| **Internationalisation**       | i18next, react-i18next (support multilingue)                                 |
-| **PDF & Export**               | jsPDF, jsPDF-autotable (génération de rapports)                              |
+| **Upload de fichiers**         | Cloudinary (images), Multer (middleware)                                      |
+| **Déploiement**                | Docker, Hostinger (Frontend), Render (Backend), PostgreSQL Cloud              |
+| **Tests et sécurité**          | Jest, Cypress, Supertest, PostgreSQL test database, Tests de sécurité (14/15) |
+| **Performance**                | Code-splitting Vite, Lazy loading, Compression gzip/brotli (-70%)             |
+| **Monitoring & Observabilité** | OpenTelemetry, Métriques temps réel, Alertes intelligentes, Dashboards admin  |
+| **Validation des données**     | Zod, Middleware de validation, Messages d'erreur français, Monitoring         |
+| **Outils de développement**    | ESLint, Prettier, React Testing Library, TypeScript strict                    |
+| **UI/UX**                      | Lucide React (icônes), React Hot Toast, Styled Components, Thèmes             |
+| **Internationalisation**       | i18next, react-i18next (support multilingue)                                  |
+| **PDF & Export**               | jsPDF, jsPDF-autotable (génération de rapports)                               |
 
 ## 📚 Documentation Détaillée v2.2.1
 
